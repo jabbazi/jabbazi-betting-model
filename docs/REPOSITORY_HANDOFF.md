@@ -16,9 +16,13 @@ git remote remove origin
 git remote add origin https://github.com/jabbazi/jabbazi-betting-model.git
 ```
 
-The implementation is being published on the review branch. The portable bundle
-captures the earlier local checkpoint and does not replace newer remote history.
-Run the supplied PostgreSQL and container CI before merging or deploying. Inspect
+The implementation is published in [draft PR #1](https://github.com/jabbazi/jabbazi-betting-model/pull/1).
+All 94 files were compared with the fetched remote; their contents matched.
+The portable bundle captures the earlier local checkpoint and does not replace
+newer remote history. [CI run 35782687953](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35782687953)
+passed 111 tests, Ruff, HTTP smoke, Docker build and the container CLI check for
+commit `63775af158e6e8d688eefed6488a1f14fc292f37`. The PR remains unmerged.
+Live deployment and model validation are separate outstanding milestones. Inspect
 `docs/IMPLEMENTATION_STATUS.md` for the detailed review body and limitations.
 
 The source archive omits credentials, raw provider data, live ledgers and trained

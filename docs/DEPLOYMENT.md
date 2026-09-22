@@ -46,8 +46,9 @@ docker compose -f docker-compose.cloud.yml config --quiet
 docker compose -f docker-compose.cloud.yml up -d --build
 ```
 
-Docker was unavailable in the editing environment; CI builds the image. Verify the
-Compose runtime on a Docker-capable host. Keep database ports private. Use a
+Docker was unavailable in the editing environment; the Docker image build and CLI
+check passed in [GitHub CI](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35782687953).
+Verify the full Compose runtime on a Docker-capable host. Keep database ports private. Use a
 restricted runtime role after an owner applies migrations; deny schema/trigger
 changes to that role. Evidence triggers reject ordinary UPDATE, DELETE, and TRUNCATE.
 A privileged database owner can remove protections, so access controls and backups

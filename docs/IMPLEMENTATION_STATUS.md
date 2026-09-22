@@ -66,19 +66,25 @@ None supports a verified profitable strategy or a paid-pick claim.
   odds-provider scan 503. The service reported betting disabled.
 - Static undefined/unused-name checks pass. The API test client emits upstream
   deprecation warnings; they do not change test outcomes.
-- The same storage tests are configured for PostgreSQL in GitHub Actions, alongside
-  an actual Docker image build. Earlier uploads returned 403 because the connector
-  was authorized but not installed on the GitHub account. After installation,
-  branch creation succeeded on September 22, 2026. The existing main-branch README
-  is preserved in history; the recovered platform is being submitted for review.
-  PostgreSQL and container execution remain **unverified pending CI**.
+- [GitHub Actions run 35782687953](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35782687953)
+  passed on September 22, 2026 for source commit
+  `63775af158e6e8d688eefed6488a1f14fc292f37`: **111 tests passed** with zero
+  failures, including seven additional PostgreSQL 17 storage cases; Ruff and the
+  actual Uvicorn/HTTP smoke check passed. The Docker image built and its CLI ran
+  successfully. The API smoke uses disposable SQLite; a full cloud Compose
+  deployment and end-to-end PostgreSQL API/worker run remain unverified.
+- Earlier uploads returned 403 because the connector was authorized but not
+  installed on the GitHub account. After installation, all 94 source files were
+  published in [draft PR #1](https://github.com/jabbazi/jabbazi-betting-model/pull/1).
+  The source tree was compared against the fetched remote with no differences.
+  Existing main-branch history is preserved; the PR has not been merged.
 - No live provider authentication, real Discord write, cloud deployment, billing,
   backup restore, or production model approval has been verified.
 
 ## Next execution order
 
-1. Finish publishing the reviewed branch and run PostgreSQL/container CI;
-   resolve any failures. GitHub write access has been restored.
+1. Review the published draft PR. PostgreSQL/storage and Docker CI have passed;
+   the master specification remains incomplete as documented above.
 2. Connect a chosen host and provider secrets, apply migrations, run the research
    API/worker and verify a real odds scan with retained source timestamps.
 3. Acquire permitted point-in-time historical odds/features. Establish a new untouched
