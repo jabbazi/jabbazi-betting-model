@@ -3,7 +3,9 @@
 The research implementation is on [draft PR #1](https://github.com/jabbazi/jabbazi-betting-model/pull/1).
 [CI](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35784881693)
 passed 127 tests and the Docker/PostgreSQL API, worker, backup/restore and database
-outage checks. Live hosting, provider authentication and Discord remain unverified.
+outage checks for that historical source revision. The later corrected API and
+worker are now deployed on Render; see [live verification](CLOUD_VERIFICATION.md).
+Provider authentication, Discord and production model approval remain unverified.
 
 ## 1. Review the prepared hosting resources
 
@@ -13,8 +15,10 @@ and sign in securely. It uses the review branch, with automatic deploys disabled
 merging the PR is not required to inspect it. The owner completed signup and
 provided a failed Blueprint-sync screenshot for commit `f7d4e0c`: worker creation
 could not resolve the API's missing `JABAZI_BANKROLL`. API/database and billing
-status have not been independently verified. The recovery steps below address
-this configuration failure; they are not evidence of a successful deployment.
+status were initially unverified. The missing configuration was subsequently
+supplied and both services deployed successfully on commit `32c7f57`; the
+[verification record](CLOUD_VERIFICATION.md) describes the checks and limits.
+The recovery steps below are retained for future missing-setting incidents.
 
 Estimated monthly baseline, checked September 22, 2026:
 

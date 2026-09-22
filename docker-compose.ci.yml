@@ -3,6 +3,7 @@ x-runtime: &runtime
   image: jabbazi-research:test
   environment:
     JABAZI_ENV: production
+    JABAZI_BANKROLL: "1000" # Disposable test bankroll, not a production default.
     JABBAZI_PLATFORM_DATABASE_URL: postgresql+psycopg://ci:ci_disposable@db:5432/jabbazi_ci
     JABBAZI_MODEL_TOKEN: ci-only-service-token-at-least-32-characters
     JABAZI_ODDS_API_KEY: ""
