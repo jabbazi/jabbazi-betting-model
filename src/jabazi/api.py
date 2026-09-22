@@ -1,0 +1,235 @@
+"""Authenticated HTTP bridge for the Jabbazi Scanner website.
+
+This service exposes price-shopping decisions produced by the audited scanner. It
+does not place wagers, manufacture Pikkit links, or upgrade the market prior into
+an independently modeled BET_NOW recommendation.
+"""
+
+from __future__ import annotations
+
+import hmac
+import threading
+from dataclasses import asdict
+from datetime import datetime, timezone
+from decimal import Decimal
+from typing import Annotated, Literal
+import os
+
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel, Field
+
+from .automation import AutomaticScanner
+from .config import Settings
+
+
+class ScanRequest(BaseModel):
+    mode: Literal["quick", "full"] = "quick"
+    credit_reserve: int = Field(default=50, ge=0, le=100000)
+    max_credits: int = Field(default=15, ge=1, le=100)
+    limit: int = Field(default=260, ge=1, le=260)
+
+
+app = FastAPI(title="Jabbazi Model API", version="0.1.0")
+_scan_lock = threading.Lock()
+
+
+def _authorized(authorization: str | None, settings: Settings) -> bool:
+    if not settings.service_token or len(settings.service_token) < 32:
+        return False
+    prefix = "Bearer "
+    if not authorization or not authorization.startswith(prefix):
+        return False
+    return hmac.compare_digest(authorization[len(prefix) :], settings.service_token)
+
+
+def _json(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, (tuple, list)):
+        return [_json(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _json(item) for key, item in value.items()}
+    return value
+
+
+def _action(action) -> dict:
+    card = action.price
+    return {
+        "sport": card.sport,
+        "event_id": card.event_id,
+        "event": card.event,
+        "market": card.market,
+        "participant": card.participant,
+        "selection": card.selection,
+        "line": _json(card.line),
+        "decision": action.decision.value,
+        "reason": action.reason,
+        "best_sportsbook": card.best_book,
+        "best_decimal": _json(card.best_decimal),
+        "book_prices": _json(card.book_prices),
+        "consensus_probability": _json(card.consensus_probability),
+        "market_relative_ev": _json(card.market_relative_ev),
+        "sportsbook_disagreement": _json(card.sportsbook_disagreement),
+        "model_probability": _json(action.model_probability),
+        "estimated_ev": _json(action.estimated_ev),
+        "expected_roi": _json(action.expected_roi),
+        "probability_edge": _json(action.probability_edge),
+        "model_version": action.model_version,
+        "reservation_id": action.reservation_id,
+        "uncertainty": _json(action.uncertainty),
+        "book_holds": _json(card.book_holds),
+        "book_no_vig": _json(card.book_no_vig),
+        "stake": _json(action.stake),
+        "maximum_playable_decimal": _json(action.maximum_playable_decimal),
+        "stale": card.stale,
+        "in_play": card.in_play,
+        "observed_at": card.observed_at.isoformat(),
+        "source_timestamp": card.source_timestamp.isoformat(),
+        "starts_at": card.starts_at.isoformat() if card.starts_at else None,
+    }
+
+
+@app.get("/healthz")
+def health() -> dict:
+    return {"status": "ok", "service": "jabbazi-model"}
+
+
+def require_auth(authorization):
+    if not _authorized(authorization, Settings.from_environment()):
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+
+def platform_store():
+    from .persistence.store import Store
+    from .config import load_dotenv
+
+    load_dotenv()
+
+    url = os.getenv("JABBAZI_PLATFORM_DATABASE_URL", "")
+    if not url:
+        raise HTTPException(status_code=503, detail="Platform database is not configured")
+    if os.getenv("JABAZI_ENV") == "production" and not url.startswith(
+        ("postgres://", "postgresql://", "postgresql+psycopg://")
+    ):
+        raise HTTPException(status_code=503, detail="Production requires PostgreSQL")
+    store = None
+    try:
+        store = Store(url)
+        if not store.ready():
+            raise ValueError("Schema unavailable")
+        return store
+    except Exception:
+        if store is not None:
+            store.close()
+        raise HTTPException(status_code=503, detail="Platform database unavailable") from None
+
+
+@app.get("/readyz")
+def ready():
+    store = platform_store()
+    store.close()
+    return {
+        "database": "ready",
+        "betting_enabled": False,
+        "note": "Liveness and database readiness do not approve models",
+    }
+
+
+@app.get("/v1/model-status")
+def model_status(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    from .models.registry import load_models
+    from .models.team_elo import SPORTS
+
+    models, errors = load_models()
+    return {
+        "models": [
+            {
+                "sport": sport,
+                "status": "SHADOW_ONLY" if sport in models else "UNAVAILABLE",
+                "approved_for_betting": False,
+                "version": models[sport].artifact["model_version"] if sport in models else None,
+            }
+            for sport in SPORTS.values()
+        ],
+        "errors": errors,
+    }
+
+
+@app.get("/v1/candidates")
+def candidates(limit: int = 100, authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    if not 1 <= limit <= 1000:
+        raise HTTPException(status_code=422, detail="Limit must be 1–1000")
+    store = platform_store()
+    try:
+        return {"records": store.list_records("candidate", limit)}
+    finally:
+        store.close()
+
+
+@app.get("/v1/odds")
+def odds(limit: int = 100, authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    if not 1 <= limit <= 1000:
+        raise HTTPException(status_code=422, detail="Limit must be 1–1000")
+    store = platform_store()
+    try:
+        return {"records": store.list_records("odds_snapshot", limit)}
+    finally:
+        store.close()
+
+
+@app.get("/v1/model-health")
+def model_health(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    store = platform_store()
+    try:
+        return {"recent_scans": store.list_records("scan_run", 20), "production_models_approved": 0}
+    finally:
+        store.close()
+
+
+@app.post("/v1/scans/run")
+def run_scan(
+    body: ScanRequest,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict:
+    settings = Settings.from_environment()
+    if not _authorized(authorization, settings):
+        raise HTTPException(status_code=401, detail="Model authorization failed")
+    if not settings.api_key:
+        raise HTTPException(status_code=503, detail="Odds provider is not configured")
+    if not _scan_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A scan is already running")
+    try:
+        result = AutomaticScanner(
+            settings,
+            settings.database_path,
+            credit_reserve=body.credit_reserve,
+            max_credits_per_run=body.max_credits,
+        ).run(body.mode)
+        actions = sorted(
+            result.actions,
+            key=lambda item: item.price.market_relative_ev,
+            reverse=True,
+        )[: body.limit]
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "mode": body.mode,
+            "feeds_scanned": result.feeds_scanned,
+            "quotes_archived": result.quotes_archived,
+            "credits_remaining": result.credits_remaining,
+            "errors": list(result.errors),
+            "actions": [_action(action) for action in actions],
+            "arbitrages": _json([asdict(item) for item in result.arbitrages]),
+            "disclaimer": "No wagers were placed. Market-only signals cannot become BET_NOW.",
+        }
+    except Exception:
+        raise HTTPException(
+            status_code=503, detail="Scan unavailable; no actionable output"
+        ) from None
+    finally:
+        _scan_lock.release()
