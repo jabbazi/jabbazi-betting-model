@@ -53,17 +53,13 @@ services:
           name: jabbazi-research-api
           envVarKey: JABBAZI_MODEL_TOKEN
       - key: JABAZI_BANKROLL
-        fromService:
-          type: web
-          name: jabbazi-research-api
-          envVarKey: JABAZI_BANKROLL
+        # Enter the same reviewed value on both services. A prompted value
+        # may be absent on the API, so do not depend on a fromService lookup.
+        sync: false
       - key: JABAZI_UNIT_SIZE
         value: "30"
       - key: JABAZI_ODDS_API_KEY
-        fromService:
-          type: web
-          name: jabbazi-research-api
-          envVarKey: JABAZI_ODDS_API_KEY
+        sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
       - key: JABBAZI_SCAN_INTERVAL_SECONDS

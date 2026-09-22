@@ -10,8 +10,11 @@ outage checks. Live hosting, provider authentication and Discord remain unverifi
 The repository contains a schema-validated `render.yaml`. Open the
 [prepared Render deployment](https://render.com/deploy?repo=https://github.com/jabbazi/jabbazi-betting-model/tree/build/production-foundations)
 and sign in securely. It uses the review branch, with automatic deploys disabled;
-merging the PR is not required to inspect it. The prepared page currently reaches
-Render sign-in. No account, service, database or payment has been created.
+merging the PR is not required to inspect it. The owner completed signup and
+provided a failed Blueprint-sync screenshot for commit `f7d4e0c`: worker creation
+could not resolve the API's missing `JABAZI_BANKROLL`. API/database and billing
+status have not been independently verified. The recovery steps below address
+this configuration failure; they are not evidence of a successful deployment.
 
 Estimated monthly baseline, checked September 22, 2026:
 
@@ -34,8 +37,10 @@ and storage autoscaling are disabled in the blueprint.
 
 Use the host's secure environment configuration for an existing licensed Odds API
 key and the actual bankroll. Do not paste secrets into chat or commit them.
-The template generates the API bearer token and shares the database connection,
-bankroll and provider key with the worker. Set the monthly credit ceiling to fit
+The template generates the API bearer token and shares it and the database
+connection with the worker. Enter the same reviewed bankroll and provider key
+on both services; these manually supplied values are not cross-service references.
+Set the monthly credit ceiling to fit
 the account allowance; default 3000 is a ceiling, not a purchased plan. Provider
 credits can be consumed once a configured worker starts. Leave Discord disabled.
 
@@ -45,6 +50,26 @@ must be confirmed before a provider purchase. CFB's current training route also
 requires `JABBAZI_CFBD_API_KEY`. No provider has been purchased.
 
 ## 3. Deploy and verify the real host
+
+### Recover an existing Blueprint with a missing environment variable
+
+The initial deployment could fail while creating the worker with
+`environment variable not found: "JABAZI_BANKROLL" for jabbazi-research-api`.
+The corrected template removes cross-service lookups for the manually supplied
+bankroll and odds key. It does not invent or populate either value.
+
+For an existing Blueprint, Render ignores new `sync: false` entries during sync;
+it only prompts during initial creation. In each service's Environment settings,
+set `JABAZI_BANKROLL` to the actual reviewed dollar amount and, when available,
+set `JABAZI_ODDS_API_KEY` to the licensed provider key. Use identical values for
+API and worker. If the worker does not yet exist, sync the corrected Blueprint
+first to create it, then configure its Environment settings and redeploy it.
+Production refuses to start without an explicit positive bankroll. An absent
+odds key leaves the worker waiting without collection. Never paste keys into chat.
+See [Render's secret-value rules](https://render.com/docs/blueprint-spec#prompting-for-secret-values).
+
+Manual sync can create the previously failed paid worker. Review Render's resource
+and billing summary before confirming; do not delete and recreate the database.
 
 After resource/cost approval, the blueprint runs migrations, starts the API and
 worker, and uses `/readyz` as the API health check. Verify real authenticated reads,

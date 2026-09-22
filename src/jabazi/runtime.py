@@ -16,6 +16,8 @@ def configuration():
     settings = Settings.from_environment()
     url = os.getenv("JABBAZI_PLATFORM_DATABASE_URL", "")
     problems = []
+    if os.getenv("JABAZI_ENV") == "production" and not os.getenv("JABAZI_BANKROLL", "").strip():
+        problems.append("Production requires an explicit JABAZI_BANKROLL")
     if not url:
         problems.append("JABBAZI_PLATFORM_DATABASE_URL missing")
     if os.getenv("JABAZI_ENV") == "production" and not url.startswith(
