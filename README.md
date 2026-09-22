@@ -9,7 +9,8 @@ storage, an authenticated API, and research frameworks for calibration, props,
 alternates, correlated parlays, and historical execution evaluation.
 
 Start with [the implementation audit](docs/IMPLEMENTATION_STATUS.md),
-[deployment instructions](docs/DEPLOYMENT.md), and [mathematical conventions](docs/MATH.md).
+[the cloud launch checklist](docs/GO_LIVE.md), [deployment instructions](docs/DEPLOYMENT.md),
+and [mathematical conventions](docs/MATH.md).
 Documents in `docs/archive` describe older milestones and are not deployment instructions.
 
 ## Install and verify
@@ -44,6 +45,13 @@ and explicitly reports that model approval remains disabled. All `/v1` data and
 scan endpoints require `Authorization: Bearer <service-token>`. Scan requests
 consume provider quota when a real API key is configured.
 
+The production entry points are `python -m jabazi.runtime api` and
+`python -m jabazi.runtime worker`. The worker collects pre-start closing proxies,
+runs bounded research scans, and stores quota reservations and heartbeats in
+PostgreSQL. Authenticated ledger endpoints record owner-reported placed wagers
+and auditable settlement corrections; performance is labeled with that provenance.
+The Render blueprint prepares an API, worker and private database for cost review.
+
 ## Model training
 
 No private data, live ledger, or model artifacts are committed. Existing trained
@@ -66,4 +74,7 @@ including when an artifact's approval flag is manually changed.
 The explicit `--apply` option requires an owner-controlled server and configured bot.
 `python -m jabazi.discord_review` previews research cards; its explicit `--send`
 option sends to the verified private review channel. Delivery is off by default.
+Production delivery verifies configured owner/channel permissions and records
+delivery claims and results in PostgreSQL. Ambiguous sends require review before
+any retry. A Discord administrator can bypass channel visibility restrictions.
 Paid memberships, public pick distribution, and billing are not implemented.

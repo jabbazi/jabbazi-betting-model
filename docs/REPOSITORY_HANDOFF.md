@@ -17,13 +17,17 @@ git remote add origin https://github.com/jabbazi/jabbazi-betting-model.git
 ```
 
 The implementation is published in [draft PR #1](https://github.com/jabbazi/jabbazi-betting-model/pull/1).
-All 94 files were compared with the fetched remote; their contents matched.
+The initial 94-file tree and the subsequent cloud/operations implementation were
+compared with the fetched remote; their contents matched.
 The portable bundle captures the earlier local checkpoint and does not replace
-newer remote history. [CI run 35782687953](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35782687953)
-passed 111 tests, Ruff, HTTP smoke, Docker build and the container CLI check for
-commit `63775af158e6e8d688eefed6488a1f14fc292f37`. The PR remains unmerged.
+newer remote history. [CI run 35784881693](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35784881693)
+passed 127 tests, Ruff, HTTP smoke, Docker build, PostgreSQL/API/worker integration,
+disposable backup/restore and database-outage checks for source commit
+`8f4e623c1a238a8a61aa3aefe28e94ddb03da987`. The PR remains unmerged.
 Live deployment and model validation are separate outstanding milestones. Inspect
-`docs/IMPLEMENTATION_STATUS.md` for the detailed review body and limitations.
+`docs/GO_LIVE.md` for hosting review and `docs/IMPLEMENTATION_STATUS.md` for the
+detailed review body and limitations. GitHub is the current source of truth;
+the downloadable source bundle is an earlier checkpoint, not the latest build.
 
 The source archive omits credentials, raw provider data, live ledgers and trained
 artifacts. The earlier saved starter still contains its original MLB/NFL research

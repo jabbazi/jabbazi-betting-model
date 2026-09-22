@@ -6,7 +6,9 @@ research infrastructure and makes the outstanding work explicit.
 
 ## Inspected starting state
 
-- `jabbazi/jabbazi-betting-model` was an empty public repository (size 0) when inspected.
+- `jabbazi/jabbazi-betting-model` contained only a README when its actual tree was
+  fetched. Earlier repository metadata reported size 0; that did not establish
+  that the repository was empty. The existing main commit is preserved.
 - Source was recovered from the earlier MLB shadow artifact and the subsequent
   three-sport starter. Functioning odds ingestion, Decimal math, SQLite records,
   market shopping, MLB trainer, API, and tests were preserved.
@@ -37,14 +39,14 @@ research infrastructure and makes the outstanding work explicit.
 | 17: promos | Profit boost, capped incremental-profit, and stake-not-returned bonus math | Verified eligibility/expiry/max-stake records and provider integration |
 | 18–19: decisions/play-to | Freshness/model/market/risk gates, conservative payout threshold, zero-stake suppression on unhealthy scans | Market-specific news checks, timing rules, production approvals and fuller state taxonomy |
 | 20–22: bankroll/risk | One $30 unit setting; .25/.50/.75/1u tiers; fractional Kelly; daily, bet, sport, event, player, thesis, parlay and drawdown controls | Automated bankroll/settlement reconciliation and calibrated evidence-tier assignment; default scanner uses standard tier |
-| 23: ledger | Transactional reservations, lifecycle events, hashes, idempotency conflicts, append-only evidence triggers, auditable settlement corrections | User-facing wager import/placement/settlement flows; reconciliation and full domain projections |
-| 24: CLV | Price/probability math, strict comparable-market closing-proxy framework | Scheduled close collection, historical close integration, durable CLV aggregation |
+| 23: ledger | Transactional reservations; authenticated owner-reported wager import, settlement, history and exposure; hashes, idempotency and append-only corrections | Sportsbook reconciliation, reservation-to-placement API, full domain projections and member UI |
+| 24: CLV | Scheduled pre-start snapshots, durable same-contract closing proxies, price/probability CLV endpoint | Real-feed coverage, certified closing evidence, line changes and aggregate CLV reporting |
 | 25: backtesting | Timestamp-checked replay with slippage, costs, liquidity, cash overlap, drawdown, ROI, units, scores and grouped reports | Real point-in-time odds joined to features and fitted walk-forward strategies; no ROI result claimed |
 | 26: health | Fail-closed database/model/freshness/feature gates, scan error suppression and lease control | Actual rolling calibration/CLV drift monitors, alert routing, operational dashboards and incident drills |
-| 27: database | SQLAlchemy PostgreSQL/SQLite store, versioned schema, migration command and database integration tests | Full relational entities/projections, runtime role provisioning, backup/restore and scale tests |
-| 28: API | Authenticated scan, model status, candidates, odds, model-health history; liveness/readiness; OpenAPI | Events, portfolios, placements, CLV/performance endpoints and stable public contracts |
-| 29: scanner | Bounded credit-aware daemon, configurable interval, global DB lease, health heartbeat, private delivery off by default | Running host, verified live feeds, smarter event timing, centralized delivery journal and production monitoring |
-| Discord/commercial | Owner-checked role/channel setup and idempotent private research publisher preserved | Real server/bot installation, permission tests, subscriptions/billing and approved paid alerts |
+| 27: database | PostgreSQL/SQLite store, versioned migration, integration tests and disposable PostgreSQL backup/restore hash comparison | Full relational projections, restricted runtime role, host backup/restore and scale verification |
+| 28: API | Authenticated scans, candidates, odds, health, owner ledger, closing proxies, CLV, operations and owner-reported performance; OpenAPI | Stable public contracts, events, member UI and independently reconciled performance |
+| 29: scanner | Bounded cloud worker, leases, event-timed collector, durable monthly credit reservations, database heartbeat and delivery journal | Running host, verified live coverage, statistical drift monitoring and incident routing |
+| Discord/commercial | Owner-checked setup, private channel permission checks and database-backed delivery claims/results | Real bot/server installation and permission verification, subscriptions/billing and approved paid alerts |
 
 ## Model evidence
 
@@ -57,7 +59,7 @@ None supports a verified profitable strategy or a paid-pick claim.
 
 ## Verification record
 
-- Local Python 3.12: **104 tests passed**, including recovered regressions, numerical
+- Local Python 3.12: **113 tests passed**, including recovered regressions, numerical
   references, stale/outlier quarantine, API authentication/database reads, concurrent
   reservations, rollback, corrections, lease ownership, chronology, calibration,
   correlated scenarios, push handling, execution assumptions and fail-closed scanning.
@@ -66,26 +68,34 @@ None supports a verified profitable strategy or a paid-pick claim.
   odds-provider scan 503. The service reported betting disabled.
 - Static undefined/unused-name checks pass. The API test client emits upstream
   deprecation warnings; they do not change test outcomes.
-- [GitHub Actions run 35782687953](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35782687953)
+- [GitHub Actions run 35784881693](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35784881693)
   passed on September 22, 2026 for source commit
-  `63775af158e6e8d688eefed6488a1f14fc292f37`: **111 tests passed** with zero
-  failures, including seven additional PostgreSQL 17 storage cases; Ruff and the
-  actual Uvicorn/HTTP smoke check passed. The Docker image built and its CLI ran
-  successfully. The API smoke uses disposable SQLite; a full cloud Compose
-  deployment and end-to-end PostgreSQL API/worker run remain unverified.
+  `8f4e623c1a238a8a61aa3aefe28e94ddb03da987`: **127 tests passed**, including
+  14 additional PostgreSQL cases. Ruff, the actual Uvicorn/HTTP smoke, Docker build
+  and container CLI passed. The disposable Docker Compose stack then ran
+  PostgreSQL 17, migrations, the API and worker. Real HTTP checks verified
+  authenticated owner ledger import/idempotency/settlement/history and a worker
+  heartbeat with no odds credential. A separate database restore retained both
+  synthetic ledger evidence hashes. Stopping PostgreSQL produced readiness and
+  scan 503 responses. These tests used synthetic records and no real provider.
+- `render.yaml` validated against Render's published JSON schema. The prepared
+  deployment opened at Render sign-in; no account or resource was provisioned.
 - Earlier uploads returned 403 because the connector was authorized but not
-  installed on the GitHub account. After installation, all 94 source files were
+  installed on the GitHub account. After installation, the recovered source was
   published in [draft PR #1](https://github.com/jabbazi/jabbazi-betting-model/pull/1).
   The source tree was compared against the fetched remote with no differences.
   Existing main-branch history is preserved; the PR has not been merged.
 - No live provider authentication, real Discord write, cloud deployment, billing,
-  backup restore, or production model approval has been verified.
+  production-host backup restore, or production model approval has been verified.
+  Worker/collector/delivery failures are auditable; statistical model drift alarms
+  and independent host monitoring remain outstanding. A ready API does not establish
+  a healthy feed, a recent worker heartbeat, or an approved model.
 
 ## Next execution order
 
-1. Review the published draft PR. PostgreSQL/storage and Docker CI have passed;
-   the master specification remains incomplete as documented above.
-2. Connect a chosen host and provider secrets, apply migrations, run the research
+1. Follow [GO_LIVE.md](GO_LIVE.md) to review the prepared Render resources and costs.
+   Obtain account access and purchase approval before provisioning.
+2. Configure host and provider secrets, apply migrations, run the research
    API/worker and verify a real odds scan with retained source timestamps.
 3. Acquire permitted point-in-time historical odds/features. Establish a new untouched
    evaluation period and prospective ledger before adding model complexity.
@@ -100,7 +110,7 @@ None supports a verified profitable strategy or a paid-pick claim.
 
 | Source | Purpose | Integration effort | Need |
 |---|---|---|---|
-| The Odds API | Current normalized odds; timestamped historical snapshots and close research | Existing live adapter; add historical endpoints, snapshot jobs, quota accounting and joins | Current feed essential; historical archive or equivalent essential for betting validation |
+| The Odds API | Current normalized odds; timestamped historical snapshots and close research | Live/historical adapters, snapshot jobs and shared quota reservations exist; credentials, contract tests and feature/price joins remain | Current feed essential; historical archive or equivalent essential for betting validation |
 | CollegeFootballData | CFB schedules/results and available team metrics | Results adapter exists; credential, coverage checks and timestamped feature adapter remain | Required for the current CFB route; advanced fields depend on access |
 | SportsDataIO | Potential injuries, depth charts, player/team stats and commercial feeds | Existing MLB results adapter only; new scoped endpoints and point-in-time schemas needed | Optional provider choice; equivalent reliable features are needed for advanced models |
 | nflverse / MLB Stats API | Baseline result history and permitted research inputs | Existing adapters | Useful baseline inputs; not a substitute for timestamped odds or commercial-use rights |
