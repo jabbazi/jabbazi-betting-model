@@ -30,6 +30,9 @@ class ScanRequest(BaseModel):
 
 
 app = FastAPI(title="Jabbazi Model API", version="0.1.0")
+from .ledger_api import router as ledger_router
+
+app.include_router(ledger_router)
 _scan_lock = threading.Lock()
 
 
@@ -188,6 +191,46 @@ def model_health(authorization: Annotated[str | None, Header()] = None):
     store = platform_store()
     try:
         return {"recent_scans": store.list_records("scan_run", 20), "production_models_approved": 0}
+    finally:
+        store.close()
+
+
+@app.get("/v1/operations")
+def operations(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    from .runtime import doctor
+
+    store = platform_store()
+    try:
+        return {
+            "configuration": doctor(),
+            "workers": store.list_records("worker_heartbeat", 10),
+            "collectors": store.list_records("collector_run", 10),
+            "deliveries": store.list_records("delivery_result", 20),
+            "quota_reservations": store.list_records("quota_reservation", 20),
+        }
+    finally:
+        store.close()
+
+
+@app.get("/v1/closing-lines")
+def closing_lines(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    store = platform_store()
+    try:
+        return {"records": store.list_records("closing_proxy", 100)}
+    finally:
+        store.close()
+
+
+@app.get("/v1/performance")
+def performance(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    from .performance import report
+
+    store = platform_store()
+    try:
+        return report(store)
     finally:
         store.close()
 

@@ -53,13 +53,13 @@ services:
 
   scanner:
     <<: *app
-    command: ["python", "-m", "jabazi", "daemon", "--mode", "quick", "--interval", "7200", "--database", "/data/jabazi.db", "--credit-reserve", "50", "--max-credits", "15"]
+    command: ["python", "-m", "jabazi.runtime", "worker"]
     depends_on:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "from pathlib import Path; import time; p=Path('/data/healthy'); assert p.exists() and time.time()-p.stat().st_mtime<7500"]
+      test: ["CMD", "python", "-m", "jabazi.runtime", "doctor"]
       interval: 5m
       timeout: 10s
       retries: 2

@@ -119,6 +119,12 @@ class AutomaticScanner:
                 break
             try:
                 # Charge the local budget before requesting: failed responses can still cost quota.
+                if isinstance(ledger, Store):
+                    from .operations import reserve_request
+
+                    if not reserve_request(ledger, estimated_cost):
+                        errors.append("MONTHLY_QUOTA_LIMIT")
+                        break
                 spent_this_run += estimated_cost
                 batch = TheOddsApiProvider(
                     sport["key"], markets=markets, api_key=self.settings.api_key

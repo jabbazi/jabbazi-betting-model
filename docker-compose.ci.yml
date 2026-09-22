@@ -1,0 +1,42 @@
+# Disposable data and credentials; never use this file for a live deployment.
+x-runtime: &runtime
+  image: jabbazi-research:test
+  environment:
+    JABAZI_ENV: production
+    JABBAZI_PLATFORM_DATABASE_URL: postgresql+psycopg://ci:ci_disposable@db:5432/jabbazi_ci
+    JABBAZI_MODEL_TOKEN: ci-only-service-token-at-least-32-characters
+    JABAZI_ODDS_API_KEY: ""
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ci
+      POSTGRES_PASSWORD: ci_disposable
+      POSTGRES_DB: jabbazi_ci
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ci", "-d", "jabbazi_ci"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  migrate:
+    image: jabbazi-research:test
+    environment:
+      JABBAZI_PLATFORM_DATABASE_URL: postgresql+psycopg://ci:ci_disposable@db:5432/jabbazi_ci
+    command: ["python", "-m", "jabazi.persistence.migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    <<: *runtime
+    ports: ["127.0.0.1:18000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=5)"]
+      interval: 2s
+      timeout: 6s
+      retries: 20
+  worker:
+    <<: *runtime
+    command: ["python", "-m", "jabazi.runtime", "worker"]

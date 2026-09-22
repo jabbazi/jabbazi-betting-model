@@ -196,14 +196,77 @@ class Store:
         payload = asdict(action)
         return self.append("candidate", action.price.event_id, payload)
 
-    def list_records(self, kind=None, limit=100):
+    def list_records(self, kind=None, limit=100, *, entity=None):
         if not 1 <= limit <= 1000:
             raise ValueError("Limit must be 1–1000")
         query = select(events).order_by(events.c.occurred_at.desc(), events.c.id).limit(limit)
         if kind:
             query = query.where(events.c.kind == kind)
+        if entity:
+            query = query.where(events.c.entity == entity)
         with self.engine.connect() as conn:
             return [dict(r) for r in conn.execute(query).mappings()]
+
+    def list_positions(self, limit=100):
+        if not 1 <= limit <= 1000:
+            raise ValueError("Limit must be 1–1000")
+        with self.engine.connect() as conn:
+            return [
+                dict(r)
+                for r in conn.execute(
+                    select(positions).order_by(positions.c.id).limit(limit)
+                ).mappings()
+            ]
+
+    def import_placement(self, key, payload):
+        """Record an already placed, owner-reported wager; never place a wager."""
+        payload = clean(payload)
+        with self.transaction() as conn:
+            row = conn.execute(select(positions).where(positions.c.id == key)).mappings().first()
+            if row:
+                self._append(conn, "reported_placement", key, payload, digest(["placement", key]))
+                return False
+            self._append(conn, "reported_placement", key, payload, digest(["placement", key]))
+            conn.execute(
+                insert(positions).values(id=key, state="placed", expires_at=None, payload=payload)
+            )
+            return True
+
+    def get_position(self, key):
+        with self.engine.connect() as conn:
+            row = conn.execute(select(positions).where(positions.c.id == key)).mappings().first()
+            return dict(row) if row else None
+
+    def claim_credits(self, provider, amount, *, monthly_limit, key, now=None):
+        """Conservative monthly request budget, shared by every process and restart.
+
+        Credits are charged before the network call and never refunded on ambiguous
+        failure. This local ceiling is independent of the provider billing cycle.
+        """
+        if not isinstance(amount, int) or not 1 <= amount <= 1000:
+            raise ValueError("Credit amount must be 1–1000")
+        if not isinstance(monthly_limit, int) or monthly_limit < 1:
+            raise ValueError("Positive monthly credit ceiling required")
+        now = now or datetime.now(UTC)
+        if now.tzinfo is None:
+            raise ValueError("Aware budget time required")
+        month = now.astimezone(UTC).strftime("%Y-%m")
+        entity = provider + ":" + month
+        payload = {"provider": provider, "month": month, "credits": amount}
+        with self.transaction() as conn:
+            if conn.execute(select(events.c.id).where(events.c.id == key)).first():
+                self._append(conn, "quota_reservation", entity, payload, key)
+                return False
+            rows = conn.execute(
+                select(events.c.payload).where(
+                    events.c.kind == "quota_reservation", events.c.entity == entity
+                )
+            ).scalars()
+            spent = sum(int(r["credits"]) for r in rows)
+            if spent + amount > monthly_limit:
+                return False
+            self._append(conn, "quota_reservation", entity, payload, key)
+            return True
 
     def _active(self, conn, now):
         rows = conn.execute(select(positions)).mappings()

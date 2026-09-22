@@ -91,6 +91,53 @@ class TheOddsApiProvider(OddsProvider):
         )
         return self._parse(raw, headers)
 
+    def fetch_historical(self, at: datetime) -> dict:
+        """Retain the actual snapshot timestamp and raw response for offline research.
+
+        Historical snapshots are deliberately not emitted as live Quote objects.
+        The caller must reserve the documented ten credits per requested market.
+        """
+        if at.tzinfo is None or at >= datetime.now(timezone.utc):
+            raise ValueError("Historical request requires a past timezone-aware timestamp")
+        query = urllib.parse.urlencode(
+            {
+                "apiKey": self._api_key,
+                "bookmakers": ",".join(self.bookmakers),
+                "markets": ",".join(self.markets),
+                "oddsFormat": "decimal",
+                "dateFormat": "iso",
+                "date": at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+            }
+        )
+        raw, headers = self._transport(
+            f"https://api.the-odds-api.com/v4/historical/sports/{self.sport}/odds?{query}"
+        )
+        payload = json.loads(raw)
+        snapshot = datetime.fromisoformat(str(payload["timestamp"]).replace("Z", "+00:00"))
+        if snapshot.tzinfo is None or snapshot > at or not isinstance(payload.get("data"), list):
+            raise ValueError("Invalid or future historical snapshot")
+        for event in payload["data"]:
+            for book in event.get("bookmakers", []):
+                for market in book.get("markets", []):
+                    source = market.get("last_update") or book.get("last_update")
+                    if not source:
+                        raise ValueError("Historical source timestamp missing")
+                    source_at = datetime.fromisoformat(source.replace("Z", "+00:00"))
+                    if source_at.tzinfo is None or source_at > snapshot:
+                        raise ValueError("Historical odds contain future information")
+        return {
+            "provider": "the_odds_api",
+            "sport": self.sport,
+            "requested_at": at.isoformat(),
+            "snapshot_at": snapshot.isoformat(),
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "payload": payload,
+            "usage": {
+                k.lower(): v for k, v in headers.items() if k.lower().startswith("x-requests-")
+            },
+            "usage_type": "HISTORICAL_RESEARCH_ONLY",
+        }
+
     def list_events(self) -> list[dict]:
         """List live/upcoming events. Provider documents this endpoint as quota-free."""
         query = urllib.parse.urlencode({"apiKey": self._api_key, "dateFormat": "iso"})

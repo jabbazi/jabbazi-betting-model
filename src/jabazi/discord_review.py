@@ -63,11 +63,13 @@ def delivery_key(action):
         c.sport,
         c.event_id,
         c.market,
+        c.participant,
         c.selection,
         str(c.line),
         c.best_book,
         str(c.best_decimal),
         str(action.model_probability),
+        action.model_version,
     ]
     return hashlib.sha256(json.dumps(parts).encode()).hexdigest()
 
@@ -97,9 +99,94 @@ def validate_webhook(url, channel):
         raise ValueError("JABBAZI_DISCORD_REVIEW_CHANNEL_ID is required")
     if str(webhook_request(url).get("channel_id")) != channel:
         raise ValueError("Webhook does not target the configured private review channel")
+    if os.getenv("JABAZI_ENV") == "production":
+        verify_private_channel(channel)
+
+
+def verify_private_channel(channel, request=None):
+    """Require owner-controlled guild and explicit private-channel overwrites.
+
+    Discord server owners/administrators inherently bypass channel restrictions.
+    No arbitrary role or member may receive an explicit view grant here.
+    """
+    token = os.getenv("JABBAZI_DISCORD_BOT_TOKEN", "")
+    guild = os.getenv("JABBAZI_DISCORD_GUILD_ID", "")
+    owner = os.getenv("JABBAZI_DISCORD_OWNER_ID", "")
+    analyst = os.getenv("JABBAZI_DISCORD_ANALYST_ROLE_ID", "")
+    if not token or not all(x.isdigit() for x in (guild, owner, analyst, channel)):
+        raise ValueError("Bot, guild, owner, analyst role and review channel are required")
+
+    def get(path):
+        req = urllib.request.Request(
+            "https://discord.com/api/v10" + path,
+            headers={"Authorization": "Bot " + token, "User-Agent": "Jabbazi/0.3"},
+        )
+        with urllib.request.urlopen(req, timeout=20) as response:
+            return json.load(response)
+
+    get = request or get
+    info = get("/guilds/" + guild)
+    if str(info["owner_id"]) != owner:
+        raise ValueError("Configured Discord owner mismatch")
+    bot = str(get("/users/@me")["id"])
+    room = get("/channels/" + channel)
+    if str(room.get("guild_id")) != guild or room.get("type") != 0:
+        raise ValueError("Review target must be a guild text channel")
+    view = 1 << 10
+    permissions = room.get("permission_overwrites", [])
+    everyone = [p for p in permissions if str(p["id"]) == guild and p["type"] == 0]
+    if (
+        len(everyone) != 1
+        or not int(everyone[0]["deny"]) & view
+        or int(everyone[0]["allow"]) & view
+    ):
+        raise ValueError("Review channel must deny public visibility")
+    for entry in permissions:
+        identity = (entry["type"], str(entry["id"]))
+        if int(entry["allow"]) & view and identity not in {(0, analyst), (1, bot), (1, owner)}:
+            raise ValueError("Unexpected role or member can view the review channel")
+    return {"guild_id": guild, "channel_id": channel, "private_overwrites_verified": True}
+
+
+def deliver_durable(action, url, store, channel):
+    from .persistence.store import digest
+
+    payload = render(action)
+    if payload is None:
+        return "skipped_stale_or_unmodeled"
+    key = digest([channel, delivery_key(action)])
+    claim = {"delivery_key": key, "channel_id": channel, "card_key": delivery_key(action)}
+    if not store.append("delivery_claim", channel, claim, key):
+        return "already_delivered_or_requires_review"
+    try:
+        response = webhook_request(url + "?wait=true", payload)
+        message_id = str(response["id"])
+    except Exception:
+        store.append("delivery_result", key, {"status": "needs_review"}, digest([key, "result"]))
+        raise RuntimeError("Discord delivery uncertain; inspect before retrying") from None
+    store.append(
+        "delivery_result",
+        key,
+        {"status": "delivered", "message_id": message_id},
+        digest([key, "result"]),
+    )
+    return "delivered"
 
 
 def deliver(action, url, database):
+    platform_url = os.getenv("JABBAZI_PLATFORM_DATABASE_URL", "")
+    if platform_url:
+        from .persistence.store import Store
+
+        store = Store(platform_url)
+        try:
+            return deliver_durable(
+                action, url, store, os.getenv("JABBAZI_DISCORD_REVIEW_CHANNEL_ID", "")
+            )
+        finally:
+            store.close()
+    if os.getenv("JABAZI_ENV") == "production":
+        raise RuntimeError("Production Discord delivery requires the platform database")
     payload = render(action)
     if payload is None:
         return "skipped_stale_or_unmodeled"
@@ -160,6 +247,8 @@ def main():
             )
         )
         return
+    if result.errors:
+        raise SystemExit("Unhealthy scan; Discord delivery suppressed")
     for action in candidates:
         print(deliver(action, url, str(Path(settings.database_path).with_suffix(".delivery.db"))))
 
