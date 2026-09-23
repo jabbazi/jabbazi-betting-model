@@ -67,6 +67,26 @@ GPT instructions, query strings, chats, logs or screenshots.
 Server unit/integration tests use mocked provider responses. A successful server
 deployment is not proof that the owner's ChatGPT account has been connected.
 
+## Verification on September 23, 2026
+
+- Application commit `845b02d02980f81a3bb077f5799f7c3f3ba60c13`: 173 local tests
+  passed, unused/import checks passed, GitHub workflow `35818104609` succeeded.
+- Existing Render API deployed successfully in 52.3 seconds. Public health,
+  database readiness and action schema returned 200; unauthenticated scoped
+  model-status returned 401. Worker did not need a restart for this API change.
+- Authenticated HTTP verification from the live API container returned the NFL
+  and MLB shadow versions and CFB UNAVAILABLE. The scoped key was rejected by
+  the owner review endpoint (401).
+- Real action job `290187a5-ab43-4679-b5bc-a661328d11ff` started at
+  `2026-09-23T04:25:37.692869+00:00`, completed at
+  `2026-09-23T04:26:16.716982+00:00`: 5 feeds, 3,512 archived quotes,
+  1,346 total actions including 198 model-backed research actions, no errors.
+  The result explicitly reports its 260-row response/archive limit and
+  `truncated=true`, with 25 rows per page. Betting remains disabled.
+- ChatGPT was logged out in the connected browser. The custom GPT still needs
+  authenticated setup/import, a private action key, Only me sharing, and an
+  actual prompt-to-action test. The phrase is **not yet connected in chat**.
+
 Official references (checked September 23, 2026):
 - https://developers.openai.com/api/docs/actions/getting-started
 - https://developers.openai.com/api/docs/actions/authentication
