@@ -41,7 +41,11 @@ calibration must be evaluated rather than assumed to help.
   label isolation from selection/fitting, provenance and artifact replay.
 - Full local suite: **267 passed**, including the new tests. PostgreSQL-specific
   checks are not part of that local count. One existing discord.py `audioop`
-  deprecation warning remains. CI results are recorded separately when available.
+  deprecation warning remains.
+- GitHub CI passed for code commit `81abfc0276f4ad09b53c74012e4b90724dc6902b`:
+  runs `35919099160` and `35919094709` both succeeded. The PostgreSQL-enabled suite
+  reported **281 passed**. Ruff, authenticated API/container smoke, database
+  backup/restore and database-outage checks also passed.
 - The private scanner workflow now requests cloud model results plus current
   verified injuries, starters, lineups, weather and prices, with citations and
   explicit source/market coverage. It preserves shadow, stale-price and $0-stake
