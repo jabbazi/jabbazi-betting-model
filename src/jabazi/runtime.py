@@ -100,6 +100,9 @@ def worker(*, once=False):
                                 "quotes": result.quotes_archived,
                                 "errors": result.errors,
                             }
+                            from .discord_sheets import archive_sheets
+
+                            archive_sheets(store, result)
                             if (
                                 not result.errors
                                 and os.getenv("JABBAZI_DISCORD_REVIEW_ENABLED", "false").lower()
