@@ -110,3 +110,27 @@ models separately. Add point-in-time feature provenance checks, prediction cover
 monitoring, paired market benchmarks and prospective CLV capture before broader
 markets. Make any eventual BET NOW promotion an explicit reviewed decision, never
 an automatic result of obtaining a provider key or passing software unit tests.
+
+## Verified rollout
+
+Application commit `16c17c0d1757639f577f7cf0cc04cd2ea65d5ddc` passed GitHub
+workflow runs `35906678004` and `35906670124`. The PostgreSQL-enabled CI suite
+reported **275 tests passed**, plus authenticated HTTP smoke, Docker startup,
+database backup/restore and database-outage checks. Local 261-test runs omit the
+PostgreSQL-specific collection; these counts are deliberately distinguished.
+
+- API deployment `dep-daq25ht9fdbs73eke6ug`: succeeded/live, 2026-09-23 19:05:31 UTC.
+- Worker deployment `dep-daq25n9srm7s73dabmt0`: succeeded/live, 19:05:50 UTC.
+- API readiness logs returned 200 after rollout. The live member app reload
+  displayed server branding and required a fresh private `!vip` link, with no
+  protected research data displayed to the signed-out browser.
+- The latest observed scan before the new rollout recorded 3,952 quotes and 232
+  model-backed research actions with both NFL/MLB versions and no scan errors.
+  This is prior-worker evidence, not proof of a newly requested scan or prop model.
+- No fresh authenticated member session or regular-ChatGPT tool call was completed
+  during this rollout check. Protected paths have automated integration coverage;
+  do not describe that as a new live member/ChatGPT end-to-end authorization.
+
+These changes did not increase quote quotas, change model coefficients, enable
+betting, place wagers, or purchase a provider. The code, tests and this handoff are
+committed to the existing development branch; no claim of perfection is made.
