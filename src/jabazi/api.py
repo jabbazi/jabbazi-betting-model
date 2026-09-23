@@ -143,6 +143,10 @@ def ready():
 @app.get("/v1/model-status")
 def model_status(authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)
+    return model_status_data()
+
+
+def model_status_data():
     from .models.registry import load_models
     from .models.team_elo import SPORTS
 
@@ -253,6 +257,12 @@ def run_scan(
     settings = Settings.from_environment()
     if not _authorized(authorization, settings):
         raise HTTPException(status_code=401, detail="Model authorization failed")
+    return perform_scan(body)
+
+
+def perform_scan(body: ScanRequest) -> dict:
+    """Shared scanner execution; callers must authorize before invoking."""
+    settings = Settings.from_environment()
     if not settings.api_key:
         raise HTTPException(status_code=503, detail="Odds provider is not configured")
     if not _scan_lock.acquire(blocking=False):
@@ -283,6 +293,8 @@ def run_scan(
                 "production_approved": False,
             },
             "actions": [_action(action) for action in actions],
+            "total_actions": len(result.actions),
+            "returned_actions": len(actions),
             "arbitrages": _json([asdict(item) for item in result.arbitrages]),
             "disclaimer": "No wagers were placed. Market-only signals cannot become BET_NOW.",
         }
@@ -344,3 +356,8 @@ def owner_script():
         media_type="application/javascript",
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
+
+
+from .chatgpt_api import router as chatgpt_router
+
+app.include_router(chatgpt_router)
