@@ -52,3 +52,17 @@ Before commercial launch, resolve these concrete data gaps:
 Chat phrase “scan everything” is not a newly installed ChatGPT action. The cloud API's authenticated full-scan path uses the models; an external chat/app must call that API with owner authorization. Discord members cannot invoke it.
 
 A one-time morning handoff is scheduled for approximately 8 a.m. America/Chicago September 23, 2026. It reports verified state; it is not a promise of continuously running overnight engineering.
+
+## Verified live cloud result
+
+Application commit `23557f6a4602388a93aba77ad2d17266f6da3b4b` deployed successfully to both existing Render services:
+
+- Worker: live September 23 2026 04:03:51 UTC, deployment `dep-dapkv067bikc73fs7450`.
+- API: deployment succeeded and live; HTTP `/healthz` and `/readyz` returned 200, database ready. Unauthenticated `/v1/model-status` and `/v1/owner/review` returned 401.
+- First worker heartbeat (started 04:03:52 UTC; visible log 04:04:25 UTC): NFL `SHADOW_READY`, 32 teams and 17 scheduled events; MLB `SHADOW_READY`, 30 teams and 76 scheduled events.
+- Live scan: 3 feeds, 2,832 quotes, **190 model-backed research actions**, no scan errors, both model versions present, Discord process RUNNING, betting_enabled=false.
+- Model versions: `nfl-score-ridge-0.1.0-8b55af293d53` and `mlb-score-ridge-0.1.0-792a7fe3fb48`.
+
+An existing CI setup defect surfaced: unit-test job installed only dev dependencies, so Discord image imports failed before collection. Fixed in `7fb4750cb5c66829b8f40c82c047e8e0c8194ca8` to install dev, Discord, and research extras. That change affects CI only; no unnecessary production restart is required. Container build, API/worker stack checks, database backup/restore and database-outage checks already passed on the application commit. Final CI result follows below when verified.
+
+Final CI verification: workflow run `35816871496` on `7fb4750cb5c66829b8f40c82c047e8e0c8194ca8` passed both `tests` and `container` jobs. This includes the full test suite, authenticated API smoke check, Docker build, PostgreSQL-backed service readiness, backup/restore and outage handling. Application runtime remains the verified `23557f6` deployment; later commits only change CI/documentation.
