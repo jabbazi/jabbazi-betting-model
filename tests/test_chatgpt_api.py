@@ -101,6 +101,8 @@ def test_results_paginate_and_recheck_price_age_without_upgrading_models(setup):
     finish(store, scan_id, now, count=26, total_actions=40)
     first = bridge.scan_page(store, scan_id, now=now)
     assert len(first.actions) == 25 and first.next_page == 2
+    assert first.page_action_count == 25 and first.total_pages == 2
+    assert first.total_returned_actions == 26
     assert first.truncated is True and first.total_actions == 40
     assert first.actions[0]["decision"] == "WATCH"
     assert first.actions[0]["probability_status"] == "SHADOW_ONLY"
@@ -110,6 +112,8 @@ def test_results_paginate_and_recheck_price_age_without_upgrading_models(setup):
     response = client.get(f"/v1/chatgpt/scans/{scan_id}?page=2", headers=headers)
     assert response.json()["actions"][0]["selection"] == "25"
     assert response.json()["next_page"] is None
+    assert response.json()["page_action_count"] == 1
+    assert response.json()["total_pages"] == 2
     assert response.headers["cache-control"] == "no-store"
     assert client.get(f"/v1/chatgpt/scans/{scan_id}?page=3", headers=headers).status_code == 404
     assert len(response.text) < 100000
@@ -122,6 +126,59 @@ def test_missing_provenance_never_returns_market_as_model_probability():
     assert row["expected_roi"] is None and row["consensus_probability"] == ".6"
     assert row["probability_status"] == "UNAVAILABLE"
     assert not row["price_is_current"]
+
+
+def test_pending_read_returns_completion_without_starting_another_scan(setup):
+    client, store, headers = setup
+    scan_id = request(store)
+    with patch.object(bridge.time, "sleep", side_effect=lambda _: finish(
+        store, scan_id, datetime.now(UTC)
+    )) as pause, patch.object(bridge, "run_background") as worker:
+        response = client.get(f"/v1/chatgpt/scans/{scan_id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "COMPLETE"
+    assert response.json()["actions"][0]["model_probability"] == ".6"
+    assert response.json()["actions"][0]["probability_status"] == "SHADOW_ONLY"
+    pause.assert_called_once()
+    worker.assert_not_called()
+
+
+def test_pending_read_has_bounded_wait_and_retains_same_job(setup):
+    client, store, headers = setup
+    scan_id = request(store)
+    clock = [0.0]
+
+    def advance(seconds):
+        clock[0] += seconds
+
+    with patch.object(bridge.time, "monotonic", side_effect=lambda: clock[0]), \
+         patch.object(bridge.time, "sleep", side_effect=advance), \
+         patch.object(bridge, "run_background") as worker:
+        response = client.get(f"/v1/chatgpt/scans/{scan_id}", headers=headers)
+    assert clock[0] == bridge.RESULT_WAIT_SECONDS
+    assert response.json()["status"] == "RUNNING"
+    assert response.json()["scan_id"] == scan_id
+    assert response.json()["actions"] == []
+    assert response.headers["cache-control"] == "no-store"
+    worker.assert_not_called()
+
+
+@pytest.mark.parametrize("state", ["COMPLETE", "EXPIRED", "MISSING"])
+def test_terminal_or_missing_read_never_waits(setup, state):
+    client, store, headers = setup
+    scan_id = str(uuid4())
+    if state != "MISSING":
+        request(store, scan_id, now=datetime.now(UTC) - timedelta(seconds=601))
+    if state == "COMPLETE":
+        finish(store, scan_id, datetime.now(UTC))
+    with patch.object(bridge.time, "sleep", side_effect=AssertionError("unexpected wait")) as pause, \
+         patch.object(bridge, "datetime", wraps=datetime) as clock:
+        clock.now.return_value = datetime.now(UTC) + timedelta(seconds=601 if state == "EXPIRED" else 0)
+        response = client.get(f"/v1/chatgpt/scans/{scan_id}", headers=headers)
+    pause.assert_not_called()
+    assert response.status_code == (404 if state == "MISSING" else 200)
+    if state != "MISSING":
+        assert response.json()["status"] == state
 
 
 @pytest.mark.parametrize("kind", ["future", "started", "missing", "invalid", "in_play"])

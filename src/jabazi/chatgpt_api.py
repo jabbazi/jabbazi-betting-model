@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -18,7 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from .config import Settings
@@ -29,6 +30,7 @@ ORIGIN = "https://jabbazi-research-api.onrender.com"
 PAGE_SIZE = 25
 JOB_SECONDS = 600
 MIN_INTERVAL = 120
+RESULT_WAIT_SECONDS = 10
 PRIVATE_HEADERS = {"Cache-Control": "no-store", "Vary": "Authorization"}
 
 
@@ -82,8 +84,10 @@ class ScanPage(BaseModel):
     checked_at: str
     poll_after_seconds: int | None = None
     page: int
+    page_action_count: int = Field(0, description="Number of rows in this response's actions array; at most 25.")
+    total_pages: int = 1
     next_page: int | None = None
-    total_returned_actions: int = 0
+    total_returned_actions: int = Field(0, description="Stored rows across ALL result pages, not just this page; at most 260.")
     total_actions: int = 0
     truncated: bool = False
     feeds_scanned: int = 0
@@ -211,18 +215,21 @@ def scan_page(store, scan_id, page=1, now=None):
         raise HTTPException(404, "Result page not found")
     status = payload.get("status", "EXPIRED" if expired else "RUNNING")
     total = payload.get("total_actions", len(rows))
+    page_rows = rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]
     return ScanPage(
         scan_id=scan_id, status=status, started_at=request["payload"]["started_at"],
         checked_at=now.isoformat(), generated_at=payload.get("generated_at"),
         poll_after_seconds=10 if status == "RUNNING" else None,
-        page=page, next_page=page + 1 if page * PAGE_SIZE < len(rows) else None,
+        page=page, page_action_count=len(page_rows),
+        total_pages=max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE),
+        next_page=page + 1 if page * PAGE_SIZE < len(rows) else None,
         total_returned_actions=len(rows), total_actions=total, truncated=total > len(rows),
         feeds_scanned=payload.get("feeds_scanned", 0),
         quotes_archived=payload.get("quotes_archived", 0),
         credits_remaining=payload.get("credits_remaining"),
         model_coverage=payload.get("model_coverage", {}),
         result_ordering=payload.get("result_ordering"),
-        actions=[present_action(r, now) for r in rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]],
+        actions=[present_action(r, now) for r in page_rows],
         errors=payload.get("errors", []),
     )
 
@@ -253,14 +260,25 @@ def start_scan(body: ScanEverythingRequest, tasks: BackgroundTasks,
 @router.get(
     "/v1/chatgpt/scans/{scan_id}", operation_id="getScanResults", tags=["chatgpt"],
     response_model=ScanPage,
-    description="Read a scan's status or a result page. Poll the same scan_id while RUNNING. Never treat expired prices or SHADOW_ONLY probabilities as actionable picks.",
+    description="Read a scan result page; waits up to 10 seconds if RUNNING. Continue reading the same scan_id. Each page has at most 25 actions; coverage counts span all pages. Never treat expired prices or SHADOW_ONLY probabilities as actionable picks.",
 )
 def get_results(scan_id: UUID, page: Annotated[int, Query(ge=1, le=11)] = 1,
                 authorization: Annotated[str | None, Header()] = None):
     authorize(authorization)
     store = store_factory()
     try:
+        # GPTs cannot reliably pause between tool calls. Bound the wait here,
+        # below the Actions timeout, without starting another provider scan.
+        deadline = time.monotonic() + RESULT_WAIT_SECONDS
         output = scan_page(store, str(scan_id), page)
+        while output.status == "RUNNING":
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            # scan_page releases its DB connection before each pause. This
+            # synchronous route runs in FastAPI's thread pool, not its event loop.
+            time.sleep(min(1, remaining))
+            output = scan_page(store, str(scan_id), page)
     finally:
         store.close()
     return JSONResponse(output.model_dump(), headers=PRIVATE_HEADERS)

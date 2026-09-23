@@ -38,7 +38,10 @@ GPT instructions, query strings, chats, logs or screenshots.
   server-controlled 15-credit budget and 50-credit reserve. Existing monthly
   quota checks and cross-service scanner lease also apply.
 - GET `/v1/chatgpt/scans/{scan_id}?page=1` for status/results. Poll at the indicated
-  interval, never repeatedly start jobs. Idempotent retries return the original
+  interval, never repeatedly start jobs. Pending reads now wait up to ten seconds
+  on the server so a GPT cannot burn its polling allowance in an immediate loop.
+  Completed, expired and missing results return immediately. Reads never launch
+  another provider scan. Idempotent retries return the original
   job without additional provider calls. New jobs have a 120-second cooldown and
   are rejected while a previous job is in progress (up to ten minutes).
 - Requests and results are append-only evidence in PostgreSQL. No new tables or
@@ -46,7 +49,8 @@ GPT instructions, query strings, chats, logs or screenshots.
   is not a durable job queue. Interrupted jobs expire after ten minutes and are
   **not automatically retried**. Owner must explicitly start another scan.
 - Results are paginated 25 rows at a time, up to 260 archived action rows; total
-  actions and truncation remain visible. Quote timestamps are rechecked on every
+  actions and truncation remain visible. `page_action_count` is this page only;
+  `total_returned_actions` and model coverage span all `total_pages`. Quote timestamps are rechecked on every
   read. Anything older than 120 seconds or already in play is marked STALE DATA.
 - Chat results prioritize rows with a fitted model probability and model version
   before applying the 260-row cap (`result_ordering=model_coverage_first`). This
@@ -140,3 +144,22 @@ Official references (checked September 23, 2026):
 - ChatGPT's displayed notice says GPTs retire on December 11. This currently
   supported private GPT path needs migration to a plugin before that deadline;
   the existing action API is not an authenticated MCP plugin.
+
+## First authenticated GPT scan and fixes
+
+- After owner-provided secure key entry, the actual GPT preview retrieved the
+  deployed NFL/MLB versions, SHADOW_ONLY status and NCAAF UNAVAILABLE.
+- The preview's scan action created `c10b5a6d-9e29-4e70-a5c4-c85dfdbb7b84`.
+  Its completed result was retrieved in a follow-up prompt and independently
+  checked against PostgreSQL: generated `2026-09-23T05:29:26.787862+00:00`,
+  five feeds, 3,400 quotes, 1,322 candidates, 206 modeled candidates, 260
+  stored rows across eleven pages. Page one contained 25 rows, including
+  actual NFL and MLB fitted probabilities. Betting remained disabled.
+- The GPT ended the initial turn before the job completed, then incorrectly
+  described all 260 stored rows as page one. This is an observed presentation
+  defect, not a missing model integration. Added bounded ten-second server
+  waits, explicit per-page counts and stricter paging/provenance instructions.
+- Regression checks cover early completion, bounded pending waits, no extra
+  scan execution, and immediate complete/expired/missing results. Local suite:
+  181 tests passed; unused/import checks passed. Private publication and a
+  final prompt test after deploying these fixes are still pending.
