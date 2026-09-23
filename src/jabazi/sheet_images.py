@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .discord_sheets import SPORTS
 
 PAGE_SIZE = 24
+SHEET_FORMAT_VERSION = 2
 GROUPS = {
     "nfl": ("Game lines", "Player props", "Anytime touchdowns"),
     "mlb": ("Game lines", "Pitcher props", "Batter props"),

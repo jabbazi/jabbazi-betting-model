@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .persistence.store import Store, digest
-from .sheet_images import render_card, page_count
+from .sheet_images import render_card, page_count, SHEET_FORMAT_VERSION
 
 
 @dataclass(frozen=True)
@@ -248,7 +248,9 @@ def build_client(config, store):
             if record is None:
                 return
             channel = await self.checked_channel(config.sheets_channel)
-            key = digest(["discord_sheet", config.guild, channel.id, record["id"]])
+            key = digest(
+                ["discord_sheet", config.guild, channel.id, record["id"], SHEET_FORMAT_VERSION]
+            )
             claim = {"sheet_id": record["id"], "channel": str(channel.id)}
             if not await asyncio.to_thread(store.append, "sheet_delivery_claim", key, claim, key):
                 return

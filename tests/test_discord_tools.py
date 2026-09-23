@@ -225,6 +225,13 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
     from jabazi.discord_bot import build_client
 
     archive_sheets(store, result([action()]))
+    # An old deployment may claim the fresh sheet during a rolling release.
+    # Its first-page-only delivery must not suppress the corrected full slate.
+    from jabazi.persistence.store import digest
+
+    current = latest_sheet(store)
+    old_key = digest(["discord_sheet", 1, 4, current["id"]])
+    store.append("sheet_delivery_claim", old_key, {}, old_key)
     sent = []
 
     async def exercise():
