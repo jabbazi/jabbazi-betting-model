@@ -1,1 +1,1 @@
-# jabbazi-betting-model
+# jabbazi-betting-model\n\n## V4.2 reliability engine\n\nThe current development branch `v4.2-reliability-engine` adds model-promotion, data-integrity, incremental-edge, CLV, and portfolio-risk primitives for the JABBAZI GURU scanner.\n\nCore implementation: `jabbazi_v42.py`\n\nRun tests with:\n\n```bash\npython -m unittest discover -s tests -v\n```\n\nSee `V4.2_ARCHITECTURE.md` for integration requirements.
