@@ -54,9 +54,26 @@ background tasks, not a durable queue.
 7. Keep the integration private. The scanner is not a Discord member feature.
 
 Tool descriptions specify the `scan everything` trigger and result provenance.
-If regular-chat tool selection is inconsistent, package a routing skill only
-after the actual connection's technical ID is known. Never claim that a chat is
-connected before a real successful tool call in that chat.
+A private routing plugin is now packaged under `integrations/jabbazi-scanner`.
+Its MCP configuration uses the real deployed endpoint; it does not invent an
+app/connector ID. Its routing skill requires actual connected tools and explicitly
+reports missing access. Never claim that a chat is connected before a real
+successful tool call in that chat.
+
+## Private plugin created September 23, 2026
+
+- Name: `jabbazi-scanner` (display name JABBAZI Scanner), version `0.1.0`.
+- Plugin ID: `plugins_6ab3f91ced948191a311a57e86f73def`.
+- Release ID: `pluginrel_6ab3f91dd4148191843a9120f47d986d`.
+- Creator result: `created`; visibility: private; included skill: `scan-everything`.
+- https://chatgpt.com/plugins/plugins_6ab3f91ced948191a311a57e86f73def
+
+The plugin page was opened and displayed the private package, MCP URL, routing
+skill and an Open in desktop app action. This is not proof of authorization in
+regular ChatGPT or on the owner's phone. Developer mode remained off. Native
+custom-connector creation, secure OAuth consent and an actual regular-chat tool
+test are still pending. No owner/provider/scanner credentials were put in the
+plugin package.
 
 ## Verification record
 

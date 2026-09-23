@@ -105,7 +105,7 @@ def worker(*, once=False):
                             report["model_refresh"] = refresh_models(store)
                             result = AutomaticScanner(
                                 settings,
-                                max_credits_per_run=int(os.getenv("JABBAZI_SCAN_MAX_CREDITS", "9")),
+                                max_credits_per_run=int(os.getenv("JABBAZI_SCAN_MAX_CREDITS", "15")),
                             ).run("quick")
                             report["scan"] = {
                                 "feeds": result.feeds_scanned,

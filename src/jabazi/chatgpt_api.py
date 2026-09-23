@@ -94,6 +94,7 @@ class ScanPage(BaseModel):
     quotes_archived: int = 0
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
+    event_market_coverage: dict[str, Any] | None = None
     result_ordering: str | None = None
     actions: list[dict[str, Any]] = []
     errors: list[str] = []
@@ -228,6 +229,7 @@ def scan_page(store, scan_id, page=1, now=None):
         quotes_archived=payload.get("quotes_archived", 0),
         credits_remaining=payload.get("credits_remaining"),
         model_coverage=payload.get("model_coverage", {}),
+        event_market_coverage=payload.get("event_market_coverage"),
         result_ordering=payload.get("result_ordering"),
         actions=[present_action(r, now) for r in page_rows],
         errors=payload.get("errors", []),

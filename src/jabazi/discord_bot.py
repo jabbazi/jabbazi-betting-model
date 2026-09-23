@@ -97,8 +97,11 @@ def command_allowed(config, *, guild, channel, bot_author, content):
     if bot_author or guild != config.guild:
         return None
     parsed = parse_command(content)
-    if not parsed or parsed[0] == "status":
+    if not parsed:
         return None
+    if parsed[0] == "status":
+        # !vip opens a read-only member app; it never invokes the owner scanner.
+        return "portal", ()
     destination = config.sheets_channel
     return parsed if channel == destination else None
 
@@ -119,6 +122,13 @@ def build_client(config, store):
                 guild = await self.fetch_guild(config.guild)
                 if guild.owner_id != config.owner or not guild.icon:
                     return
+                await asyncio.to_thread(
+                    store.append,
+                    "member_brand",
+                    "server",
+                    {"icon_url": str(guild.icon.url)},
+                    digest(["member_brand", config.guild, guild.icon.key]),
+                )
                 key = digest(["discord_avatar", config.guild, guild.icon.key])
                 records = await asyncio.to_thread(store.list_records, "discord_avatar", 1)
                 if records and records[0]["entity"] == key:
@@ -222,6 +232,56 @@ def build_client(config, store):
             if command is None:
                 return
             try:
+                if command[0] == "portal":
+                    await self.checked_channel(config.sheets_channel)
+                    # Check current membership over REST, not just a cached message role.
+                    member = await message.guild.fetch_member(message.author.id)
+                    allowed = member.id == config.owner or bool(
+                        {r.id for r in member.roles} & config.viewer_roles
+                    )
+                    if not allowed:
+                        await message.channel.send(
+                            "The JABBAZI member app requires an approved VIP role.",
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
+                        return
+                    key = digest(
+                        ["member_access_command", config.guild, member.id, int(time.time()) // 30]
+                    )
+                    if not await asyncio.to_thread(
+                        store.append, "member_access_command", str(member.id), {}, key
+                    ):
+                        return
+                    from .member_access import issue_ticket, portal_origin
+
+                    ticket = await asyncio.to_thread(
+                        issue_ticket,
+                        store,
+                        guild=config.guild,
+                        member=member.id,
+                        authorized=allowed,
+                    )
+                    link = portal_origin() + "/vip#access=" + ticket
+                    embed = discord.Embed(
+                        title="Open JABBAZI GURU",
+                        url=link,
+                        colour=0x8B35E8,
+                        description="Your private research room: game sheets, player props, anytime TDs, insights and lessons. This single-use link expires in 5 minutes; access lasts 15 minutes. Keep this link private.",
+                    )
+                    try:
+                        await member.send(
+                            embed=embed, allowed_mentions=discord.AllowedMentions.none()
+                        )
+                        await message.channel.send(
+                            "Your private JABBAZI app link is in your DMs.",
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
+                    except discord.Forbidden:
+                        await message.channel.send(
+                            "Enable direct messages from this server, then type !vip again for your private app link.",
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
+                    return
                 channel = await self.checked_channel(message.channel.id)
                 # One command response per channel per 30 seconds, across replicas.
                 key = digest(["discord_command", channel.id, int(time.time()) // 30])

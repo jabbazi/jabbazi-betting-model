@@ -290,6 +290,7 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False) -> dict:
             "feeds_scanned": result.feeds_scanned,
             "quotes_archived": result.quotes_archived,
             "credits_remaining": result.credits_remaining,
+            "event_market_coverage": result.event_market_coverage,
             "errors": list(result.errors),
             "model_coverage": {
                 "modeled_actions": sum(a.model_probability is not None for a in result.actions),
@@ -373,3 +374,7 @@ app.include_router(chatgpt_router)
 from .scanner_mcp import router as scanner_mcp_router
 
 app.include_router(scanner_mcp_router)
+
+from .member_api import router as member_router
+
+app.include_router(member_router)

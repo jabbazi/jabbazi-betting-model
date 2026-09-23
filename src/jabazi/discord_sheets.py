@@ -44,7 +44,8 @@ def archive_sheets(store, result, *, now=None):
             continue
         # The LA-facing sheet never includes college player markets.
         if c.sport == SPORTS["cfb"] and (
-            c.participant or c.market.startswith(("player_", "pitcher_", "batter_"))
+            c.market.startswith(("player_", "pitcher_", "batter_"))
+            or (c.participant and c.market not in {"team_totals", "alternate_team_totals"})
         ):
             continue
         rows.append(
@@ -77,11 +78,15 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["participant"] = c.participant
         rows[-1]["event_id"] = getattr(c, "event_id", "")
         rows[-1]["book_count"] = len(getattr(c, "book_prices", {}))
+        rows[-1]["executable"] = c.executable
+        rows[-1]["price_stale"] = c.stale
+        rows[-1]["in_play"] = c.in_play
     payload = {
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
         "error_count": len(result.errors),
         "feeds": result.feeds_scanned,
+        "event_market_coverage": getattr(result, "event_market_coverage", None),
         "quotes": result.quotes_archived,
         "rows": rows,
         "slate_events": [
@@ -150,7 +155,7 @@ def scanner_status(store, *, now=None):
     return (
         f"JABBAZI Research — {state}\nLast worker heartbeat (UTC): {at}\n"
         "Research mode. Automated official picks are not enabled. "
-        "!vip reports status; it does not grant membership or trigger a paid scan."
+        "!vip opens the read-only member app; it never triggers a paid scan."
     )
 
 

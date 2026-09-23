@@ -71,7 +71,11 @@ def test_bot_avatar_sync_uses_configured_guild_and_does_not_repeat(store):
         client = build_client(BotConfig(1, 2, 3, 4, frozenset()), store)
         edit = AsyncMock()
         client._connection.user = SimpleNamespace(edit=edit)
-        icon = SimpleNamespace(key="server-icon", read=AsyncMock(return_value=b"image"))
+        icon = SimpleNamespace(
+            key="server-icon",
+            url="https://cdn.discordapp.com/icons/example/icon.png",
+            read=AsyncMock(return_value=b"image"),
+        )
         client.fetch_guild = AsyncMock(return_value=SimpleNamespace(owner_id=2, icon=icon))
         await client.on_ready()
         await client.on_ready()
@@ -104,6 +108,9 @@ def action(sport="baseball_mlb", participant=None):
             starts_at=now + timedelta(hours=1),
             consensus_probability=D(".5"),
             participant=participant,
+            executable=False,
+            stale=False,
+            in_play=False,
         ),
         model_probability=None,
         model_version=None,
@@ -180,9 +187,12 @@ def test_only_exact_supported_commands(content, expected):
 
 def test_commands_ignore_other_servers_channels_and_bots():
     config = BotConfig(1, 2, 3, 4, frozenset({5}))
-    assert command_allowed(config, guild=1, channel=3, bot_author=False, content="!vip") is None
+    assert command_allowed(config, guild=1, channel=3, bot_author=False, content="!vip") == (
+        "portal",
+        (),
+    )
     assert command_allowed(config, guild=1, channel=4, bot_author=False, content="!cheatsheets nfl")
-    for guild, channel, bot in [(9, 3, False), (None, 3, False), (1, 4, False), (1, 3, True)]:
+    for guild, channel, bot in [(9, 3, False), (None, 3, False), (1, 3, True)]:
         assert (
             command_allowed(config, guild=guild, channel=channel, bot_author=bot, content="!vip")
             is None

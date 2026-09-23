@@ -37,6 +37,7 @@ class AutomaticScanResult:
     errors: tuple[str, ...]
     actions: tuple[ActionCard, ...]
     slate_events: tuple[dict, ...] = ()
+    event_market_coverage: dict | None = None
 
 
 class AutomaticScanner:
@@ -111,29 +112,21 @@ class AutomaticScanner:
         errors.extend(model_errors)
         actions = []
         run_id = str(uuid.uuid4())
-        spent_this_run = 0
         slate_events = {}
-        for sport in selected:
-            if isinstance(ledger, Store) and not ledger.acquire_lease("scanner", owner, 600):
-                raise RuntimeError("Scanner lease could not be renewed")
-            markets = ("outrights",) if sport.get("has_outrights") else ("h2h", "spreads", "totals")
-            estimated_cost = 1 if markets == ("outrights",) else 3
-            if spent_this_run + estimated_cost > self.max_credits_per_run:
-                break
-            if remaining is not None and remaining - estimated_cost < self.credit_reserve:
-                break
-            try:
-                # Charge the local budget before requesting: failed responses can still cost quota.
-                if isinstance(ledger, Store):
-                    from .operations import reserve_request
+        from .feed_plan import FeedPlan
 
-                    if not reserve_request(ledger, estimated_cost):
-                        errors.append("MONTHLY_QUOTA_LIMIT")
-                        break
-                spent_this_run += estimated_cost
-                batch = TheOddsApiProvider(
-                    sport["key"], markets=markets, api_key=self.settings.api_key
-                ).fetch()
+        plan = FeedPlan(
+            lambda sport, markets: TheOddsApiProvider(
+                sport, markets=markets, api_key=self.settings.api_key
+            ),
+            ledger if isinstance(ledger, Store) else None,
+            self.max_credits_per_run,
+            self.credit_reserve,
+            errors,
+            lambda: not isinstance(ledger, Store) or ledger.acquire_lease("scanner", owner, 600),
+        )
+        for sport, batch in plan.batches(selected):
+            try:
                 ledger.archive_batch(batch)
                 scanned += 1
                 quote_count += len(batch.quotes)
@@ -292,6 +285,7 @@ class AutomaticScanner:
                 "scan_run",
                 run_id,
                 {
+                    "event_market_coverage": plan.coverage,
                     "feeds_scanned": scanned,
                     "quotes_archived": quote_count,
                     "errors": errors,
@@ -315,4 +309,5 @@ class AutomaticScanner:
             tuple(errors),
             tuple(actions),
             tuple(slate_events.values()),
+            plan.coverage,
         )

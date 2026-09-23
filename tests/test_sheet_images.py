@@ -138,3 +138,80 @@ def test_full_slate_is_delivered_without_requesting_extra_pages():
     asyncio.run(exercise())
     assert len(sent) == 4
     assert "jabbazi-nfl-1-page-2.png" in sent
+
+
+def modeled_row(**changes):
+    base = record()["payload"]["rows"][0]
+    return (
+        base
+        | {
+            "event_id": "one",
+            "starts_at_utc": "2026-09-24T01:00:00Z",
+            "research_probability": "0.60",
+            "market_no_vig_probability": "0.50",
+            "uncertainty": "0.08",
+            "decimal_odds": "2.0",
+            "model_version": "SYNTHETIC_TEST_ONLY",
+            "executable": True,
+            "book_count": 3,
+        }
+        | changes
+    )
+
+
+def test_shortlist_compares_all_markets_once_per_game_by_value_not_highest_hit_rate():
+    from jabazi.sheet_images import shortlist_rows
+
+    data = record()
+    data["payload"]["rows"] = [
+        modeled_row(research_probability="0.85", decimal_odds="1.15"),
+        modeled_row(market="spreads", line=1.5, research_probability="0.70", decimal_odds="1.40"),
+        modeled_row(market="alternate_totals", selection="Under", line=8.5),
+    ] * 8
+    selected = shortlist_rows(data, "nfl", 0)
+    assert len(selected) == 1
+    assert selected[0]["best"]["market"] == "alternate_totals"
+    assert selected[0]["edge"] == __import__("pytest").approx(0.10)
+    assert selected[0]["status"] == "WATCH"
+
+
+def test_unavailable_or_stale_game_is_preserved_but_cannot_become_a_best_pick():
+    from jabazi.sheet_images import shortlist_rows
+
+    data = record()
+    data["payload"]["rows"] = [
+        modeled_row(event_id="old", price_time_utc="2026-09-23T02:00:00Z"),
+        modeled_row(event_id="missing", model_version=None),
+        modeled_row(event_id="bad", research_probability="NaN"),
+    ]
+    rows = shortlist_rows(data, "nfl", 0)
+    assert len(rows) == 3 and all(r["best"] is None and r["edge"] is None for r in rows)
+    assert Image.open(io.BytesIO(render_card(data, "nfl", 0))).height < 700
+
+
+def test_unmodeled_props_show_neutral_market_references_without_fake_model_edge():
+    from jabazi.sheet_images import shortlist_rows, selection_label
+
+    data = record()
+    data["payload"]["rows"] = [
+        modeled_row(
+            participant="Example Player",
+            market="player_reception_yds",
+            selection="Over",
+            line=40.5,
+            research_probability=None,
+            model_version=None,
+        ),
+        modeled_row(
+            participant="Example Player",
+            market="player_rush_yds",
+            selection="Over",
+            line=10.5,
+            research_probability=None,
+            model_version=None,
+        ),
+    ]
+    rows = shortlist_rows(data, "nfl", 1)
+    assert len(rows) == 1 and rows[0]["best"] is None and rows[0]["edge"] is None
+    assert rows[0]["reference"] is not None
+    assert "UNRATED" in selection_label(rows[0]["reference"], reference=True)
