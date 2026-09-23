@@ -14,7 +14,6 @@ from .discord_sheets import latest_sheet
 from .member_access import exchange_ticket, hashed, portal_origin, validate_session, SESSION_SECONDS
 from .sheet_images import (
     grouped_rows,
-    shortlist_rows,
     featured_rows,
     selection_label,
     page_count,
