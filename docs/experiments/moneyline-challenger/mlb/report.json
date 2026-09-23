@@ -1,0 +1,979 @@
+{
+  "model_version": "mlb-moneyline-challenger-0.1.0-7c9e6a1e79ad",
+  "status": "RESEARCH_ONLY",
+  "approved_for_betting": false,
+  "protocol": {
+    "version": "moneyline-challenger-0.1.0",
+    "selection_year": 2023,
+    "calibration_year": 2024,
+    "diagnostic_year": 2025,
+    "families": [
+      "form",
+      "form_elo"
+    ],
+    "regularization_c": [
+      0.1,
+      1.0,
+      10.0
+    ],
+    "selection_metric": "log_loss",
+    "calibration": "logistic_on_logit_C1",
+    "elo": {
+      "nfl": [
+        24.0,
+        0.0,
+        0.75
+      ],
+      "mlb": [
+        16.0,
+        0.0,
+        0.85
+      ]
+    },
+    "bootstrap": {
+      "group": "UTC ISO calendar week",
+      "replicates": 1000,
+      "seed": 20260923
+    }
+  },
+  "protocol_sha256": "30f3017ec1fc7eb36fe232c7390ef656e7e9bb1aaf87540cc9e4f8f588509041",
+  "source_sha256": "792a7fe3fb48aa4dae85a8279b67af0a6463bce9734958f98a61f1e8b3fea3aa",
+  "admitted_games_sha256": "d68c04ba730ce1fac8803a014048b0648ac7fdceb09d58710435bbbf854e0395",
+  "code_sha256": "8eeb53b92a1d92f6478c528ce633fa7fa29c0c8a18a0f5646c56503cfe26e870",
+  "score_comparator_sha256": "7e13db0ebb498aca9201bf0f22bdd73c230f3ad6e604bdc426e14a935dd8dd9c",
+  "dependencies": {
+    "numpy": "2.5.3",
+    "sklearn": "1.9.1"
+  },
+  "split_counts": {
+    "fit": 4755,
+    "selection": 2464,
+    "calibration": 2469,
+    "diagnostic": 2473
+  },
+  "excluded_post_2025_games": 2340,
+  "excluded_ties_with_features": 0,
+  "selection_trials": [
+    {
+      "family": "form",
+      "c": 0.1,
+      "selection": {
+        "n": 2464,
+        "brier": 0.24749748181564918,
+        "log_loss": 0.6881067625355317,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 55,
+            "mean_probability": 0.3711809372117879,
+            "observed_rate": 0.2909090909090909
+          },
+          {
+            "lower": 0.4,
+            "n": 602,
+            "mean_probability": 0.4640395144154678,
+            "observed_rate": 0.4900332225913621
+          },
+          {
+            "lower": 0.5,
+            "n": 1304,
+            "mean_probability": 0.5477524403789441,
+            "observed_rate": 0.5038343558282209
+          },
+          {
+            "lower": 0.6,
+            "n": 478,
+            "mean_probability": 0.6338234344572797,
+            "observed_rate": 0.608786610878661
+          },
+          {
+            "lower": 0.7,
+            "n": 25,
+            "mean_probability": 0.7289123831371491,
+            "observed_rate": 0.76
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ],
+        "expected_calibration_error": 0.03655728011965535,
+        "largest_bucket_gap": 0.08027184630269701,
+        "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+        "roc_auc": 0.5584380368778155
+      }
+    },
+    {
+      "family": "form",
+      "c": 1.0,
+      "selection": {
+        "n": 2464,
+        "brier": 0.24751835570626135,
+        "log_loss": 0.6881503338402558,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 56,
+            "mean_probability": 0.3704913808208203,
+            "observed_rate": 0.2857142857142857
+          },
+          {
+            "lower": 0.4,
+            "n": 602,
+            "mean_probability": 0.4636650456331184,
+            "observed_rate": 0.4900332225913621
+          },
+          {
+            "lower": 0.5,
+            "n": 1303,
+            "mean_probability": 0.547840143692495,
+            "observed_rate": 0.5042210283960092
+          },
+          {
+            "lower": 0.6,
+            "n": 477,
+            "mean_probability": 0.6343357186281289,
+            "observed_rate": 0.610062893081761
+          },
+          {
+            "lower": 0.7,
+            "n": 26,
+            "mean_probability": 0.7289559954048817,
+            "observed_rate": 0.7307692307692307
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ],
+        "expected_calibration_error": 0.036153469558133186,
+        "largest_bucket_gap": 0.08477709510653458,
+        "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+        "roc_auc": 0.5584179142684476
+      }
+    },
+    {
+      "family": "form",
+      "c": 10.0,
+      "selection": {
+        "n": 2464,
+        "brier": 0.24752049234563878,
+        "log_loss": 0.6881547952012805,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 56,
+            "mean_probability": 0.37036941765327386,
+            "observed_rate": 0.2857142857142857
+          },
+          {
+            "lower": 0.4,
+            "n": 602,
+            "mean_probability": 0.46361032376570416,
+            "observed_rate": 0.4900332225913621
+          },
+          {
+            "lower": 0.5,
+            "n": 1303,
+            "mean_probability": 0.5478451562819697,
+            "observed_rate": 0.5042210283960092
+          },
+          {
+            "lower": 0.6,
+            "n": 477,
+            "mean_probability": 0.6344011814777509,
+            "observed_rate": 0.610062893081761
+          },
+          {
+            "lower": 0.7,
+            "n": 26,
+            "mean_probability": 0.729074626158686,
+            "observed_rate": 0.7307692307692307
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ],
+        "expected_calibration_error": 0.036178138961768386,
+        "largest_bucket_gap": 0.08465513193898816,
+        "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+        "roc_auc": 0.5584146154800266
+      }
+    },
+    {
+      "family": "form_elo",
+      "c": 0.1,
+      "selection": {
+        "n": 2464,
+        "brier": 0.24564694890921848,
+        "log_loss": 0.6843253202599661,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 3,
+            "mean_probability": 0.28324880598214075,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "n": 111,
+            "mean_probability": 0.3709412249822698,
+            "observed_rate": 0.4144144144144144
+          },
+          {
+            "lower": 0.4,
+            "n": 659,
+            "mean_probability": 0.46005942565621105,
+            "observed_rate": 0.464339908952959
+          },
+          {
+            "lower": 0.5,
+            "n": 1089,
+            "mean_probability": 0.548228637535358,
+            "observed_rate": 0.5133149678604224
+          },
+          {
+            "lower": 0.6,
+            "n": 557,
+            "mean_probability": 0.6397390587909313,
+            "observed_rate": 0.6050269299820467
+          },
+          {
+            "lower": 0.7,
+            "n": 45,
+            "mean_probability": 0.7283047221697275,
+            "observed_rate": 0.6666666666666666
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ],
+        "expected_calibration_error": 0.02785124328638909,
+        "largest_bucket_gap": 0.28324880598214075,
+        "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+        "roc_auc": 0.576716293639672
+      }
+    },
+    {
+      "family": "form_elo",
+      "c": 1.0,
+      "selection": {
+        "n": 2464,
+        "brier": 0.2456683992261008,
+        "log_loss": 0.684371341870619,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 3,
+            "mean_probability": 0.2813260000612903,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "n": 111,
+            "mean_probability": 0.36978125134426715,
+            "observed_rate": 0.4144144144144144
+          },
+          {
+            "lower": 0.4,
+            "n": 662,
+            "mean_probability": 0.459636433966144,
+            "observed_rate": 0.4637462235649547
+          },
+          {
+            "lower": 0.5,
+            "n": 1083,
+            "mean_probability": 0.5482726192433408,
+            "observed_rate": 0.5143120960295475
+          },
+          {
+            "lower": 0.6,
+            "n": 555,
+            "mean_probability": 0.6396487799087189,
+            "observed_rate": 0.6036036036036037
+          },
+          {
+            "lower": 0.7,
+            "n": 50,
+            "mean_probability": 0.7266065277148834,
+            "observed_rate": 0.66
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ],
+        "expected_calibration_error": 0.02785453964732312,
+        "largest_bucket_gap": 0.2813260000612903,
+        "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+        "roc_auc": 0.5767783108619866
+      }
+    },
+    {
+      "family": "form_elo",
+      "c": 10.0,
+      "selection": {
+        "n": 2464,
+        "brier": 0.24567068246463716,
+        "log_loss": 0.6843762442241482,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 3,
+            "mean_probability": 0.281129821380022,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.3,
+            "n": 112,
+            "mean_probability": 0.3699338576741708,
+            "observed_rate": 0.4107142857142857
+          },
+          {
+            "lower": 0.4,
+            "n": 664,
+            "mean_probability": 0.45984628498362806,
+            "observed_rate": 0.46536144578313254
+          },
+          {
+            "lower": 0.5,
+            "n": 1080,
+            "mean_probability": 0.5484124359038852,
+            "observed_rate": 0.5138888888888888
+          },
+          {
+            "lower": 0.6,
+            "n": 555,
+            "mean_probability": 0.6397166506674321,
+            "observed_rate": 0.6036036036036037
+          },
+          {
+            "lower": 0.7,
+            "n": 50,
+            "mean_probability": 0.726727190424194,
+            "observed_rate": 0.66
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ],
+        "expected_calibration_error": 0.02830251444534679,
+        "largest_bucket_gap": 0.281129821380022,
+        "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+        "roc_auc": 0.5767707236486184
+      }
+    }
+  ],
+  "selected": {
+    "family": "form_elo",
+    "c": 0.1
+  },
+  "diagnostic_uncalibrated": {
+    "n": 2473,
+    "brier": 0.24461149002173344,
+    "log_loss": 0.6821211409174996,
+    "reliability": [
+      {
+        "lower": 0.0,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.1,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.2,
+        "n": 3,
+        "mean_probability": 0.29433260471342204,
+        "observed_rate": 0.3333333333333333
+      },
+      {
+        "lower": 0.3,
+        "n": 113,
+        "mean_probability": 0.3670111335224624,
+        "observed_rate": 0.34513274336283184
+      },
+      {
+        "lower": 0.4,
+        "n": 713,
+        "mean_probability": 0.46165540889889495,
+        "observed_rate": 0.4964936886395512
+      },
+      {
+        "lower": 0.5,
+        "n": 1179,
+        "mean_probability": 0.5478163481545664,
+        "observed_rate": 0.55470737913486
+      },
+      {
+        "lower": 0.6,
+        "n": 427,
+        "mean_probability": 0.6358036224873049,
+        "observed_rate": 0.6276346604215457
+      },
+      {
+        "lower": 0.7,
+        "n": 38,
+        "mean_probability": 0.7222441711894028,
+        "observed_rate": 0.6842105263157895
+      },
+      {
+        "lower": 0.8,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.9,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      }
+    ],
+    "expected_calibration_error": 0.01637157483300792,
+    "largest_bucket_gap": 0.039000728619911273,
+    "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+    "roc_auc": 0.5646105354980426
+  },
+  "diagnostic_calibrated": {
+    "n": 2473,
+    "brier": 0.2448319454679233,
+    "log_loss": 0.6825796995912962,
+    "reliability": [
+      {
+        "lower": 0.0,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.1,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.2,
+        "n": 3,
+        "mean_probability": 0.296865774546126,
+        "observed_rate": 0.3333333333333333
+      },
+      {
+        "lower": 0.3,
+        "n": 118,
+        "mean_probability": 0.36699756361118807,
+        "observed_rate": 0.3389830508474576
+      },
+      {
+        "lower": 0.4,
+        "n": 817,
+        "mean_probability": 0.4605691898769647,
+        "observed_rate": 0.5165238678090576
+      },
+      {
+        "lower": 0.5,
+        "n": 1193,
+        "mean_probability": 0.5458182860842488,
+        "observed_rate": 0.5490360435875943
+      },
+      {
+        "lower": 0.6,
+        "n": 326,
+        "mean_probability": 0.6352130178589143,
+        "observed_rate": 0.6441717791411042
+      },
+      {
+        "lower": 0.7,
+        "n": 16,
+        "mean_probability": 0.7221391751008477,
+        "observed_rate": 0.875
+      },
+      {
+        "lower": 0.8,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      },
+      {
+        "lower": 0.9,
+        "n": 0,
+        "mean_probability": null,
+        "observed_rate": null
+      }
+    ],
+    "expected_calibration_error": 0.023588839923523352,
+    "largest_bucket_gap": 0.15286082489915231,
+    "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+    "roc_auc": 0.5646098766505776
+  },
+  "paired_score_reference": {
+    "n": 2473,
+    "week_blocks": 33,
+    "candidate": {
+      "n": 2473,
+      "brier": 0.2448319454679233,
+      "log_loss": 0.6825796995912962,
+      "reliability": [
+        {
+          "lower": 0.0,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.2,
+          "n": 3,
+          "mean_probability": 0.296865774546126,
+          "observed_rate": 0.3333333333333333
+        },
+        {
+          "lower": 0.3,
+          "n": 118,
+          "mean_probability": 0.36699756361118807,
+          "observed_rate": 0.3389830508474576
+        },
+        {
+          "lower": 0.4,
+          "n": 817,
+          "mean_probability": 0.4605691898769647,
+          "observed_rate": 0.5165238678090576
+        },
+        {
+          "lower": 0.5,
+          "n": 1193,
+          "mean_probability": 0.5458182860842488,
+          "observed_rate": 0.5490360435875943
+        },
+        {
+          "lower": 0.6,
+          "n": 326,
+          "mean_probability": 0.6352130178589143,
+          "observed_rate": 0.6441717791411042
+        },
+        {
+          "lower": 0.7,
+          "n": 16,
+          "mean_probability": 0.7221391751008477,
+          "observed_rate": 0.875
+        },
+        {
+          "lower": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        }
+      ],
+      "expected_calibration_error": 0.023588839923523352,
+      "largest_bucket_gap": 0.15286082489915231,
+      "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+      "roc_auc": 0.5646098766505776
+    },
+    "reference": {
+      "n": 2473,
+      "brier": 0.24702553267294494,
+      "log_loss": 0.687039237852624,
+      "reliability": [
+        {
+          "lower": 0.0,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.2,
+          "n": 3,
+          "mean_probability": 0.249888442659527,
+          "observed_rate": 0.3333333333333333
+        },
+        {
+          "lower": 0.3,
+          "n": 117,
+          "mean_probability": 0.3684104513779785,
+          "observed_rate": 0.39316239316239315
+        },
+        {
+          "lower": 0.4,
+          "n": 868,
+          "mean_probability": 0.4633944976171736,
+          "observed_rate": 0.5241935483870968
+        },
+        {
+          "lower": 0.5,
+          "n": 1250,
+          "mean_probability": 0.5378343467642348,
+          "observed_rate": 0.5552
+        },
+        {
+          "lower": 0.6,
+          "n": 226,
+          "mean_probability": 0.6287694349576377,
+          "observed_rate": 0.6061946902654868
+        },
+        {
+          "lower": 0.7,
+          "n": 9,
+          "mean_probability": 0.7236483197167599,
+          "observed_rate": 1.0
+        },
+        {
+          "lower": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        }
+      ],
+      "expected_calibration_error": 0.0344585571762123,
+      "largest_bucket_gap": 0.2763516802832401,
+      "note": "Descriptive bucket gaps, not confidence intervals or proof of edge",
+      "roc_auc": 0.5455411838961868
+    },
+    "difference": {
+      "brier": {
+        "mean": -0.0021935872050215955,
+        "weekly_bootstrap_95_percent_interval": [
+          -0.004362290385318534,
+          -0.0002613363692684576
+        ]
+      },
+      "log_loss": {
+        "mean": -0.004459538261327875,
+        "weekly_bootstrap_95_percent_interval": [
+          -0.008886986300890536,
+          -0.0005127262984974347
+        ]
+      }
+    },
+    "note": "Negative favors candidate. Descriptive weekly bootstrap; not evidence of profitability or independent prospective validation."
+  },
+  "paired_market_reference": {
+    "n": 0,
+    "week_blocks": 0,
+    "candidate": {
+      "n": 0,
+      "brier": null,
+      "log_loss": null,
+      "reliability": [
+        {
+          "lower": 0.0,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.4,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.5,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.6,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.7,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        }
+      ],
+      "expected_calibration_error": null,
+      "largest_bucket_gap": null,
+      "roc_auc": null
+    },
+    "reference": {
+      "n": 0,
+      "brier": null,
+      "log_loss": null,
+      "reliability": [
+        {
+          "lower": 0.0,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.1,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.2,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.3,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.4,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.5,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.6,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.7,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.8,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        },
+        {
+          "lower": 0.9,
+          "n": 0,
+          "mean_probability": null,
+          "observed_rate": null
+        }
+      ],
+      "expected_calibration_error": null,
+      "largest_bucket_gap": null,
+      "roc_auc": null
+    },
+    "difference": null,
+    "note": "Negative favors candidate. Descriptive weekly bootstrap; not evidence of profitability or independent prospective validation."
+  },
+  "execution_backtest": {
+    "available": false,
+    "roi": null,
+    "clv": null,
+    "reason": "No decision-time-verified historical prices"
+  },
+  "limitations": [
+    "2025 was already inspected; this is development diagnostics, not an untouched test",
+    "2026 outcomes excluded entirely; no prospective evidence is produced by this run",
+    "Score/form/Elo features only: no verified pitcher/QB/lineup/usage/injury/weather inputs",
+    "Two-UTC-day result availability is a proxy, not provider publication timestamps",
+    "NFL moneyline probabilities condition on a decisive result; tie/void settlement not modeled",
+    "Weekly bootstrap does not remove all team/time dependence or multiple-experiment bias",
+    "Commercial data and derived-output rights still require confirmation",
+    "No live registry change, production approval, staking or automated promotion"
+  ]
+}

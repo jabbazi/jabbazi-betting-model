@@ -94,3 +94,33 @@ Official references checked September 23, 2026:
 - https://developers.openai.com/plugins/build/auth
 - https://developers.openai.com/plugins/deploy/connect-chatgpt
 - https://learn.chatgpt.com/docs/build-skills
+
+## September 23 combined-research update
+
+The owner supplied a screenshot reporting a successful model-status response,
+then reported a successful scan in the JABBAZI Research chat. This is owner-provided
+evidence; this build turn did not execute another live scan or consume odds credits.
+
+The existing **JABBAZI Scanner** workflow plugin was updated and its current source
+read back successfully:
+
+- Plugin: `plugins_6ab3f91ced948191a311a57e86f73def` (`jabbazi-scanner`).
+- Version: `0.2.0`; status: `updated`.
+- Release: `pluginrel_6ab43c01587081919b0343cc693ba9eb`.
+- https://chatgpt.com/plugins/plugins_6ab3f91ced948191a311a57e86f73def
+- Existing private audience, MCP URL and authentication configuration preserved.
+
+The workflow requests real cloud model results plus current verified web sources,
+then formats a compact research card. It keeps status-only requests read-only,
+reuses scan IDs, checks pagination and freshness, and does not convert shadow
+probabilities into approved wagers. New injury/lineup context cannot silently
+rewrite a model percentage. It lists coverage rather than claiming every website
+was searched.
+
+**JABBAZI Research** is the connected data/tools app; **JABBAZI Scanner** supplies
+these combined-workflow instructions. Updating the latter does not change the
+former app's metadata or prove that an existing phone conversation has reloaded
+the skill. Select JABBAZI Scanner for the combined workflow and retain the working
+Research connection. Verify a real tool result before claiming a particular chat
+used the cloud model. There was no live phone-chat end-to-end test of version 0.2.0
+in this update; a synthetic offline workflow trial passed.
