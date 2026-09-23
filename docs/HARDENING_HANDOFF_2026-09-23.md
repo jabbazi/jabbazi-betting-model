@@ -163,9 +163,21 @@ No worker rollout was required for this API-only header change. A separate cloud
 browser visit to `/readyz` was blocked by the browser client; no alternate access
 was attempted. Live readiness evidence is the Render log, not that browser visit.
 
-The owner must open a fresh JABBAZI Research connection from ChatGPT and authorize
-in the private scanner-key form. A connected account, tool discovery and a real
-`get_model_status` call are still required before claiming regular-chat scans
-work. No scan, provider-credit use, model promotion or Discord post occurred in
+### Follow-up after the owner's fresh authorization
+
+Render logs now verify consent POST `/oauth/authorize` returned 303 at 20:18:28 UTC
+and `/oauth/token` returned 200 at 20:18:29 UTC. A second consent POST returned
+400; its cause was not established. Subsequent `/mcp` requests included 200 and
+202 responses, plus 401 and 400 responses. Access logs do not identify JSON-RPC
+methods, so those statuses do not prove successful tool discovery or a model call.
+
+Fresh ChatGPT connection settings still displayed no connected account and no app
+tools; the current assistant tool registry also lacked JABBAZI tools. A fresh
+ordinary-chat test was started but did not reach submission: browser inspection
+stalled and its tool transport then reported `environment_offline`. No credential
+was read or resubmitted. OAuth token issuance is verified; ChatGPT account
+attachment, usable tool discovery and a real `get_model_status` response remain
+unverified. Resume at those checks when the browser session is available; do not
+repeat the key-entry step without evidence that another authorization is needed. No scan, provider-credit use, model promotion or Discord post occurred in
 this repair. Browser behavior reference:
 https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header
