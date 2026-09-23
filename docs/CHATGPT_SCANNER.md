@@ -1,5 +1,12 @@
 # Private JABBAZI Scanner GPT
 
+**Connection verified September 23, 2026:** the saved GPT is live with **Only me**
+access. A real `Scan everything` prompt completed against the cloud and returned
+fitted NFL/MLB research probabilities. This verifies integration, not betting
+approval, model profitability or full sport/prop coverage.
+
+Owner entry point: https://chatgpt.com/g/g-6ab35da167c08191b6007d59a75b497f-jabbazi-scanner
+
 The deployment exposes a **GPT Action**, not an automatically installed ChatGPT
 app. A normal conversation, including one named Scanner, cannot execute this API
 until it uses the configured custom GPT. No OpenAI API subscription/key is needed
@@ -163,3 +170,27 @@ Official references (checked September 23, 2026):
   scan execution, and immediate complete/expired/missing results. Local suite:
   181 tests passed; unused/import checks passed. Private publication and a
   final prompt test after deploying these fixes are still pending.
+
+## Saved private GPT acceptance result
+
+- Deployed `3b48f3817e60a6392bf32dd49bae740529300de2` to the existing Render API;
+  deployment succeeded in 51.2 seconds. GitHub verification run `35822979639`
+  succeeded, including tests, container stack checks and backup/restore checks.
+- Saved GPT `g-6ab35da167c08191b6007d59a75b497f` with the corrected schema,
+  instructions and owner-provided scoped credential. The editor displayed
+  `Live` and `Only me` and confirmed `Settings Saved`.
+- In the saved GPT, the exact prompt `Scan everything` completed in one turn
+  (UI displayed 1m 3s). It created job
+  `4e5a0e40-f237-4b96-9a14-70012992e968`, generated
+  `2026-09-23T05:39:49.871495+00:00`: five feeds, 3,400 archived quotes,
+  1,324 candidates, 206 modeled candidates, 1,118 unmodeled candidates,
+  260 stored rows across eleven pages, no errors, betting disabled.
+- The GPT accurately said it fetched only page one and showed a sample rather
+  than claiming the entire 260-row archive was one page. Independent read-only
+  PostgreSQL verification confirmed page one had 25 rows and the five checked
+  NFL/MLB probability examples matched the stored rows at displayed precision.
+- Output retained SHADOW_ONLY/WATCH, identified stale prices, left expected ROI
+  unavailable, and reported CFB and prop/TD model gaps. No wager or Discord
+  publishing action is exposed by this GPT.
+- Regular ChatGPT conversations remain unconnected unless they use this GPT.
+  ChatGPT currently displays a December 11 GPT-to-plugin migration deadline.
