@@ -99,3 +99,29 @@ Official references (checked September 23, 2026):
 - https://developers.openai.com/api/docs/actions/getting-started
 - https://developers.openai.com/api/docs/actions/authentication
 - https://developers.openai.com/api/docs/actions/production
+
+## Model-probability connection follow-up
+
+- A read-only check of all 11 pages of the earlier live job confirmed actual
+  NFL/MLB probabilities and model versions reached the action response. However,
+  market-only ordering retained just 66 of 198 modeled rows within the 260-row
+  cap (36 NFL, 30 MLB; only five modeled rows on page one).
+- Commit `cfd9a01d141a5e93c21f6bacadc20b28c3fed9a6` corrects that response
+  selection with model-coverage-first ordering, without changing model inference,
+  risk approval, the provider budget or the general API's ordering.
+- 175 local tests passed; GitHub workflow `35819898842` succeeded. New regression
+  tests run the real fitted NFL and MLB artifacts through registry, inference,
+  scanner, shared API, stored job and chat presentation, with mocked provider
+  responses. Each verifies the modeled row survives 270 higher-ranked
+  market-only rows and retains its exact probability, version and uncertainty.
+- The existing Render API deployed this commit successfully in 45.5 seconds.
+  The worker/model refresh did not require a restart. Scoped credentials still
+  receive 401 from the owner review API.
+- Fresh authenticated action job `94d50ac4-59ff-48ec-8419-aa72e439ac8a`
+  started at `2026-09-23T04:52:20.658861+00:00` and completed at
+  `2026-09-23T04:52:56.807419+00:00`: five feeds, 3,458 quotes, 1,318 total
+  actions, 200 modeled actions, all 200 retained in the 260-row response;
+  page one contained 25 modeled rows. Both fitted NFL/MLB versions were present,
+  errors were empty, and betting remained disabled. No wagers or Discord posts.
+- This proves the live backend connection, **not** the unfinished ChatGPT
+  account/GPT configuration or profitable out-of-sample performance.
