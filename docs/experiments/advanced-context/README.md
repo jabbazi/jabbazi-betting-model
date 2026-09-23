@@ -102,6 +102,11 @@ game attestation from the ingestion layer, which still needs real-feed testing.
 - Full local suite: **291 passed**, one existing discord.py audioop deprecation
   warning. Ruff and whitespace checks passed. Synthetic tests verify code behavior,
   not model calibration, real feed quality, profitability, or cloud operation.
+- GitHub CI for code commit `aed2d8945258d770fb18fe4e28aac3d950efc743`
+  passed in runs `35922519903` and `35922514549`. The PostgreSQL-enabled suite
+  reported **305 passed**. API/container startup, database backup/restore, and
+  database-outage smoke checks also passed. These are CI checks, not a production
+  deployment or an advanced-model performance test.
 
 ## Data access and next experiment
 
