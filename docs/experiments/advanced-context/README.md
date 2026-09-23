@@ -4,6 +4,11 @@ Implemented and tested an **offline feature-preparation pipeline**. No advanced
 model has been trained, no predictive improvement is claimed, and no cloud model
 or scanner probability has changed. The existing models remain SHADOW_ONLY.
 
+Later source-capture update: [NFL real-data results](../nfl-context-capture/README.md)
+and [MLB staging results](../mlb-history-capture/README.md) now document successful
+bounded public-data imports. The earlier inventory below remains an audit of the
+five original local files, not an inventory of the new Actions artifacts.
+
 ## What works
 
 `jabazi.features.advanced.AdvancedContext` consumes provider-neutral archived
@@ -58,7 +63,7 @@ The input document contains `manifest` and `snapshots`. The manifest requires:
 
 ```json
 {
-  "schema": "advanced-context-0.1.0",
+  "schema": "advanced-context-0.2.0",
   "data_mode": "real",
   "provider": "provider name",
   "id_namespace": "documented canonical ID mapping",
@@ -72,7 +77,8 @@ An optional `published_at` may delay availability but can never move it earlier
 than the observed time. Keep the original captured raw file at the archive
 reference. Append corrections as new snapshots; do not change original captures.
 
-Completed-stat snapshots also require `ended_at` and numeric `values` matching
+Completed-stat snapshots also require exactly one of actual `ended_at` or a
+conservative `completed_by` bound, and numeric `values` matching
 `NFL_FIELDS` or `MLB_FIELDS` in the module. A `mlb_starter` uses `entity_id` for
 the team and `pitcher_id` for the announced player, with a status of `confirmed`,
 `probable`, `scratched` or `unknown`. Scratched/unknown entries have null pitcher
@@ -80,7 +86,10 @@ IDs. Only confirmed entries can currently admit a starter feature vector.
 
 Requests are a JSON array with `sport`, `event_id`, `home_id`, `away_id`,
 `prediction_at` and `starts_at`. Join IDs through a verified provider crosswalk;
-the importer intentionally does not fuzzy-match names. Executable **synthetic**
+the importer intentionally does not fuzzy-match names. Legacy `0.1.0` manifests
+remain supported. A final score observed today can supply a conservative
+completion bound today, but cannot establish original historical availability.
+Executable **synthetic**
 schema examples are in `tests/test_advanced_features.py`.
 
 ```bash
