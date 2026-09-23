@@ -1,12 +1,20 @@
 # JABBAZI Discord research tools
 
-The gateway bot is implemented but **not deployed or live-verified**. Installing the
-Discord application alone does not run this process. Existing webhook review is
-unchanged. No official picks are published by these commands.
+The gateway bot was deployed and live-verified on September 23, 2026: !vip replied
+with a real heartbeat, !cheatsheets nfl delivered a research export, and automatic
+delivery published all three sports after a scan. The newer PNG format below has
+local test coverage; verify it after deploying this revision. No official picks
+are published by these commands.
 
 - `!vip` in scanner-status reports the persisted worker heartbeat; it never grants a role.
-- `!cheatsheets` in cheat-sheets returns MLB/NFL/CFB CSV research snapshots.
+- `!cheatsheets` in cheat-sheets returns MLB/NFL/CFB PNG research cards.
 - `!cheatsheets mlb`, `!cheatsheets nfl`, `!cheatsheets cfb` select one sport.
+- Each sport has three category cards. `!cheatsheets nfl 2` selects the next page
+  of each category, with 12 rows per category per page. All archived rows remain
+  accessible through pagination. Empty categories are explicitly unavailable.
+- NFL categories are game lines, player props, and anytime touchdowns. Market
+  probabilities never stand in for missing model forecasts. The bot copies the
+  configured server icon to its own avatar on startup when the icon changes.
 - The scanner archives an immutable sheet after each completed scan. The gateway
   checks once per minute and publishes a new recent sheet once. Failed scans produce
   DATA UNHEALTHY, not the previous successful sheet. Missing/older-than-three-hour
@@ -36,10 +44,11 @@ Typing a display name as plain text is not a Discord bot mention.
    Review this access change with the owner before applying it.
 4. Explicitly deny @everyone View Channel on both targets. Approved VIP/analyst
    viewer role IDs must be listed in JABBAZI_DISCORD_VIEWER_ROLE_IDS (comma-separated).
-5. Install with `pip install '.[discord]'`. Run `python -m jabazi.discord_bot` in an
-   approved persistent service sharing the production database. Do not add a paid
-   service without cost approval. Enable JABBAZI_DISCORD_COMMANDS_ENABLED=true only
-   after all checks. Deploy the scanner code as well to begin sheet archiving.
+5. The Docker image installs `.[discord]` and the worker starts the optional bot
+   subprocess when JABBAZI_DISCORD_COMMANDS_ENABLED=true. They share the existing
+   database and service; no additional paid service is needed. The worker reports
+   subprocess health and terminates it on shutdown. It does not restart-loop a
+   failed bot. The bot can also run separately with `python -m jabazi.discord_bot`.
 
 Required environment variables (no secret values in git):
 

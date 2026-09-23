@@ -61,6 +61,27 @@ def test_brand_asset_cannot_be_arbitrary_external_url():
     )
 
 
+def test_bot_avatar_sync_uses_configured_guild_and_does_not_repeat(store):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from jabazi.discord_bot import build_client
+
+    async def exercise():
+        client = build_client(BotConfig(1, 2, 3, 4, frozenset()), store)
+        edit = AsyncMock()
+        client._connection.user = SimpleNamespace(edit=edit)
+        icon = SimpleNamespace(key="server-icon", read=AsyncMock(return_value=b"image"))
+        client.fetch_guild = AsyncMock(return_value=SimpleNamespace(owner_id=2, icon=icon))
+        await client.on_ready()
+        await client.on_ready()
+        edit.assert_awaited_once_with(avatar=b"image")
+        client.fetch_guild.assert_awaited_with(1)
+        await client.close()
+
+    asyncio.run(exercise())
+
+
 @pytest.fixture
 def store(tmp_path):
     value = Store("sqlite:///" + str(tmp_path / "tools.db"), initialize=True)
@@ -226,6 +247,8 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
     asyncio.run(exercise())
     assert len(sent) == 1
     assert "NOT OFFICIAL PICKS" in sent[0][0]
-    assert len(sent[0][1]["files"]) == 3
+    assert len(sent[0][1]["files"]) == 9
+    assert len(sent[0][1]["embeds"]) == 9
+    assert all(f.filename.endswith(".png") for f in sent[0][1]["files"])
     outcome = store.list_records("sheet_delivery_result", 1)[0]["payload"]
     assert outcome["status"] == ("needs_review" if fail_send else "delivered")

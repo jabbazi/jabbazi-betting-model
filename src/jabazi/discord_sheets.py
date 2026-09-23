@@ -74,6 +74,7 @@ def archive_sheets(store, result, *, now=None):
                 )
             )
         )
+        rows[-1]["participant"] = c.participant
     payload = {
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
@@ -155,4 +156,7 @@ def parse_command(content):
         return "sheets", tuple(SPORTS)
     if len(parts) == 2 and parts[0] == "!cheatsheets" and parts[1] in SPORTS:
         return "sheets", (parts[1],)
+    if len(parts) == 3 and parts[0] == "!cheatsheets" and parts[1] in SPORTS:
+        if parts[2].isdigit() and 1 <= int(parts[2]) <= 1000:
+            return "sheets", (parts[1],), int(parts[2])
     return None

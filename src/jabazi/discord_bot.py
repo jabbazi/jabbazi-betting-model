@@ -11,8 +11,9 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .discord_sheets import SPORTS, latest_sheet, parse_command, scanner_status, sheet_csv
+from .discord_sheets import SPORTS, latest_sheet, parse_command, scanner_status
 from .persistence.store import Store, digest
+from .sheet_images import GROUPS, render_card
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,22 @@ def build_client(config, store):
     intents.message_content = True
 
     class ResearchClient(discord.Client):
+        async def on_ready(self):
+            # Owner-requested branding: only the configured server's displayed icon.
+            try:
+                guild = await self.fetch_guild(config.guild)
+                if guild.owner_id != config.owner or not guild.icon:
+                    return
+                key = digest(["discord_avatar", config.guild, guild.icon.key])
+                records = await asyncio.to_thread(store.list_records, "discord_avatar", 1)
+                if records and records[0]["entity"] == key:
+                    return
+                await self.user.edit(avatar=await guild.icon.read())
+                await asyncio.to_thread(store.append, "discord_avatar", key, {"synced": True})
+                print("DISCORD_AVATAR_SYNCED", flush=True)
+            except Exception:  # noqa: BLE001 -- never log credential-bearing SDK errors
+                print("DISCORD_AVATAR_UNAVAILABLE", flush=True)
+
         async def setup_hook(self):
             self.publisher = asyncio.create_task(self.publish_loop())
 
@@ -140,7 +157,7 @@ def build_client(config, store):
             channel = await self.fetch_channel(channel_id)
             return channel
 
-        async def send_sheets(self, channel, record, sports):
+        async def send_sheets(self, channel, record, sports, page=1):
             if record is None:
                 return await channel.send("CHEAT SHEETS UNAVAILABLE — no recent completed scan.")
             payload = record["payload"]
@@ -149,23 +166,27 @@ def build_client(config, store):
                     "DATA UNHEALTHY — latest scan failed checks. "
                     "No research sheets published for this scan."
                 )
-            files = []
+            files, embeds = [], []
             for sport in sports:
-                data = sheet_csv(record, sport)
-                if len(data) > 7_000_000:
-                    raise ValueError("Sheet exceeds safe attachment size")
-                files.append(
-                    discord.File(io.BytesIO(data), filename=f"jabbazi-{sport}-research.csv")
-                )
+                for group, label in enumerate(GROUPS[sport]):
+                    data = await asyncio.to_thread(render_card, record, sport, group, page=page)
+                    if len(data) > 7_000_000:
+                        raise ValueError("Image exceeds safe attachment size")
+                    filename = f"jabbazi-{sport}-{group + 1}-page-{page}.png"
+                    files.append(discord.File(io.BytesIO(data), filename=filename))
+                    embed = discord.Embed(title=f"{sport.upper()} • {label}", colour=0x8B35E8)
+                    embed.set_image(url=f"attachment://{filename}")
+                    embeds.append(embed)
             text = (
                 f"**JABBAZI RESEARCH SHEETS — NOT OFFICIAL PICKS**\n"
                 f"Scan UTC: {payload['completed_at']}\n{payload['notice']}\n"
-                "A header-only file means no eligible rows for that sport. "
-                "Member plays and official issued picks are separate."
+                "Tap an image to open it. Each sport has three market cards. "
+                "More rows: `!cheatsheets nfl 2` (also mlb/cfb). "
+                "Unavailable markets are labeled, never filled with invented percentages."
             )
             if payload["truncated"]:
                 text += "\nRow limit reached: this export is incomplete."
-            return await channel.send(text, files=files)
+            return await channel.send(text, files=files, embeds=embeds)
 
         async def on_message(self, message):
             if brand_trigger(
@@ -215,7 +236,10 @@ def build_client(config, store):
                     await channel.send(await asyncio.to_thread(scanner_status, store))
                 else:
                     await self.send_sheets(
-                        channel, await asyncio.to_thread(latest_sheet, store), command[1]
+                        channel,
+                        await asyncio.to_thread(latest_sheet, store),
+                        command[1],
+                        page=command[2] if len(command) == 3 else 1,
                     )
             except Exception:  # noqa: BLE001 -- do not expose credentials through SDK errors
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)
