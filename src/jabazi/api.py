@@ -369,3 +369,7 @@ def owner_script():
 from .chatgpt_api import router as chatgpt_router
 
 app.include_router(chatgpt_router)
+
+from .scanner_mcp import router as scanner_mcp_router
+
+app.include_router(scanner_mcp_router)
