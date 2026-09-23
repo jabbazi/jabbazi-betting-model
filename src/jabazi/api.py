@@ -146,7 +146,11 @@ def model_status(authorization: Annotated[str | None, Header()] = None):
     from .models.registry import load_models
     from .models.team_elo import SPORTS
 
-    models, errors = load_models()
+    store = platform_store()
+    try:
+        models, errors = load_models(store)
+    finally:
+        store.close()
     return {
         "models": [
             {
@@ -154,6 +158,12 @@ def model_status(authorization: Annotated[str | None, Header()] = None):
                 "status": "SHADOW_ONLY" if sport in models else "UNAVAILABLE",
                 "approved_for_betting": False,
                 "version": models[sport].artifact["model_version"] if sport in models else None,
+                "supported_markets": sorted(models[sport].supported_markets)
+                if sport in models
+                else [],
+                "state_refreshed_at": models[sport].artifact.get("state_refreshed_at")
+                if sport in models
+                else None,
             }
             for sport in SPORTS.values()
         ],
@@ -266,6 +276,12 @@ def run_scan(
             "quotes_archived": result.quotes_archived,
             "credits_remaining": result.credits_remaining,
             "errors": list(result.errors),
+            "model_coverage": {
+                "modeled_actions": sum(a.model_probability is not None for a in result.actions),
+                "unmodeled_actions": sum(a.model_probability is None for a in result.actions),
+                "versions": sorted({a.model_version for a in result.actions if a.model_version}),
+                "production_approved": False,
+            },
             "actions": [_action(action) for action in actions],
             "arbitrages": _json([asdict(item) for item in result.arbitrages]),
             "disclaimer": "No wagers were placed. Market-only signals cannot become BET_NOW.",

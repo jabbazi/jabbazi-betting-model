@@ -91,6 +91,9 @@ class AutomaticScanner:
             if mode == "quick"
             else active
         )
+        # Full scans still prioritize the owner's primary leagues within quota.
+        priority = {"americanfootball_nfl": 0, "baseball_mlb": 1, "americanfootball_ncaaf": 2}
+        selected.sort(key=lambda item: (priority.get(item["key"], 3), item["key"]))
         policy = RiskPolicy(
             self.settings.bankroll,
             self.settings.unit_size,
@@ -103,7 +106,7 @@ class AutomaticScanner:
         quote_count = 0
         scanned = 0
         remaining = None
-        models, model_errors = load_models()
+        models, model_errors = load_models(ledger if isinstance(ledger, Store) else None)
         errors.extend(model_errors)
         actions = []
         run_id = str(uuid.uuid4())
@@ -138,6 +141,21 @@ class AutomaticScanner:
                 for card in cards:
                     model = models.get(card.sport)
                     estimate = model.estimate(card) if model else None
+                    if estimate and isinstance(ledger, Store):
+                        evidence = {
+                            "event_id": card.event_id,
+                            "sport": card.sport,
+                            "market": card.market,
+                            "selection": card.selection,
+                            "line": card.line,
+                            "probability": estimate.probability,
+                            "uncertainty": estimate.uncertainty,
+                            "model_version": estimate.model_version,
+                            "approved_for_betting": estimate.approved_for_betting,
+                            "observed_at": card.observed_at.isoformat(),
+                            "features": estimate.feature_snapshot,
+                        }
+                        ledger.append("model_prediction", card.event_id, evidence, digest(evidence))
                     action = recommend_price(
                         card,
                         policy,
@@ -263,6 +281,12 @@ class AutomaticScanner:
                     "errors": errors,
                     "completed_at": datetime.now(UTC).isoformat(),
                     "healthy": not errors,
+                    "models_loaded": {
+                        sport: getattr(model, "artifact", {}).get("model_version")
+                        for sport, model in models.items()
+                    },
+                    "modeled_actions": sum(a.model_probability is not None for a in actions),
+                    "unmodeled_actions": sum(a.model_probability is None for a in actions),
                 },
                 run_id,
             )

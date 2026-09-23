@@ -100,6 +100,9 @@ def worker(*, once=False):
                     if time.monotonic() >= next_scan:
                         # Schedule from completion; no concurrent jobs or catch-up storms.
                         try:
+                            from .models.refresh import refresh_models
+
+                            report["model_refresh"] = refresh_models(store)
                             result = AutomaticScanner(
                                 settings,
                                 max_credits_per_run=int(os.getenv("JABBAZI_SCAN_MAX_CREDITS", "9")),
@@ -108,6 +111,12 @@ def worker(*, once=False):
                                 "feeds": result.feeds_scanned,
                                 "quotes": result.quotes_archived,
                                 "errors": result.errors,
+                                "modeled_actions": sum(
+                                    a.model_probability is not None for a in result.actions
+                                ),
+                                "model_versions": sorted(
+                                    {a.model_version for a in result.actions if a.model_version}
+                                ),
                             }
                             from .discord_sheets import archive_sheets
 
