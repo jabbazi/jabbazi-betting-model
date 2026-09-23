@@ -76,7 +76,7 @@ def test_tickets_are_single_use_hashed_scoped_and_expire(portal):
         exchange_ticket(store, expired)
 
 
-def test_member_view_retains_every_game_and_never_exposes_owner_data(portal):
+def test_member_view_surfaces_only_supported_edges_and_never_exposes_owner_data(portal):
     store, client = portal
     now = datetime.now(UTC)
     events = [
@@ -104,9 +104,9 @@ def test_member_view_retains_every_game_and_never_exposes_owner_data(portal):
     sign_in(store, client)
     response = client.get("/v1/member/sheets?sport=mlb")
     payload = response.json()
-    assert len(payload["rows"]) == payload["games"] == 32
-    assert all(r["model_probability"] is None and r["edge"] is None for r in payload["rows"])
-    assert payload["image_pages"][0] == 2
+    assert payload["rows"] == [] and payload["games"] == 0
+    assert payload["featured_only"] is True
+    assert payload["image_pages"][0] == 1
     assert "MUST_NOT_EXPOSE" not in response.text and "bankroll" not in response.text
     assert client.get("/v1/member/image/mlb/0/2.png").headers["content-type"] == "image/png"
     assert client.get("/v1/member/image/mlb/0/3.png").status_code == 404
