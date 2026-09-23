@@ -36,6 +36,7 @@ class AutomaticScanResult:
     credits_remaining: int | None
     errors: tuple[str, ...]
     actions: tuple[ActionCard, ...]
+    slate_events: tuple[dict, ...] = ()
 
 
 class AutomaticScanner:
@@ -111,6 +112,7 @@ class AutomaticScanner:
         actions = []
         run_id = str(uuid.uuid4())
         spent_this_run = 0
+        slate_events = {}
         for sport in selected:
             if isinstance(ledger, Store) and not ledger.acquire_lease("scanner", owner, 600):
                 raise RuntimeError("Scanner lease could not be renewed")
@@ -136,6 +138,20 @@ class AutomaticScanner:
                 scanned += 1
                 quote_count += len(batch.quotes)
                 remaining = batch.requests_remaining
+                # Preserve every event returned by the feed, even when all of its
+                # prices fail freshness/completeness checks. Never invent prices.
+                raw_events = json.loads(batch.raw_payload)
+                if isinstance(raw_events, dict):
+                    raw_events = [raw_events]
+                for event in raw_events:
+                    if not isinstance(event, dict) or not event.get("id"):
+                        continue
+                    slate_events[(sport["key"], str(event["id"]))] = {
+                        "sport": sport["key"],
+                        "event_id": str(event["id"]),
+                        "event": f"{event.get('away_team', '?')} @ {event.get('home_team', '?')}",
+                        "starts_at_utc": event.get("commence_time", ""),
+                    }
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
                 for card in cards:
@@ -298,4 +314,5 @@ class AutomaticScanner:
             remaining,
             tuple(errors),
             tuple(actions),
+            tuple(slate_events.values()),
         )

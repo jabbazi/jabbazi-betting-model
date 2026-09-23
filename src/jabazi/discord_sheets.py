@@ -75,6 +75,8 @@ def archive_sheets(store, result, *, now=None):
             )
         )
         rows[-1]["participant"] = c.participant
+        rows[-1]["event_id"] = getattr(c, "event_id", "")
+        rows[-1]["book_count"] = len(getattr(c, "book_prices", {}))
     payload = {
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
@@ -82,6 +84,10 @@ def archive_sheets(store, result, *, now=None):
         "feeds": result.feeds_scanned,
         "quotes": result.quotes_archived,
         "rows": rows,
+        "slate_events": [
+            e for e in getattr(result, "slate_events", ()) if e["sport"] in SPORTS.values()
+        ],
+        "coverage": "All events returned by scanned odds feeds; not an independently verified league schedule",
         "truncated": len(result.actions) > MAX_ROWS,
         "notice": "Research only. Prices are historical snapshots; recheck before acting. "
         "No official picks or stakes are issued by this sheet.",

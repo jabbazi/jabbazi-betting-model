@@ -2,12 +2,13 @@
 
 import io
 import math
+from collections import defaultdict
 
 from PIL import Image, ImageDraw, ImageFont
 
 from .discord_sheets import SPORTS
 
-PAGE_SIZE = 12
+PAGE_SIZE = 24
 GROUPS = {
     "nfl": ("Game lines", "Player props", "Anytime touchdowns"),
     "mlb": ("Game lines", "Pitcher props", "Batter props"),
@@ -38,11 +39,82 @@ def grouped_rows(record, sport):
         if sport == "cfb" and row["market"].startswith(("player_", "pitcher_", "batter_")):
             continue
         groups[group_index(sport, row["market"])].append(row)
-    for rows in groups:
+    for i, rows in enumerate(groups):
+        unique = {}
+        for row in rows:
+            key = (
+                event_key(row),
+                row["market"],
+                row.get("participant"),
+                row["selection"],
+                str(row.get("line")),
+            )
+            previous = unique.get(key)
+            if previous is None or (
+                str(row.get("price_time_utc", "")),
+                float(row.get("decimal_odds") or 0),
+            ) > (str(previous.get("price_time_utc", "")), float(previous.get("decimal_odds") or 0)):
+                unique[key] = row
+        rows = groups[i] = list(unique.values())
         rows.sort(
             key=lambda r: (r.get("starts_at_utc", ""), r["event"], r["market"], r["selection"])
         )
     return groups
+
+
+def event_key(row):
+    # IDs distinguish doubleheaders; legacy snapshots fall back to matchup + start.
+    return row.get("event_id") or (row["event"], row.get("starts_at_utc", ""))
+
+
+def slate_blocks(record, sport, group):
+    """One matchup per game block; a representative standard threshold per market.
+
+    Prices for different thresholds are never combined. Select the threshold
+    observed across most books, then closest to balanced prices. No EV ranking.
+    """
+    rows = grouped_rows(record, sport)[group]
+    buckets = {}
+    if group == 0 or sport == "cfb":
+        for event in record["payload"].get("slate_events", []):
+            if event["sport"] == SPORTS[sport]:
+                buckets[event_key(event)] = {**event, "rows": []}
+    for row in rows:
+        key = event_key(row)
+        if row.get("participant"):
+            key = (key, row["participant"], row["market"])
+        block = buckets.setdefault(key, {**row, "rows": []})
+        block["rows"].append(row)
+    for block in buckets.values():
+        markets = defaultdict(lambda: defaultdict(list))
+        for row in block["rows"]:
+            line = row.get("line")
+            if line is not None:
+                line = abs(float(line)) if "spread" in row["market"] else float(line)
+            markets[(row["market"], row.get("participant"))][line].append(row)
+        chosen = []
+        for thresholds in markets.values():
+
+            def rank(item):
+                line, values = item
+                return (
+                    -sum(r.get("book_count", 0) for r in values),
+                    sum(
+                        abs(float(r.get("market_no_vig_probability") or 0.5) - 0.5) for r in values
+                    ),
+                    str(line),
+                )
+
+            chosen.extend(min(thresholds.items(), key=rank)[1])
+        block["rows"] = chosen
+    return sorted(
+        buckets.values(),
+        key=lambda b: (b.get("starts_at_utc") or "", b["event"], str(b.get("participant") or "")),
+    )
+
+
+def page_count(record, sport, group):
+    return max(1, math.ceil(len(slate_blocks(record, sport, group)) / PAGE_SIZE))
 
 
 def percentage(value):
@@ -84,100 +156,127 @@ def short(draw, text, face, width):
 def render_card(record, sport, group, *, page=1):
     if page < 1 or page > 1000 or group not in (0, 1, 2):
         raise ValueError("Invalid page or group")
-    rows = grouped_rows(record, sport)[group]
-    pages = max(1, math.ceil(len(rows) / PAGE_SIZE))
-    selected = rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
+    blocks = slate_blocks(record, sport, group)
+    pages = max(1, math.ceil(len(blocks) / PAGE_SIZE))
+    selected = blocks[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
     healthy = record["payload"]["healthy"]
     if not healthy:
         selected = []
-    height = 330 + max(1, len(selected)) * 128
-    image = Image.new("RGB", (1200, height), "#100c1b")
+    layouts = []
+    for block in selected:
+        markets = defaultdict(list)
+        for row in block["rows"]:
+            markets[row["market"]].append(row)
+        panels = list(markets.items()) or [("unavailable", [])]
+        heights = []
+        for offset in range(0, len(panels), 3):
+            heights.append(46 + max(1, max(len(v) for _, v in panels[offset : offset + 3])) * 68)
+        layouts.append((block, panels, heights, 80 + sum(heights)))
+    height = 320 + (sum(x[3] for x in layouts) if layouts else 150)
+    image = Image.new("RGB", (1400, height), "#100c1b")
     draw = ImageDraw.Draw(image)
-    title, heading, body, small = font(42, True), font(27, True), font(23), font(18)
-    draw.rectangle((0, 0, 1200, 10), fill="#ad68ff")
-    draw.text((36, 30), "JABBAZI GURU", font=title, fill="#f9f5ff")
-    draw.text((36, 88), f"{sport.upper()} / {GROUPS[sport][group]}", font=heading, fill="#c7a1ff")
+    title, heading, body, small = font(38, True), font(24, True), font(21), font(18)
+    draw.rectangle((0, 0, 1400, 9), fill="#ad68ff")
+    draw.text((32, 24), "JABBAZI GURU", font=title, fill="#f9f5ff")
+    draw.text((32, 76), f"{sport.upper()} / {GROUPS[sport][group]}", font=heading, fill="#c7a1ff")
     at = record["payload"]["completed_at"][:19].replace("T", " ")
+    count_label = "matchups" if group == 0 or sport == "cfb" else "player markets"
     draw.text(
-        (36, 132),
-        f"Scan: {at} UTC  •  Page {page}/{pages}  •  {len(rows)} rows",
+        (32, 115),
+        f"Scan {at} UTC  |  {len(blocks)} {count_label}  |  Sheet {page}/{pages}",
         font=small,
         fill="#beb4cc",
     )
+    notice = "PARTIAL SOURCE EXPORT" if record["payload"].get("truncated") else "RESEARCH ONLY"
     draw.text(
-        (36, 163),
-        "RESEARCH ONLY — NOT OFFICIAL PICKS • Prices are snapshots",
+        (32, 146),
+        f"{notice}  |  Model % is experimental; these are not official picks.",
         font=small,
         fill="#f4c674",
     )
-    draw.line((36, 204, 1164, 204), fill="#4c365f", width=2)
-    for index, row in enumerate(selected):
-        y = 220 + index * 128
-        draw.rounded_rectangle((24, y - 5, 1176, y + 114), radius=12, fill="#20162e")
-        draw.text((40, y), short(draw, row["event"], heading, 740), font=heading, fill="white")
-        market = {"h2h": "Moneyline", "spreads": "Spread", "totals": "Total"}.get(
-            row["market"], row["market"].replace("_", " ").title()
-        )
-        selection = f"{row['selection']} {row.get('line') if row.get('line') is not None else ''} • {market}"
-        if row.get("participant"):
-            selection = f"{row['participant']} • {selection}"
-        draw.text((40, y + 35), short(draw, selection, body, 760), font=body, fill="#d5cbe1")
-        model = (
-            percentage(row.get("research_probability"))
-            if row.get("model_version")
-            else "Unavailable"
-        )
-        draw.text((825, y), "MODEL", font=small, fill="#b7a5ca")
-        draw.text((825, y + 27), model, font=heading, fill="#c7a1ff")
+    y = 190
+    labels = {
+        "h2h": "MONEYLINE",
+        "spreads": "SPREAD",
+        "totals": "TOTAL",
+        "unavailable": "LINES UNAVAILABLE",
+    }
+    for block, panels, heights, block_height in layouts:
+        draw.rounded_rectangle((20, y, 1380, y + block_height - 12), radius=12, fill="#20162e")
+        name = block["event"]
+        if block.get("participant"):
+            name += " / " + block["participant"]
+        draw.text((36, y + 10), short(draw, name, heading, 1000), font=heading, fill="white")
+        start = str(block.get("starts_at_utc") or "")[:16].replace("T", " ")
         draw.text(
-            (40, y + 72),
-            short(
-                draw,
-                f"{row['book']} {odds(row['decimal_odds'])} • Market no-vig: {percentage(row.get('market_no_vig_probability'))}",
-                small,
-                745,
-            ),
+            (1090, y + 15),
+            start + " UTC" if start else "Start unavailable",
             font=small,
-            fill="#b8aac8",
+            fill="#beb4cc",
         )
-        price_at = str(row.get("price_time_utc", ""))[5:16].replace("T", " ")
-        draw.text((825, y + 70), f"Price {price_at} UTC", font=small, fill="#b8aac8")
-        draw.text(
-            (40, y + 95),
-            short(draw, row.get("reason", "Research only"), small, 1100),
-            font=small,
-            fill="#f4c674",
-        )
+        panel_y = y + 50
+        for offset in range(0, len(panels), 3):
+            for column, (market, values) in enumerate(panels[offset : offset + 3]):
+                x = 36 + column * 450
+                draw.text(
+                    (x, panel_y),
+                    short(draw, labels.get(market, market.replace("_", " ").upper()), small, 424),
+                    font=small,
+                    fill="#c7a1ff",
+                )
+                if not values:
+                    draw.text(
+                        (x, panel_y + 30), "No fresh complete prices", font=body, fill="#b8aac8"
+                    )
+                for i, row in enumerate(sorted(values, key=lambda r: r["selection"])):
+                    sy = panel_y + 28 + i * 68
+                    line = "" if row.get("line") is None else str(row["line"])
+                    selection = f"{row['selection']} {line}  {odds(row['decimal_odds'])}"
+                    draw.text((x, sy), short(draw, selection, body, 424), font=body, fill="#f9f5ff")
+                    model = (
+                        percentage(row.get("research_probability"))
+                        if row.get("model_version")
+                        else "Unavailable"
+                    )
+                    detail = (
+                        f"Model {model} / Market {percentage(row.get('market_no_vig_probability'))}"
+                    )
+                    draw.text(
+                        (x, sy + 25), short(draw, detail, small, 424), font=small, fill="#c7a1ff"
+                    )
+                    price_at = str(row.get("price_time_utc", ""))[5:16].replace("T", " ")
+                    draw.text(
+                        (x, sy + 46),
+                        short(draw, f"{row['book']} | {price_at} UTC", small, 424),
+                        font=small,
+                        fill="#b8aac8",
+                    )
+            panel_y += heights[offset // 3]
+        y += block_height
     if not selected:
-        title_text = (
+        message = (
             "DATA UNHEALTHY"
             if not healthy
             else "NO ROWS ON THIS PAGE"
-            if rows
+            if blocks
             else "NOT AVAILABLE YET"
         )
-        draw.text((40, 235), title_text, font=heading, fill="#f4c674")
-        detail = "No probabilities or picks are invented to fill this sheet."
-        draw.text((40, 280), detail, font=body, fill="#d5cbe1")
-    bottom = height - 94
-    draw.text(
-        (36, bottom),
-        "Market % reflects bookmaker pricing, not a validated model forecast.",
-        font=small,
-        fill="#c6b8d7",
-    )
-    draw.text(
-        (36, bottom + 28),
-        f"More rows: !cheatsheets {sport} <page> • Recheck price, start time and availability.",
-        font=small,
-        fill="#c6b8d7",
-    )
-    draw.text(
-        (36, bottom + 56),
-        "Missing model % means unavailable. No stake or BET recommendation is issued.",
-        font=small,
-        fill="#c6b8d7",
-    )
+        draw.text((36, 220), message, font=heading, fill="#f4c674")
+        draw.text(
+            (36, 270),
+            "No prices or probabilities are invented to fill this category.",
+            font=body,
+            fill="#d5cbe1",
+        )
+    bottom = height - 105
+    for i, line in enumerate(
+        (
+            "Feed slate coverage; games without usable odds stay visible. Prices are snapshots: recheck before betting.",
+            "One representative threshold per market; Market % is no-vig pricing. Missing model % stays unavailable.",
+            "All sheets are delivered automatically. No official picks or stakes are issued here.",
+        )
+    ):
+        draw.text((32, bottom + i * 28), line, font=small, fill="#c6b8d7")
     out = io.BytesIO()
     image.save(out, format="PNG", optimize=True)
     return out.getvalue()

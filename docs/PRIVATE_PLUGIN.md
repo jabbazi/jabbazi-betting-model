@@ -69,8 +69,9 @@ connected before a real successful tool call in that chat.
   initialization, tool discovery and an authenticated model-status call through
   the real shared model registry. No new production dependency is needed.
 - Local full suite: **203 passed**; Ruff undefined/unused-name checks passed.
-  Cloud deployment, OAuth connection and regular-chat acceptance are
-  pending until individually verified.
+  API commit `97a398e` was deployed on Render and confirmed live on September
+  23, 2026 (successful migration, startup and readiness checks). OAuth account
+  connection and a successful regular-chat tool call remain pending.
 
 Official references checked September 23, 2026:
 - https://developers.openai.com/plugins/build/auth

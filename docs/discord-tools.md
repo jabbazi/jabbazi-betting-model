@@ -6,12 +6,16 @@ delivery published all three sports after a scan. The newer PNG format below has
 local test coverage; verify it after deploying this revision. No official picks
 are published by these commands.
 
-- `!vip` in scanner-status reports the persisted worker heartbeat; it never grants a role.
+- `!vip` is disabled in member Discord. The scanner remains owner-only.
 - `!cheatsheets` in cheat-sheets returns MLB/NFL/CFB PNG research cards.
 - `!cheatsheets mlb`, `!cheatsheets nfl`, `!cheatsheets cfb` select one sport.
-- Each sport has three category cards. `!cheatsheets nfl 2` selects the next page
-  of each category, with 12 rows per category per page. All archived rows remain
-  accessible through pagination. Empty categories are explicitly unavailable.
+- Each sport has three categories. Game sheets group one matchup together,
+  choose a representative threshold per market, and preserve unpriced feed events
+  as unavailable. Duplicate quote/rung rows cannot crowd out other games.
+  Up to 24 matchups fit on a page; the default command and automatic delivery
+  send **every page**. `!cheatsheets nfl 2` is an optional specific-page request.
+  Coverage means all events returned by scanned odds feeds, not a separately
+  verified league calendar. A large slate may require more than three images. Empty categories are explicitly unavailable.
 - NFL categories are game lines, player props, and anytime touchdowns. Market
   probabilities never stand in for missing model forecasts. The bot copies the
   configured server icon to its own avatar on startup when the icon changes.
@@ -73,3 +77,8 @@ after stale data or a failed scan. No production Discord message test has run ye
 Only #jabbazi-picks inside VIP PICKS contains official issued JABBAZI plays. The
 MLB/NFL/CFB picks and VIP parlays channels contain member contributions. All Sports &
 Research channels are discussion. A bot research sheet is not an official pick.
+
+## Learning channel
+
+The owner-approved learning curriculum and idempotent publisher are documented in
+[discord/LEARNING_CHANNEL.md](discord/LEARNING_CHANNEL.md).

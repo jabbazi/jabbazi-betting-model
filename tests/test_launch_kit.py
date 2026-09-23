@@ -159,7 +159,7 @@ class BaselineTests(unittest.TestCase):
             ledger.return_value.open_exposure.side_effect = exposure
             ledger.return_value.close.side_effect = lambda: state.update(closed=True)
             provider.return_value.fetch.return_value = SimpleNamespace(
-                quotes=(), requests_remaining=100, fetched_at=datetime.now(UTC)
+                quotes=(), requests_remaining=100, fetched_at=datetime.now(UTC), raw_payload=b"{}"
             )
             result = AutomaticScanner(Settings.from_environment()).run()
             self.assertTrue(state["closed"])

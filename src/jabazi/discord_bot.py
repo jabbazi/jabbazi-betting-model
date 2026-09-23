@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .persistence.store import Store, digest
-from .sheet_images import render_card
+from .sheet_images import render_card, page_count
 
 
 @dataclass(frozen=True)
@@ -157,7 +157,7 @@ def build_client(config, store):
             channel = await self.fetch_channel(channel_id)
             return channel
 
-        async def send_sheets(self, channel, record, sports, page=1):
+        async def send_sheets(self, channel, record, sports, page=None):
             if record is None:
                 return await channel.send("CHEAT SHEETS UNAVAILABLE — no recent completed scan.")
             payload = record["payload"]
@@ -170,12 +170,24 @@ def build_client(config, store):
             for sport in sports:
                 files = []
                 for group in range(3):
-                    data = await asyncio.to_thread(render_card, record, sport, group, page=page)
-                    if len(data) > 7_000_000:
-                        raise ValueError("Image exceeds safe attachment size")
-                    filename = f"jabbazi-{sport}-{group + 1}-page-{page}.png"
-                    files.append(discord.File(io.BytesIO(data), filename=filename))
-                last_message = await channel.send(files=files)
+                    pages = (
+                        [page]
+                        if page is not None
+                        else range(1, page_count(record, sport, group) + 1)
+                    )
+                    for number in pages:
+                        data = await asyncio.to_thread(
+                            render_card, record, sport, group, page=number
+                        )
+                        if len(data) > 7_000_000:
+                            raise ValueError("Image exceeds safe attachment size")
+                        filename = f"jabbazi-{sport}-{group + 1}-page-{number}.png"
+                        files.append(discord.File(io.BytesIO(data), filename=filename))
+                        if len(files) == 10:
+                            last_message = await channel.send(files=files)
+                            files = []
+                if files:
+                    last_message = await channel.send(files=files)
             return last_message
 
         async def on_message(self, message):
@@ -226,7 +238,7 @@ def build_client(config, store):
                     channel,
                     await asyncio.to_thread(latest_sheet, store),
                     command[1],
-                    page=command[2] if len(command) == 3 else 1,
+                    page=command[2] if len(command) == 3 else None,
                 )
             except Exception:  # noqa: BLE001 -- do not expose credentials through SDK errors
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)

@@ -218,17 +218,24 @@ def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, 
     bridge.submit(s, scan_id)
     # High market-relative values must not crowd real model estimates out of
     # the bounded chat response. No model exists for these research-only rows.
-    unmodeled = [replace(p, sport="basketball_nba", event_id=f"other-{i}",
-                        market_relative_ev=D(".9")) for i in range(270)]
+    unmodeled = [
+        replace(p, sport="basketball_nba", event_id=f"other-{i}", market_relative_ev=D(".9"))
+        for i in range(270)
+    ]
     batch = ProviderBatch("TEST_ONLY", p.observed_at, b"{}", (), requests_remaining=100)
     try:
         with (
             patch.object(bridge, "store_factory", return_value=s),
             patch.object(s, "close"),
             patch("jabazi.automation.Ledger", return_value=s),
-            patch.object(AutomaticScanner, "_active_supported", return_value=[
-                {"key": a["sport"]}, {"key": "basketball_nba"},
-            ]),
+            patch.object(
+                AutomaticScanner,
+                "_active_supported",
+                return_value=[
+                    {"key": a["sport"]},
+                    {"key": "basketball_nba"},
+                ],
+            ),
             patch("jabazi.automation.TheOddsApiProvider") as provider,
             patch("jabazi.automation.build_price_cards", side_effect=[[p], unmodeled]),
         ):
@@ -296,3 +303,51 @@ def test_fitting_and_residuals_do_not_use_diagnostic_labels(tmp_path):
     b = json.loads((tmp_path / "b/artifact.json").read_text())
     for key in ("coefficients", "intercepts", "mean", "scale", "residual_pairs"):
         assert a[key] == b[key]
+
+
+def test_scanner_keeps_feed_events_when_no_price_card_survives(tmp_path):
+    import json
+    from jabazi.automation import AutomaticScanner
+    from jabazi.config import Settings
+    from jabazi.discord_sheets import archive_sheets, latest_sheet
+    from jabazi.providers.base import ProviderBatch
+    from jabazi.sheet_images import slate_blocks
+
+    url = "sqlite:///" + str(tmp_path / "empty-prices.db")
+    s = Store(url, initialize=True)
+    batch = ProviderBatch(
+        "TEST_ONLY",
+        datetime.now(UTC),
+        json.dumps(
+            [
+                {
+                    "id": "unpriced",
+                    "away_team": "Away",
+                    "home_team": "Home",
+                    "commence_time": "2026-09-24T01:00:00Z",
+                    "bookmakers": [],
+                }
+            ]
+        ).encode(),
+        (),
+        requests_remaining=100,
+    )
+    with (
+        patch("jabazi.automation.Ledger", return_value=s),
+        patch.object(
+            AutomaticScanner, "_active_supported", return_value=[{"key": "americanfootball_nfl"}]
+        ),
+        patch("jabazi.automation.TheOddsApiProvider") as provider,
+        patch("jabazi.automation.load_models", return_value=({}, [])),
+    ):
+        provider.return_value.fetch.return_value = batch
+        result = AutomaticScanner(Settings.from_environment()).run()
+    assert result.actions == () and not result.errors
+    s = Store(url)
+    try:
+        archive_sheets(s, result)
+        blocks = slate_blocks(latest_sheet(s), "nfl", 0)
+        assert len(blocks) == 1 and blocks[0]["event_id"] == "unpriced"
+        assert blocks[0]["rows"] == []
+    finally:
+        s.close()

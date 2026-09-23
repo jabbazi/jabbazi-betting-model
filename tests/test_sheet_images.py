@@ -3,7 +3,14 @@ import io
 from PIL import Image
 
 from jabazi.discord_sheets import parse_command
-from jabazi.sheet_images import grouped_rows, odds, percentage, render_card
+from jabazi.sheet_images import (
+    grouped_rows,
+    odds,
+    percentage,
+    render_card,
+    slate_blocks,
+    page_count,
+)
 
 
 def record():
@@ -41,13 +48,17 @@ def test_probability_and_price_formatting_does_not_invent_estimates():
 def test_nfl_cards_are_three_distinct_categories_and_paginate():
     data = record()
     assert list(map(len, grouped_rows(data, "nfl"))) == [1, 0, 0]
-    data["payload"]["rows"] *= 25
+    base = data["payload"]["rows"][0]
+    data["payload"]["rows"] = [
+        base | {"event_id": str(i), "event": f"Away {i} @ Home {i}"} for i in range(25)
+    ]
+    assert page_count(data, "nfl", 0) == 2
     for page in (1, 2, 3):
         for group in range(3):
             output = render_card(data, "nfl", group, page=page)
             image = Image.open(io.BytesIO(output))
             assert image.format == "PNG"
-            assert image.width == 1200 and 400 < image.height < 2000
+            assert image.width == 1400 and 400 < image.height < 8000
             assert len(output) < 7_000_000
     assert parse_command("!cheatsheets nfl 2") == ("sheets", ("nfl",), 2)
     assert parse_command("!cheatsheets nfl 0") is None
@@ -67,3 +78,63 @@ def test_cfb_player_rows_never_render():
     data = record()
     data["payload"]["rows"][0].update(sport="americanfootball_ncaaf", market="player_pass_yds")
     assert grouped_rows(data, "cfb") == [[], [], []]
+
+
+def test_duplicate_rungs_do_not_crowd_out_other_games_and_doubleheaders_stay_separate():
+    data = record()
+    base = data["payload"]["rows"][0]
+    data["payload"]["rows"] = [
+        base | {"event_id": "game-1", "market": "spreads", "line": line, "book_count": count}
+        for line, count in [(1.5, 1), (2.5, 5), (3.5, 1)]
+        for _ in range(10)
+    ]
+    data["payload"]["rows"].append(base | {"event_id": "game-2"})
+    blocks = slate_blocks(data, "nfl", 0)
+    assert len(blocks) == 2
+    first = next(b for b in blocks if b["event_id"] == "game-1")
+    assert len(first["rows"]) == 1
+    assert first["rows"][0]["line"] == 2.5
+    assert {b["event_id"] for b in blocks} == {"game-1", "game-2"}
+
+
+def test_games_without_fresh_prices_remain_visible_and_do_not_gain_probabilities():
+    data = record()
+    data["payload"]["slate_events"] = [
+        {
+            "sport": "americanfootball_nfl",
+            "event_id": "missing",
+            "event": "Missing odds game",
+            "starts_at_utc": "2026-09-24T01:00:00Z",
+        }
+    ]
+    blocks = slate_blocks(data, "nfl", 0)
+    missing = next(b for b in blocks if b["event"] == "Missing odds game")
+    assert missing["rows"] == []
+    assert len(blocks) == 2
+
+
+def test_full_slate_is_delivered_without_requesting_extra_pages():
+    import asyncio
+    from types import SimpleNamespace
+    from jabazi.discord_bot import BotConfig, build_client
+
+    data = record()
+    base = data["payload"]["rows"][0]
+    data["payload"]["rows"] = [
+        base | {"event_id": str(i), "event": f"A{i} @ B{i}"} for i in range(27)
+    ]
+    sent = []
+
+    async def exercise():
+        client = build_client(BotConfig(1, 2, 3, 4, frozenset()), None)
+
+        async def send(**kwargs):
+            sent.extend(f.filename for f in kwargs["files"])
+            return SimpleNamespace(id=1)
+
+        await client.send_sheets(SimpleNamespace(send=send), data, ("nfl",))
+        await client.close()
+
+    asyncio.run(exercise())
+    assert len(sent) == 4
+    assert "jabbazi-nfl-1-page-2.png" in sent
