@@ -24,6 +24,16 @@ existing bot permissions to manage that channel and send messages. A 403 is an
 access blocker; do not grant Administrator to work around it. Publishing and
 pinning must only be reported as complete after actual Discord verification.
 
+If Send Messages is already permitted but Manage Channel is unavailable, publish
+the authorized lessons without changing permissions or channel metadata:
+
+```
+python tools/discord_learning.py --apply --publish-only
+```
+
+This reports `rename_completed=false`. The owner can rename the channel separately;
+a later normal `--apply` changes the metadata and skips already delivered lessons.
+
 Settlement references were checked September 23, 2026 and are included in the
 last lesson. Book-specific rules still control each wager. The guide does not
 claim that teaching NBA, tennis, props or touchdown markets makes their models

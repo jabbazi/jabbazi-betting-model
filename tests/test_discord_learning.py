@@ -54,3 +54,30 @@ def test_learning_publish_is_owner_checked_no_pings_no_permission_changes_and_no
         assert all("permission_overwrites" not in p for _, _, p in client.mutations)
     finally:
         store.close()
+
+
+def test_lessons_publish_without_manage_channel_permission_and_rename_later_does_not_repost(
+    tmp_path,
+):
+    class SendOnly(FakeDiscord):
+        def request(self, method, path, payload=None):
+            if method == "PATCH":
+                raise PermissionError("Manage Channel unavailable")
+            return super().request(method, path, payload)
+
+    client = SendOnly()
+    store = Store("sqlite:///" + str(tmp_path / "send-only.db"), initialize=True)
+    try:
+        result = learning.run(client, "1", "2", store, apply=True, rename=False)
+        assert result["published"] == 20
+        assert result["name"] == "📘｜betting-basics"
+        assert result["rename_completed"] is False
+        assert all(method == "POST" for method, _, _ in client.mutations)
+        owner_client = FakeDiscord()
+        renamed = learning.run(owner_client, "1", "2", store, apply=True)
+        assert renamed["published"] == 0
+        assert renamed["already_delivered"] == 20
+        assert renamed["rename_completed"] is True
+        assert [m for m, _, _ in owner_client.mutations] == ["PATCH"]
+    finally:
+        store.close()

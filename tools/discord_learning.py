@@ -20,7 +20,7 @@ def slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
-def run(client, guild, owner, store, apply=False):
+def run(client, guild, owner, store, apply=False, rename=True):
     info = client.request("GET", f"/guilds/{guild}")
     if str(info["owner_id"]) != str(owner):
         raise ValueError("Server owner mismatch")
@@ -50,20 +50,22 @@ def run(client, guild, owner, store, apply=False):
         return {
             "channel_id": target["id"],
             "current_name": target["name"],
-            "new_name": "📚｜learn-how-to",
+            "new_name": "📚｜learn-how-to" if rename else target["name"],
+            "rename_requested": rename,
             "lessons": len(contents),
             "mode": "preview",
         }
     if store is None or not store.ready():
         raise ValueError("Durable publication audit store required")
-    client.request(
-        "PATCH",
-        f"/channels/{target['id']}",
-        {
-            "name": "📚｜learn-how-to",
-            "topic": "Start here to learn how to place bets, use your own units, read odds and picks, understand markets, and manage risk. Educational examples; no guaranteed wins. Read lessons in order.",
-        },
-    )
+    if rename:
+        client.request(
+            "PATCH",
+            f"/channels/{target['id']}",
+            {
+                "name": "📚｜learn-how-to",
+                "topic": "Start here to learn how to place bets, use your own units, read odds and picks, understand markets, and manage risk. Educational examples; no guaranteed wins. Read lessons in order.",
+            },
+        )
     published, existing = [], []
     for index, content in enumerate(contents):
         key = digest(["discord_learning", guild, target["id"], VERSION, index])
@@ -97,7 +99,8 @@ def run(client, guild, owner, store, apply=False):
         published.append(str(message["id"]))
     return {
         "channel_id": target["id"],
-        "name": "📚｜learn-how-to",
+        "name": "📚｜learn-how-to" if rename else target["name"],
+        "rename_completed": rename,
         "published": len(published),
         "already_delivered": len(existing),
         "message_ids": published + existing,
@@ -107,6 +110,10 @@ def run(client, guild, owner, store, apply=False):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument(
+        "--publish-only", action="store_true",
+        help="Publish lessons using existing Send Messages permission; leave name/topic unchanged",
+    )
     args = parser.parse_args()
     token = os.environ.get("JABBAZI_DISCORD_BOT_TOKEN", "")
     guild = os.environ.get("JABBAZI_DISCORD_GUILD_ID", "")
@@ -117,7 +124,7 @@ def main():
         )
     store = Store(os.environ["JABBAZI_PLATFORM_DATABASE_URL"]) if args.apply else None
     try:
-        print(json.dumps(run(Discord(token), guild, owner, store, args.apply)))
+        print(json.dumps(run(Discord(token), guild, owner, store, args.apply, not args.publish_only)))
     finally:
         if store:
             store.close()
