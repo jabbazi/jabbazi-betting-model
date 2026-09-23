@@ -185,3 +185,26 @@ def test_public_schema_exposes_only_scoped_actions(setup):
     assert all(p["name"] != "authorization" for p in operation["parameters"])
     assert "localStorage" not in client.get("/chatgpt/setup.js").text
     assert "frame-ancestors 'none'" in client.get("/chatgpt").headers["content-security-policy"]
+    response = schema["paths"]["/v1/chatgpt/model-status"]["get"]["responses"]["200"]
+    reference = response["content"]["application/json"]["schema"]["$ref"]
+    definition = schema["components"]["schemas"][reference.rsplit("/", 1)[1]]
+    assert set(definition["properties"]) == {"models", "errors"}
+    model_ref = definition["properties"]["models"]["items"]["$ref"]
+    model_schema = schema["components"]["schemas"][model_ref.rsplit("/", 1)[1]]
+    assert {"sport", "status", "version", "supported_markets", "approved_for_betting"} <= set(model_schema["properties"])
+
+
+def test_model_status_has_typed_research_only_response(setup):
+    client, _, headers = setup
+    data = {"models": [{"sport": "americanfootball_nfl", "status": "SHADOW_ONLY",
+                        "approved_for_betting": False, "version": "test-model-v1",
+                        "supported_markets": ["h2h"], "state_refreshed_at": None}],
+            "errors": []}
+    with patch("jabazi.api.model_status_data", return_value=data):
+        response = client.get("/v1/chatgpt/model-status", headers=headers)
+    assert response.status_code == 200 and response.json() == data
+    assert response.headers["cache-control"] == "no-store"
+    data["models"][0]["approved_for_betting"] = True
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        bridge.ScannerModelStatus.model_validate(data)

@@ -59,6 +59,21 @@ class ScanEverythingRequest(BaseModel):
     request_id: UUID
 
 
+class ScannerModelState(BaseModel):
+    sport: str
+    status: Literal["SHADOW_ONLY", "UNAVAILABLE"]
+    approved_for_betting: Literal[False]
+    version: str | None
+    supported_markets: list[str]
+    state_refreshed_at: str | None
+
+
+class ScannerModelStatus(BaseModel):
+    # GPT Actions requires explicit object properties in response schemas.
+    models: list[ScannerModelState]
+    errors: list[str]
+
+
 class ScanPage(BaseModel):
     scan_id: str
     status: Literal["RUNNING", "COMPLETE", "PARTIAL", "FAILED", "EXPIRED"]
@@ -253,14 +268,15 @@ def get_results(scan_id: UUID, page: Annotated[int, Query(ge=1, le=11)] = 1,
 
 @router.get(
     "/v1/chatgpt/model-status", operation_id="getScannerModelStatus", tags=["chatgpt"],
-    response_model=dict[str, Any],
+    response_model=ScannerModelStatus,
     description="Read model versions, supported markets, state refresh timestamps and research-only status. This does not scan odds or consume provider credits.",
 )
 def model_status(authorization: Annotated[str | None, Header()] = None):
     authorize(authorization)
     from .api import model_status_data
 
-    return JSONResponse(model_status_data(), headers=PRIVATE_HEADERS)
+    output = ScannerModelStatus.model_validate(model_status_data())
+    return JSONResponse(output.model_dump(), headers=PRIVATE_HEADERS)
 
 
 @router.post("/v1/owner/chatgpt-key", include_in_schema=False)

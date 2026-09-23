@@ -125,3 +125,18 @@ Official references (checked September 23, 2026):
   errors were empty, and betting remained disabled. No wagers or Discord posts.
 - This proves the live backend connection, **not** the unfinished ChatGPT
   account/GPT configuration or profitable out-of-sample performance.
+
+## GPT editor setup follow-up
+
+- Signed-in ChatGPT access was verified and a new `JABBAZI Scanner` draft was
+  prepared with the private scanner instructions and three scoped actions.
+- The actual GPT editor rejected the generic model-status response schema
+  (`object schema missing properties`). Replacing it with explicit
+  `ScannerModelStatus`/`ScannerModelState` response models removed the editor
+  error; all three actions appeared. Local verification: 176 tests passed and
+  unused/import checks passed.
+- Authentication, private publication and prompt-to-action verification are
+  still pending. Preparing the draft is not evidence of a working connection.
+- ChatGPT's displayed notice says GPTs retire on December 11. This currently
+  supported private GPT path needs migration to a plugin before that deadline;
+  the existing action API is not an authenticated MCP plugin.
