@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .discord_sheets import SPORTS
 
 PAGE_SIZE = 24
+FEATURED_LIMIT = 12
 SHEET_FORMAT_VERSION = 3
 GROUPS = {
     "nfl": ("Game shortlist", "Player props", "Anytime touchdowns"),
@@ -216,8 +217,40 @@ def shortlist_rows(record, sport, group):
     )
 
 
-def page_count(record, sport, group):
-    return max(1, math.ceil(len(shortlist_rows(record, sport, group)) / PAGE_SIZE))
+
+def featured_rows(record, sport, group, *, limit=FEATURED_LIMIT):
+    """Return only positive, supported research edges for the member portal.
+
+    Full-slate rows remain available to the owner/Discord sheet pipeline. The
+    member app deliberately surfaces a short, ranked card and never promotes
+    an unrated or negative-edge row into a pick-like view.
+    """
+    ranked = []
+    for block in shortlist_rows(record, sport, group):
+        best = block.get("best")
+        edge = block.get("edge")
+        if not best or block.get("status") != "WATCH" or edge is None:
+            continue
+        try:
+            probability = float(best["research_probability"])
+            uncertainty = float(best["uncertainty"])
+            decimal = float(best["decimal_odds"])
+            edge_value = float(edge)
+            conservative_roi = probability * (1 - uncertainty) * decimal - 1
+            if not all(math.isfinite(v) for v in (edge_value, conservative_roi)):
+                continue
+            if edge_value <= 0 or conservative_roi <= 0:
+                continue
+        except (KeyError, TypeError, ValueError):
+            continue
+        ranked.append((conservative_roi, edge_value, int(best.get("book_count", 0) or 0), block))
+    ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    return [item[3] for item in ranked[:limit]]
+
+
+def page_count(record, sport, group, *, rows=None):
+    selected = shortlist_rows(record, sport, group) if rows is None else rows
+    return max(1, math.ceil(len(selected) / PAGE_SIZE))
 
 
 def percentage(value):
@@ -292,10 +325,10 @@ def selection_label(row, *, reference=False):
     return f"{side} {line} · {market}".strip()
 
 
-def render_card(record, sport, group, *, page=1):
+def render_card(record, sport, group, *, page=1, rows=None):
     if page < 1 or page > 1000 or group not in (0, 1, 2):
         raise ValueError("Invalid page or group")
-    rows = shortlist_rows(record, sport, group)
+    rows = shortlist_rows(record, sport, group) if rows is None else list(rows)
     pages = max(1, math.ceil(len(rows) / PAGE_SIZE))
     selected = rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
     healthy = record["payload"]["healthy"]
