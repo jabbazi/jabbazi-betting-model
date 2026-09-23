@@ -276,3 +276,55 @@ def run_scan(
         ) from None
     finally:
         _scan_lock.release()
+
+
+@app.get("/v1/owner/review")
+def owner_review(
+    sport: Literal["mlb", "nfl", "cfb"] | None = None,
+    page: int = 1,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    if not 1 <= page <= 400:
+        raise HTTPException(status_code=422, detail="Page must be 1–400")
+    from fastapi.responses import JSONResponse
+    from .owner_review import review_snapshot
+
+    store = platform_store()
+    try:
+        return JSONResponse(
+            review_snapshot(store, sport=sport, page=page),
+            headers={"Cache-Control": "no-store", "Vary": "Authorization"},
+        )
+    finally:
+        store.close()
+
+
+@app.get("/owner", include_in_schema=False)
+def owner_page():
+    from pathlib import Path
+    from fastapi.responses import HTMLResponse
+
+    return HTMLResponse(
+        Path(__file__).with_name("static").joinpath("owner.html").read_text(),
+        headers={
+            "Cache-Control": "no-store",
+            "Referrer-Policy": "no-referrer",
+            "X-Frame-Options": "DENY",
+            "Content-Security-Policy": "default-src 'none'; script-src 'self'; "
+            "style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; "
+            "form-action 'none'; frame-ancestors 'none'",
+        },
+    )
+
+
+@app.get("/owner/review.js", include_in_schema=False)
+def owner_script():
+    from pathlib import Path
+    from fastapi.responses import Response
+
+    return Response(
+        Path(__file__).with_name("static").joinpath("review.js").read_text(),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
