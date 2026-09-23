@@ -200,6 +200,67 @@ def test_actual_scanner_uses_cloud_artifact_and_archives_prediction(tmp_path):
     s.close()
 
 
+@pytest.mark.parametrize("short", ["nfl", "mlb"])
+def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, short):
+    """Real registry/inference/scanner/API/storage/presentation; no paid data calls."""
+    from uuid import uuid4
+    from jabazi import chatgpt_api as bridge
+    from jabazi.automation import AutomaticScanner
+    from jabazi.providers.base import ProviderBatch
+
+    monkeypatch.setenv("JABAZI_ODDS_API_KEY", "test-only")
+    a = artifact(short)
+    p = card(a)
+    estimate = ScoreDistributionModel(a).estimate(p)
+    s = Store("sqlite:///" + str(tmp_path / "chat-model.db"), initialize=True)
+    s.append("game_model", a["sport"], a)
+    scan_id = str(uuid4())
+    bridge.submit(s, scan_id)
+    # High market-relative values must not crowd real model estimates out of
+    # the bounded chat response. No model exists for these research-only rows.
+    unmodeled = [replace(p, sport="basketball_nba", event_id=f"other-{i}",
+                        market_relative_ev=D(".9")) for i in range(270)]
+    batch = ProviderBatch("TEST_ONLY", p.observed_at, b"{}", (), requests_remaining=100)
+    try:
+        with (
+            patch.object(bridge, "store_factory", return_value=s),
+            patch.object(s, "close"),
+            patch("jabazi.automation.Ledger", return_value=s),
+            patch.object(AutomaticScanner, "_active_supported", return_value=[
+                {"key": a["sport"]}, {"key": "basketball_nba"},
+            ]),
+            patch("jabazi.automation.TheOddsApiProvider") as provider,
+            patch("jabazi.automation.build_price_cards", side_effect=[[p], unmodeled]),
+        ):
+            provider.return_value.fetch.return_value = batch
+            bridge.run_background(scan_id)
+        page = bridge.scan_page(s, scan_id, now=p.observed_at)
+        assert page.status == "COMPLETE" and page.errors == []
+        assert page.total_actions == 271 and page.total_returned_actions == 260
+        assert page.truncated and page.result_ordering == "model_coverage_first"
+        row = page.actions[0]
+        assert row["sport"] == a["sport"]
+        assert D(row["model_probability"]) == estimate.probability
+        assert row["model_version"] == estimate.model_version
+        assert D(row["consensus_probability"]) == p.consensus_probability
+        assert D(row["probability_edge"]) == estimate.probability - p.consensus_probability
+        assert D(row["uncertainty"]) == estimate.uncertainty
+        assert row["probability_status"] == "SHADOW_ONLY"
+        assert row["decision"] == "WATCH" and row["stake_dollars"] == "0"
+        assert row["expected_roi"] is None and row["maximum_playable_price"] is None
+        assert page.model_coverage["modeled_actions"] == 1
+        assert page.model_coverage["returned_modeled_actions"] == 1
+        assert page.model_coverage["returned_unmodeled_actions"] == 259
+        assert page.actions[1]["model_probability"] is None
+        assert page.actions[1]["probability_status"] == "UNAVAILABLE"
+        assert not page.betting_enabled
+        archived = s.list_records("model_prediction")[0]["payload"]
+        assert D(archived["probability"]) == estimate.probability
+        assert archived["model_version"] == estimate.model_version
+    finally:
+        s.close()
+
+
 def test_fitting_and_residuals_do_not_use_diagnostic_labels(tmp_path):
     pytest.importorskip("sklearn")
     from jabazi.research.train_scores import train

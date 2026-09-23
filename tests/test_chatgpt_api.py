@@ -162,6 +162,7 @@ def test_background_calls_real_shared_scanner_contract_and_sanitizes_failure(set
         bridge.run_background(scan_id)
     options = scanner.call_args.args[0]
     assert options.mode == "full" and options.max_credits == 15 and options.credit_reserve == 50
+    assert scanner.call_args.kwargs == {"model_first": True}
     assert bridge.scan_page(store, scan_id).status == "COMPLETE"
     with patch("jabazi.api.perform_scan", side_effect=RuntimeError("secret-example")):
         failed_id = str(uuid4())

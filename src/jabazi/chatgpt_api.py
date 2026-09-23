@@ -75,6 +75,7 @@ class ScanPage(BaseModel):
     quotes_archived: int = 0
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
+    result_ordering: str | None = None
     actions: list[dict[str, Any]] = []
     errors: list[str] = []
     betting_enabled: Literal[False] = False
@@ -131,7 +132,9 @@ def run_background(scan_id):
     try:
         # Require durable storage before consuming any provider quota.
         store = store_factory()
-        result = perform_scan(ScanRequest(mode="full", credit_reserve=50, max_credits=15))
+        result = perform_scan(
+            ScanRequest(mode="full", credit_reserve=50, max_credits=15), model_first=True,
+        )
         result["status"] = (
             "FAILED" if result["feeds_scanned"] == 0
             else "PARTIAL" if result["errors"] else "COMPLETE"
@@ -203,6 +206,7 @@ def scan_page(store, scan_id, page=1, now=None):
         quotes_archived=payload.get("quotes_archived", 0),
         credits_remaining=payload.get("credits_remaining"),
         model_coverage=payload.get("model_coverage", {}),
+        result_ordering=payload.get("result_ordering"),
         actions=[present_action(r, now) for r in rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]],
         errors=payload.get("errors", []),
     )

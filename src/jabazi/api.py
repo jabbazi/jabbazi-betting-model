@@ -260,7 +260,7 @@ def run_scan(
     return perform_scan(body)
 
 
-def perform_scan(body: ScanRequest) -> dict:
+def perform_scan(body: ScanRequest, *, model_first: bool = False) -> dict:
     """Shared scanner execution; callers must authorize before invoking."""
     settings = Settings.from_environment()
     if not settings.api_key:
@@ -276,7 +276,12 @@ def perform_scan(body: ScanRequest) -> dict:
         ).run(body.mode)
         actions = sorted(
             result.actions,
-            key=lambda item: item.price.market_relative_ev,
+            # The chat has a bounded response: retain fitted model estimates
+            # before market-only rows. This is coverage ordering, not bet ranking.
+            key=lambda item: (
+                bool(model_first and item.model_probability is not None and item.model_version),
+                item.price.market_relative_ev,
+            ),
             reverse=True,
         )[: body.limit]
         return {
@@ -291,7 +296,10 @@ def perform_scan(body: ScanRequest) -> dict:
                 "unmodeled_actions": sum(a.model_probability is None for a in result.actions),
                 "versions": sorted({a.model_version for a in result.actions if a.model_version}),
                 "production_approved": False,
+                "returned_modeled_actions": sum(a.model_probability is not None for a in actions),
+                "returned_unmodeled_actions": sum(a.model_probability is None for a in actions),
             },
+            "result_ordering": "model_coverage_first" if model_first else "market_relative_ev",
             "actions": [_action(action) for action in actions],
             "total_actions": len(result.actions),
             "returned_actions": len(actions),

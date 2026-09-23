@@ -48,6 +48,14 @@ GPT instructions, query strings, chats, logs or screenshots.
 - Results are paginated 25 rows at a time, up to 260 archived action rows; total
   actions and truncation remain visible. Quote timestamps are rechecked on every
   read. Anything older than 120 seconds or already in play is marked STALE DATA.
+- Chat results prioritize rows with a fitted model probability and model version
+  before applying the 260-row cap (`result_ordering=model_coverage_first`). This
+  is a coverage order, **not a bet ranking**. Model coverage reports both full-scan
+  and returned-row counts, so a truncated response cannot imply every estimate
+  was returned. The existing general scan API retains market-relative ordering.
+- Probabilities, model versions, uncertainty and probability edge come directly
+  from the shared model registry/scanner. Market consensus remains a separate
+  field. Shadow estimates do not receive actionable ROI, stakes or playable prices.
 - All returned rows are research-only (WATCH or STALE DATA), even if a future
   core scanner can produce a different state. No stake or playable price is
   advertised. No probabilities are substituted for missing model estimates.
