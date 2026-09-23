@@ -18,7 +18,7 @@ from pathlib import Path
 
 from jabazi.research.prop_data import timestamp
 
-SCHEMA = "advanced-context-0.1.0"
+SCHEMA = "advanced-context-0.2.0"
 KINDS = {
     "nfl_team": "americanfootball_nfl",
     "mlb_pitcher": "baseball_mlb",
@@ -58,7 +58,10 @@ def known_at(row):
 
 
 def validate_stat(row):
-    start, end = timestamp(row["starts_at"]), timestamp(row["ended_at"])
+    if ("ended_at" in row) == ("completed_by" in row):
+        raise ValueError("Supply exactly one actual end time or conservative completion bound")
+    start = timestamp(row["starts_at"])
+    end = timestamp(row.get("ended_at", row.get("completed_by")))
     if not start < end <= timestamp(row["observed_at"]):
         raise ValueError("Completed statistic must be observed after the game ended")
     values = row["values"]
@@ -99,7 +102,10 @@ class AdvancedContext:
         # Detach from caller mutation, also reject non-JSON/nonfinite payloads.
         document = json.loads(json.dumps(document, allow_nan=False))
         manifest = document["manifest"]
-        if manifest.get("data_mode") != "real" or manifest.get("schema") != SCHEMA:
+        if manifest.get("data_mode") != "real" or manifest.get("schema") not in {
+            SCHEMA,
+            "advanced-context-0.1.0",
+        }:
             raise ValueError("Real, schema-versioned data required")
         for key in ("provider", "id_namespace", "research_rights_reference"):
             identity(manifest.get(key))
@@ -189,7 +195,7 @@ class AdvancedContext:
                 for r in self._latest(kind, entity, decision)
                 if r["event_id"] != event
                 and r["status"] == "final"
-                and decision - timedelta(days=lookback_days) <= timestamp(r["ended_at"]) <= decision
+                and decision - timedelta(days=lookback_days) <= timestamp(r["starts_at"]) < decision
                 and (kind != "mlb_pitcher" or r["values"]["started"] == 1)
             ]
             history.sort(key=lambda r: (timestamp(r["starts_at"]), r["event_id"]))

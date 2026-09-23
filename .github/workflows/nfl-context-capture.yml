@@ -1,0 +1,35 @@
+name: Bounded NFL context capture
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/model-validation-20260923]
+    paths: [docs/experiments/nfl-context-capture/request.json]
+permissions:
+  contents: read
+concurrency:
+  group: nfl-context-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture fixed public sources and report evidence coverage
+        run: python tools/capture_nfl_context.py --request docs/experiments/nfl-context-capture/request.json --output /tmp/nfl-capture
+        env:
+          PYTHONPATH: src
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-context-capture
+          path: /tmp/nfl-capture/*.json
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-pbp-source-archives
+          path: /tmp/nfl-capture/raw/
+          retention-days: 90
+          compression-level: 0
