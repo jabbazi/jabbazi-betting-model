@@ -15,6 +15,7 @@ from .member_access import exchange_ticket, hashed, portal_origin, validate_sess
 from .sheet_images import (
     grouped_rows,
     shortlist_rows,
+    featured_rows,
     selection_label,
     page_count,
     render_card,
@@ -197,7 +198,8 @@ def sheets(
         if market:
             pool = [r for r in pool if r["market"] == market]
         filtered = {**record, "payload": {**record["payload"], "rows": pool}}
-        rows = [public_row(b) for group in groups for b in shortlist_rows(filtered, sport, group)]
+        featured = {group: featured_rows(filtered, sport, group) for group in range(3)}
+        rows = [public_row(b) for group in groups for b in featured[group]]
         # Do not return source dumps, model features, scanner controls, bankroll or ledger.
         return JSONResponse(
             {
@@ -206,15 +208,16 @@ def sheets(
                 "tab": tab,
                 "rows": rows,
                 "markets": [m for m in available_markets if tab != "moneylines" or m == "h2h"],
-                "games": len(shortlist_rows(record, sport, 0)),
+                "games": len(featured[0]),
                 "completed_at": record["payload"]["completed_at"],
                 "server_time": datetime.now(UTC).isoformat(),
                 "session_expires_at": principal["expires_at"],
                 "partial": bool(record["payload"].get("truncated"))
                 or tab in ("props", "touchdowns"),
                 "coverage": record["payload"].get("event_market_coverage"),
-                "image_pages": [page_count(record, sport, g) for g in range(3)],
-                "notice": "Experimental model estimates; no official picks. Market is no-vig consensus. Edge is percentage-point difference, not ROI.",
+                "image_pages": [page_count(filtered, sport, g, rows=featured[g]) for g in range(3)],
+                "featured_only": True,
+                "notice": "Experimental model estimates; showing only positive, supported research edges. Market is no-vig consensus. Edge is percentage-point difference, not ROI.",
             },
             headers=HEADERS,
         )
@@ -223,20 +226,29 @@ def sheets(
 
 
 @router.get("/v1/member/image/{sport}/{group}/{page}.png", include_in_schema=False)
-def image(request: Request, sport: Literal["nfl", "mlb", "cfb"], group: int, page: int):
+def image(
+    request: Request,
+    sport: Literal["nfl", "mlb", "cfb"],
+    group: int,
+    page: int,
+    featured: bool = False,
+):
     store = store_for_request()
     try:
         require_member(request, store)
         record = latest_sheet(store)
+        selected = featured_rows(record, sport, group) if featured and record else None
         if (
             not record
             or not record["payload"]["healthy"]
             or group not in (0, 1, 2)
-            or not 1 <= page <= page_count(record, sport, group)
+            or not 1 <= page <= page_count(record, sport, group, rows=selected)
         ):
             raise HTTPException(404, "Sheet unavailable")
         return Response(
-            render_card(record, sport, group, page=page), media_type="image/png", headers=HEADERS
+            render_card(record, sport, group, page=page, rows=selected),
+            media_type="image/png",
+            headers=HEADERS,
         )
     finally:
         store.close()
