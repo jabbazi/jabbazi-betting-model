@@ -134,3 +134,38 @@ PostgreSQL-specific collection; these counts are deliberately distinguished.
 These changes did not increase quote quotas, change model coefficients, enable
 betting, place wagers, or purchase a provider. The code, tests and this handoff are
 committed to the existing development branch; no claim of perfection is made.
+
+## OAuth form repair, 20:14 UTC
+
+The owner's phone displayed `invalid_request`. Render logs showed valid consent
+GETs (200) followed within seconds by rejected POSTs (400), including 20:03:59 /
+20:04:05 and 20:04:12 / 20:04:15 UTC. Earlier browser return errors were not proof
+that server authorization succeeded: no token exchange or connected account had
+been verified.
+
+Found a browser-policy conflict: the consent document sent `no-referrer`, which
+causes native form POSTs to send `Origin: null`; the server requires its exact
+origin. The consent document now uses `same-origin`. Callback and token responses
+retain `no-referrer`. Its CSP also permits the already registered exact HTTPS
+ChatGPT callback so Chromium can follow the form's 303 redirect. Key checks,
+CSRF binding, expiry, PKCE, scope, resource and callback validation are preserved;
+missing, null and foreign origins remain rejected.
+
+Application commit `d333e9c5a394051b47d159835bc499fbe36a1322` passed 42 focused
+local scanner/authentication tests and Ruff. GitHub runs `35914337206` and
+`35914343422` both succeeded; the PostgreSQL-enabled suite reported 276 passed,
+with API/container smoke and database recovery/outage checks. These HTTP-client
+tests cover headers and authorization checks, not an actual iPhone login.
+
+API deployment `dep-daq3643ncjis73afv3cg` was verified Live for that exact commit;
+Render logged service live at 20:14:53 UTC and repeated `/readyz` 200 responses.
+No worker rollout was required for this API-only header change. A separate cloud
+browser visit to `/readyz` was blocked by the browser client; no alternate access
+was attempted. Live readiness evidence is the Render log, not that browser visit.
+
+The owner must open a fresh JABBAZI Research connection from ChatGPT and authorize
+in the private scanner-key form. A connected account, tool discovery and a real
+`get_model_status` call are still required before claiming regular-chat scans
+work. No scan, provider-credit use, model promotion or Discord post occurred in
+this repair. Browser behavior reference:
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header
