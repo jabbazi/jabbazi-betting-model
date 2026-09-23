@@ -180,7 +180,8 @@ def test_only_exact_supported_commands(content, expected):
 
 def test_commands_ignore_other_servers_channels_and_bots():
     config = BotConfig(1, 2, 3, 4, frozenset({5}))
-    assert command_allowed(config, guild=1, channel=3, bot_author=False, content="!vip")
+    assert command_allowed(config, guild=1, channel=3, bot_author=False, content="!vip") is None
+    assert command_allowed(config, guild=1, channel=4, bot_author=False, content="!cheatsheets nfl")
     for guild, channel, bot in [(9, 3, False), (None, 3, False), (1, 4, False), (1, 3, True)]:
         assert (
             command_allowed(config, guild=guild, channel=channel, bot_author=bot, content="!vip")
@@ -229,7 +230,7 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
     async def exercise():
         client = build_client(BotConfig(1, 2, 3, 4, frozenset()), store)
 
-        async def send(content, **kwargs):
+        async def send(content=None, **kwargs):
             sent.append((content, kwargs))
             if fail_send:
                 raise OSError("simulated ambiguous transport outcome")
@@ -245,10 +246,10 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
         await client.close()
 
     asyncio.run(exercise())
-    assert len(sent) == 1
-    assert "NOT OFFICIAL PICKS" in sent[0][0]
-    assert len(sent[0][1]["files"]) == 9
-    assert len(sent[0][1]["embeds"]) == 9
+    assert len(sent) == (1 if fail_send else 3)
+    assert all(content is None for content, kwargs in sent)
+    assert all(len(kwargs["files"]) == 3 for content, kwargs in sent)
+    assert all("embeds" not in kwargs for content, kwargs in sent)
     assert all(f.filename.endswith(".png") for f in sent[0][1]["files"])
     outcome = store.list_records("sheet_delivery_result", 1)[0]["payload"]
     assert outcome["status"] == ("needs_review" if fail_send else "delivered")

@@ -11,9 +11,9 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .discord_sheets import SPORTS, latest_sheet, parse_command, scanner_status
+from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .persistence.store import Store, digest
-from .sheet_images import GROUPS, render_card
+from .sheet_images import render_card
 
 
 @dataclass(frozen=True)
@@ -97,9 +97,9 @@ def command_allowed(config, *, guild, channel, bot_author, content):
     if bot_author or guild != config.guild:
         return None
     parsed = parse_command(content)
-    if not parsed:
+    if not parsed or parsed[0] == "status":
         return None
-    destination = config.status_channel if parsed[0] == "status" else config.sheets_channel
+    destination = config.sheets_channel
     return parsed if channel == destination else None
 
 
@@ -166,27 +166,17 @@ def build_client(config, store):
                     "DATA UNHEALTHY — latest scan failed checks. "
                     "No research sheets published for this scan."
                 )
-            files, embeds = [], []
+            last_message = None
             for sport in sports:
-                for group, label in enumerate(GROUPS[sport]):
+                files = []
+                for group in range(3):
                     data = await asyncio.to_thread(render_card, record, sport, group, page=page)
                     if len(data) > 7_000_000:
                         raise ValueError("Image exceeds safe attachment size")
                     filename = f"jabbazi-{sport}-{group + 1}-page-{page}.png"
                     files.append(discord.File(io.BytesIO(data), filename=filename))
-                    embed = discord.Embed(title=f"{sport.upper()} • {label}", colour=0x8B35E8)
-                    embed.set_image(url=f"attachment://{filename}")
-                    embeds.append(embed)
-            text = (
-                f"**JABBAZI RESEARCH SHEETS — NOT OFFICIAL PICKS**\n"
-                f"Scan UTC: {payload['completed_at']}\n{payload['notice']}\n"
-                "Tap an image to open it. Each sport has three market cards. "
-                "More rows: `!cheatsheets nfl 2` (also mlb/cfb). "
-                "Unavailable markets are labeled, never filled with invented percentages."
-            )
-            if payload["truncated"]:
-                text += "\nRow limit reached: this export is incomplete."
-            return await channel.send(text, files=files, embeds=embeds)
+                last_message = await channel.send(files=files)
+            return last_message
 
         async def on_message(self, message):
             if brand_trigger(
@@ -232,15 +222,12 @@ def build_client(config, store):
                 )
                 if not claimed:
                     return
-                if command[0] == "status":
-                    await channel.send(await asyncio.to_thread(scanner_status, store))
-                else:
-                    await self.send_sheets(
-                        channel,
-                        await asyncio.to_thread(latest_sheet, store),
-                        command[1],
-                        page=command[2] if len(command) == 3 else 1,
-                    )
+                await self.send_sheets(
+                    channel,
+                    await asyncio.to_thread(latest_sheet, store),
+                    command[1],
+                    page=command[2] if len(command) == 3 else 1,
+                )
             except Exception:  # noqa: BLE001 -- do not expose credentials through SDK errors
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)
 
