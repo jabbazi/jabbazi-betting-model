@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import signal
+import subprocess
+import sys
 import threading
 import time
 from datetime import UTC, datetime
@@ -78,11 +80,18 @@ def worker(*, once=False):
     if interval < 300:
         raise ValueError("Scan interval must be at least 300 seconds")
     next_scan = 0.0
+    discord_process = None
     try:
         if not store.ready():
             raise RuntimeError("Database migration required")
+        if not once and os.getenv("JABBAZI_DISCORD_COMMANDS_ENABLED", "false").lower() == "true":
+            discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         while not stop.is_set():
             report = {"completed_at": datetime.now(UTC).isoformat(), "betting_enabled": False}
+            if discord_process is not None:
+                report["discord_process"] = (
+                    "RUNNING" if discord_process.poll() is None else "STOPPED"
+                )
             try:
                 if not settings.api_key:
                     report["status"] = "WAITING_FOR_ODDS_CREDENTIAL"
@@ -137,6 +146,13 @@ def worker(*, once=False):
                 return report
             stop.wait(30 if settings.api_key else 300)
     finally:
+        if discord_process is not None and discord_process.poll() is None:
+            discord_process.terminate()
+            try:
+                discord_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                discord_process.kill()
+                discord_process.wait()
         store.close()
 
 

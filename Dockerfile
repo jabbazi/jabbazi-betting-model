@@ -8,7 +8,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY tools ./tools
-RUN python -m pip install --upgrade pip && python -m pip install .
+RUN python -m pip install --upgrade pip && python -m pip install '.[discord]'
 
 RUN useradd --create-home --uid 10001 jabazi && mkdir -p /data && chown jabazi:jabazi /data
 USER jabazi
