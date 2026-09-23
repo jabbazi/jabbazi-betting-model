@@ -19,6 +19,7 @@ from .sheet_images import (
     page_count,
     render_card,
     odds,
+    price_valid_until,
 )
 
 router = APIRouter()
@@ -149,6 +150,19 @@ def public_row(block):
         "status": block["status"],
         "model_version": best.get("model_version") if best else None,
         "price_at": row.get("price_time_utc") if row else None,
+        "valid_until": price_valid_until(best).isoformat() if best else None,
+        "uncertainty": float(best["uncertainty"]) if best else None,
+        "uncertainty_kind": "relative_policy_haircut_not_confidence_interval",
+        "expected_roi": float(best["research_probability"]) * float(best["decimal_odds"]) - 1
+        if best
+        else None,
+        "conservative_roi": float(best["research_probability"])
+        * (1 - float(best["uncertainty"]))
+        * float(best["decimal_odds"])
+        - 1
+        if best
+        else None,
+        "approved_for_betting": False,
     }
 
 
@@ -162,13 +176,16 @@ def sheets(
     store = store_for_request()
     try:
         principal = require_member(request, store)
-        record = latest_sheet(store)
+        now = datetime.now(UTC)
+        record = latest_sheet(store, now=now)
         if not record or not record["payload"]["healthy"]:
             return JSONResponse(
                 {
                     "state": "UNAVAILABLE",
                     "rows": [],
                     "games": 0,
+                    "featured_only": True,
+                    "betting_enabled": False,
                     "notice": "No healthy recent snapshot. No picks are being generated.",
                 },
                 headers=HEADERS,
@@ -197,7 +214,7 @@ def sheets(
         if market:
             pool = [r for r in pool if r["market"] == market]
         filtered = {**record, "payload": {**record["payload"], "rows": pool}}
-        featured = {group: featured_rows(filtered, sport, group) for group in range(3)}
+        featured = {group: featured_rows(filtered, sport, group, now=now) for group in range(3)}
         rows = [public_row(b) for group in groups for b in featured[group]]
         # Do not return source dumps, model features, scanner controls, bankroll or ledger.
         return JSONResponse(
@@ -209,13 +226,14 @@ def sheets(
                 "markets": [m for m in available_markets if tab != "moneylines" or m == "h2h"],
                 "games": len(featured[0]),
                 "completed_at": record["payload"]["completed_at"],
-                "server_time": datetime.now(UTC).isoformat(),
+                "server_time": now.isoformat(),
                 "session_expires_at": principal["expires_at"],
                 "partial": bool(record["payload"].get("truncated"))
                 or tab in ("props", "touchdowns"),
                 "coverage": record["payload"].get("event_market_coverage"),
                 "image_pages": [page_count(filtered, sport, g, rows=featured[g]) for g in range(3)],
                 "featured_only": True,
+                "betting_enabled": False,
                 "notice": "Experimental model estimates; showing only positive, supported research edges. Market is no-vig consensus. Edge is percentage-point difference, not ROI.",
             },
             headers=HEADERS,
@@ -230,22 +248,21 @@ def image(
     sport: Literal["nfl", "mlb", "cfb"],
     group: int,
     page: int,
-    featured: bool = False,
+    featured: bool = True,
 ):
     store = store_for_request()
     try:
         require_member(request, store)
         record = latest_sheet(store)
-        selected = featured_rows(record, sport, group) if featured and record else None
-        if (
-            not record
-            or not record["payload"]["healthy"]
-            or group not in (0, 1, 2)
-            or not 1 <= page <= page_count(record, sport, group, rows=selected)
-        ):
+        if not record or not record["payload"]["healthy"] or group not in (0, 1, 2) or page < 1:
+            raise HTTPException(404, "Sheet unavailable")
+        # The member endpoint always uses the short card, even for older links
+        # with featured=false. Discord archives retain their full-slate renderer.
+        selected = featured_rows(record, sport, group)
+        if page > page_count(record, sport, group, rows=selected):
             raise HTTPException(404, "Sheet unavailable")
         return Response(
-            render_card(record, sport, group, page=page, rows=selected),
+            render_card(record, sport, group, page=page, rows=selected, featured=True),
             media_type="image/png",
             headers=HEADERS,
         )

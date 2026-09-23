@@ -1,5 +1,9 @@
 # JABBAZI NFL / MLB build handoff — September 23, 2026 UTC
 
+Later same-day update: see [hardening and readiness audit](HARDENING_HANDOFF_2026-09-23.md)
+for member-app freshness fixes, the latest local test suite and consolidated data
+and authorization blockers. The historical deployment evidence below is preserved.
+
 ## Scope and honest status
 
 NFL and MLB full-game score-distribution **research models** are fitted and connected to the same `AutomaticScanner` used by the scheduled worker and authenticated `/v1/scans/run` API. This is not completion of the full NFL/MLB specification and is not production approval for paid picks.

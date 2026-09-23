@@ -3,7 +3,7 @@
 import io
 import math
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -11,6 +11,7 @@ from .discord_sheets import SPORTS
 
 PAGE_SIZE = 24
 FEATURED_LIMIT = 12
+PRICE_MAX_AGE_SECONDS = 120
 SHEET_FORMAT_VERSION = 3
 GROUPS = {
     "nfl": ("Game shortlist", "Player props", "Anytime touchdowns"),
@@ -116,7 +117,16 @@ def slate_blocks(record, sport, group):
     )
 
 
-def shortlist_rows(record, sport, group):
+def price_valid_until(row):
+    """Exclusive end of the pregame quote's freshness window (not a guarantee)."""
+    price = datetime.fromisoformat(row["price_time_utc"].replace("Z", "+00:00"))
+    start = datetime.fromisoformat(row["starts_at_utc"].replace("Z", "+00:00"))
+    if price.tzinfo is None or start.tzinfo is None:
+        raise ValueError("Aware quote and event times required")
+    return min(start, price + timedelta(seconds=PRICE_MAX_AGE_SECONDS))
+
+
+def shortlist_rows(record, sport, group, *, now=None):
     """At most one research selection per game/player, across available markets.
 
     Rank supported predictions by conservative price value, not raw hit chance.
@@ -142,8 +152,12 @@ def shortlist_rows(record, sport, group):
             price = datetime.fromisoformat(row["price_time_utc"].replace("Z", "+00:00"))
             start = datetime.fromisoformat(row["starts_at_utc"].replace("Z", "+00:00"))
             return (
-                0 <= (at - price).total_seconds() <= 120
+                at.tzinfo is not None
+                and price.tzinfo is not None
+                and start.tzinfo is not None
+                and 0 <= (at - price).total_seconds() < PRICE_MAX_AGE_SECONDS
                 and start > at
+                and (now is None or at <= now < price_valid_until(row))
                 and not row.get("price_stale")
                 and not row.get("in_play")
             )
@@ -217,16 +231,20 @@ def shortlist_rows(record, sport, group):
     )
 
 
-
-def featured_rows(record, sport, group, *, limit=FEATURED_LIMIT):
+def featured_rows(record, sport, group, *, limit=FEATURED_LIMIT, now=None):
     """Return only positive, supported research edges for the member portal.
 
     Full-slate rows remain available to the owner/Discord sheet pipeline. The
     member app deliberately surfaces a short, ranked card and never promotes
     an unrated or negative-edge row into a pick-like view.
     """
+    if type(limit) is not int or not 1 <= limit <= FEATURED_LIMIT:
+        raise ValueError("Invalid featured limit")
+    if not record or not record["payload"].get("healthy"):
+        return []
+    now = now or datetime.now(UTC)
     ranked = []
-    for block in shortlist_rows(record, sport, group):
+    for block in shortlist_rows(record, sport, group, now=now):
         best = block.get("best")
         edge = block.get("edge")
         if not best or block.get("status") != "WATCH" or edge is None:
@@ -325,7 +343,7 @@ def selection_label(row, *, reference=False):
     return f"{side} {line} · {market}".strip()
 
 
-def render_card(record, sport, group, *, page=1, rows=None):
+def render_card(record, sport, group, *, page=1, rows=None, featured=False):
     if page < 1 or page > 1000 or group not in (0, 1, 2):
         raise ValueError("Invalid page or group")
     rows = shortlist_rows(record, sport, group) if rows is None else list(rows)
@@ -426,6 +444,8 @@ def render_card(record, sport, group, *, page=1, rows=None):
         text = (
             "DATA UNHEALTHY"
             if not healthy
+            else "No qualifying fresh research edges"
+            if featured
             else "No supported player markets in this scan"
             if group
             else "No games returned in this scan"
@@ -451,7 +471,9 @@ def render_card(record, sport, group, *, page=1, rows=None):
     )
     draw.text(
         (28, height - 29),
-        "No model = no model edge. Every feed matchup is kept, even when no selection is supported.",
+        "Research shortlist only. Prices expire; refresh and recheck before acting."
+        if featured
+        else "No model = no model edge. Every feed matchup is kept, even when no selection is supported.",
         font=small,
         fill="#beb4cc",
     )

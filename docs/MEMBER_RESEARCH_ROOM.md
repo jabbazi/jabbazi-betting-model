@@ -12,11 +12,16 @@ without exposing the owner's scanner or copying another service's data.
 - Tabs: Cheat sheets, Moneylines, Player props, Anytime TD, Insights, Learn how to.
 - Filter by sport, date, market, player/team search and Over/Under; sort by time,
   model probability, no-vig market probability or percentage-point edge.
-- The game shortlist keeps every matchup returned by the odds feed, including
-  games without supported predictions. One supported selection per game is
-  ranked by uncertainty-adjusted price value, not the highest hit probability.
-- PNG downloads use compact rows and include every page. Discord continues to
-  receive image-only research messages. Model %, Market % and Edge stay separate.
+- The member app shows up to 12 supported positive-edge selections per section,
+  at most one per game on game sheets, ranked by conservative price value.
+  It does not force every game onto the app or rank by hit probability alone.
+- Member JSON and PNG downloads recheck price age against the current time:
+  prices expire after 120 seconds or at game start, whichever comes first.
+  The browser removes expired rows, clears data on failed refresh/logout, and
+  stops displaying data when the member session expires. Saved PNGs remain
+  historical snapshots, not self-updating prices.
+- Discord's separate image-only archive keeps full feed-slate research coverage.
+  Model %, Market % and Edge stay separate. Neither display approves bets.
 - The server's own icon supplies app branding. No fabricated logos, model grades,
   player portraits, historical hit rates or percentages are introduced.
 
@@ -71,8 +76,9 @@ reconciled official schedule is still needed to claim complete league coverage.
 
 Insights links to the official Outlier app and Gambly site. This is not an installed
 Outlier bot or licensed automated insights feed. No verified public Outlier bot
-installation was available from its official documentation. Gambly's official
-Discord authorization requests Administrator and remains pending owner approval.
+installation was available from its official documentation. GamblyBot was installed
+with owner approval and verified in the server member list. Its installation does
+not validate JABBAZI probabilities or place wagers.
 
 The 20 lessons were already published and read back in Discord. Renaming
 betting-basics and creating/editing channels needs the owner's Discord session;

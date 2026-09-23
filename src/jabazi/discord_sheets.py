@@ -109,8 +109,11 @@ def latest_sheet(store, *, now=None, max_age_seconds=10800):
         return None
     record = records[0]
     p = record["payload"]
-    at = datetime.fromisoformat(p["completed_at"])
-    if at.tzinfo is None or not 0 <= (now - at).total_seconds() <= max_age_seconds:
+    try:
+        at = datetime.fromisoformat(p["completed_at"])
+        if at.tzinfo is None or not 0 <= (now - at).total_seconds() <= max_age_seconds:
+            return None
+    except (ValueError, TypeError, KeyError):
         return None
     return record
 

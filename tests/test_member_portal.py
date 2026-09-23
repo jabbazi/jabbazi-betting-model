@@ -24,6 +24,7 @@ def portal(tmp_path, monkeypatch):
     store = Store(url, initialize=True)
     monkeypatch.setenv("JABBAZI_PLATFORM_DATABASE_URL", url)
     monkeypatch.setenv("JABBAZI_MODEL_TOKEN", "synthetic-owner-" + "x" * 40)
+    monkeypatch.setenv("JABBAZI_DISCORD_GUILD_ID", "1")
     monkeypatch.setattr("jabazi.member_api.store_for_request", lambda: Store(url))
     with TestClient(app, base_url=portal_origin()) as client:
         yield store, client
@@ -108,8 +109,12 @@ def test_member_view_surfaces_only_supported_edges_and_never_exposes_owner_data(
     assert payload["featured_only"] is True
     assert payload["image_pages"][0] == 1
     assert "MUST_NOT_EXPOSE" not in response.text and "bankroll" not in response.text
-    assert client.get("/v1/member/image/mlb/0/2.png").headers["content-type"] == "image/png"
+    assert client.get("/v1/member/image/mlb/0/1.png").headers["content-type"] == "image/png"
+    assert client.get("/v1/member/image/mlb/0/2.png").status_code == 404
     assert client.get("/v1/member/image/mlb/0/3.png").status_code == 404
+    assert client.get("/v1/member/image/mlb/9/1.png?featured=1").status_code == 404
+    assert client.get("/v1/member/image/mlb/-1/1.png?featured=1").status_code == 404
+    assert client.get("/v1/member/image/mlb/0/2.png?featured=0").status_code == 404
     lessons = client.get("/v1/member/learn")
     assert lessons.status_code == 200 and len(lessons.json()) == 20
     assert client.get("/v1/member/sheets?sport=cfb&tab=props").json()["rows"] == []
@@ -127,6 +132,66 @@ def test_cross_origin_cannot_consume_a_ticket(portal):
         == 403
     )
     assert store.list_records("member_ticket_used", 1, entity=hashed(ticket)) == []
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"scope": "scanner:research"},
+        {"guild": "9"},
+        {"member": ""},
+        {"expires_at": "bad"},
+        {"expires_at": "2099-01-01T00:00:00"},
+    ],
+)
+def test_malformed_or_cross_scope_records_are_denied(portal, changes):
+    store, _ = portal
+    token = "x" * 43
+    payload = {
+        "guild": "1",
+        "member": "2",
+        "scope": "sheets:read",
+        "expires_at": (datetime.now(UTC) + timedelta(minutes=10)).isoformat(),
+    } | changes
+    store.append("member_session", hashed(token), payload)
+    store.append("member_ticket", hashed(token), payload)
+    with pytest.raises(PermissionError):
+        validate_session(store, token)
+    with pytest.raises(PermissionError):
+        exchange_ticket(store, token)
+    assert not store.list_records("member_ticket_used")
+
+
+def test_live_member_card_rechecks_price_time_and_keeps_roi_separate(portal):
+    from test_featured_safety import snapshot
+
+    store, client = portal
+    now = datetime.now(UTC)
+    record = snapshot()
+    record["payload"]["completed_at"] = now.isoformat()
+    record["payload"]["rows"][0].update(
+        price_time_utc=(now - timedelta(seconds=20)).isoformat(),
+        starts_at_utc=(now + timedelta(hours=1)).isoformat(),
+    )
+    store.append("research_sheet", "latest_scan", record["payload"])
+    sign_in(store, client)
+    payload = client.get("/v1/member/sheets").json()
+    row = payload["rows"][0]
+    assert row["edge"] == pytest.approx(0.1)
+    assert row["expected_roi"] == pytest.approx(0.2)
+    assert row["conservative_roi"] == pytest.approx(0.104)
+    assert row["approved_for_betting"] is False and payload["betting_enabled"] is False
+    assert datetime.fromisoformat(row["valid_until"]) > now
+    record["payload"]["rows"][0]["price_time_utc"] = (now - timedelta(minutes=10)).isoformat()
+    store.append("research_sheet", "latest_scan", record["payload"])
+    assert client.get("/v1/member/sheets").json()["rows"] == []
+
+
+def test_bad_snapshot_time_returns_unavailable_not_server_error(portal):
+    store, client = portal
+    store.append("research_sheet", "latest_scan", {"completed_at": "bad", "healthy": True})
+    sign_in(store, client)
+    assert client.get("/v1/member/sheets").json()["state"] == "UNAVAILABLE"
 
 
 def test_vip_command_uses_fresh_roles_and_only_sends_private_access_to_the_member(portal):

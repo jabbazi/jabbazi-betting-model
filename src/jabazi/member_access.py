@@ -38,6 +38,23 @@ def hashed(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def valid_principal(payload, now):
+    """Fail closed on malformed, cross-guild or incorrectly scoped records."""
+    try:
+        expiry = datetime.fromisoformat(payload["expires_at"])
+        configured_guild = os.getenv("JABBAZI_DISCORD_GUILD_ID", "")
+        return (
+            expiry.tzinfo is not None
+            and expiry > now
+            and payload.get("scope") == "sheets:read"
+            and bool(payload.get("member"))
+            and bool(payload.get("guild"))
+            and (not configured_guild or str(payload["guild"]) == configured_guild)
+        )
+    except (ValueError, TypeError, KeyError):
+        return False
+
+
 def issue_ticket(store, *, guild, member, authorized, now=None):
     if not authorized:
         raise PermissionError("Member access denied")
@@ -64,7 +81,7 @@ def exchange_ticket(store, token, *, now=None):
         raise PermissionError("Invalid member link")
     key = hashed(token)
     records = store.list_records("member_ticket", 1, entity=key)
-    if not records or datetime.fromisoformat(records[0]["payload"]["expires_at"]) <= now:
+    if not records or not valid_principal(records[0]["payload"], now):
         raise PermissionError("Member link expired")
     if not store.append("member_ticket_used", key, {}, hashed("member_ticket_used:" + key)):
         raise PermissionError("Member link already used")
@@ -85,7 +102,7 @@ def validate_session(store, token, *, now=None):
     records = store.list_records("member_session", 1, entity=key)
     if (
         not records
-        or datetime.fromisoformat(records[0]["payload"]["expires_at"]) <= now
+        or not valid_principal(records[0]["payload"], now)
         or store.list_records("member_session_revoked", 1, entity=key)
     ):
         raise PermissionError("Member session expired")
