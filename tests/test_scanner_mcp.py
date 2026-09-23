@@ -85,6 +85,12 @@ def test_discovery_consent_headers_no_secrets(setup):
     assert metadata["authorization_response_iss_parameter_supported"] is True
     response, _, _ = consent_form(client)
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    # Browser-native form submissions must retain Origin for the server's CSRF
+    # check and be allowed to follow the one registered HTTPS OAuth callback.
+    assert response.headers["referrer-policy"] == "same-origin"
+    directives = dict(part.strip().split(" ", 1)
+                      for part in response.headers["content-security-policy"].split(";"))
+    assert directives["form-action"].split() == ["'self'", mcp.REDIRECT]
     assert "HttpOnly" in response.headers["set-cookie"] and "Secure" in response.headers["set-cookie"]
     assert response.headers["cache-control"] == "no-store"
     assert bridge.scanner_key() not in response.text
@@ -106,6 +112,9 @@ def test_consent_requires_owner_key_csrf_and_origin(setup):
     _, form, _ = consent_form(client)
     form["scanner_key"] = bridge.scanner_key()
     assert client.post("/oauth/authorize", data=form).status_code == 400
+    for origin in ("null", "https://attacker.invalid"):
+        assert client.post("/oauth/authorize", data=form,
+                           headers={"Origin": origin}).status_code == 400
     bad = dict(form, csrf="bad")
     assert client.post("/oauth/authorize", data=bad, headers={"Origin": mcp.ORIGIN}).status_code == 400
     bad = dict(form, scanner_key="bad")
@@ -114,6 +123,25 @@ def test_consent_requires_owner_key_csrf_and_origin(setup):
     assert client.post("/oauth/authorize", data=bad, headers={"Origin": mcp.ORIGIN}).status_code == 400
     client.cookies.clear()
     assert client.post("/oauth/authorize", data=form, headers={"Origin": mcp.ORIGIN}).status_code == 400
+
+
+def test_callback_and_token_responses_suppress_referrers(setup):
+    client, _ = setup
+    _, fields, verifier = consent_form(client)
+    fields["scanner_key"] = bridge.scanner_key()
+    response = client.post("/oauth/authorize", data=fields,
+                           headers={"Origin": mcp.ORIGIN}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["referrer-policy"] == "no-referrer"
+    q = parse_qs(urlparse(response.headers["location"]).query)
+    token = client.post("/oauth/token", data={
+        "grant_type": "authorization_code", "code": q["code"][0],
+        "code_verifier": verifier, "client_id": mcp.CLIENT,
+        "redirect_uri": mcp.REDIRECT, "resource": mcp.RESOURCE,
+    })
+    assert token.status_code == 200
+    assert token.headers["referrer-policy"] == "no-referrer"
+    assert rpc(client, token.json()["access_token"], "tools/list").status_code == 200
 
 
 def test_auth_rate_limit_and_no_credentials_in_store(setup):

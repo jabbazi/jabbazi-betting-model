@@ -133,7 +133,17 @@ Models remain research only.</p>
 <p>Use the scanner key from your owner setup page. Never paste it into a chat.</p>
 <button type="submit">Authorize my ChatGPT connection</button></form></main></html>'''
     response = HTMLResponse(body, headers=HEADERS | {
-        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        # A native form POST with no-referrer sends Origin: null, which correctly
+        # fails approve()'s origin check. Keep the real origin on same-origin
+        # submits; suppress referrers when leaving this site. Other OAuth
+        # responses keep HEADERS' no-referrer policy.
+        "Referrer-Policy": "same-origin",
+        # Chromium also checks form-action on the 303 OAuth callback redirect.
+        # Permit only our form target and the existing, exact ChatGPT callback.
+        "Content-Security-Policy": (
+            "default-src 'none'; style-src 'unsafe-inline'; "
+            f"form-action 'self' {REDIRECT}; base-uri 'none'; frame-ancestors 'none'"
+        ),
         "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff",
     })
     response.set_cookie(COOKIE, nonce, max_age=600, secure=True, httponly=True, samesite="strict", path="/")
