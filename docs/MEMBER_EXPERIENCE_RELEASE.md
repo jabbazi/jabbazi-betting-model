@@ -97,3 +97,36 @@ is not evidence of deployment.
 No model approval changed. NFL/MLB remain subject to their existing validation
 gates; player-prop model availability and licensed historical inputs are separate
 work. No data was purchased and no real wager/card was manufactured for testing.
+
+## Verified release checkpoint
+
+GitHub Actions run **35939073113** passed on commit
+`4c56493f11d897c7c05449e2ab37ceb40aa3b8b1` (PR #4). The remote tree matched the
+locally tested tree exactly. CI includes PostgreSQL, container startup,
+backup/restore and database-outage checks.
+
+Live Discord changes saved and inspected:
+- Created the non-administrative paid-access role above, separate from alert roles.
+- Denied public view on VIP PICKS and VIP LOUNGE; granted the VIP role and existing
+  JABBAZI Research bot visibility. Member contribution channels remain distinct.
+- Main Card and Sprinkles deny member messages and thread creation; the existing
+  research bot has explicit send/embed/history permission.
+- Pick-updates was unsynced and public. It now denies public view, grants VIP/bot
+  access, and retains member-posting restrictions.
+- Removed and saved GamblyBot's Administrator permission. It remains installed;
+  no new channel access was granted to it. Its betslip workflow was not retested.
+- Discord's VIP role preview showed VIP channels and hid model-review,
+  owner-archive and other private tools. The preview showed pick-updates as
+  read-only. A final free/alert-only preview attempt stalled before verification.
+
+No human VIP membership was manually assigned or removed during this work.
+The role-member UI subsequently listed one existing member; payment eligibility
+was not inferred or changed. The alert selector was not edited to include VIP.
+
+The browser stopped responding while attempting the final role-preview check.
+Render was last observed signed out. No Render credential prompt was submitted,
+no API/worker rollout occurred, no fake pick was published and no final screenshot
+was captured. The current deployed member portal therefore remains the prior
+version. Do not describe the new desk, results sync or live API role checks as
+already deployed. Resume by verifying the browser and Render sign-in, then apply
+configuration and rollout above; finish free/VIP permission and live portal checks.
