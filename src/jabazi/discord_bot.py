@@ -1,4 +1,4 @@
-"""Opt-in Discord gateway process for private research tools, not official picks.
+"""Opt-in Discord gateway process for research and owner-issued official cards.
 
 Run separately with ``python -m jabazi.discord_bot`` after reviewing permissions.
 No token, user message content, or provider exception text is logged.
@@ -78,15 +78,18 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     """Fail closed on wrong guild, public target, or unreviewed explicit grants."""
     if int(document.get("guild_id", 0)) != config.guild or document.get("type") != 0:
         raise ValueError("Research target must be a text channel in the configured guild")
-    if int(document["id"]) not in (config.status_channel, config.sheets_channel):
+    from .official_delivery import channels
+
+    if int(document["id"]) not in (config.status_channel, config.sheets_channel, *channels().values()):
         raise ValueError("Target is not an approved research channel")
     view = 1 << 10
     entries = document.get("permission_overwrites", [])
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
     if len(public) != 1 or not int(public[0]["deny"]) & view or int(public[0]["allow"]) & view:
         raise ValueError("Research channels must explicitly deny public visibility")
+    viewers = config.viewer_roles if int(document["id"]) != config.status_channel else frozenset()
     allowed = {(1, config.owner), (1, bot_id)} | {
-        (0, r) for r in config.viewer_roles | frozenset(bot_role_ids)
+        (0, r) for r in viewers | frozenset(bot_role_ids)
     }
     for p in entries:
         if int(p["allow"]) & view and (p["type"], int(p["id"])) not in allowed:
@@ -239,7 +242,7 @@ def build_client(config, store):
                     allowed = member.id == config.owner or bool(
                         {r.id for r in member.roles} & config.viewer_roles
                     )
-                    if not allowed:
+                    if not allowed or getattr(member, "pending", False):
                         await message.channel.send(
                             "The JABBAZI member app requires an approved VIP role.",
                             allowed_mentions=discord.AllowedMentions.none(),
@@ -332,6 +335,11 @@ def build_client(config, store):
                     await self.publish_once()
                 except Exception:  # noqa: BLE001 -- isolate delivery from scanner, redact errors
                     print("DISCORD_SHEET_UNAVAILABLE", flush=True)
+                try:
+                    from .official_delivery import publish_official_once
+                    await publish_official_once(self, store, config)
+                except Exception:  # Do not log provider/SDK credentials.
+                    print("DISCORD_OFFICIAL_UNAVAILABLE", flush=True)
                 await asyncio.sleep(60)
 
         async def close(self):

@@ -1,6 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let sport = 'mlb', tab = 'sheets', data = null, requestNumber = 0;
+let sport = 'mlb', tab = 'cards', data = null, requestNumber = 0;
+let cardPage = 1, officialData = null, sessionExpiry = 0, authEpoch = 0;
 let serverAtLoad = 0, monotonicAtLoad = 0, wallAtLoad = 0;
 const names = {sheets: 'Best supported edges', moneylines: 'Moneyline research', props: 'Player-prop research', touchdowns: 'Anytime touchdown research'};
 const pct = v => Number.isFinite(v) ? (v * 100).toFixed(1) + '%' : '—';
@@ -12,7 +13,9 @@ const el = (tag, text, cls) => {
 };
 function message(text) { $('message').textContent = text; $('message').hidden = !text; }
 function clearData() {
-  data = null;
+  data = null; officialData = null;
+  for (const id of ['official-cards', 'performance', 'lessons']) $(id).replaceChildren();
+  $('more-cards').hidden = true;
   $('rows').replaceChildren();
   $('downloads').replaceChildren();
   for (const id of ['games', 'modeled', 'showing']) $(id).textContent = '0';
@@ -22,6 +25,7 @@ function clearData() {
   $('empty').hidden = false;
 }
 function login(text) {
+  ++authEpoch; sessionExpiry = 0;
   ++requestNumber; // invalidate any concurrent successful response
   clearData();
   $('workspace').hidden = true;
@@ -35,7 +39,7 @@ async function api(path, options = {}) {
   if (!r.ok) {
     let body = {};
     try { body = await r.json(); } catch {}
-    if (r.status === 401) login(body.detail);
+    if (r.status === 401 || r.status === 503) login(body.detail);
     throw new Error(typeof body.detail === 'string' ? body.detail : 'Research is temporarily unavailable.');
   }
   return r.json();
@@ -107,7 +111,10 @@ async function load() {
   const n = ++requestNumber;
   message('');
   clearData(); // no old sport/tab/failed-request results left looking current
-  $('data-section').hidden = tab === 'insights' || tab === 'learn';
+  $('data-section').hidden = ['insights', 'learn', 'cards', 'results'].includes(tab);
+  $('official-section').hidden = !['cards', 'results'].includes(tab);
+  document.querySelector('.sport-switch').hidden = ['cards', 'results', 'learn', 'insights'].includes(tab);
+  if (['cards', 'results'].includes(tab)) { cardPage = 1; await loadCards(n); return; }
   $('insights-section').hidden = tab !== 'insights';
   $('learn-section').hidden = tab !== 'learn';
   $('refresh').disabled = false;
@@ -133,9 +140,7 @@ async function load() {
     const result = await api('/v1/member/sheets?' + new URLSearchParams({sport, tab, market: selectedMarket}));
     if (n !== requestNumber) return;
     data = result;
-    serverAtLoad = Date.parse(result.server_time);
-    monotonicAtLoad = performance.now();
-    wallAtLoad = Date.now();
+    anchor(result);
     // No server timestamp = no basis for asserting that these rows are current.
     if (!Number.isFinite(serverAtLoad)) data.rows = [];
     $('snapshot').textContent = result.completed_at ? 'Snapshot ' + new Date(result.completed_at).toLocaleString() : '';
@@ -179,11 +184,19 @@ $('logout').addEventListener('click', async () => {
   catch (e) { login(e.message); }
 });
 // No network traffic or provider usage: expiry only clears local rows.
-setInterval(table, 1000);
+setInterval(() => {
+  if (sessionExpiry && serverNow() >= sessionExpiry) { login('Your session expired. Type !vip in Discord for a fresh private link.'); return; }
+  table();
+  if (officialData && officialData.cards.some(p => p.status === 'ACTIVE' && Date.parse(p.valid_until) <= serverNow())) {
+    for (const p of officialData.cards) if (p.status === 'ACTIVE' && Date.parse(p.valid_until) <= serverNow()) p.status = 'PRICE_EXPIRED';
+    renderCards();
+  }
+}, 1000);
+setInterval(checkAccess, 60000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { clearData(); if (!$('workspace').hidden) load(); }
 });
-(async () => {
+const startup = (async () => {
   const token = new URLSearchParams(location.hash.slice(1)).get('access');
   if (location.hash) history.replaceState(null, '', '/vip');
   try {
@@ -200,5 +213,87 @@ document.addEventListener('visibilitychange', () => {
     catch (e) { login(e.message); return; }
   }
   $('login').hidden = true; $('workspace').hidden = false; $('logout').hidden = false;
-  await load();
+  if (await checkAccess()) await load();
 })();
+
+function anchor(result) {
+  if (!Number.isFinite(Date.parse(result.server_time)) || !Number.isFinite(Date.parse(result.session_expires_at))) {
+    throw new Error('No verified session clock. Refresh to reconnect.');
+  }
+  serverAtLoad = Date.parse(result.server_time);
+  monotonicAtLoad = performance.now(); wallAtLoad = Date.now();
+  sessionExpiry = Date.parse(result.session_expires_at);
+}
+async function checkAccess() {
+  if ($('workspace').hidden) return false;
+  const epoch = authEpoch;
+  try {
+    const result = await api('/v1/member/me');
+    if (epoch !== authEpoch) return false;
+    anchor(result); return true;
+  } catch (e) { if (epoch === authEpoch) login(e.message); return false; }
+}
+function american(value) {
+  const d = Number(value);
+  if (!Number.isFinite(d) || d <= 1) return '—';
+  return d >= 2 ? '+' + Math.round((d - 1) * 100) : String(Math.round(-100 / (d - 1)));
+}
+async function loadCards(n, append = false) {
+  $('refresh').disabled = true;
+  $('more-cards').disabled = true;
+  try {
+    const result = await api('/v1/member/cards?' + new URLSearchParams({page: cardPage, day: $('card-date').value}));
+    if (n !== requestNumber) return;
+    anchor(result);
+    officialData = {...result, cards: append ? [...(officialData?.cards || []), ...result.cards] : result.cards};
+    $('card-notice').textContent = result.notice + ' Dates: ' + result.timezone + '.';
+    $('official-title').textContent = tab === 'results' ? 'The complete card record' : 'Main Card & Sprinkles';
+    $('performance').replaceChildren();
+    if (tab === 'results') for (const [kind, p] of Object.entries(result.performance)) {
+      const box = el('article', undefined, 'panel');
+      box.append(el('p', kind === 'main' ? 'MAIN CARD' : 'SPRINKLES', 'eyebrow'),
+        el('h3', Number(p.profit_units).toFixed(2) + 'u'),
+        el('p', `${p.wins} wins · ${p.losses} losses · ${p.pushes} pushes · ${p.voids} voids`),
+        el('p', `${p.issued} issued · ${p.unsettled} unsettled · ${p.withdrawn} withdrawn`, 'muted'),
+        el('p', 'All-time ROI: ' + (p.roi === null ? 'Unavailable' : (100 * Number(p.roi)).toFixed(1) + '%') + ' · At published stakes and prices', 'muted'));
+      $('performance').append(box);
+    }
+    renderCards();
+    $('more-cards').hidden = !result.has_more;
+  } catch (e) { if (n === requestNumber) { clearData(); message(e.message); } }
+  finally { if (n === requestNumber) { $('refresh').disabled = false; $('more-cards').disabled = false; } }
+}
+function renderCards() {
+  $('official-cards').replaceChildren();
+  if (!officialData?.cards.length) { $('official-cards').append(el('p', 'No official cards issued for this view. Research is never automatically turned into a pick.', 'empty')); return; }
+  for (const p of officialData.cards) {
+    const status = p.status === 'ACTIVE' && Date.parse(p.valid_until) <= serverNow() ? 'PRICE_EXPIRED' : p.status;
+    const box = el('article', undefined, 'panel official-pick');
+    box.append(el('p', (p.card === 'main' ? '👑 MAIN CARD' : '✨ SPRINKLE') + ' · ' + status.replaceAll('_', ' '), 'eyebrow'),
+      el('h3', p.selection + (p.line === null ? '' : ' ' + p.line)), el('p', p.event, 'muted'),
+      el('div', american(p.decimal_odds) + ' · ' + p.sportsbook, 'pick-price'),
+      el('p', p.stake_units + 'u · $' + Number(p.stake_dollars).toFixed(2) + ' · Play to ' + american(p.minimum_decimal) + ' or better'),
+      el('p', p.reasoning), el('p', 'Risks: ' + p.risks, 'muted'),
+      el('p', 'Posted ' + new Date(p.issued_at).toLocaleString() + ' · Price observed ' + new Date(p.price_observed_at).toLocaleString(), 'muted'));
+    if (status === 'PRICE_EXPIRED') box.append(el('p', 'Original card retained. This price needs fresh verification before any action.', 'coverage'));
+    if (p.reason) box.append(el('p', p.reason, 'coverage'));
+    if (p.withdrawn) box.append(el('p', 'Withdrawn after publication; retained in the record.', 'coverage'));
+    if (p.result) box.append(el('p', p.result.toUpperCase() + ' · ' + Number(p.profit_units).toFixed(2) + 'u · ' + p.result_source.replaceAll('_', ' '), Number(p.profit_units) < 0 ? 'negative' : 'positive'));
+    if (p.clv) box.append(el('p', p.clv.status === 'CLOSING_PROXY' ? 'Closing proxy: ' + (Number(p.clv.probability_clv) * 100).toFixed(2) + ' pp · Price CLV ' + (Number(p.clv.price_clv) * 100).toFixed(2) + '%' : 'CLV unavailable: no comparable closing proxy.', 'muted'));
+    if (p.correction_reason) box.append(el('p', 'Correction: ' + p.correction_reason));
+    const details = el('details'); details.append(el('summary', 'Update history'));
+    details.addEventListener('toggle', async () => {
+      if (!details.open || details.dataset?.loaded) return;
+      const epoch = authEpoch;
+      try {
+        const h = await api('/v1/member/cards/' + encodeURIComponent(p.id) + '/history');
+        if (epoch !== authEpoch) return;
+        for (const e of h.events) details.append(el('p', `Revision ${e.revision} · ${e.status} · ${e.at || e.issued_at}` + (e.reason ? '\n' + e.reason : '') + (e.result ? '\nResult: ' + e.result : '') + (e.correction_reason ? '\nCorrection: ' + e.correction_reason : '')));
+        details.dataset.loaded = 'yes';
+      } catch (e) { message(e.message); }
+    });
+    box.append(details); $('official-cards').append(box);
+  }
+}
+$('card-date').addEventListener('change', load);
+$('more-cards').addEventListener('click', async () => { cardPage++; await loadCards(++requestNumber, true); });
