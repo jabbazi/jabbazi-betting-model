@@ -65,6 +65,38 @@ has that owner ID and the **existing Discord bot token** using Render's secure
 configuration. Never put tokens in Git, a report or Discord. Without this token,
 protected member reads return 503; do not deploy the API until it is configured.
 
+### Compact cheat-sheet follow-up
+
+Format version 4 replaces the wide image table with a dark, phone-readable JABBAZI
+list: sport/date, a selection, and its matchup/start time. Model probability,
+market consensus and edge remain in the protected app. Each row is one supported
+positive research edge per event/player; multiple thresholds no longer create
+repeated layers of the same matchup. Doubleheaders retain separate event IDs and
+start times. Discord includes all qualifying rows across automatic pages; the
+app keeps its existing top-12-per-group shortlist. A reference-only player market
+or a PASS is never styled as a selection. No group is filled merely to have picks.
+
+Rendering rechecks current quote freshness, including previously supplied app
+rows. Unhealthy, expired or unmodeled data yields an empty-state image. Images say
+RESEARCH ONLY / NOT OFFICIAL PICKS, retain the snapshot timestamp, and never combine
+the list into a parlay. Original owner research archives are unchanged. Three
+market groups remain available (games/pitchers/batters or games/props/anytime TD).
+
+The deterministic `tools/preview_cheat_sheets.py --output <path.png>` creates a
+clearly marked fictional-team sample without provider calls or publication.
+Verification: 286 local Python tests passed, including image pagination, exact
+market labels, quote expiry, no-model/PASS exclusion and full-name wrapping.
+Sample PNG was rendered and visually inspected. The cloud rollout is still
+pending; this is not evidence that the new images are deployed.
+
+Additional live Discord work: odds-and-EV-tools now explicitly grants the
+existing JABBAZI VIP role View Channel and Read Message History. Its @everyone
+visibility denial remains. It was intentionally unsynced from VIP TOOLS so the
+owner-archive channel retains its private permissions. The category was not
+opened wholesale. Cheat-sheets still requires the coordinated worker viewer-role
+configuration described below; granting channel visibility first would make the
+current bot reject the unconfigured role and interrupt delivery.
+
 On the worker, retain its current database, bot, owner, scanner and sheet settings;
 add the official delivery targets:
 

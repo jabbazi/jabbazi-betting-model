@@ -9,11 +9,12 @@ import io
 import os
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .persistence.store import Store, digest
-from .sheet_images import render_card, page_count, SHEET_FORMAT_VERSION
+from .sheet_images import render_card, page_count, supported_rows, SHEET_FORMAT_VERSION
 
 
 @dataclass(frozen=True)
@@ -80,7 +81,11 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
         raise ValueError("Research target must be a text channel in the configured guild")
     from .official_delivery import channels
 
-    if int(document["id"]) not in (config.status_channel, config.sheets_channel, *channels().values()):
+    if int(document["id"]) not in (
+        config.status_channel,
+        config.sheets_channel,
+        *channels().values(),
+    ):
         raise ValueError("Target is not an approved research channel")
     view = 1 << 10
     entries = document.get("permission_overwrites", [])
@@ -88,9 +93,7 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     if len(public) != 1 or not int(public[0]["deny"]) & view or int(public[0]["allow"]) & view:
         raise ValueError("Research channels must explicitly deny public visibility")
     viewers = config.viewer_roles if int(document["id"]) != config.status_channel else frozenset()
-    allowed = {(1, config.owner), (1, bot_id)} | {
-        (0, r) for r in viewers | frozenset(bot_role_ids)
-    }
+    allowed = {(1, config.owner), (1, bot_id)} | {(0, r) for r in viewers | frozenset(bot_role_ids)}
     for p in entries:
         if int(p["allow"]) & view and (p["type"], int(p["id"])) not in allowed:
             raise ValueError("Unreviewed research channel access")
@@ -170,7 +173,7 @@ def build_client(config, store):
             channel = await self.fetch_channel(channel_id)
             return channel
 
-        async def send_sheets(self, channel, record, sports, page=None):
+        async def send_sheets(self, channel, record, sports, page=None, *, now=None):
             if record is None:
                 return await channel.send("CHEAT SHEETS UNAVAILABLE — no recent completed scan.")
             payload = record["payload"]
@@ -180,17 +183,19 @@ def build_client(config, store):
                     "No research sheets published for this scan."
                 )
             last_message = None
+            now = now or datetime.now(UTC)
             for sport in sports:
                 files = []
                 for group in range(3):
+                    selected = supported_rows(record, sport, group, now=now)
                     pages = (
                         [page]
                         if page is not None
-                        else range(1, page_count(record, sport, group) + 1)
+                        else range(1, page_count(record, sport, group, rows=selected) + 1)
                     )
                     for number in pages:
                         data = await asyncio.to_thread(
-                            render_card, record, sport, group, page=number
+                            render_card, record, sport, group, page=number, rows=selected, now=now
                         )
                         if len(data) > 7_000_000:
                             raise ValueError("Image exceeds safe attachment size")
@@ -337,6 +342,7 @@ def build_client(config, store):
                     print("DISCORD_SHEET_UNAVAILABLE", flush=True)
                 try:
                     from .official_delivery import publish_official_once
+
                     await publish_official_once(self, store, config)
                 except Exception:  # Do not log provider/SDK credentials.
                     print("DISCORD_OFFICIAL_UNAVAILABLE", flush=True)

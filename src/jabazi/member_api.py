@@ -297,7 +297,7 @@ def image(
         if not record or not record["payload"]["healthy"] or group not in (0, 1, 2) or page < 1:
             raise HTTPException(404, "Sheet unavailable")
         # The member endpoint always uses the short card, even for older links
-        # with featured=false. Discord archives retain their full-slate renderer.
+        # with featured=false. Owner data archives retain the full slate.
         selected = featured_rows(record, sport, group)
         if page > page_count(record, sport, group, rows=selected):
             raise HTTPException(404, "Sheet unavailable")
