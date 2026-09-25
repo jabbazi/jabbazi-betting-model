@@ -21,6 +21,17 @@ def _entity(sport: str, market: str) -> str:
 def load_player_models(store=None):
     result, errors = {}, []
     base = Path(os.getenv("JABBAZI_PLAYER_MODEL_DIR", str(DEFAULT_DIR)))
+    prospective_by_key = {}
+    if store is not None:
+        try:
+            from jabazi.research.player_prospective import validation_report
+            report = validation_report(store)
+            prospective_by_key = {
+                (row["sport"], row["model_version"], row["market"]): row
+                for row in report.get("buckets", [])
+            }
+        except (ValueError, KeyError, TypeError):
+            errors.append("player_prospective_report_unavailable")
     for sport, markets in PLAYER_PROP_MARKETS.items():
         for market in sorted(markets):
             records = (
@@ -35,6 +46,11 @@ def load_player_models(store=None):
                 artifact = records[0]["payload"] if records else json.loads(path.read_text())
                 if artifact.get("status") == "UNAVAILABLE":
                     continue
+                from .train_player_props import promotion_decision
+                prospective = prospective_by_key.get(
+                    (sport, artifact.get("model_version"), market)
+                )
+                artifact = promotion_decision(artifact, prospective)
                 model = PlayerPropModel(artifact, store)
                 if model.sport != sport or model.market != market:
                     raise ValueError("Player artifact identity mismatch")
