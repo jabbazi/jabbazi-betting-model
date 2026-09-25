@@ -64,3 +64,23 @@ freeze forecasts on its next successful scan; result capture occurs on the next
 due six-hour refresh. Verify `get_model_status` frozen counts before claiming
 collection is active. Graded counts remain zero until actual games finish and
 results pass the availability delay. Existing scans remain owner-only.
+
+## Verified rollout — 2026-09-25
+
+PR [#6](https://github.com/jabbazi/jabbazi-betting-model/pull/6) merged as
+`f5fba4a179a6f0d9b1331be421e04974864514ba`. Both Render API and worker show this
+commit as live. [CI run 36100274978](https://github.com/jabbazi/jabbazi-betting-model/actions/runs/36100274978)
+passed 364 tests including PostgreSQL, container startup, backup/restore and
+outage checks; 350 tests passed locally.
+
+Live liveness/readiness returned 200; unauthenticated access to the new validation
+endpoint returned 401. The scheduled worker scan completed with 5 feeds, 4,408
+quotes, 762 modeled candidates and no errors. Existing get_model_status verified
+34 MLB, 90 NFL and 108 CFB frozen game/market forecasts (232 total, not 232
+independent games). All graded counts are zero and all buckets remain SHADOW_ONLY.
+
+The result-archive path is deployed and tested but was NOT_DUE on this run; no
+live result-grading claim is made. CFBD credentials are still missing for ongoing
+CFB refresh. See the [machine-readable deployment receipt](experiments/reliability-upgrade/prospective-deployment-verification.json).
+The worker's heartbeat `completed_at` currently records loop start; the observed
+log time, not that field, establishes scan completion for this receipt.
