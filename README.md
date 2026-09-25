@@ -78,3 +78,24 @@ Production delivery verifies configured owner/channel permissions and records
 delivery claims and results in PostgreSQL. Ambiguous sends require review before
 any retry. A Discord administrator can bypass channel visibility restrictions.
 Paid memberships, public pick distribution, and billing are not implemented.
+
+## Reliability upgrade (2026-09-25)
+
+See [the measured upgrade report](docs/RELIABILITY_UPGRADE_REPORT.md) for the exact
+Chiefs/Miami reproduction, alternate-spread normalization fix, repaired V4.2
+integration, per-market stages, chronological challenger/calibration results,
+trained CFB baseline and rollout requirements. Every served model remains
+`SHADOW_ONLY`. NFL/MLB challengers did not justify replacing the champions.
+The report distinguishes local verification from the unchanged live deployment.
+
+```bash
+python -m pip install '.[dev,discord,research]'
+python tools/diagnose_miami.py
+python -m pytest -q
+python tools/smoke_api.py
+```
+
+The CFB baseline covers FBS team markets only. Continuous refresh requires
+`JABBAZI_CFBD_API_KEY`; stale features produce no inference. No CFB player props,
+player-linked SGP probabilities, automatic wagers or unconfigured publications
+are introduced. New research endpoints require the existing owner credential.

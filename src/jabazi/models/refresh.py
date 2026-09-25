@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import urllib.parse
 import urllib.request
 import uuid
@@ -111,7 +112,26 @@ def update_state(artifact, games, events, *, now, response_checksum):
 
 
 def fetch_update(artifact, *, now):
-    if artifact["sport"] == SPORTS["nfl"]:
+    if artifact["sport"] == SPORTS["cfb"]:
+        from jabazi.providers.history import fetch_json, cfb_rows
+        key = os.getenv("JABBAZI_CFBD_API_KEY", "")
+        if not key:
+            raise ValueError("CFBD credential unavailable")
+        all_rows=[]
+        for year in (now.year-1, now.year):
+            query = urllib.parse.urlencode({"year":year,"classification":"fbs"})
+            all_rows.extend(fetch_json("https://api.collegefootballdata.com/games?"+query,
+                                       {"Authorization":"Bearer "+key}))
+        # Keep the first production CFB scope identical to training.
+        all_rows=[g for g in all_rows if g.get("homeClassification")=="fbs" and g.get("awayClassification")=="fbs"]
+        games=cfb_rows(all_rows)
+        events=[{"game_id":str(g["id"]),"season":g["season"],"week":g["week"],
+                 "home_team":g["homeTeam"],"away_team":g["awayTeam"],
+                 "starts_at":g["startDate"],"neutral_site":g["neutralSite"]}
+                for g in all_rows if not g.get("completed") and type(g.get("neutralSite")) is bool
+                and now < timestamp(g["startDate"]) <= now+timedelta(days=10)]
+        raw=json.dumps(all_rows,sort_keys=True).encode()
+    elif artifact["sport"] == SPORTS["nfl"]:
         url = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
         with urllib.request.urlopen(url, timeout=30) as response:
             raw = response.read(12_000_001)
@@ -159,7 +179,8 @@ def refresh_models(store, *, now=None):
         return {"status": "BUSY"}
     report = {}
     try:
-        for short in ("nfl", "mlb"):
+        sports = ("nfl", "mlb", "cfb") if os.getenv("JABBAZI_CFBD_API_KEY") else ("nfl", "mlb")
+        for short in sports:
             previous = store.list_records("model_refresh_attempt", 1, entity=SPORTS[short])
             if previous:
                 elapsed = (now - timestamp(previous[0]["payload"]["attempted_at"])).total_seconds()

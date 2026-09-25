@@ -58,7 +58,13 @@ def _instance_key(quote: Quote) -> tuple[str, str, str | None, Decimal | None]:
     participant, _ = _parts(quote)
     line = quote.line
     if "spreads" in quote.market_key and line is not None:
-        line = abs(line)
+        # Orient to the lexicographically first team, retaining the sign. Using
+        # abs(line) merged A +1.5/B -1.5 with A -1.5/B +1.5 and divided both
+        # complementary pairs by two during consensus normalization.
+        teams = (quote.event_name or "").split(" @ ")
+        if len(teams) != 2 or quote.selection_key not in teams:
+            return quote.event_id, quote.market_key, "unverified:" + quote.selection_key, line
+        line = line if quote.selection_key == min(teams) else -line
     return quote.event_id, quote.market_key, participant, line
 
 
@@ -88,6 +94,8 @@ def build_price_cards(
     now = now or datetime.now(timezone.utc)
     instances: dict[tuple, list[Quote]] = defaultdict(list)
     for quote in quotes:
+        if quote.line is not None and not quote.line.is_finite():
+            continue
         if quote.source_timestamp.tzinfo is None or quote.observed_at.tzinfo is None:
             continue
         if not quote.decimal_odds.is_finite() or quote.decimal_odds <= 1:
