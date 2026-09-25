@@ -63,11 +63,14 @@ class ScanEverythingRequest(BaseModel):
 
 class ScannerModelState(BaseModel):
     market_buckets: dict[str, Any] = Field(default_factory=dict)
+    player_market_buckets: dict[str, Any] = Field(default_factory=dict)
     sport: str
-    status: Literal["SHADOW_ONLY", "UNAVAILABLE"]
-    approved_for_betting: Literal[False]
+    status: Literal["SHADOW_ONLY", "VALIDATING", "LIMITED_LIVE", "PRODUCTION_APPROVED", "UNAVAILABLE"]
+    approved_for_betting: bool
     version: str | None
     supported_markets: list[str]
+    player_status: Literal["SHADOW_ONLY", "VALIDATING", "LIMITED_LIVE", "PRODUCTION_APPROVED", "UNAVAILABLE"] = "UNAVAILABLE"
+    player_supported_markets: list[str] = Field(default_factory=list)
     state_refreshed_at: str | None
 
 
