@@ -115,6 +115,12 @@ class AutomaticScanner:
         )
         errors.extend(model_errors)
         errors.extend(player_model_errors)
+        from .research.prospective import validation_report
+        prospective = (
+            validation_report(ledger)
+            if isinstance(ledger, Store)
+            else {"buckets": []}
+        )
         actions = []
         run_id = str(uuid.uuid4())
         slate_events = {}
@@ -170,7 +176,7 @@ class AutomaticScanner:
                         estimate = None
                         errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
                     from .reliability.layer import evaluate as reliability_evaluate
-                    reliability = reliability_evaluate(card, estimate, model)
+                    reliability = reliability_evaluate(card, estimate, model, prospective)
                     if estimate and isinstance(ledger, Store):
                         evidence = {
                             "event_id": card.event_id,
