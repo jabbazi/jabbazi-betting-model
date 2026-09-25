@@ -63,21 +63,67 @@ def market_bucket(market):
     )
 
 
+def _ece_from_table(rows):
+    total = sum(int(row.get("n", 0)) for row in rows or [])
+    if not total:
+        return None
+    return sum(
+        int(row.get("n", 0))
+        / total
+        * abs(float(row.get("mean_probability", 0)) - float(row.get("observed_hit_rate", 0)))
+        for row in rows
+    )
+
+
+def prospective_stage(record):
+    """Conservative team-market promotion from frozen prospective evidence only."""
+    model = record.get("model", {})
+    market = record.get("market", {})
+    n = int(model.get("n", 0) or 0)
+    ece = _ece_from_table(record.get("calibration"))
+    clean = (
+        int(record.get("identity_failures", 0) or 0) == 0
+        and int(record.get("input_verified", 0) or 0) == n
+    )
+    improves = (
+        model.get("brier") is not None
+        and market.get("brier") is not None
+        and model.get("log_loss") is not None
+        and market.get("log_loss") is not None
+        and float(model["brier"]) + 0.002 < float(market["brier"])
+        and float(model["log_loss"]) < float(market["log_loss"])
+    )
+    if n >= 1000 and clean and improves and ece is not None and ece <= 0.035:
+        return "PRODUCTION_APPROVED", True, "Strict frozen prospective gates passed"
+    if n >= 500 and clean and improves and ece is not None and ece <= 0.05:
+        return "LIMITED_LIVE", False, "Prospective evidence promising; full production sample not reached"
+    if n >= 100:
+        return "VALIDATING", False, "Prospective sample accumulating"
+    return "SHADOW_ONLY", False, "Insufficient frozen prospective promotion evidence"
+
+
 def status_buckets(model, prospective=None):
-    counts = {r["bucket"]: r for r in (prospective or {}).get("buckets", [])
-              if r["sport"] == model.sport and r["model_version"] == model.artifact["model_version"]}
-    return {
-        market_bucket(m): {
-            "stage": ModelStage.SHADOW_ONLY.value,
-            "model_version": model.artifact["model_version"],
-            "prospective_sample_count": counts.get(market_bucket(m), {}).get("model", {}).get("n", 0),
-            "frozen_prediction_count": counts.get(market_bucket(m), {}).get("frozen", 0),
-            "pending_result_count": counts.get(market_bucket(m), {}).get("pending", 0),
-            "approved_for_betting": False,
-            "reason": "No frozen prospective promotion evidence",
-        }
-        for m in sorted(model.supported_markets)
+    counts = {
+        r["bucket"]: r
+        for r in (prospective or {}).get("buckets", [])
+        if r["sport"] == model.sport and r["model_version"] == model.artifact["model_version"]
     }
+    result = {}
+    for market in sorted(model.supported_markets):
+        bucket = market_bucket(market)
+        record = counts.get(bucket, {})
+        stage, approved, reason = prospective_stage(record)
+        result[bucket] = {
+            "stage": stage,
+            "model_version": model.artifact["model_version"],
+            "prospective_sample_count": record.get("model", {}).get("n", 0),
+            "frozen_prediction_count": record.get("frozen", 0),
+            "pending_result_count": record.get("pending", 0),
+            "approved_for_betting": approved,
+            "calibration_ece": _ece_from_table(record.get("calibration")),
+            "reason": reason,
+        }
+    return result
 
 
 def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
