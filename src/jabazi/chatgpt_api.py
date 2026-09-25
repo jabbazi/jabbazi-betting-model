@@ -62,6 +62,7 @@ class ScanEverythingRequest(BaseModel):
 
 
 class ScannerModelState(BaseModel):
+    market_buckets: dict[str, Any] = Field(default_factory=dict)
     sport: str
     status: Literal["SHADOW_ONLY", "UNAVAILABLE"]
     approved_for_betting: Literal[False]
@@ -77,6 +78,7 @@ class ScannerModelStatus(BaseModel):
 
 
 class ScanPage(BaseModel):
+    current_central_time: str | None = None
     scan_id: str
     status: Literal["RUNNING", "COMPLETE", "PARTIAL", "FAILED", "EXPIRED"]
     started_at: str
@@ -175,11 +177,19 @@ def run_background(scan_id):
 def present_action(value, now):
     # Results may be retrieved long after execution. Recheck every price.
     keys = (
-        "sport", "event", "market", "participant", "selection", "line",
+        "event_id", "sport", "event", "market", "participant", "selection", "line",
         "best_sportsbook", "best_decimal", "source_timestamp", "starts_at",
         "consensus_probability", "model_probability", "model_version", "probability_edge",
         "expected_roi", "uncertainty", "reason", "market_relative_ev",
     )
+    keys += ("v42_decision", "v42_reasons", "raw_model_probability", "calibrated_model_probability", "market_aware_probability",
+             "market_no_vig_probability", "model_stage", "market_bucket", "feature_health",
+             "anomaly_state", "anomaly_reasons", "model_market_gap", "model_lane_decision",
+             "model_can_influence_cash", "watch_trigger", "calibration_bucket",
+             "calibration_sample_size", "uncertainty_low", "uncertainty_high", "uncertainty_kind",
+             "break_even_probability", "period", "second_best_decimal", "price_fragility",
+             "research_priority_score", "research_priority_components", "source_provenance",
+             "game_distribution", "fair_price", "play_to_price")
     row = {key: value.get(key) for key in keys}
     if not row["model_version"]:
         row.update(model_probability=None, probability_edge=None, expected_roi=None)
@@ -199,6 +209,9 @@ def present_action(value, now):
         probability_status="SHADOW_ONLY" if row["model_probability"] is not None else "UNAVAILABLE",
         stake_dollars="0", maximum_playable_price=None,
     )
+    if not fresh:
+        row["model_lane_decision"] = "PASS"
+        row["watch_trigger"] = "Refresh pregame prices"
     return row
 
 
@@ -217,7 +230,9 @@ def scan_page(store, scan_id, page=1, now=None):
     status = payload.get("status", "EXPIRED" if expired else "RUNNING")
     total = payload.get("total_actions", len(rows))
     page_rows = rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]
+    from zoneinfo import ZoneInfo
     return ScanPage(
+        current_central_time=now.astimezone(ZoneInfo("America/Chicago")).isoformat(),
         scan_id=scan_id, status=status, started_at=request["payload"]["started_at"],
         checked_at=now.isoformat(), generated_at=payload.get("generated_at"),
         poll_after_seconds=10 if status == "RUNNING" else None,
@@ -296,7 +311,7 @@ def model_status(authorization: Annotated[str | None, Header()] = None):
     from .api import model_status_data
 
     output = ScannerModelStatus.model_validate(model_status_data())
-    return JSONResponse(output.model_dump(), headers=PRIVATE_HEADERS)
+    return JSONResponse(output.model_dump(exclude_unset=True), headers=PRIVATE_HEADERS)
 
 
 @router.post("/v1/owner/chatgpt-key", include_in_schema=False)

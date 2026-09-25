@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "provider": "nflverse",
+  "license_url": "https://github.com/nflverse/nflverse-data/blob/main/LICENSE.md",
+  "attribution": "Play-by-play data: nflverse contributors, CC BY 4.0. Derived aggregation: JABBAZI.",
+  "schedule_commit": "c12fe11a1f4c08a16ec2068c522cf36cd3e73d99",
+  "assets": [
+    {
+      "season": 2021,
+      "filename": "play_by_play_2021.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2021.csv.gz",
+      "sha256": "e8743a568f99667a8bdcd29ba12224ee1782ad2b7916bee78ee335c099383739",
+      "size": 19022201,
+      "provider_updated_at": "2026-01-08T13:13:13Z"
+    },
+    {
+      "season": 2022,
+      "filename": "play_by_play_2022.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2022.csv.gz",
+      "sha256": "0c69a71eb39498956c7b1d5c1ca52ce7fe679934a95d1af249facb5ea9829ea4",
+      "size": 19093961,
+      "provider_updated_at": "2026-02-12T10:25:24Z"
+    },
+    {
+      "season": 2023,
+      "filename": "play_by_play_2023.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2023.csv.gz",
+      "sha256": "4649804ee0f0a40b41e51ec75a1ce921949d7fab5459213488656b92f78560e8",
+      "size": 19169807,
+      "provider_updated_at": "2026-02-12T10:24:52Z"
+    },
+    {
+      "season": 2024,
+      "filename": "play_by_play_2024.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2024.csv.gz",
+      "sha256": "23370d5d10f8104d80d46a1fc5e61f4f6f5a3263fe96fe2dd629913cfcb08c06",
+      "size": 19362351,
+      "provider_updated_at": "2026-08-13T12:26:27Z"
+    },
+    {
+      "season": 2025,
+      "filename": "play_by_play_2025.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2025.csv.gz",
+      "sha256": "2f135887790a013fd004e609e37096bb4816d5cc80b9f19122e1bad478961978",
+      "size": 19105296,
+      "provider_updated_at": "2026-08-13T12:26:09Z"
+    },
+    {
+      "season": 2026,
+      "filename": "play_by_play_2026.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2026.csv.gz",
+      "sha256": "40eef5cb9c1f2c9e0cfc2efaf4050d61c937b0d6457ae6e4b07739ae883b7682",
+      "size": 2145373,
+      "provider_updated_at": "2026-09-23T14:14:21Z"
+    }
+  ]
+}

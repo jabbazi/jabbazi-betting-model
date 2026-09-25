@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from .models import Decision
@@ -21,6 +21,7 @@ class ActionCard:
     model_version: str | None = None
     reservation_id: str | None = None
     uncertainty: Decimal | None = None
+    reliability: dict = field(default_factory=dict)
 
 
 def recommend_price(

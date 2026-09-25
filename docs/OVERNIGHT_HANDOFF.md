@@ -1,5 +1,8 @@
 # JABBAZI NFL / MLB build handoff — September 23, 2026 UTC
 
+Latest research-data update: [verified NFL/MLB captures and remaining requirements](MODEL_DATA_HANDOFF_2026-09-23.md).
+These research-branch imports do not replace the live model or deployment evidence below.
+
 Later same-day update: see [hardening and readiness audit](HARDENING_HANDOFF_2026-09-23.md)
 for member-app freshness fixes, the latest local test suite and consolidated data
 and authorization blockers. The historical deployment evidence below is preserved.

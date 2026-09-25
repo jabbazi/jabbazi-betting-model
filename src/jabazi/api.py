@@ -60,6 +60,7 @@ def _json(value):
 def _action(action) -> dict:
     card = action.price
     return {
+        **_json(action.reliability),
         "sport": card.sport,
         "event_id": card.event_id,
         "event": card.event,
@@ -158,6 +159,7 @@ def model_status_data():
     return {
         "models": [
             {
+                "market_buckets": __import__("jabazi.reliability.layer", fromlist=["status_buckets"]).status_buckets(models[sport]) if sport in models else {},
                 "sport": sport,
                 "status": "SHADOW_ONLY" if sport in models else "UNAVAILABLE",
                 "approved_for_betting": False,
@@ -378,3 +380,34 @@ app.include_router(scanner_mcp_router)
 from .member_api import router as member_router
 
 app.include_router(member_router)
+
+
+@app.post('/v1/research/source-picks')
+def source_pick(body: dict, authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    from .research.evidence import freeze_source
+    store=platform_store()
+    try:
+        return {'id':freeze_source(store,body),'status':'DISCOVERY_INPUT_ONLY'}
+    except ValueError as exc:
+        raise HTTPException(422,'Invalid source-pick evidence') from exc
+    finally:
+        store.close()
+
+
+@app.get('/v1/research/source-picks')
+def source_picks(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    store=platform_store()
+    try:return {'records':store.list_records('source_pick',100)}
+    finally:store.close()
+
+
+@app.get('/v1/research/model-diagnostics/{event_id}')
+def model_diagnostics(event_id: str, authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    store=platform_store()
+    try:
+        return {'event_id':event_id,'predictions':store.list_records('model_prediction',100,entity=event_id),
+                'note':'Owner-only frozen inference evidence; never backfill missing inputs'}
+    finally:store.close()

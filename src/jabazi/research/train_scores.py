@@ -18,8 +18,8 @@ from jabazi.models.score_distribution import (
 from jabazi.models.team_elo import SPORTS, market_probability, metrics, timestamp, validate_history
 
 
-def training_rows(payload, sport):
-    window, minimum = (8, 4) if sport == "nfl" else (20, 10)
+def training_rows(payload, sport, feature_policy=None):
+    window, minimum = (8, 4) if sport in {"nfl", "cfb"} else (20, 10)
     state, pending, output = {}, deque(), []
     for game in validate_history(payload, sport):
         start = timestamp(game["starts_at"])
@@ -33,11 +33,12 @@ def training_rows(payload, sport):
                         previous[f"{other}_score"],
                         previous["starts_at"],
                         available_at(previous).isoformat(),
+                        previous[f"{other}_team"],
                     ]
                 )
                 state[team] = state[team][-window:]
         vector = features(
-            state, game["home_team"], game["away_team"], start, game["neutral_site"], minimum
+            state, game["home_team"], game["away_team"], start, game["neutral_site"], minimum, feature_policy
         )
         if vector is not None:
             output.append({"game": game, "features": vector})

@@ -122,7 +122,7 @@ def clv_for_entry(store, *, event_id, market, selection, line, participant, entr
         raise ValueError("Valid entry decimal odds required")
     close = matches[0]
     p = Decimal(close["probability"])
-    return {
+    record = {
         "status": "CLOSING_PROXY",
         "closing_probability": p,
         "probability_clv": p - 1 / price,
@@ -130,6 +130,9 @@ def clv_for_entry(store, *, event_id, market, selection, line, participant, entr
         "closing": close,
         "note": "No line CLV inferred across different thresholds",
     }
+    key = digest(["clv_record", event_id, market, selection, str(line), participant, str(price), close])
+    store.append("clv_record", event_id, record, key)
+    return record
 
 
 class ClosingCollector:

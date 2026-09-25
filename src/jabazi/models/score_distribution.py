@@ -51,13 +51,17 @@ def state_from_games(games, *, now, window):
                     row[f"{other}_score"],
                     row["starts_at"],
                     available_at(row).isoformat(),
+                    row[f"{other}_team"],
                 ]
             )
             state[team] = state[team][-window:]
     return state
 
 
-def features(state, home, away, start, neutral, minimum):
+def features(state, home, away, start, neutral, minimum, policy=None):
+    if policy is not None:
+        from .form_features import recency_features
+        return recency_features(state, home, away, start, neutral, minimum, policy)
     h, a = state.get(home, []), state.get(away, [])
     if len(h) < minimum or len(a) < minimum or type(neutral) is not bool:
         return None
@@ -112,7 +116,7 @@ class ScoreDistributionModel(ProbabilityModel):
     def __init__(self, artifact):
         self.artifact = artifact
         self.sport = artifact["sport"]
-        if artifact.get("schema_version") != 1 or self.sport not in (SPORTS["mlb"], SPORTS["nfl"]):
+        if artifact.get("schema_version") != 1 or self.sport not in SPORTS.values():
             raise ValueError("Invalid score artifact")
         if (
             artifact.get("features") != list(FEATURES)
@@ -155,7 +159,7 @@ class ScoreDistributionModel(ProbabilityModel):
             return None
         from jabazi.providers.history import MLB_ALIASES
 
-        aliases = MLB_ALIASES if self.sport == SPORTS["mlb"] else {}
+        aliases = MLB_ALIASES if self.sport == SPORTS["mlb"] else self.artifact.get("team_aliases", {})
         away, home = [aliases.get(t.strip(), t.strip()) for t in price.event.split(" @ ", 1)]
         # Match explicit schedule evidence; do not infer neutral-site status from book ordering.
         events = [
@@ -168,6 +172,12 @@ class ScoreDistributionModel(ProbabilityModel):
         if len(events) != 1 or type(events[0].get("neutral_site")) is not bool:
             return None
         event = events[0]
+        if event.get("provider_event_id") and event["provider_event_id"] != price.event_id:
+            return None
+        if event.get("season") is not None and event["season"] not in (price.starts_at.year, price.starts_at.year-1):
+            return None
+        if event.get("week") is not None and not 0 <= event["week"] <= 30:
+            return None
         for team in (home, away):
             games = self.artifact["team_state"].get(team, [])
             max_age = 21 if self.sport == SPORTS["nfl"] else 7
@@ -185,6 +195,7 @@ class ScoreDistributionModel(ProbabilityModel):
                 price.starts_at,
                 event["neutral_site"],
                 self.artifact["minimum_games"],
+                self.artifact.get("feature_policy"),
             )
             if vector is None:
                 return None
@@ -195,8 +206,12 @@ class ScoreDistributionModel(ProbabilityModel):
                 for g in self.artifact["team_state"][t]
             ):
                 return None
-            self._cache[key] = (vector, score_samples(self.artifact, vector))
-        vector, samples = self._cache[key]
+            from .game_distribution import GameDistribution
+            distribution = GameDistribution(tuple(score_samples(self.artifact, vector)))
+            distribution.validate_ladders(home, away)
+            self._cache[key] = (vector, distribution)
+        vector, distribution = self._cache[key]
+        samples = distribution.samples
         selection = aliases.get(price.selection, price.selection)
         participant = aliases.get(price.participant, price.participant)
         result = outcome_probability(
@@ -217,6 +232,12 @@ class ScoreDistributionModel(ProbabilityModel):
             p = result["win"]
         if not 0 < p < 1:
             return None
+        import hashlib
+        import json
+        scaled = [(x-m)/scale for x,m,scale in zip(vector, self.artifact["mean"], self.artifact["scale"], strict=True)]
+        summary = distribution.summary()
+        history = {team: self.artifact["team_state"][team] for team in (home, away)}
+        snapshot_id = hashlib.sha256(json.dumps([self.artifact["model_version"], key, vector, history], sort_keys=True).encode()).hexdigest()
         return ModelEstimate(
             Decimal(str(p)),
             Decimal("0.08"),
@@ -224,6 +245,31 @@ class ScoreDistributionModel(ProbabilityModel):
             self.artifact["model_version"],
             {
                 "features": dict(zip(FEATURES, vector, strict=True)),
+                "scaled_features": dict(zip(FEATURES, scaled, strict=True)),
+                "feature_schema_version": self.artifact.get("feature_schema_version", "score-form-v1"),
+                "snapshot_id": snapshot_id,
+                "training_data_cutoff": self.artifact.get("training_data_cutoff"),
+                "dataset_hash": self.artifact["source_checksum"],
+                "calibration_version": self.artifact.get("calibration_version"),
+                "code_commit": __import__("os").getenv("RENDER_GIT_COMMIT"),
+                "model_artifact_hash": hashlib.sha256(json.dumps(self.artifact,sort_keys=True).encode()).hexdigest(),
+                "team_history": history,
+                "home_team": home, "away_team": away,
+                "provider_event_id": price.event_id,
+                "game_distribution": summary,
+                "raw_win_probability": result["win"],
+                "loss_probability": result["loss"],
+                "integrity": {
+                    "event_identity": event.get("provider_event_id") == price.event_id,
+                    "schedule_identity": True,
+                    "line_identity": True, "fresh_features": True,
+                    "schema": True,
+                    "variance": summary["margin_variance"] > 0 and summary["total_variance"] > 0,
+                    "no_duplicate_event": True,
+                    "starter": False, "roster": False, "injuries": False,
+                    "calibration": False,
+                    "feature_drift": any(abs(z) > 6 for z in scaled[:-1]),
+                },
                 "source_checksum": self.artifact["source_checksum"],
                 "state_source_checksum": self.artifact.get("state_source_checksum"),
                 "state_refreshed_at": self.artifact["state_refreshed_at"],

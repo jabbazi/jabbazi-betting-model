@@ -145,11 +145,22 @@ class AutomaticScanner:
                         "event": f"{event.get('away_team', '?')} @ {event.get('home_team', '?')}",
                         "starts_at_utc": event.get("commence_time", ""),
                     }
+                from .reliability.integrity import duplicate_event_ids
+                duplicate_ids = duplicate_event_ids(batch.quotes)
+                if duplicate_ids:
+                    errors.extend(f"{sport['key']}:{event}:DUPLICATE_EVENT_IDENTITY" for event in sorted(duplicate_ids))
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
                 for card in cards:
                     model = models.get(card.sport)
-                    estimate = model.estimate(card) if model else None
+                    # One bad game/model must not abort independent price research.
+                    try:
+                        estimate = model.estimate(card) if model and card.event_id not in duplicate_ids else None
+                    except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                        estimate = None
+                        errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
+                    from .reliability.layer import evaluate as reliability_evaluate
+                    reliability = reliability_evaluate(card, estimate, model)
                     if estimate and isinstance(ledger, Store):
                         evidence = {
                             "event_id": card.event_id,
@@ -163,6 +174,10 @@ class AutomaticScanner:
                             "approved_for_betting": estimate.approved_for_betting,
                             "observed_at": card.observed_at.isoformat(),
                             "features": estimate.feature_snapshot,
+                            "odds_snapshot_ids": card.quote_ids,
+                            "odds_snapshot": {"book": card.best_book, "decimal": card.best_decimal,
+                                              "source_timestamp": card.source_timestamp},
+                            "reliability": reliability,
                         }
                         ledger.append("model_prediction", card.event_id, evidence, digest(evidence))
                     action = recommend_price(
@@ -171,7 +186,8 @@ class AutomaticScanner:
                         model_probability=estimate.probability if estimate else None,
                         uncertainty=estimate.uncertainty if estimate else Decimal(0),
                         current_exposure=ledger.open_exposure(),
-                        model_validated=estimate.approved_for_betting if estimate else False,
+                        model_validated=bool(estimate and estimate.approved_for_betting
+                                             and reliability["model_can_influence_cash"]),
                         jurisdiction=self.settings.jurisdiction,
                     )
                     action = replace(
@@ -182,6 +198,7 @@ class AutomaticScanner:
                         else None,
                         expected_roi=action.estimated_ev,
                         uncertainty=estimate.uncertainty if estimate else None,
+                        reliability=reliability,
                     )
                     if action.decision == Decision.BET_NOW:
                         health = assess(
@@ -212,7 +229,7 @@ class AutomaticScanner:
                                 players=frozenset({card.participant})
                                 if card.participant
                                 else frozenset(),
-                                theses=frozenset({card.event_id + ":" + card.selection}),
+                                theses=__import__("jabazi.domain.thesis", fromlist=["tags"]).tags(card),
                                 betting_date=datetime.now(UTC)
                                 .astimezone(ZoneInfo(self.settings.timezone))
                                 .date()
