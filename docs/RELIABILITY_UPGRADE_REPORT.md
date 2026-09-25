@@ -113,7 +113,7 @@ The source schema does not scrape restricted capper services or grant their cont
 
 ## Tests and release status
 See TEST_RESULTS.md for the final exact test count and CI result. Tests cover the exact Miami reproduction, signed alternate-pair regression, full ladders, pushes/complements, team-total identities, joint SGP dependence, stage demotion, calibration counts/monotonicity, recency/future labels, CFB inference/status/no-props, source immutability, CLV persistence, identity mismatches, duplicate events, drift, malformed-model isolation, explicit blend lanes and existing API contracts.
-Local HTTP smoke verifies 200 liveness/readiness, 401 unauthenticated access, 200 authenticated database read and 503 missing odds provider. Production deployment has not occurred. Local tests are not proof of production PostgreSQL or Docker behavior; GitHub CI is the release gate for those.
+Local HTTP smoke verifies 200 liveness/readiness, 401 unauthenticated access, 200 authenticated database read and 503 missing odds provider. Production deployment has not occurred. GitHub CI verified PostgreSQL, Docker, the API/worker stack, backup/restore and database-outage behavior; exact commits and run links are in TEST_RESULTS.md. These checks do not constitute a production deployment.
 
 ## Exact rollout
 1. Review the upgrade PR against `build/production-foundations` and require passing test/PostgreSQL/container/backup-restore CI. Preserve the separate member-experience work; do not force-push or merge the standalone V4.2 branch over the service.

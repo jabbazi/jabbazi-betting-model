@@ -11,6 +11,16 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "docs/experiments/reliability-upgrade"
 
 
+def attach_training_provenance(artifact, manifest, runtime):
+    """Record the original training context once; reporting must not rewrite it."""
+    if "training_source_sha256" in artifact:
+        return
+    artifact["code_parent_commit"] = artifact.get("code_commit")
+    artifact["code_commit"] = None  # Training occurred before the source changes were committed.
+    artifact["training_source_sha256"] = dict(manifest)
+    artifact["runtime"] = dict(runtime)
+
+
 def build():
     reports = {s: json.loads((BASE / s / "report.json").read_text()) for s in ("nfl", "mlb", "cfb")}
     source_paths = [
@@ -164,7 +174,7 @@ def build():
         "",
         "## Tests and release status",
         "See TEST_RESULTS.md for the final exact test count and CI result. Tests cover the exact Miami reproduction, signed alternate-pair regression, full ladders, pushes/complements, team-total identities, joint SGP dependence, stage demotion, calibration counts/monotonicity, recency/future labels, CFB inference/status/no-props, source immutability, CLV persistence, identity mismatches, duplicate events, drift, malformed-model isolation, explicit blend lanes and existing API contracts.",
-        "Local HTTP smoke verifies 200 liveness/readiness, 401 unauthenticated access, 200 authenticated database read and 503 missing odds provider. Production deployment has not occurred. Local tests are not proof of production PostgreSQL or Docker behavior; GitHub CI is the release gate for those.",
+        "Local HTTP smoke verifies 200 liveness/readiness, 401 unauthenticated access, 200 authenticated database read and 503 missing odds provider. Production deployment has not occurred. GitHub CI verified PostgreSQL, Docker, the API/worker stack, backup/restore and database-outage behavior; exact commits and run links are in TEST_RESULTS.md. These checks do not constitute a production deployment.",
         "",
         "## Exact rollout",
         "1. Review the upgrade PR against `build/production-foundations` and require passing test/PostgreSQL/container/backup-restore CI. Preserve the separate member-experience work; do not force-push or merge the standalone V4.2 branch over the service.",
@@ -207,17 +217,11 @@ def build():
             path.unlink()
         p = BASE / sport / "challenger-artifact.json"
         a = json.loads(p.read_text())
-        a["code_parent_commit"] = a.pop("code_commit", None)
-        a["code_commit"] = None
-        a["training_source_sha256"] = manifest
-        a["runtime"] = runtime
+        attach_training_provenance(a, manifest, runtime)
         p.write_text(json.dumps(a, allow_nan=False) + "\n")
     p = ROOT / "src/jabazi/models/artifacts/cfb_scores.json"
     a = json.loads(p.read_text())
-    a["code_parent_commit"] = a.pop("code_commit", None)
-    a["code_commit"] = None
-    a["training_source_sha256"] = manifest
-    a["runtime"] = runtime
+    attach_training_provenance(a, manifest, runtime)
     p.write_text(json.dumps(a, allow_nan=False) + "\n")
 
 

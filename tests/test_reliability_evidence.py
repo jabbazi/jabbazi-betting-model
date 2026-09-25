@@ -11,6 +11,25 @@ from jabazi.research.calibration_report import report, fit, transform
 from jabazi.models.form_features import recency_features, POLICIES
 
 
+def test_report_regeneration_preserves_original_training_provenance():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "tools/build_upgrade_report.py"
+    spec = importlib.util.spec_from_file_location("upgrade_report", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    artifact = {"code_commit": "original-parent"}
+    module.attach_training_provenance(artifact, {"source.py": "original-hash"}, {"python": "3.12"})
+    module.attach_training_provenance(artifact, {"source.py": "new-hash"}, {"python": "3.13"})
+    assert artifact == {
+        "code_commit": None,
+        "code_parent_commit": "original-parent",
+        "training_source_sha256": {"source.py": "original-hash"},
+        "runtime": {"python": "3.12"},
+    }
+
+
 def test_source_and_price_lifecycle_are_immutable_and_clv_persists():
     s = Store("sqlite:///:memory:", initialize=True)
     now = datetime.now(UTC)
