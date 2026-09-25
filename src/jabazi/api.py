@@ -160,34 +160,55 @@ def model_status(authorization: Annotated[str | None, Header()] = None):
 
 def model_status_data():
     from .models.registry import load_models
+    from .models.player_registry import load_player_models, player_status
     from .models.team_elo import SPORTS
+    from .reliability.layer import status_buckets
 
     store = platform_store()
     try:
         models, errors = load_models(store)
+        player_models, player_errors = load_player_models(store)
         from .research.prospective import validation_report
         prospective = validation_report(store)
+
+        rows = []
+        for sport in SPORTS.values():
+            team_buckets = status_buckets(models[sport], prospective) if sport in models else {}
+            team_stages = {bucket["stage"] for bucket in team_buckets.values()}
+            team_status = (
+                "PRODUCTION_APPROVED"
+                if team_stages == {"PRODUCTION_APPROVED"} and team_stages
+                else "LIMITED_LIVE"
+                if "PRODUCTION_APPROVED" in team_stages or "LIMITED_LIVE" in team_stages
+                else "VALIDATING"
+                if "VALIDATING" in team_stages
+                else "SHADOW_ONLY"
+                if team_stages
+                else "UNAVAILABLE"
+            )
+            pstatus = player_status(player_models, sport)
+            rows.append(
+                {
+                    "market_buckets": team_buckets,
+                    "player_market_buckets": pstatus["market_buckets"],
+                    "sport": sport,
+                    "status": team_status,
+                    "approved_for_betting": bool(team_buckets)
+                    and all(bucket["approved_for_betting"] for bucket in team_buckets.values()),
+                    "version": models[sport].artifact["model_version"] if sport in models else None,
+                    "supported_markets": sorted(models[sport].supported_markets)
+                    if sport in models
+                    else [],
+                    "player_status": pstatus["status"],
+                    "player_supported_markets": pstatus["supported_markets"],
+                    "state_refreshed_at": models[sport].artifact.get("state_refreshed_at")
+                    if sport in models
+                    else None,
+                }
+            )
     finally:
         store.close()
-    return {
-        "models": [
-            {
-                "market_buckets": __import__("jabazi.reliability.layer", fromlist=["status_buckets"]).status_buckets(models[sport], prospective) if sport in models else {},
-                "sport": sport,
-                "status": "SHADOW_ONLY" if sport in models else "UNAVAILABLE",
-                "approved_for_betting": False,
-                "version": models[sport].artifact["model_version"] if sport in models else None,
-                "supported_markets": sorted(models[sport].supported_markets)
-                if sport in models
-                else [],
-                "state_refreshed_at": models[sport].artifact.get("state_refreshed_at")
-                if sport in models
-                else None,
-            }
-            for sport in SPORTS.values()
-        ],
-        "errors": errors,
-    }
+    return {"models": rows, "errors": errors + player_errors}
 
 
 @app.get("/v1/candidates")
