@@ -57,7 +57,10 @@ def market_bucket(market):
         "alternate_totals": "alternate_total",
         "team_totals": "team_total",
         "alternate_team_totals": "alternate_team_total",
-    }.get(market, "unsupported")
+    }.get(
+        market,
+        f"prop:{market}" if market.startswith(("player_", "pitcher_", "batter_")) else "unsupported",
+    )
 
 
 def status_buckets(model, prospective=None):
@@ -93,10 +96,18 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         else {"state": "NORMAL", "reasons": [], "eligible": False}
     )
     fresh = not card.stale and not card.in_play
-    stage = "SHADOW_ONLY" if p is not None else "UNAVAILABLE"
+    stage = getattr(model, "stage", "SHADOW_ONLY") if p is not None else "UNAVAILABLE"
+    model_can_influence = bool(
+        estimate
+        and estimate.approved_for_betting
+        and stage == "PRODUCTION_APPROVED"
+        and audit["eligible"]
+    )
     decision = (
         "MODEL_QUARANTINE"
         if p is not None and not audit["eligible"]
+        else "BET_NOW"
+        if model_can_influence
         else "WATCH_FOR_PRICE"
         if p is None and card.market_relative_ev > 0
         else "WATCH"
@@ -127,7 +138,7 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
             model=ModelForecast(
                 estimate.model_name,
                 estimate.model_version,
-                ModelStage.SHADOW_ONLY,
+                ModelStage(stage) if stage in {member.value for member in ModelStage} else ModelStage.SHADOW_ONLY,
                 p,
                 card.observed_at,
                 True,
@@ -166,7 +177,12 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         calibration_bucket=f"{int(p * 20) * 5}-{min(100, int(p * 20) * 5 + 5)}"
         if p is not None
         else None,
-        calibration_sample_size=None,
+        calibration_sample_size=(
+            getattr(model, "artifact", {}).get("validation", {}).get("prospective_sample_count")
+            or getattr(model, "artifact", {}).get("validation", {}).get("test_sample_count")
+            if model is not None
+            else None
+        ),
         uncertainty_low=None,
         uncertainty_high=None,
         uncertainty_kind="policy_haircut_not_confidence_interval" if estimate else None,
@@ -174,7 +190,7 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         anomaly_state=audit["state"],
         anomaly_reasons=audit["reasons"],
         model_lane_decision=decision,
-        model_can_influence_cash=False,
+        model_can_influence_cash=bool(model_can_influence and fresh),
         watch_trigger="Refresh pregame prices"
         if not fresh
         else "Validate frozen model bucket and resolve: " + ", ".join(audit["reasons"])
