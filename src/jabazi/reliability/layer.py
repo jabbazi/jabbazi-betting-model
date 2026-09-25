@@ -60,12 +60,16 @@ def market_bucket(market):
     }.get(market, "unsupported")
 
 
-def status_buckets(model):
+def status_buckets(model, prospective=None):
+    counts = {r["bucket"]: r for r in (prospective or {}).get("buckets", [])
+              if r["sport"] == model.sport and r["model_version"] == model.artifact["model_version"]}
     return {
         market_bucket(m): {
             "stage": ModelStage.SHADOW_ONLY.value,
             "model_version": model.artifact["model_version"],
-            "prospective_sample_count": 0,
+            "prospective_sample_count": counts.get(market_bucket(m), {}).get("model", {}).get("n", 0),
+            "frozen_prediction_count": counts.get(market_bucket(m), {}).get("frozen", 0),
+            "pending_result_count": counts.get(market_bucket(m), {}).get("pending", 0),
             "approved_for_betting": False,
             "reason": "No frozen prospective promotion evidence",
         }

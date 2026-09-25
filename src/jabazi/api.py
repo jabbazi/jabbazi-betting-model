@@ -141,6 +141,17 @@ def ready():
     }
 
 
+@app.get("/v1/research/prospective-validation")
+def prospective_validation(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    from .research.prospective import validation_report
+    store = platform_store()
+    try:
+        return validation_report(store)
+    finally:
+        store.close()
+
+
 @app.get("/v1/model-status")
 def model_status(authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)
@@ -154,12 +165,14 @@ def model_status_data():
     store = platform_store()
     try:
         models, errors = load_models(store)
+        from .research.prospective import validation_report
+        prospective = validation_report(store)
     finally:
         store.close()
     return {
         "models": [
             {
-                "market_buckets": __import__("jabazi.reliability.layer", fromlist=["status_buckets"]).status_buckets(models[sport]) if sport in models else {},
+                "market_buckets": __import__("jabazi.reliability.layer", fromlist=["status_buckets"]).status_buckets(models[sport], prospective) if sport in models else {},
                 "sport": sport,
                 "status": "SHADOW_ONLY" if sport in models else "UNAVAILABLE",
                 "approved_for_betting": False,
