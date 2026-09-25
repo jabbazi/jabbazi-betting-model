@@ -1,5 +1,7 @@
 # Verification evidence — 2026-09-25
 
+**Subsequent verification:** final-head CI passed **340 tests**, including PostgreSQL, and both services were deployed successfully. See [DEPLOYMENT_VERIFICATION_2026-09-25.md](DEPLOYMENT_VERIFICATION_2026-09-25.md) for live scan and health evidence. Earlier not-deployed statements below describe the build-time check.
+
 - Full local suite: **326 passed**, 9.85 seconds, one upstream discord.py/audioop deprecation warning.
 - Ruff undefined/unused-name checks: passed.
 - `git diff --check`: passed.

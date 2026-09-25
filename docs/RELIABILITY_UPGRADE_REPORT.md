@@ -1,5 +1,7 @@
 # JABBAZI reliability upgrade — 2026-09-25
 
+**Deployment update:** the API and worker were subsequently deployed and live-verified. See [DEPLOYMENT_VERIFICATION_2026-09-25.md](DEPLOYMENT_VERIFICATION_2026-09-25.md). The build-time status below is retained as historical context; model approval and remaining validation gaps are unchanged.
+
 **Implemented and locally verified; not deployed. No model promoted.**
 Render opens its sign-in page in this workspace. The connected live model-status tool still returns the old NFL/MLB versions and CFB UNAVAILABLE. No Discord publishing or wagering was performed.
 

@@ -1,0 +1,905 @@
+{
+  "verified_at": "2026-09-25T05:33:51.753Z",
+  "release_commit": "333e5b7faa4afe7d9bdb07dc5243ebf105cde8cc",
+  "api_deploy": "https://dashboard.render.com/web/srv-dapfgeff3r2c73citeog/deploys/dep-dar0dc0u01pc73bjpm7g",
+  "worker_deploy": "https://dashboard.render.com/worker/srv-dapfub1srm7s73fbo7cg/deploys/dep-dar0du7avr4c73f9utq0",
+  "health": {
+    "healthz": 200,
+    "readyz": 200,
+    "database": "ready",
+    "betting_enabled": false
+  },
+  "worker": {
+    "status": "RUNNING",
+    "observed_heartbeat_at": "2026-09-25T05:32:24.678046+00:00",
+    "closing": "HEALTHY",
+    "discord_process": "RUNNING",
+    "startup_error": "RuntimeError during overlapping owner scan; later heartbeats recovered. Exact exception text was not logged."
+  },
+  "scan": {
+    "current_central_time": "2026-09-25T00:32:57.210324-05:00",
+    "scan_id": "d22b6ee3-b666-48bc-a063-7e78a7492eab",
+    "status": "COMPLETE",
+    "started_at": "2026-09-25T05:31:05.813137+00:00",
+    "generated_at": "2026-09-25T05:32:35.241734+00:00",
+    "checked_at": "2026-09-25T05:32:57.210324+00:00",
+    "poll_after_seconds": null,
+    "page": 1,
+    "page_action_count": 25,
+    "total_pages": 11,
+    "next_page": 2,
+    "total_returned_actions": 260,
+    "total_actions": 1432,
+    "truncated": true,
+    "feeds_scanned": 5,
+    "quotes_archived": 4478,
+    "credits_remaining": 18793,
+    "model_coverage": {
+      "modeled_actions": 744,
+      "production_approved": false,
+      "returned_modeled_actions": 260,
+      "returned_unmodeled_actions": 0,
+      "unmodeled_actions": 688,
+      "versions": [
+        "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+        "mlb-score-ridge-0.1.0-792a7fe3fb48",
+        "nfl-score-ridge-0.1.0-8b55af293d53"
+      ]
+    },
+    "event_market_coverage": {
+      "credits_reserved_this_run": 15,
+      "event_odds_enabled": true,
+      "event_requests": 2,
+      "note": "Partial event/market coverage within existing quota. Player models are unavailable; market probabilities are not model estimates.",
+      "sports": {
+        "americanfootball_nfl": {
+          "eligible_events": 16,
+          "partial": true,
+          "player_model_status": "UNAVAILABLE",
+          "requested_events": 1,
+          "requests": [
+            {
+              "event_id": "613b8cd3a5fab58f7be4e3fd6f76223e",
+              "markets": [
+                "alternate_spreads",
+                "alternate_totals",
+                "team_totals"
+              ],
+              "quotes": 846,
+              "status": "RECEIVED"
+            }
+          ]
+        },
+        "baseball_mlb": {
+          "eligible_events": 15,
+          "partial": true,
+          "player_model_status": "UNAVAILABLE",
+          "requested_events": 1,
+          "requests": [
+            {
+              "event_id": "3aa03f1c80c2ca97a49e0b7548d9e647",
+              "markets": [
+                "pitcher_outs",
+                "batter_home_runs",
+                "batter_rbis"
+              ],
+              "quotes": 162,
+              "status": "RECEIVED"
+            }
+          ]
+        }
+      }
+    },
+    "result_ordering": "model_coverage_first",
+    "errors": [],
+    "betting_enabled": false,
+    "scope": "Full scan of active configured feeds within a 15-credit budget; NFL, MLB, CFB first. Odds coverage is not trained-model coverage. Research only; no bets or Discord posts."
+  },
+  "returned_pages_audit": {
+    "scan_id": "d22b6ee3-b666-48bc-a063-7e78a7492eab",
+    "generated_at": "2026-09-25T05:32:35.241734+00:00",
+    "coverage": {
+      "modeled_actions": 744,
+      "production_approved": false,
+      "returned_modeled_actions": 260,
+      "returned_unmodeled_actions": 0,
+      "unmodeled_actions": 688,
+      "versions": [
+        "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+        "mlb-score-ridge-0.1.0-792a7fe3fb48",
+        "nfl-score-ridge-0.1.0-8b55af293d53"
+      ]
+    },
+    "rows": 260,
+    "sports": {
+      "americanfootball_nfl": 117,
+      "americanfootball_ncaaf": 88,
+      "baseball_mlb": 55
+    },
+    "anomaly": {
+      "QUARANTINED": 152,
+      "LARGE_DISAGREEMENT": 78,
+      "EXTREME_DISAGREEMENT": 30
+    },
+    "decisions": {
+      "MODEL_QUARANTINE": 52,
+      "PASS": 208
+    },
+    "any_cash_influence": false,
+    "stakes": [
+      "0"
+    ]
+  },
+  "representative_rows": [
+    {
+      "event_id": "0339a0e41bcee12820eb3e64bb5fadb4",
+      "sport": "americanfootball_nfl",
+      "event": "Kansas City Chiefs @ Miami Dolphins",
+      "market": "h2h",
+      "participant": null,
+      "selection": "Miami Dolphins",
+      "line": null,
+      "best_sportsbook": "FanDuel",
+      "best_decimal": "6.2",
+      "source_timestamp": "2026-09-25T05:30:37+00:00",
+      "starts_at": "2026-09-27T17:00:00+00:00",
+      "consensus_probability": "0.1567982967348905154863474598",
+      "model_probability": "0.49814126394052044",
+      "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+      "probability_edge": "0.3413429672056299245136525402",
+      "expected_roi": null,
+      "uncertainty": "0.08",
+      "reason": "Model estimate exists but has not passed production validation gates",
+      "market_relative_ev": "-0.0278505602436788039846457492",
+      "v42_decision": "PASS",
+      "v42_reasons": [
+        "MODEL_FEATURE_HEALTH_FAILED",
+        "EVENT_IDENTITY_UNVERIFIED"
+      ],
+      "raw_model_probability": 0.49814126394052044,
+      "calibrated_model_probability": null,
+      "market_aware_probability": null,
+      "market_no_vig_probability": 0.1567982967348905,
+      "model_stage": "SHADOW_ONLY",
+      "market_bucket": "moneyline",
+      "feature_health": {
+        "calibration": false,
+        "event_identity": false,
+        "feature_drift": false,
+        "fresh_features": true,
+        "injuries": false,
+        "line_identity": true,
+        "no_duplicate_event": true,
+        "roster": false,
+        "schedule_identity": true,
+        "schema": true,
+        "starter": false,
+        "variance": true
+      },
+      "anomaly_state": "EXTREME_DISAGREEMENT",
+      "anomaly_reasons": [
+        "UNVERIFIED_EVENT_IDENTITY",
+        "UNVERIFIED_STARTER",
+        "UNVERIFIED_INJURIES",
+        "UNVERIFIED_ROSTER",
+        "UNVERIFIED_CALIBRATION"
+      ],
+      "model_market_gap": 0.34134296720562995,
+      "model_lane_decision": "PASS",
+      "model_can_influence_cash": false,
+      "watch_trigger": "Refresh pregame prices",
+      "calibration_bucket": "45-50",
+      "calibration_sample_size": null,
+      "uncertainty_low": null,
+      "uncertainty_high": null,
+      "uncertainty_kind": "policy_haircut_not_confidence_interval",
+      "break_even_probability": 0.16129032258064516,
+      "period": "full_game",
+      "second_best_decimal": "6.1",
+      "price_fragility": "MULTI_BOOK",
+      "research_priority_score": 39.13,
+      "research_priority_components": {
+        "absolute_model_market_gap": 0.34134296720562995,
+        "calibration_quality": null,
+        "data_health": 0,
+        "portfolio_overlap": null,
+        "price_freshness": 1,
+        "validated_edge": null
+      },
+      "source_provenance": {
+        "feature_snapshot_id": "1d6c6ee2bac3921b6e849972ca48afb7dd582579d3d62a840a6ee914dedd3f9b",
+        "quote_ids": [
+          "0339a0e41bcee12820eb3e64bb5fadb4|betmgm|h2h|Miami Dolphins|None|2026-09-25T05:30:55+00:00|1",
+          "0339a0e41bcee12820eb3e64bb5fadb4|betrivers|h2h|Miami Dolphins|None|2026-09-25T05:30:54+00:00|1",
+          "0339a0e41bcee12820eb3e64bb5fadb4|espnbet|h2h|Miami Dolphins|None|2026-09-25T05:30:03+00:00|1",
+          "0339a0e41bcee12820eb3e64bb5fadb4|fanduel|h2h|Miami Dolphins|None|2026-09-25T05:30:37+00:00|1"
+        ]
+      },
+      "game_distribution": {
+        "away_variance": 81.6461188057864,
+        "expected_away_points": 21.519298245614035,
+        "expected_home_points": 21.75438596491228,
+        "expected_margin": 0.23508771929824562,
+        "expected_total": 43.27368421052632,
+        "home_variance": 92.03090181594337,
+        "margin_predictive_interval_90": [
+          -24,
+          25
+        ],
+        "margin_variance": 183.07104955370883,
+        "sample_count": 285,
+        "score_correlation": -0.054186024194319164,
+        "score_covariance": -4.697014465989535,
+        "tie_probability": 0.056140350877192984,
+        "total_predictive_interval_90": [
+          24,
+          66
+        ],
+        "total_variance": 164.2829916897507
+      },
+      "fair_price": null,
+      "play_to_price": null,
+      "decision": "STALE DATA",
+      "price_is_current": false,
+      "probability_status": "SHADOW_ONLY",
+      "stake_dollars": "0",
+      "maximum_playable_price": null
+    },
+    {
+      "event_id": "0339a0e41bcee12820eb3e64bb5fadb4",
+      "sport": "americanfootball_nfl",
+      "event": "Kansas City Chiefs @ Miami Dolphins",
+      "market": "h2h",
+      "participant": null,
+      "selection": "Kansas City Chiefs",
+      "line": null,
+      "best_sportsbook": "BetMGM",
+      "best_decimal": "1.15",
+      "source_timestamp": "2026-09-25T05:30:55+00:00",
+      "starts_at": "2026-09-27T17:00:00+00:00",
+      "consensus_probability": "0.8432017032651094845136525402",
+      "model_probability": "0.5018587360594795",
+      "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+      "probability_edge": "-0.3413429672056299845136525402",
+      "expected_roi": null,
+      "uncertainty": "0.08",
+      "reason": "Model estimate exists but has not passed production validation gates",
+      "market_relative_ev": "-0.0303180412451240928092995788",
+      "v42_decision": "PASS",
+      "v42_reasons": [
+        "MODEL_FEATURE_HEALTH_FAILED",
+        "EVENT_IDENTITY_UNVERIFIED"
+      ],
+      "raw_model_probability": 0.5018587360594795,
+      "calibrated_model_probability": null,
+      "market_aware_probability": null,
+      "market_no_vig_probability": 0.8432017032651095,
+      "model_stage": "SHADOW_ONLY",
+      "market_bucket": "moneyline",
+      "feature_health": {
+        "calibration": false,
+        "event_identity": false,
+        "feature_drift": false,
+        "fresh_features": true,
+        "injuries": false,
+        "line_identity": true,
+        "no_duplicate_event": true,
+        "roster": false,
+        "schedule_identity": true,
+        "schema": true,
+        "starter": false,
+        "variance": true
+      },
+      "anomaly_state": "EXTREME_DISAGREEMENT",
+      "anomaly_reasons": [
+        "UNVERIFIED_EVENT_IDENTITY",
+        "UNVERIFIED_STARTER",
+        "UNVERIFIED_INJURIES",
+        "UNVERIFIED_ROSTER",
+        "UNVERIFIED_CALIBRATION"
+      ],
+      "model_market_gap": -0.34134296720562995,
+      "model_lane_decision": "PASS",
+      "model_can_influence_cash": false,
+      "watch_trigger": "Refresh pregame prices",
+      "calibration_bucket": "50-55",
+      "calibration_sample_size": null,
+      "uncertainty_low": null,
+      "uncertainty_high": null,
+      "uncertainty_kind": "policy_haircut_not_confidence_interval",
+      "break_even_probability": 0.8695652173913044,
+      "period": "full_game",
+      "second_best_decimal": "1.14",
+      "price_fragility": "MULTI_BOOK",
+      "research_priority_score": 39.13,
+      "research_priority_components": {
+        "absolute_model_market_gap": 0.34134296720562995,
+        "calibration_quality": null,
+        "data_health": 0,
+        "portfolio_overlap": null,
+        "price_freshness": 1,
+        "validated_edge": null
+      },
+      "source_provenance": {
+        "feature_snapshot_id": "1d6c6ee2bac3921b6e849972ca48afb7dd582579d3d62a840a6ee914dedd3f9b",
+        "quote_ids": [
+          "0339a0e41bcee12820eb3e64bb5fadb4|betmgm|h2h|Kansas City Chiefs|None|2026-09-25T05:30:55+00:00|0",
+          "0339a0e41bcee12820eb3e64bb5fadb4|betrivers|h2h|Kansas City Chiefs|None|2026-09-25T05:30:54+00:00|0",
+          "0339a0e41bcee12820eb3e64bb5fadb4|espnbet|h2h|Kansas City Chiefs|None|2026-09-25T05:30:03+00:00|0",
+          "0339a0e41bcee12820eb3e64bb5fadb4|fanduel|h2h|Kansas City Chiefs|None|2026-09-25T05:30:37+00:00|0"
+        ]
+      },
+      "game_distribution": {
+        "away_variance": 81.6461188057864,
+        "expected_away_points": 21.519298245614035,
+        "expected_home_points": 21.75438596491228,
+        "expected_margin": 0.23508771929824562,
+        "expected_total": 43.27368421052632,
+        "home_variance": 92.03090181594337,
+        "margin_predictive_interval_90": [
+          -24,
+          25
+        ],
+        "margin_variance": 183.07104955370883,
+        "sample_count": 285,
+        "score_correlation": -0.054186024194319164,
+        "score_covariance": -4.697014465989535,
+        "tie_probability": 0.056140350877192984,
+        "total_predictive_interval_90": [
+          24,
+          66
+        ],
+        "total_variance": 164.2829916897507
+      },
+      "fair_price": null,
+      "play_to_price": null,
+      "decision": "STALE DATA",
+      "price_is_current": false,
+      "probability_status": "SHADOW_ONLY",
+      "stake_dollars": "0",
+      "maximum_playable_price": null
+    },
+    {
+      "event_id": "0339a0e41bcee12820eb3e64bb5fadb4",
+      "sport": "americanfootball_nfl",
+      "event": "Kansas City Chiefs @ Miami Dolphins",
+      "market": "spreads",
+      "participant": null,
+      "selection": "Kansas City Chiefs",
+      "line": "-10.5",
+      "best_sportsbook": "BetMGM",
+      "best_decimal": "1.91",
+      "source_timestamp": "2026-09-25T05:30:55+00:00",
+      "starts_at": "2026-09-27T17:00:00+00:00",
+      "consensus_probability": "0.506537685427574171029668412",
+      "model_probability": "0.18596491228070175",
+      "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+      "probability_edge": "-0.320572773146872421029668412",
+      "expected_roi": null,
+      "uncertainty": "0.08",
+      "reason": "Model estimate exists but has not passed production validation gates",
+      "market_relative_ev": "-0.0325130208333333333333333331",
+      "v42_decision": "PASS",
+      "v42_reasons": [
+        "MODEL_FEATURE_HEALTH_FAILED",
+        "EVENT_IDENTITY_UNVERIFIED"
+      ],
+      "raw_model_probability": 0.18596491228070175,
+      "calibrated_model_probability": null,
+      "market_aware_probability": null,
+      "market_no_vig_probability": 0.5065376854275742,
+      "model_stage": "SHADOW_ONLY",
+      "market_bucket": "spread",
+      "feature_health": {
+        "calibration": false,
+        "event_identity": false,
+        "feature_drift": false,
+        "fresh_features": true,
+        "injuries": false,
+        "line_identity": true,
+        "no_duplicate_event": true,
+        "roster": false,
+        "schedule_identity": true,
+        "schema": true,
+        "starter": false,
+        "variance": true
+      },
+      "anomaly_state": "EXTREME_DISAGREEMENT",
+      "anomaly_reasons": [
+        "UNVERIFIED_EVENT_IDENTITY",
+        "UNVERIFIED_STARTER",
+        "UNVERIFIED_INJURIES",
+        "UNVERIFIED_ROSTER",
+        "UNVERIFIED_CALIBRATION"
+      ],
+      "model_market_gap": -0.3205727731468724,
+      "model_lane_decision": "PASS",
+      "model_can_influence_cash": false,
+      "watch_trigger": "Refresh pregame prices",
+      "calibration_bucket": "15-20",
+      "calibration_sample_size": null,
+      "uncertainty_low": null,
+      "uncertainty_high": null,
+      "uncertainty_kind": "policy_haircut_not_confidence_interval",
+      "break_even_probability": 0.5235602094240838,
+      "period": "full_game",
+      "second_best_decimal": "1.87",
+      "price_fragility": "MULTI_BOOK",
+      "research_priority_score": 37.06,
+      "research_priority_components": {
+        "absolute_model_market_gap": 0.3205727731468724,
+        "calibration_quality": null,
+        "data_health": 0,
+        "portfolio_overlap": null,
+        "price_freshness": 1,
+        "validated_edge": null
+      },
+      "source_provenance": {
+        "feature_snapshot_id": "1d6c6ee2bac3921b6e849972ca48afb7dd582579d3d62a840a6ee914dedd3f9b",
+        "quote_ids": [
+          "0339a0e41bcee12820eb3e64bb5fadb4|betmgm|spreads|Kansas City Chiefs|-10.5|2026-09-25T05:30:55+00:00|0",
+          "0339a0e41bcee12820eb3e64bb5fadb4|fanduel|spreads|Kansas City Chiefs|-10.5|2026-09-25T05:30:37+00:00|0"
+        ]
+      },
+      "game_distribution": {
+        "away_variance": 81.6461188057864,
+        "expected_away_points": 21.519298245614035,
+        "expected_home_points": 21.75438596491228,
+        "expected_margin": 0.23508771929824562,
+        "expected_total": 43.27368421052632,
+        "home_variance": 92.03090181594337,
+        "margin_predictive_interval_90": [
+          -24,
+          25
+        ],
+        "margin_variance": 183.07104955370883,
+        "sample_count": 285,
+        "score_correlation": -0.054186024194319164,
+        "score_covariance": -4.697014465989535,
+        "tie_probability": 0.056140350877192984,
+        "total_predictive_interval_90": [
+          24,
+          66
+        ],
+        "total_variance": 164.2829916897507
+      },
+      "fair_price": null,
+      "play_to_price": null,
+      "decision": "STALE DATA",
+      "price_is_current": false,
+      "probability_status": "SHADOW_ONLY",
+      "stake_dollars": "0",
+      "maximum_playable_price": null
+    },
+    {
+      "event_id": "4d76388c84fc859e6bae8ff267266872",
+      "sport": "americanfootball_ncaaf",
+      "event": "Missouri State Bears @ SMU Mustangs",
+      "market": "h2h",
+      "participant": null,
+      "selection": "Missouri State Bears",
+      "line": null,
+      "best_sportsbook": "BetMGM",
+      "best_decimal": "34.0",
+      "source_timestamp": "2026-09-25T05:30:56+00:00",
+      "starts_at": "2026-09-27T01:00:00+00:00",
+      "consensus_probability": "0.03312122912784954549929723363",
+      "model_probability": "0.22077922077922077",
+      "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+      "probability_edge": "0.1876579916513712245007027664",
+      "expected_roi": null,
+      "uncertainty": "0.08",
+      "reason": "Model estimate exists but has not passed production validation gates",
+      "market_relative_ev": "0.126121790346884546976105943",
+      "v42_decision": "PASS",
+      "v42_reasons": [
+        "MODEL_FEATURE_HEALTH_FAILED",
+        "EVENT_IDENTITY_UNVERIFIED"
+      ],
+      "raw_model_probability": 0.22077922077922077,
+      "calibrated_model_probability": null,
+      "market_aware_probability": null,
+      "market_no_vig_probability": 0.033121229127849545,
+      "model_stage": "SHADOW_ONLY",
+      "market_bucket": "moneyline",
+      "feature_health": {
+        "calibration": false,
+        "event_identity": false,
+        "feature_drift": false,
+        "fresh_features": true,
+        "injuries": false,
+        "line_identity": true,
+        "no_duplicate_event": true,
+        "roster": false,
+        "schedule_identity": true,
+        "schema": true,
+        "starter": false,
+        "variance": true
+      },
+      "anomaly_state": "LARGE_DISAGREEMENT",
+      "anomaly_reasons": [
+        "UNVERIFIED_EVENT_IDENTITY",
+        "UNVERIFIED_STARTER",
+        "UNVERIFIED_INJURIES",
+        "UNVERIFIED_ROSTER",
+        "UNVERIFIED_CALIBRATION"
+      ],
+      "model_market_gap": 0.18765799165137123,
+      "model_lane_decision": "PASS",
+      "model_can_influence_cash": false,
+      "watch_trigger": "Refresh pregame prices",
+      "calibration_bucket": "20-25",
+      "calibration_sample_size": null,
+      "uncertainty_low": null,
+      "uncertainty_high": null,
+      "uncertainty_kind": "policy_haircut_not_confidence_interval",
+      "break_even_probability": 0.029411764705882353,
+      "period": "full_game",
+      "second_best_decimal": "26.0",
+      "price_fragility": "MULTI_BOOK",
+      "research_priority_score": 23.77,
+      "research_priority_components": {
+        "absolute_model_market_gap": 0.18765799165137123,
+        "calibration_quality": null,
+        "data_health": 0,
+        "portfolio_overlap": null,
+        "price_freshness": 1,
+        "validated_edge": null
+      },
+      "source_provenance": {
+        "feature_snapshot_id": "e0a4cc55aefb7f0de40c08ba48f99726b3b4fe956d1529c1157a3dbb73fc3ba5",
+        "quote_ids": [
+          "4d76388c84fc859e6bae8ff267266872|betmgm|h2h|Missouri State Bears|None|2026-09-25T05:30:56+00:00|0",
+          "4d76388c84fc859e6bae8ff267266872|draftkings|h2h|Missouri State Bears|None|2026-09-25T05:30:36+00:00|0",
+          "4d76388c84fc859e6bae8ff267266872|fanduel|h2h|Missouri State Bears|None|2026-09-25T05:31:27+00:00|0"
+        ]
+      },
+      "game_distribution": {
+        "away_variance": 112.14213510848126,
+        "expected_away_points": 20.365384615384617,
+        "expected_home_points": 32.23717948717949,
+        "expected_margin": 11.871794871794872,
+        "expected_total": 52.6025641025641,
+        "home_variance": 128.69374589086127,
+        "margin_predictive_interval_90": [
+          -16,
+          37
+        ],
+        "margin_variance": 255.84253780407627,
+        "sample_count": 156,
+        "score_correlation": -0.062458395525854984,
+        "score_covariance": -7.503328402366863,
+        "tie_probability": 0.01282051282051282,
+        "total_predictive_interval_90": [
+          30,
+          81
+        ],
+        "total_variance": 225.8292241946088
+      },
+      "fair_price": null,
+      "play_to_price": null,
+      "decision": "STALE DATA",
+      "price_is_current": false,
+      "probability_status": "SHADOW_ONLY",
+      "stake_dollars": "0",
+      "maximum_playable_price": null
+    },
+    {
+      "event_id": "24fb2d1fd0598bde048322b6463e0c78",
+      "sport": "americanfootball_ncaaf",
+      "event": "Northern Illinois Huskies @ Georgia State Panthers",
+      "market": "h2h",
+      "participant": null,
+      "selection": "Northern Illinois Huskies",
+      "line": null,
+      "best_sportsbook": "BetRivers",
+      "best_decimal": "4.7",
+      "source_timestamp": "2026-09-25T05:30:38+00:00",
+      "starts_at": "2026-09-26T18:00:00+00:00",
+      "consensus_probability": "0.2336448598130841121495327104",
+      "model_probability": "0.20394736842105263",
+      "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+      "probability_edge": "-0.0296974913920314821495327104",
+      "expected_roi": null,
+      "uncertainty": "0.08",
+      "reason": "Model estimate exists but has not passed production validation gates",
+      "market_relative_ev": "0.098130841121495327102803739",
+      "v42_decision": "PASS",
+      "v42_reasons": [
+        "MODEL_FEATURE_HEALTH_FAILED",
+        "EVENT_IDENTITY_UNVERIFIED"
+      ],
+      "raw_model_probability": 0.20394736842105263,
+      "calibrated_model_probability": null,
+      "market_aware_probability": null,
+      "market_no_vig_probability": 0.2336448598130841,
+      "model_stage": "SHADOW_ONLY",
+      "market_bucket": "moneyline",
+      "feature_health": {
+        "calibration": false,
+        "event_identity": false,
+        "feature_drift": false,
+        "fresh_features": true,
+        "injuries": false,
+        "line_identity": true,
+        "no_duplicate_event": true,
+        "roster": false,
+        "schedule_identity": true,
+        "schema": true,
+        "starter": false,
+        "variance": true
+      },
+      "anomaly_state": "QUARANTINED",
+      "anomaly_reasons": [
+        "UNVERIFIED_EVENT_IDENTITY"
+      ],
+      "model_market_gap": -0.029697491392031483,
+      "model_lane_decision": "PASS",
+      "model_can_influence_cash": false,
+      "watch_trigger": "Refresh pregame prices",
+      "calibration_bucket": "20-25",
+      "calibration_sample_size": null,
+      "uncertainty_low": null,
+      "uncertainty_high": null,
+      "uncertainty_kind": "policy_haircut_not_confidence_interval",
+      "break_even_probability": 0.2127659574468085,
+      "period": "full_game",
+      "second_best_decimal": "4.2",
+      "price_fragility": "MULTI_BOOK",
+      "research_priority_score": 7.97,
+      "research_priority_components": {
+        "absolute_model_market_gap": 0.029697491392031483,
+        "calibration_quality": null,
+        "data_health": 0,
+        "portfolio_overlap": null,
+        "price_freshness": 1,
+        "validated_edge": null
+      },
+      "source_provenance": {
+        "feature_snapshot_id": "d8380ac6e88f693cbabc8ca1f05f34e6b21615abfec5f60ff6285f7ab663290f",
+        "quote_ids": [
+          "24fb2d1fd0598bde048322b6463e0c78|betmgm|h2h|Northern Illinois Huskies|None|2026-09-25T05:30:56+00:00|1",
+          "24fb2d1fd0598bde048322b6463e0c78|betrivers|h2h|Northern Illinois Huskies|None|2026-09-25T05:30:38+00:00|1",
+          "24fb2d1fd0598bde048322b6463e0c78|draftkings|h2h|Northern Illinois Huskies|None|2026-09-25T05:30:35+00:00|1",
+          "24fb2d1fd0598bde048322b6463e0c78|espnbet|h2h|Northern Illinois Huskies|None|2026-09-25T05:30:56+00:00|1",
+          "24fb2d1fd0598bde048322b6463e0c78|fanduel|h2h|Northern Illinois Huskies|None|2026-09-25T05:31:27+00:00|1"
+        ]
+      },
+      "game_distribution": {
+        "away_variance": 110.97419460881,
+        "expected_away_points": 20.012820512820515,
+        "expected_home_points": 33.16025641025641,
+        "expected_margin": 13.147435897435898,
+        "expected_total": 53.17307692307692,
+        "home_variance": 129.26277942143327,
+        "margin_predictive_interval_90": [
+          -15,
+          38
+        ],
+        "margin_variance": 254.3564677843524,
+        "sample_count": 156,
+        "score_correlation": -0.058944241575293765,
+        "score_covariance": -7.059746877054569,
+        "tie_probability": 0.02564102564102564,
+        "total_predictive_interval_90": [
+          31,
+          82
+        ],
+        "total_variance": 226.11748027613413
+      },
+      "fair_price": null,
+      "play_to_price": null,
+      "decision": "STALE DATA",
+      "price_is_current": false,
+      "probability_status": "SHADOW_ONLY",
+      "stake_dollars": "0",
+      "maximum_playable_price": null
+    }
+  ],
+  "models": {
+    "models": [
+      {
+        "market_buckets": {
+          "alternate_spread": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "alternate_team_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "alternate_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "moneyline": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "spread": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "team_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          }
+        },
+        "sport": "baseball_mlb",
+        "status": "SHADOW_ONLY",
+        "approved_for_betting": false,
+        "version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+        "supported_markets": [
+          "alternate_spreads",
+          "alternate_team_totals",
+          "alternate_totals",
+          "h2h",
+          "spreads",
+          "team_totals",
+          "totals"
+        ],
+        "state_refreshed_at": "2026-09-25T05:24:49.729210+00:00"
+      },
+      {
+        "market_buckets": {
+          "alternate_spread": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "alternate_team_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "alternate_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "moneyline": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "spread": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "team_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          }
+        },
+        "sport": "americanfootball_nfl",
+        "status": "SHADOW_ONLY",
+        "approved_for_betting": false,
+        "version": "nfl-score-ridge-0.1.0-8b55af293d53",
+        "supported_markets": [
+          "alternate_spreads",
+          "alternate_team_totals",
+          "alternate_totals",
+          "h2h",
+          "spreads",
+          "team_totals",
+          "totals"
+        ],
+        "state_refreshed_at": "2026-09-25T05:24:49.729210+00:00"
+      },
+      {
+        "market_buckets": {
+          "alternate_spread": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "alternate_team_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "alternate_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "moneyline": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "spread": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "team_total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          },
+          "total": {
+            "stage": "SHADOW_ONLY",
+            "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+            "prospective_sample_count": 0,
+            "approved_for_betting": false,
+            "reason": "No frozen prospective promotion evidence"
+          }
+        },
+        "sport": "americanfootball_ncaaf",
+        "status": "SHADOW_ONLY",
+        "approved_for_betting": false,
+        "version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+        "supported_markets": [
+          "alternate_spreads",
+          "alternate_team_totals",
+          "alternate_totals",
+          "h2h",
+          "spreads",
+          "team_totals",
+          "totals"
+        ],
+        "state_refreshed_at": "2026-09-25T04:58:10.437922+00:00"
+      }
+    ],
+    "errors": []
+  }
+}
