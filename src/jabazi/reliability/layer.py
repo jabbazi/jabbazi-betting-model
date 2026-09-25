@@ -152,9 +152,23 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
         ).get("stage", "SHADOW_ONLY")
     else:
         stage = "SHADOW_ONLY"
-    model_can_influence = bool(
+    # Player artifacts carry their own promotion flag. Team score models are
+    # promoted dynamically from the frozen prospective bucket, so a production
+    # team stage may authorize influence even though the immutable score artifact
+    # itself was originally trained as research-only.
+    artifact_permission = bool(
         estimate
-        and estimate.approved_for_betting
+        and (
+            estimate.approved_for_betting
+            or (
+                model is not None
+                and not hasattr(model, "stage")
+                and stage == "PRODUCTION_APPROVED"
+            )
+        )
+    )
+    model_can_influence = bool(
+        artifact_permission
         and stage == "PRODUCTION_APPROVED"
         and audit["eligible"]
     )
