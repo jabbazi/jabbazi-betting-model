@@ -126,7 +126,7 @@ def status_buckets(model, prospective=None):
     return result
 
 
-def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
+def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy()):
     p = float(estimate.probability) if estimate else None
     market = float(card.consensus_probability)
     snapshot = estimate.feature_snapshot if estimate else {}
@@ -142,7 +142,16 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         else {"state": "NORMAL", "reasons": [], "eligible": False}
     )
     fresh = not card.stale and not card.in_play
-    stage = getattr(model, "stage", "SHADOW_ONLY") if p is not None else "UNAVAILABLE"
+    if p is None:
+        stage = "UNAVAILABLE"
+    elif model is not None and hasattr(model, "stage"):
+        stage = getattr(model, "stage")
+    elif model is not None:
+        stage = status_buckets(model, prospective).get(
+            market_bucket(card.market), {}
+        ).get("stage", "SHADOW_ONLY")
+    else:
+        stage = "SHADOW_ONLY"
     model_can_influence = bool(
         estimate
         and estimate.approved_for_betting
