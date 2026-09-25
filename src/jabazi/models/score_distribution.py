@@ -256,6 +256,7 @@ class ScoreDistributionModel(ProbabilityModel):
                 "team_history": history,
                 "home_team": home, "away_team": away,
                 "provider_event_id": price.event_id,
+                "canonical_selection": selection, "canonical_participant": participant,
                 "game_distribution": summary,
                 "raw_win_probability": result["win"],
                 "loss_probability": result["loss"],

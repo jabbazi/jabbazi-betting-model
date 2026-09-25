@@ -86,7 +86,7 @@ Chiefs/Miami reproduction, alternate-spread normalization fix, repaired V4.2
 integration, per-market stages, chronological challenger/calibration results,
 trained CFB baseline and rollout requirements. Every served model remains
 `SHADOW_ONLY`. NFL/MLB challengers did not justify replacing the champions.
-The report distinguishes local verification from the unchanged live deployment.
+The report links the separately verified live deployment receipt.
 
 ```bash
 python -m pip install '.[dev,discord,research]'
@@ -99,3 +99,15 @@ The CFB baseline covers FBS team markets only. Continuous refresh requires
 `JABBAZI_CFBD_API_KEY`; stale features produce no inference. No CFB player props,
 player-linked SGP probabilities, automatic wagers or unconfigured publications
 are introduced. New research endpoints require the existing owner credential.
+
+## Prospective model evidence
+
+The scanner now freezes the first fresh pregame home-side/Over forecast per game,
+model version and market family. Repeated scans, opposite sides and alternate
+ladders cannot inflate that bucket's sample. Existing scheduled provider refreshes
+archive completed score receipts; no extra odds requests are needed for grading.
+Owner endpoint `GET /v1/research/prospective-validation` reports pending games,
+conditional Brier/log loss, same-quote market comparison and calibration buckets
+with Wilson intervals. `get_model_status` includes frozen and graded counts.
+See [the evidence policy](docs/PROSPECTIVE_VALIDATION.md). These are research
+labels, not ticket settlements, and do not automatically promote a model.

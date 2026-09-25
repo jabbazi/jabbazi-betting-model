@@ -180,6 +180,12 @@ class AutomaticScanner:
                             "reliability": reliability,
                         }
                         ledger.append("model_prediction", card.event_id, evidence, digest(evidence))
+                        from .research.prospective import freeze_candidate
+                        try:
+                            reliability["prospective_recorded"] = freeze_candidate(ledger, card, estimate, reliability)
+                        except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                            reliability["prospective_recorded"] = False
+                            reliability["prospective_error"] = type(exc).__name__
                     action = recommend_price(
                         card,
                         policy,

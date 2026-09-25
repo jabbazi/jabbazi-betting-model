@@ -111,7 +111,7 @@ def update_state(artifact, games, events, *, now, response_checksum):
     return value
 
 
-def fetch_update(artifact, *, now):
+def fetch_update(artifact, *, now, result_store=None):
     if artifact["sport"] == SPORTS["cfb"]:
         from jabazi.providers.history import fetch_json, cfb_rows
         key = os.getenv("JABBAZI_CFBD_API_KEY", "")
@@ -167,9 +167,15 @@ def fetch_update(artifact, *, now):
         venues = {t["id"]: t["venue"]["id"] for t in teams["teams"] if t.get("venue", {}).get("id")}
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
-    return update_state(
-        artifact, games, events, now=now, response_checksum=hashlib.sha256(raw).hexdigest()
-    )
+    checksum = hashlib.sha256(raw).hexdigest()
+    updated = update_state(artifact, games, events, now=now, response_checksum=checksum)
+    if result_store is not None:
+        from jabazi.research.prospective import archive_results
+        archive_results(result_store, artifact["sport"],
+                        [g for g in games if available_at(g) < now
+                         and timestamp(g["starts_at"]) >= now - timedelta(days=30)],
+                        observed_at=now, source_checksum=checksum)
+    return updated
 
 
 def refresh_models(store, *, now=None):
@@ -191,7 +197,7 @@ def refresh_models(store, *, now=None):
             try:
                 path = BUNDLE_DIR / f"{short}_scores.json"
                 artifact = json.loads(path.read_text())
-                updated = fetch_update(artifact, now=now)
+                updated = fetch_update(artifact, now=now, result_store=store)
                 key = digest(["game_model", updated])
                 store.append("game_model", SPORTS[short], updated, key)
                 report[short] = {
