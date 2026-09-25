@@ -109,7 +109,12 @@ class AutomaticScanner:
         scanned = 0
         remaining = None
         models, model_errors = load_models(ledger if isinstance(ledger, Store) else None)
+        from .models.player_registry import load_player_models
+        player_models, player_model_errors = load_player_models(
+            ledger if isinstance(ledger, Store) else None
+        )
         errors.extend(model_errors)
+        errors.extend(player_model_errors)
         actions = []
         run_id = str(uuid.uuid4())
         slate_events = {}
@@ -124,6 +129,7 @@ class AutomaticScanner:
             self.credit_reserve,
             errors,
             lambda: not isinstance(ledger, Store) or ledger.acquire_lease("scanner", owner, 600),
+            player_models=player_models,
         )
         for sport, batch in plan.batches(selected):
             try:
@@ -152,7 +158,11 @@ class AutomaticScanner:
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
                 for card in cards:
-                    model = models.get(card.sport)
+                    model = (
+                        player_models.get((card.sport, card.market))
+                        if card.participant
+                        else models.get(card.sport)
+                    )
                     # One bad game/model must not abort independent price research.
                     try:
                         estimate = model.estimate(card) if model and card.event_id not in duplicate_ids else None
@@ -315,8 +325,14 @@ class AutomaticScanner:
                     "completed_at": datetime.now(UTC).isoformat(),
                     "healthy": not errors,
                     "models_loaded": {
-                        sport: getattr(model, "artifact", {}).get("model_version")
-                        for sport, model in models.items()
+                        "team": {
+                            sport: getattr(model, "artifact", {}).get("model_version")
+                            for sport, model in models.items()
+                        },
+                        "player": {
+                            f"{sport}|{market}": getattr(model, "artifact", {}).get("model_version")
+                            for (sport, market), model in player_models.items()
+                        },
                     },
                     "modeled_actions": sum(a.model_probability is not None for a in actions),
                     "unmodeled_actions": sum(a.model_probability is None for a in actions),
