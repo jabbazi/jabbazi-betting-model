@@ -60,6 +60,8 @@ def doctor():
         "betting_enabled": False,
         "odds_provider_configured": bool(settings.api_key),
         "cfb_provider_configured": bool(os.getenv("JABBAZI_CFBD_API_KEY")),
+        "player_context_provider_configured": bool(settings.sportsdataio_api_key),
+        "player_context_provider": "SportsDataIO" if settings.sportsdataio_api_key else None,
         "discord_enabled": os.getenv("JABBAZI_DISCORD_REVIEW_ENABLED", "false").lower() == "true",
     }
 
