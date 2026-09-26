@@ -94,8 +94,8 @@ def inspect_prop_dataset(document, *, train_before, test_before, minimum_per_spl
             raise ValueError("Unresolved prop outcome")
 
         observed = finite(row["observed_value"])
-        if observed < 0:
-            raise ValueError("Player prop outcomes must be nonnegative")
+        if market in COUNT_MARKETS and observed < 0:
+            raise ValueError("Count prop outcomes must be nonnegative")
         if market in COUNT_MARKETS and int(observed) != observed:
             raise ValueError("Count prop outcome must be an integer count")
         if market in BINARY_MARKETS and observed not in {0, 1}:
