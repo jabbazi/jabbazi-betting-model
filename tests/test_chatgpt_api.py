@@ -295,7 +295,7 @@ def test_public_schema_exposes_only_scoped_actions(setup):
     response = schema["paths"]["/v1/chatgpt/model-status"]["get"]["responses"]["200"]
     reference = response["content"]["application/json"]["schema"]["$ref"]
     definition = schema["components"]["schemas"][reference.rsplit("/", 1)[1]]
-    assert set(definition["properties"]) == {"models", "errors"}
+    assert set(definition["properties"]) == {"models", "errors", "player_feature_provider"}
     model_ref = definition["properties"]["models"]["items"]["$ref"]
     model_schema = schema["components"]["schemas"][model_ref.rsplit("/", 1)[1]]
     assert {"sport", "status", "version", "supported_markets", "approved_for_betting"} <= set(model_schema["properties"])
