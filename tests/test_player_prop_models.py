@@ -284,3 +284,49 @@ def test_research_only_snapshot_can_drive_probability_but_never_betting_approval
     assert 0 < float(estimate.probability) < 1
     assert estimate.approved_for_betting is False
     assert estimate.feature_snapshot["production_inputs_verified"] is False
+
+
+def test_live_nfl_history_uses_previous_and_current_season(monkeypatch):
+    import gzip
+    from jabazi.providers.player_features_live import LivePlayerFeatureCollector
+
+    header = [
+        "player_id", "player_display_name", "position", "season", "week", "season_type",
+        "game_id", "team", "completions", "attempts", "passing_yards", "passing_tds",
+        "carries", "rushing_yards", "rushing_tds", "receptions", "targets",
+        "receiving_yards", "receiving_tds",
+    ]
+
+    def asset(season, week):
+        values = {
+            "player_id": "00-TEST",
+            "player_display_name": "Player Test",
+            "position": "RB",
+            "season": str(season),
+            "week": str(week),
+            "season_type": "REG",
+            "game_id": f"{season}_{week}",
+            "team": "DET",
+            "completions": "0",
+            "attempts": "0",
+            "passing_yards": "0",
+            "passing_tds": "0",
+            "carries": "10",
+            "rushing_yards": "50",
+            "rushing_tds": "1",
+            "receptions": "2",
+            "targets": "3",
+            "receiving_yards": "15",
+            "receiving_tds": "0",
+        }
+        text = ",".join(header) + "\n" + ",".join(values[name] for name in header) + "\n"
+        return gzip.compress(text.encode())
+
+    def fetch(url, timeout=30):
+        return asset(2025, 18) if "2025" in url else asset(2026, 1)
+
+    monkeypatch.setattr("jabazi.providers.player_features_live._fetch_bytes", fetch)
+    collector = LivePlayerFeatureCollector(now=datetime(2026, 9, 26, tzinfo=UTC))
+    rows = collector._nfl_history()
+    assert {int(row["season"]) for row in rows} == {2025, 2026}
+    assert len({row["_source_checksum"] for row in rows}) == 1
