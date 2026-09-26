@@ -23,10 +23,11 @@ from zoneinfo import ZoneInfo
 
 from jabazi.research.player_features import archive_player_feature_snapshot
 
-NFL_STATS = (
-    "https://github.com/nflverse/nflverse-data/releases/download/"
-    "stats_player/stats_player_week_2026.csv.gz"
-)
+def _nfl_stats_url(season):
+    return (
+        "https://github.com/nflverse/nflverse-data/releases/download/"
+        f"stats_player/stats_player_week_{int(season)}.csv.gz"
+    )
 NFL_DEPTH = (
     "https://github.com/nflverse/nflverse-data/releases/download/"
     "depth_charts/depth_charts_2026.csv"
@@ -225,27 +226,31 @@ class LivePlayerFeatureCollector:
     def _nfl_history(self):
         if self._nfl_rows is not None:
             return self._nfl_rows
-        raw = _fetch_bytes(NFL_STATS)
-        checksum = hashlib.sha256(raw).hexdigest()
         rows = []
-        with gzip.GzipFile(fileobj=io.BytesIO(raw)) as zipped:
-            with io.TextIOWrapper(zipped, encoding="utf-8") as source:
-                reader = csv.DictReader(source)
-                required = {
-                    "player_id", "player_display_name", "position", "season", "week",
-                    "season_type", "game_id", "team", "completions", "attempts",
-                    "passing_yards", "passing_tds", "carries", "rushing_yards",
-                    "rushing_tds", "receptions", "targets", "receiving_yards",
-                    "receiving_tds",
-                }
-                if not required <= set(reader.fieldnames or []):
-                    raise ValueError("nflverse current player schema mismatch")
-                for row in reader:
-                    if row.get("season_type") != "REG" or int(row["season"]) != self.now.year:
-                        continue
-                    row = dict(row)
-                    row["_source_checksum"] = checksum
-                    rows.append(row)
+        digest = hashlib.sha256()
+        seasons = (self.now.year - 1, self.now.year)
+        for season in seasons:
+            raw = _fetch_bytes(_nfl_stats_url(season))
+            digest.update(hashlib.sha256(raw).hexdigest().encode())
+            with gzip.GzipFile(fileobj=io.BytesIO(raw)) as zipped:
+                with io.TextIOWrapper(zipped, encoding="utf-8") as source:
+                    reader = csv.DictReader(source)
+                    required = {
+                        "player_id", "player_display_name", "position", "season", "week",
+                        "season_type", "game_id", "team", "completions", "attempts",
+                        "passing_yards", "passing_tds", "carries", "rushing_yards",
+                        "rushing_tds", "receptions", "targets", "receiving_yards",
+                        "receiving_tds",
+                    }
+                    if not required <= set(reader.fieldnames or []):
+                        raise ValueError("nflverse current player schema mismatch")
+                    for row in reader:
+                        if row.get("season_type") != "REG" or int(row["season"]) != season:
+                            continue
+                        rows.append(dict(row))
+        checksum = digest.hexdigest()
+        for row in rows:
+            row["_source_checksum"] = checksum
         self._nfl_rows = rows
         return rows
 
@@ -355,6 +360,7 @@ class LivePlayerFeatureCollector:
             )
             return None
         player_rows.sort(key=lambda r: (int(r["season"]), int(r["week"]), r["game_id"]))
+        player_rows = player_rows[-32:]
         values, opportunities = [], []
         for row in player_rows:
             rushing_tds = _float(row, "rushing_tds")
