@@ -238,9 +238,25 @@ def odds(limit: int = 100, authorization: Annotated[str | None, Header()] = None
 @app.get("/v1/model-health")
 def model_health(authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)
+    status = model_status_data()
+    approved_team_buckets = sum(
+        int(bucket.get("approved_for_betting") is True)
+        for model in status["models"]
+        for bucket in model.get("market_buckets", {}).values()
+    )
+    approved_player_buckets = sum(
+        int(bucket.get("approved_for_betting") is True)
+        for model in status["models"]
+        for bucket in model.get("player_market_buckets", {}).values()
+    )
     store = platform_store()
     try:
-        return {"recent_scans": store.list_records("scan_run", 20), "production_models_approved": 0}
+        return {
+            "recent_scans": store.list_records("scan_run", 20),
+            "production_team_market_buckets": approved_team_buckets,
+            "production_player_market_buckets": approved_player_buckets,
+            "model_status_errors": status.get("errors", []),
+        }
     finally:
         store.close()
 
@@ -332,7 +348,16 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False) -> dict:
                 "modeled_actions": sum(a.model_probability is not None for a in result.actions),
                 "unmodeled_actions": sum(a.model_probability is None for a in result.actions),
                 "versions": sorted({a.model_version for a in result.actions if a.model_version}),
-                "production_approved": False,
+                "production_approved": any(
+                    a.reliability.get("model_stage") == "PRODUCTION_APPROVED"
+                    for a in result.actions
+                    if a.model_probability is not None
+                ),
+                "production_approved_actions": sum(
+                    a.reliability.get("model_stage") == "PRODUCTION_APPROVED"
+                    for a in result.actions
+                    if a.model_probability is not None
+                ),
                 "returned_modeled_actions": sum(a.model_probability is not None for a in actions),
                 "returned_unmodeled_actions": sum(a.model_probability is None for a in actions),
             },
