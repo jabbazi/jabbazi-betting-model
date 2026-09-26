@@ -129,6 +129,7 @@ def test_player_model_cannot_backtest_itself_into_production():
 
 def test_player_model_production_requires_strict_prospective_evidence():
     artifact = count_artifact()
+    artifact["distribution_validation"] = {"n": 2000}
     artifact["validation"] = {
         "test_sample_count": 2000,
         "brier": 0.19,
