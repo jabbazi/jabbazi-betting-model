@@ -51,25 +51,25 @@
       0.7471601896391036
     ]
   },
-  "trained_at": "2026-09-26T02:27:14.506528+00:00",
+  "trained_at": "2026-09-26T02:37:50.150841+00:00",
   "training_cutoff": "2023-10-01T21:00:00+00:00",
   "stage": "VALIDATING",
   "family": "count_nb",
   "parameters": {
     "coef": [
       0.019013673040768706,
-      -0.0020498260485373133,
-      0.0047432437204676,
-      0.052754966408154254,
-      0.004717483712863316,
+      -0.0020498260485373107,
+      0.004743243720467598,
+      0.05275496640815425,
+      0.004717483712863318,
       0.023885657784250308,
-      0.013060891683500058,
-      0.006105396705044996,
-      0.02580664128310038,
-      -0.002573088257219202,
+      0.013060891683500053,
+      0.006105396705045002,
+      0.025806641283100392,
+      -0.002573088257219203,
       -0.06306638407762424,
       0.06066532910059719,
-      0.0003407028324368102
+      0.0003407028324368065
     ],
     "intercept": 0.49685242718749545,
     "dispersion": 0.6318144951042707
@@ -86,5 +86,10 @@
     "promotion_passed": false,
     "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
   },
-  "model_version": "mlb-batter_hits_runs_rbis-dist-0.1.0-aa7a6110cf68"
+  "artifact_schema_version": 2,
+  "split_policy": {
+    "train_before": "2024-01-01T00:00:00+00:00",
+    "test_before": "2025-01-01T00:00:00+00:00"
+  },
+  "model_version": "mlb-batter_hits_runs_rbis-dist-0.2.0-8d648ed8cd20"
 }
