@@ -64,8 +64,40 @@ def test_event_feeds_preserve_primary_coverage_and_budget_then_rotate_events_and
         assert calls[3][1].endswith("0") and calls[4][1].endswith("0")
         assert calls[8][1].endswith("1") and calls[9][1].endswith("1")
         assert calls[13][1].endswith("0")
-        assert calls[13][2] == EVENT_MARKETS["americanfootball_nfl"][3:6]
+        assert calls[13][2][0] == "player_anytime_td"
+        assert set(calls[13][2][1:]) == {"player_receptions", "player_pass_tds"}
         assert not any(s == "americanfootball_ncaaf" and e for s, e, _ in calls)
+    finally:
+        store.close()
+
+
+def test_weekend_event_budget_prioritizes_nfl_and_always_requests_atd(tmp_path):
+    saturday = datetime(2026, 9, 26, 12, tzinfo=UTC)
+    store = Store("sqlite:///" + str(tmp_path / "weekend.db"), initialize=True)
+    calls, errors = [], []
+    try:
+        plan = FeedPlan(
+            factory(calls),
+            store,
+            30,
+            50,
+            errors,
+            lambda: True,
+            now=saturday,
+        )
+        list(plan.batches(SPORTS))
+        event_calls = [call for call in calls if call[1] is not None]
+        nfl_calls = [call for call in event_calls if call[0] == "americanfootball_nfl"]
+        mlb_calls = [call for call in event_calls if call[0] == "baseball_mlb"]
+        assert nfl_calls
+        assert all("player_anytime_td" in markets for _, _, markets in nfl_calls)
+        # Synthetic fixture has only two NFL events; weekend priority exhausts
+        # those before allocating remaining deep-market requests to MLB.
+        assert [event for _, event, _ in event_calls[:2]] == [
+            "americanfootball_nfl0",
+            "americanfootball_nfl1",
+        ]
+        assert mlb_calls
     finally:
         store.close()
 
