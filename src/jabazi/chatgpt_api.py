@@ -212,11 +212,28 @@ def run_background(scan_id):
             "credits_reserved": 0,
             "max_credits": max_credits,
         })
-        result = perform_scan(
-            ScanRequest(mode="full", credit_reserve=50, max_credits=max_credits),
-            model_first=True,
-            progress_callback=on_progress,
-        )
+        busy_wait = int(os.getenv("JABBAZI_CHATGPT_BUSY_WAIT_SECONDS", "180"))
+        busy_wait = min(300, max(30, busy_wait))
+        busy_deadline = time.monotonic() + busy_wait
+        while True:
+            try:
+                result = perform_scan(
+                    ScanRequest(mode="full", credit_reserve=50, max_credits=max_credits),
+                    model_first=True,
+                    progress_callback=on_progress,
+                )
+                break
+            except HTTPException as exc:
+                if exc.status_code != 409 or time.monotonic() >= busy_deadline:
+                    raise
+                on_progress({
+                    "phase": "WAITING_FOR_SCANNER",
+                    "feeds_scanned": 0,
+                    "quotes_archived": 0,
+                    "credits_reserved": 0,
+                    "max_credits": max_credits,
+                })
+                time.sleep(2)
         result["status"] = (
             "FAILED" if result["feeds_scanned"] == 0
             else "PARTIAL" if result["errors"] else "COMPLETE"
