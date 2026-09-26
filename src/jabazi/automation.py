@@ -58,6 +58,9 @@ class AutomaticScanner:
         self.credit_reserve = credit_reserve
         self.max_credits_per_run = max_credits_per_run
         self.progress_callback = progress_callback
+        self.lease_ttl = int(os.getenv("JABBAZI_SCANNER_LEASE_TTL_SECONDS", "180"))
+        if not 60 <= self.lease_ttl <= 600:
+            raise ValueError("Scanner lease TTL must be 60-600 seconds")
 
     def _active_supported(self) -> list[dict]:
         url = "https://api.the-odds-api.com/v4/sports/?" + urllib.parse.urlencode(
@@ -80,7 +83,7 @@ class AutomaticScanner:
         ledger = Ledger(self.database)
         owner = str(uuid.uuid4())
         try:
-            if isinstance(ledger, Store) and not ledger.acquire_lease("scanner", owner, 600):
+            if isinstance(ledger, Store) and not ledger.acquire_lease("scanner", owner, self.lease_ttl):
                 raise ScannerBusy("Another scanner holds the database lease")
             return self._run(mode, ledger, owner)
         finally:
@@ -145,7 +148,9 @@ class AutomaticScanner:
             self.max_credits_per_run,
             self.credit_reserve,
             errors,
-            lambda: not isinstance(ledger, Store) or ledger.acquire_lease("scanner", owner, 600),
+            lambda: not isinstance(ledger, Store) or ledger.acquire_lease(
+                "scanner", owner, self.lease_ttl
+            ),
             player_models=player_models,
         )
         for sport, batch in plan.batches(selected):
