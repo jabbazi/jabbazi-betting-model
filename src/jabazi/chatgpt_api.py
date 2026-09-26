@@ -19,7 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
 
 from .config import Settings
@@ -72,6 +72,12 @@ class ScannerModelState(BaseModel):
     player_status: Literal["SHADOW_ONLY", "VALIDATING", "LIMITED_LIVE", "PRODUCTION_APPROVED", "UNAVAILABLE"] = "UNAVAILABLE"
     player_supported_markets: list[str] = Field(default_factory=list)
     state_refreshed_at: str | None
+
+    @model_validator(mode="after")
+    def approval_matches_stage(self):
+        if self.approved_for_betting and self.status != "PRODUCTION_APPROVED":
+            raise ValueError("Only PRODUCTION_APPROVED team status may be approved for betting")
+        return self
 
 
 class ScannerModelStatus(BaseModel):
