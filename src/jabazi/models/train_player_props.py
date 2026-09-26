@@ -218,6 +218,41 @@ def _apply_calibration(raw, calibration):
     return float(y[index])
 
 
+def _distribution_validation(artifact, test_rows):
+    """Evaluate the fitted outcome distribution even when historical prop lines are absent.
+
+    This can justify VALIDATING research status, never betting approval.
+    """
+    if not test_rows:
+        return {"n": 0, "mae": None, "rmse": None, "mean_bias": None}
+    from .player_distribution import distribution_mean
+
+    errors = []
+    binary_probabilities = []
+    binary_outcomes = []
+    for row in test_rows:
+        mean, _ = distribution_mean(artifact, row["features"])
+        observed = float(row["observed_value"])
+        errors.append(mean - observed)
+        if artifact["market"] in BINARY_MARKETS:
+            binary_probabilities.append(float(mean))
+            binary_outcomes.append(int(observed > 0))
+    n = len(errors)
+    result = {
+        "n": n,
+        "mae": sum(abs(e) for e in errors) / n,
+        "rmse": math.sqrt(sum(e * e for e in errors) / n),
+        "mean_bias": sum(errors) / n,
+    }
+    if binary_probabilities:
+        result.update(
+            brier=_brier(binary_probabilities, binary_outcomes),
+            log_loss=_log_loss(binary_probabilities, binary_outcomes),
+            ece=_ece(binary_probabilities, binary_outcomes),
+        )
+    return result
+
+
 def _validation(artifact, test_rows):
     threshold = _threshold_rows(test_rows, artifact)
     if not threshold:
@@ -286,6 +321,7 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
     test = [row for row in admitted if timestamp(row["prediction_at"]) >= right]
     artifact = _fit_family(document, train, market)
     artifact["calibration"] = _fit_calibration(artifact, calibration)
+    artifact["distribution_validation"] = _distribution_validation(artifact, test)
     artifact["validation"] = _validation(artifact, test)
     seed = json.dumps(
         {
@@ -302,8 +338,15 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
         hashlib.sha256(seed.encode()).hexdigest()[:12]
     )
     artifact["stage"] = (
-        "VALIDATING" if artifact["validation"]["test_sample_count"] >= 250 else "SHADOW_ONLY"
+        "VALIDATING"
+        if artifact["distribution_validation"]["n"] >= 250
+        else "SHADOW_ONLY"
     )
+    if artifact["stage"] == "VALIDATING" and artifact["validation"]["test_sample_count"] == 0:
+        artifact["validation"]["reason"] = (
+            "Outcome distribution has held-out sample support; archived market-line "
+            "calibration is unavailable, so betting approval remains blocked"
+        )
     return artifact
 
 
@@ -313,6 +356,7 @@ def promotion_decision(artifact, prospective):
     historical = candidate.get("validation", {})
     p = prospective or {}
     checks = {
+        "distribution_n": int(candidate.get("distribution_validation", {}).get("n", 0)) >= 500,
         "test_n": int(historical.get("test_sample_count", 0)) >= 500,
         "historical_brier_vs_market": (
             historical.get("brier") is not None
@@ -342,7 +386,10 @@ def promotion_decision(artifact, prospective):
         stage = "PRODUCTION_APPROVED"
     elif checks["test_n"] and checks["historical_brier_vs_market"] and int(p.get("sample_count", 0)) >= 200:
         stage = "LIMITED_LIVE"
-    elif int(historical.get("test_sample_count", 0)) >= 250:
+    elif (
+        int(historical.get("test_sample_count", 0)) >= 250
+        or int(candidate.get("distribution_validation", {}).get("n", 0)) >= 250
+    ):
         stage = "VALIDATING"
     else:
         stage = "SHADOW_ONLY"
