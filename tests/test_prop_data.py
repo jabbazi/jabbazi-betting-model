@@ -62,7 +62,6 @@ def test_non_real_data_is_rejected(mode):
     "change",
     [
         {"features_available_at": "2023-06-01T13:00:00Z"},
-        {"result_available_at": "2024-01-01T00:00:00Z"},
         {"prediction_at": "2023-06-01T10:00:00"},
         {"features": {"prior_k_rate": float("nan")}},
         {"observed_value": -1},
@@ -75,6 +74,16 @@ def test_future_missing_or_invalid_training_evidence_is_rejected(change):
     data["rows"][0].update(change)
     with pytest.raises(ValueError):
         inspect(data)
+
+
+
+def test_label_crossing_split_boundary_is_excluded_not_leaked():
+    data = dataset()
+    data["rows"][0]["result_available_at"] = "2024-01-01T00:00:00Z"
+    report = inspect(data)
+    assert report["counts"]["train"] == 0
+    assert report["excluded"]["split_boundary"] == 1
+    assert report["status"] == "INSUFFICIENT_DATA"
 
 
 def test_duplicate_athletes_and_games_cannot_inflate_the_sample():
@@ -92,12 +101,25 @@ def test_dnp_is_not_counted_as_a_zero_outcome():
     assert report["status"] == "INSUFFICIENT_DATA"
 
 
-def test_college_props_and_td_yardage_reuse_are_not_admitted():
-    for sport, market in [
-        ("americanfootball_ncaaf", "player_pass_yds"),
-        ("americanfootball_nfl", "player_anytime_td"),
-    ]:
-        data = dataset()
-        data["manifest"].update(sport=sport, market=market)
-        with pytest.raises(ValueError):
-            inspect(data)
+def test_college_player_props_are_not_admitted():
+    data = dataset()
+    data["manifest"].update(
+        sport="americanfootball_ncaaf",
+        market="player_pass_yds",
+    )
+    with pytest.raises(ValueError):
+        inspect(data)
+
+
+def test_nfl_anytime_td_has_its_own_binary_dataset_contract():
+    data = dataset()
+    data["manifest"].update(
+        sport="americanfootball_nfl",
+        market="player_anytime_td",
+    )
+    for index, row in enumerate(data["rows"]):
+        row["observed_value"] = index % 2
+        row["features"] = {"prior_red_zone_share": 0.15 + 0.05 * index}
+    report = inspect(data)
+    assert report["status"] == "READY_FOR_RESEARCH_FIT"
+    assert report["counts"] == {"train": 1, "calibration": 1, "test": 1}
