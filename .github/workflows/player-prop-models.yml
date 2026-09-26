@@ -113,13 +113,13 @@ jobs:
           retention-days: 90
       - name: Commit model artifacts
         run: |
-          if git diff --quiet -- models/player_props; then
+          if [ -z "$(git status --porcelain -- models/player_props)" ]; then
             echo "No model artifact changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add models/player_props
+          git add -f models/player_props
           git commit -m "models: refresh NFL and MLB player prop distributions"
           git fetch origin "${GITHUB_REF_NAME}"
           git rebase "origin/${GITHUB_REF_NAME}"
