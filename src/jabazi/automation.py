@@ -223,8 +223,9 @@ class AutomaticScanner:
                         model_probability=estimate.probability if estimate else None,
                         uncertainty=estimate.uncertainty if estimate else Decimal(0),
                         current_exposure=ledger.open_exposure(),
-                        model_validated=bool(estimate and estimate.approved_for_betting
-                                             and reliability["model_can_influence_cash"]),
+                        model_validated=bool(
+                            estimate and reliability["model_can_influence_cash"]
+                        ),
                         jurisdiction=self.settings.jurisdiction,
                     )
                     action = replace(
@@ -243,7 +244,9 @@ class AutomaticScanner:
                             observed_at=card.observed_at,
                             source_at=card.source_timestamp,
                             starts_at=card.starts_at,
-                            model_approved=bool(estimate and estimate.approved_for_betting),
+                            model_approved=bool(
+                                estimate and reliability["model_can_influence_cash"]
+                            ),
                             database_ok=isinstance(ledger, Store),
                             required_features=("production_inputs_verified",),
                             available_features=("production_inputs_verified",)
