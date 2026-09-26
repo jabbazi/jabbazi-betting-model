@@ -47,11 +47,13 @@ class AutomaticScanner:
         database: str = "jabazi-local.db",
         credit_reserve: int = 50,
         max_credits_per_run: int = 30,
+        progress_callback=None,
     ) -> None:
         self.settings = settings
         self.database = database
         self.credit_reserve = credit_reserve
         self.max_credits_per_run = max_credits_per_run
+        self.progress_callback = progress_callback
 
     def _active_supported(self) -> list[dict]:
         url = "https://api.the-odds-api.com/v4/sports/?" + urllib.parse.urlencode(
@@ -148,6 +150,18 @@ class AutomaticScanner:
                 scanned += 1
                 quote_count += len(batch.quotes)
                 remaining = batch.requests_remaining
+                if self.progress_callback:
+                    try:
+                        self.progress_callback({
+                            "phase": "SCANNING",
+                            "feeds_scanned": scanned,
+                            "quotes_archived": quote_count,
+                            "credits_reserved": getattr(plan, "spent", None),
+                            "credits_remaining": remaining,
+                            "sport": sport["key"],
+                        })
+                    except Exception:
+                        pass
                 # Preserve every event returned by the feed, even when all of its
                 # prices fail freshness/completeness checks. Never invent prices.
                 raw_events = json.loads(batch.raw_payload)
