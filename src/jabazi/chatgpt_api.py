@@ -198,10 +198,7 @@ def run_background(scan_id):
                 digest([
                     "chatgpt_scan_progress",
                     scan_id,
-                    payload.get("feeds_scanned"),
-                    payload.get("quotes_archived"),
-                    payload.get("credits_reserved"),
-                    payload.get("sport"),
+                    payload,
                 ]),
             )
 
