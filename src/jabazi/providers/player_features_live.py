@@ -14,6 +14,7 @@ import json
 import math
 import re
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -201,9 +202,28 @@ class LivePlayerFeatureCollector:
         ) or []
         return self._nfl_projection
 
-    def _nfl_projection_for(self, participant):
+    def _projection_time_matches(self, value, starts_at, *, eastern=False):
+        if not value or starts_at is None:
+            return False
+        try:
+            raw = str(value).replace("Z", "+00:00")
+            parsed = datetime.fromisoformat(raw)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(
+                    tzinfo=ZoneInfo("America/New_York") if eastern else UTC
+                )
+            parsed = parsed.astimezone(UTC)
+            return abs((parsed - starts_at.astimezone(UTC)).total_seconds()) <= 3 * 3600
+        except (ValueError, TypeError):
+            return False
+
+    def _nfl_projection_for(self, participant, starts_at):
         key = _name(participant)
-        matches = [row for row in self._nfl_projections() if _name(row.get("Name")) == key]
+        matches = [
+            row for row in self._nfl_projections()
+            if _name(row.get("Name")) == key
+            and self._projection_time_matches(row.get("GameDate"), starts_at, eastern=True)
+        ]
         return matches[0] if len(matches) == 1 else None
 
     def nfl_snapshot(self, card):
@@ -233,7 +253,7 @@ class LivePlayerFeatureCollector:
         if len(values) < 3 or _mean(opportunities, 3) < minimum:
             return None
 
-        projection = self._nfl_projection_for(card.participant)
+        projection = self._nfl_projection_for(card.participant, card.starts_at)
         position = str((projection or {}).get("Position") or player_rows[-1].get("position") or "")
         homeaway = str((projection or {}).get("HomeOrAway") or "").lower()
         if homeaway not in {"home", "away"}:
@@ -290,7 +310,11 @@ class LivePlayerFeatureCollector:
 
     def _mlb_projection_for(self, participant, starts_at):
         key = _name(participant)
-        rows = [r for r in self._mlb_projections(starts_at) if _name(r.get("Name")) == key]
+        rows = [
+            r for r in self._mlb_projections(starts_at)
+            if _name(r.get("Name")) == key
+            and self._projection_time_matches(r.get("DateTime"), starts_at, eastern=True)
+        ]
         return rows[0] if len(rows) == 1 else None
 
     def _mlb_person(self, participant):
@@ -374,7 +398,10 @@ class LivePlayerFeatureCollector:
         if pitcher:
             role = 1.0 if int(projection.get("Started") or 0) == 1 else 0.0
             role_ok = role == 1.0
-            projected_opps = _float(projection, "PitchingBattersFaced", _mean(opportunities, 5))
+            # SportsDataIO exposes projected outs/pitches but not projected batters
+            # faced in this record. Keep opportunity scale consistent with training
+            # by using recent actual batters faced; starter confirmation is separate.
+            projected_opps = _mean(opportunities, 5)
         else:
             role = float(projection.get("BattingOrder") or 0)
             role_ok = role >= 1 and bool(projection.get("BattingOrderConfirmed"))
