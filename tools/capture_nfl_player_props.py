@@ -5,7 +5,6 @@ import argparse
 import csv
 import gzip
 import hashlib
-import io
 import json
 import math
 from collections import defaultdict, deque
