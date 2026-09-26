@@ -50,6 +50,9 @@ class FeedPlan:
         }
         self.per_event = int(os.getenv("JABBAZI_EVENT_MARKETS_PER_EVENT", "3"))
         self.max_events = int(os.getenv("JABBAZI_EVENT_MAX_EVENTS_PER_RUN", "4"))
+        self.weekend_nfl_priority = (
+            os.getenv("JABBAZI_WEEKEND_NFL_EVENT_PRIORITY", "true").lower() == "true"
+        )
         if not 1 <= self.per_event <= 12 or not 0 <= self.max_events <= 100:
             raise ValueError("Invalid event-market scan limits")
 
@@ -168,7 +171,7 @@ class FeedPlan:
             # Saturdays/Sundays prioritize NFL event props while MLB still receives
             # its base h2h/spread/total feed. Least-recently-requested NFL events
             # rotate first, so consecutive scans can cover the full Sunday slate.
-            weekend_nfl = self.now.weekday() in {5, 6}
+            weekend_nfl = self.weekend_nfl_priority and self.now.weekday() in {5, 6}
             sport_order = list(candidates)
             if weekend_nfl:
                 sport_order = ["americanfootball_nfl", "baseball_mlb"]
