@@ -148,6 +148,9 @@ def distribution_mean(artifact: dict, features: dict[str, float]) -> tuple[float
     if family == "count_nb":
         mean = math.exp(_linear(vector, params["coef"], params["intercept"]))
         return mean, float(params.get("dispersion", 0.0))
+    if family == "normal_ridge":
+        mean = _linear(vector, params["coef"], params["intercept"])
+        return mean, None
     if family == "hurdle_lognormal":
         active = _sigmoid(_linear(vector, params["active_coef"], params["active_intercept"]))
         log_mean = _linear(vector, params["mean_coef"], params["mean_intercept"])
@@ -178,6 +181,10 @@ def raw_probability(artifact: dict, features: dict[str, float], side: str, line)
         mean = math.exp(_linear(vector, params["coef"], params["intercept"]))
         cdf = _negative_binomial_cdf(math.floor(threshold), mean, float(params.get("dispersion", 0)))
         over = 1.0 - cdf
+    elif family == "normal_ridge":
+        mean = _linear(vector, params["coef"], params["intercept"])
+        sigma = max(1e-6, float(params["sigma"]))
+        over = 1.0 - _normal_cdf((threshold - mean) / sigma)
     elif family == "hurdle_lognormal":
         active = _sigmoid(_linear(vector, params["active_coef"], params["active_intercept"]))
         if threshold < 0:
@@ -212,7 +219,7 @@ class PlayerPropModel(ProbabilityModel):
         if self.artifact.get("artifact_type") != "player_prop_distribution":
             raise ValueError("Invalid player-prop artifact type")
         if self.artifact.get("family") not in {
-            "binary_logistic", "count_nb", "hurdle_lognormal"
+            "binary_logistic", "count_nb", "normal_ridge", "hurdle_lognormal"
         }:
             raise ValueError("Invalid player-prop distribution family")
         if not self.artifact.get("model_version") or not self.artifact.get("feature_names"):
