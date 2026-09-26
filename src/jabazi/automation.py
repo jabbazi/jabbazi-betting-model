@@ -27,6 +27,10 @@ from .providers.the_odds_api import TheOddsApiProvider
 QUICK_SPORTS = ("baseball_mlb", "americanfootball_nfl", "americanfootball_ncaaf")
 
 
+class ScannerBusy(RuntimeError):
+    """The durable cross-process scanner lease is held by another scanner."""
+
+
 @dataclass(frozen=True)
 class AutomaticScanResult:
     feeds_scanned: int
@@ -77,7 +81,7 @@ class AutomaticScanner:
         owner = str(uuid.uuid4())
         try:
             if isinstance(ledger, Store) and not ledger.acquire_lease("scanner", owner, 600):
-                raise RuntimeError("Another scanner holds the database lease")
+                raise ScannerBusy("Another scanner holds the database lease")
             return self._run(mode, ledger, owner)
         finally:
             try:
