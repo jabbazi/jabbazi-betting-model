@@ -126,6 +126,11 @@ class AutomaticScanner:
         slate_events = {}
         from .feed_plan import FeedPlan
 
+        from .providers.player_features_live import LivePlayerFeatureCollector
+        player_features = LivePlayerFeatureCollector(
+            sportsdataio_api_key=self.settings.sportsdataio_api_key
+        )
+
         plan = FeedPlan(
             lambda sport, markets: TheOddsApiProvider(
                 sport, markets=markets, api_key=self.settings.api_key
@@ -163,6 +168,8 @@ class AutomaticScanner:
                     errors.extend(f"{sport['key']}:{event}:DUPLICATE_EVENT_IDENTITY" for event in sorted(duplicate_ids))
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
+                if isinstance(ledger, Store) and any(card.participant for card in cards):
+                    player_features.sync(ledger, cards)
                 for card in cards:
                     model = (
                         player_models.get((card.sport, card.market))
@@ -352,6 +359,11 @@ class AutomaticScanner:
                     "unmodeled_actions": sum(a.model_probability is None for a in actions),
                 },
                 run_id,
+            )
+        if plan.coverage is not None:
+            plan.coverage["player_feature_diagnostics"] = list(player_features.diagnostics)[-50:]
+            plan.coverage["player_feature_provider_configured"] = bool(
+                self.settings.sportsdataio_api_key
             )
         return AutomaticScanResult(
             scanned,
