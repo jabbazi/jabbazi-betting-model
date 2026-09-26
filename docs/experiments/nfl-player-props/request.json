@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "provider": "nflverse",
+  "license_url": "https://github.com/nflverse/nflverse-data/blob/main/LICENSE.md",
+  "attribution": "Player weekly stats: nflverse contributors, CC BY 4.0. Derived rolling features: JABBAZI.",
+  "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "assets": [
+    {
+      "season": 2021,
+      "filename": "stats_player_week_2021.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2021.csv.gz",
+      "sha256": "1b6eff730fb10a61ad7681c293000d6653fb583259d771d40d8d025fe8fca36a",
+      "size": 1254611
+    },
+    {
+      "season": 2022,
+      "filename": "stats_player_week_2022.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2022.csv.gz",
+      "sha256": "0f064dede2896107868d784ede7a92cbe239852f7274c12c4589bcfd5e129b4a",
+      "size": 1241515
+    },
+    {
+      "season": 2023,
+      "filename": "stats_player_week_2023.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2023.csv.gz",
+      "sha256": "6c2258cf5d90cb918dfca093b20dba2e062b1eca54f5d2d348f15a0045d86113",
+      "size": 1237909
+    },
+    {
+      "season": 2024,
+      "filename": "stats_player_week_2024.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2024.csv.gz",
+      "sha256": "61fc9a44706522218a4448001706e3fec65ebbb97c1d9c5746ceef364989125d",
+      "size": 1244175
+    },
+    {
+      "season": 2025,
+      "filename": "stats_player_week_2025.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2025.csv.gz",
+      "sha256": "c7401e321bdb369443f3280b9acd74ba6e16d82e710383bf1c01acabfebeac0b",
+      "size": 1262421
+    },
+    {
+      "season": 2026,
+      "filename": "stats_player_week_2026.csv.gz",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2026.csv.gz",
+      "sha256": "3eead791eec69ec28820f10d7ae1e5137f158fe44f72d8e83c36816e40990c88",
+      "size": 150127
+    }
+  ]
+}
