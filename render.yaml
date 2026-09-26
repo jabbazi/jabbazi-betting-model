@@ -26,6 +26,8 @@ services:
         value: "30"
       - key: JABAZI_ODDS_API_KEY
         sync: false
+      - key: JABBAZI_SPORTSDATAIO_API_KEY
+        sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
       - key: JABBAZI_DISCORD_REVIEW_ENABLED
@@ -59,6 +61,8 @@ services:
       - key: JABAZI_UNIT_SIZE
         value: "30"
       - key: JABAZI_ODDS_API_KEY
+        sync: false
+      - key: JABBAZI_SPORTSDATAIO_API_KEY
         sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
