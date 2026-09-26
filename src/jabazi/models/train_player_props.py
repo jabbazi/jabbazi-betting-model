@@ -301,9 +301,20 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
         row for row in document["rows"]
         if row.get("result_status") == "final"
     ]
-    train = [row for row in admitted if timestamp(row["prediction_at"]) < left]
-    calibration = [row for row in admitted if left <= timestamp(row["prediction_at"]) < right]
-    test = [row for row in admitted if timestamp(row["prediction_at"]) >= right]
+    train = [
+        row for row in admitted
+        if timestamp(row["prediction_at"]) < left
+        and timestamp(row["result_available_at"]) < left
+    ]
+    calibration = [
+        row for row in admitted
+        if left <= timestamp(row["prediction_at"]) < right
+        and timestamp(row["result_available_at"]) < right
+    ]
+    test = [
+        row for row in admitted
+        if timestamp(row["prediction_at"]) >= right
+    ]
     artifact = _fit_family(document, train, market)
     artifact["calibration"] = _fit_calibration(artifact, calibration)
     artifact["distribution_validation"] = _distribution_validation(artifact, test)
