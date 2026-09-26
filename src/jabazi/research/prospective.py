@@ -267,19 +267,24 @@ def validation_report(store):
         calibration = calibration_table(g["pairs"])
         model = metrics(g.pop("pairs"))
         market = metrics(g.pop("market_pairs"))
+        record = dict(
+            sport=sport,
+            model_version=version,
+            bucket=bucket,
+            **g,
+            model=model,
+            market=market,
+            calibration=calibration,
+        )
+        from jabazi.reliability.layer import prospective_stage
+        stage, approved, reason = prospective_stage(record)
         buckets.append(
-            dict(
-                sport=sport,
-                model_version=version,
-                bucket=bucket,
-                **g,
-                model=model,
-                market=market,
-                calibration=calibration,
-                stage="SHADOW_ONLY",
-                approved_for_betting=False,
-                reason="Prospective observation alone does not satisfy promotion gates",
-            )
+            record
+            | {
+                "stage": stage,
+                "approved_for_betting": approved,
+                "reason": reason,
+            }
         )
     return {
         "policy": POLICY,
