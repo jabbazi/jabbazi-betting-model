@@ -1,0 +1,90 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "baseball_mlb",
+  "market": "pitcher_hits_allowed",
+  "provider": "Retrosheet",
+  "source_checksum": "0c13e890cb3c04963dc5222196a299c19d64feafe79cf99093137d2ea0e10724",
+  "feature_names": [
+    "games_prior",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean20_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "role_value",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      32.336279100441864,
+      20.170744575611685,
+      4.556156433423465,
+      20.05891704326219,
+      4.488834846519652,
+      4.389883688703439,
+      20.235639385345934,
+      4.565059684758942,
+      20.248156697223628,
+      4.559110993866656,
+      1.371100705665106,
+      4.267731467547463,
+      1.7860328731493458
+    ],
+    "scale": [
+      19.739920642779197,
+      6.468196141112755,
+      2.4027470703212557,
+      5.011425155220255,
+      1.2966805414636662,
+      1.2352211614386828,
+      5.454825106831256,
+      1.644768354412529,
+      5.077086152251225,
+      1.4254562996518245,
+      0.9477136021162544,
+      1.2010268438905212,
+      0.6689337169239402
+    ]
+  },
+  "trained_at": "2026-09-26T02:27:37.379313+00:00",
+  "training_cutoff": "2023-10-01T21:00:00+00:00",
+  "stage": "VALIDATING",
+  "family": "count_nb",
+  "parameters": {
+    "coef": [
+      0.008257303896624255,
+      0.058965031464804925,
+      -0.005362142521524432,
+      -0.013717345788326875,
+      0.021818905280222716,
+      0.014760495352090184,
+      0.05022800652720875,
+      0.01197279467651369,
+      0.01955817652069055,
+      0.014690108024161378,
+      -0.23059740743157653,
+      0.026967415930573346,
+      0.003605188409678299
+    ],
+    "intercept": 1.4509359810126365,
+    "dispersion": 0.0
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 5624,
+    "mae": 1.6702059719144184,
+    "rmse": 2.088395012361338,
+    "mean_bias": 0.08963225979012218
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "model_version": "mlb-pitcher_hits_allowed-dist-0.1.0-876e4e937b5f"
+}

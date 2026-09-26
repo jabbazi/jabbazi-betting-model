@@ -251,17 +251,44 @@ def test_public_schema_exposes_only_scoped_actions(setup):
     assert {"sport", "status", "version", "supported_markets", "approved_for_betting"} <= set(model_schema["properties"])
 
 
-def test_model_status_has_typed_research_only_response(setup):
+def test_model_status_has_typed_evidence_gated_response(setup):
     client, _, headers = setup
-    data = {"models": [{"sport": "americanfootball_nfl", "status": "SHADOW_ONLY",
-                        "approved_for_betting": False, "version": "test-model-v1",
-                        "supported_markets": ["h2h"], "state_refreshed_at": None}],
-            "errors": []}
+    data = {
+        "models": [
+            {
+                "sport": "americanfootball_nfl",
+                "status": "SHADOW_ONLY",
+                "approved_for_betting": False,
+                "version": "test-model-v1",
+                "supported_markets": ["h2h"],
+                "state_refreshed_at": None,
+            }
+        ],
+        "errors": [],
+    }
     with patch("jabazi.api.model_status_data", return_value=data):
         response = client.get("/v1/chatgpt/model-status", headers=headers)
-    assert response.status_code == 200 and response.json() == data
+    assert response.status_code == 200
+    assert response.json()["models"][0]["approved_for_betting"] is False
     assert response.headers["cache-control"] == "no-store"
-    data["models"][0]["approved_for_betting"] = True
-    from pydantic import ValidationError
-    with pytest.raises(ValidationError):
-        bridge.ScannerModelStatus.model_validate(data)
+
+    # Production approval is now a valid typed state, but only the evidence-driven
+    # status builder may emit it.  The response schema must preserve that state.
+    approved = {
+        "models": [
+            {
+                "sport": "americanfootball_nfl",
+                "status": "PRODUCTION_APPROVED",
+                "approved_for_betting": True,
+                "version": "validated-v1",
+                "supported_markets": ["h2h"],
+                "player_status": "PRODUCTION_APPROVED",
+                "player_supported_markets": ["player_anytime_td"],
+                "state_refreshed_at": None,
+            }
+        ],
+        "errors": [],
+    }
+    parsed = bridge.ScannerModelStatus.model_validate(approved)
+    assert parsed.models[0].status == "PRODUCTION_APPROVED"
+    assert parsed.models[0].approved_for_betting is True

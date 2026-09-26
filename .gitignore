@@ -11,5 +11,7 @@ build/
 /data/
 /models/*
 !/models/.gitkeep
+!/models/player_props/
+!/models/player_props/**
 *.healthy
 test-results.xml

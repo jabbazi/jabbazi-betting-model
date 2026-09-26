@@ -38,8 +38,9 @@ PRIMARY = (*EVENT_MARKETS, "americanfootball_ncaaf")
 
 
 class FeedPlan:
-    def __init__(self, factory, store, budget, reserve, errors, renew, *, now=None):
+    def __init__(self, factory, store, budget, reserve, errors, renew, *, now=None, player_models=None):
         self.factory, self.store = factory, store
+        self.player_models = player_models or {}
         self.budget, self.reserve, self.errors, self.renew = budget, reserve, errors, renew
         self.now = now or datetime.now(UTC)
         self.spent, self.remaining, self.stopped = 0, None, False
@@ -134,11 +135,32 @@ class FeedPlan:
                     e["id"],
                 )
             )
+            sport_models = {
+                market: model
+                for (model_sport, market), model in self.player_models.items()
+                if model_sport == sport
+            }
+            stages = {getattr(model, "stage", "SHADOW_ONLY") for model in sport_models.values()}
+            player_status = (
+                "PRODUCTION_APPROVED"
+                if stages == {"PRODUCTION_APPROVED"} and stages
+                else "LIMITED_LIVE"
+                if "PRODUCTION_APPROVED" in stages or "LIMITED_LIVE" in stages
+                else "VALIDATING"
+                if "VALIDATING" in stages
+                else "SHADOW_ONLY"
+                if stages
+                else "UNAVAILABLE"
+            )
             self.coverage["sports"][sport] = {
                 "eligible_events": len(events),
                 "requested_events": 0,
                 "requests": [],
-                "player_model_status": "UNAVAILABLE",
+                "player_model_status": player_status,
+                "player_model_markets": {
+                    market: getattr(model, "stage", "SHADOW_ONLY")
+                    for market, model in sorted(sport_models.items())
+                },
                 "partial": bool(events),
             }
         requests = 0
@@ -192,5 +214,5 @@ class FeedPlan:
                 yield sport, batch
         self.coverage["credits_reserved_this_run"] = self.spent
         self.coverage["note"] = (
-            "Partial event/market coverage within existing quota. Player models are unavailable; market probabilities are not model estimates."
+            "Partial event/market coverage within existing quota. Player-model stages are reported per sport/market; market probabilities remain separate from model estimates."
         )

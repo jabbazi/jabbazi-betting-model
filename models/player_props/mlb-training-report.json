@@ -1,0 +1,79 @@
+{
+  "batter_hits": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_hits-dist-0.1.0-6050653fb107",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "batter_hits_runs_rbis": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_hits_runs_rbis-dist-0.1.0-aa7a6110cf68",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "batter_home_runs": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_home_runs-dist-0.1.0-940b939fcbe3",
+    "family": "binary_logistic",
+    "test_sample_count": 47267,
+    "promotion_passed": false
+  },
+  "batter_rbis": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_rbis-dist-0.1.0-135f2c36608b",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "batter_runs_scored": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_runs_scored-dist-0.1.0-b40c9c4b2fa8",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "batter_total_bases": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_total_bases-dist-0.1.0-ae7a5465f83a",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "batter_walks": {
+    "status": "VALIDATING",
+    "model_version": "mlb-batter_walks-dist-0.1.0-a499c4107a9e",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "pitcher_hits_allowed": {
+    "status": "VALIDATING",
+    "model_version": "mlb-pitcher_hits_allowed-dist-0.1.0-876e4e937b5f",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "pitcher_outs": {
+    "status": "VALIDATING",
+    "model_version": "mlb-pitcher_outs-dist-0.1.0-19bba0904ffd",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "pitcher_strikeouts": {
+    "status": "VALIDATING",
+    "model_version": "mlb-pitcher_strikeouts-dist-0.1.0-90cc338ab949",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "pitcher_walks": {
+    "status": "VALIDATING",
+    "model_version": "mlb-pitcher_walks-dist-0.1.0-2f253563a727",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "baseball_mlb",
+  "market": "batter_hits_runs_rbis",
+  "provider": "Retrosheet",
+  "source_checksum": "0c13e890cb3c04963dc5222196a299c19d64feafe79cf99093137d2ea0e10724",
+  "feature_names": [
+    "games_prior",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean20_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "role_value",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      55.0633831511853,
+      3.726261332712429,
+      1.6955265800311423,
+      3.7055503380439654,
+      1.6956256492293633,
+      1.6929926550561125,
+      3.724519890759505,
+      1.6972825744236553,
+      3.72490941106325,
+      1.6998879462142134,
+      5.026907461035843,
+      1.6886463611046847,
+      1.5022550884927695
+    ],
+    "scale": [
+      16.87521816943535,
+      1.21279168442888,
+      1.9180465769631228,
+      0.6694221850218285,
+      0.7246983442255286,
+      0.59879148941441,
+      0.8187476357475458,
+      1.1592229449265472,
+      0.7133397479944152,
+      0.9324946339650954,
+      2.596138856137642,
+      0.49398608167963864,
+      0.7471601896391036
+    ]
+  },
+  "trained_at": "2026-09-26T02:27:14.506528+00:00",
+  "training_cutoff": "2023-10-01T21:00:00+00:00",
+  "stage": "VALIDATING",
+  "family": "count_nb",
+  "parameters": {
+    "coef": [
+      0.019013673040768706,
+      -0.0020498260485373133,
+      0.0047432437204676,
+      0.052754966408154254,
+      0.004717483712863316,
+      0.023885657784250308,
+      0.013060891683500058,
+      0.006105396705044996,
+      0.02580664128310038,
+      -0.002573088257219202,
+      -0.06306638407762424,
+      0.06066532910059719,
+      0.0003407028324368102
+    ],
+    "intercept": 0.49685242718749545,
+    "dispersion": 0.6318144951042707
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 47267,
+    "mae": 1.470204350163784,
+    "rmse": 1.8839421835561976,
+    "mean_bias": 0.0212350641644405
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "model_version": "mlb-batter_hits_runs_rbis-dist-0.1.0-aa7a6110cf68"
+}

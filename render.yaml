@@ -6,7 +6,7 @@ services:
     plan: 0.5c-512mb
     region: ohio
     branch: build/production-foundations
-    autoDeployTrigger: "off"
+    autoDeployTrigger: "checksPass"
     dockerfilePath: ./Dockerfile
     dockerCommand: python -m jabazi.runtime api
     preDeployCommand: python -m jabazi.persistence.migrate
@@ -26,6 +26,10 @@ services:
         value: "30"
       - key: JABAZI_ODDS_API_KEY
         sync: false
+      - key: JABBAZI_SPORTSDATAIO_API_KEY
+        sync: false
+      - key: JABBAZI_CFBD_API_KEY
+        sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
       - key: JABBAZI_DISCORD_REVIEW_ENABLED
@@ -36,7 +40,7 @@ services:
     plan: 0.5c-512mb
     region: ohio
     branch: build/production-foundations
-    autoDeployTrigger: "off"
+    autoDeployTrigger: "checksPass"
     dockerfilePath: ./Dockerfile
     dockerCommand: python -m jabazi.runtime worker
     preDeployCommand: python -m jabazi.persistence.migrate
@@ -59,6 +63,10 @@ services:
       - key: JABAZI_UNIT_SIZE
         value: "30"
       - key: JABAZI_ODDS_API_KEY
+        sync: false
+      - key: JABBAZI_SPORTSDATAIO_API_KEY
+        sync: false
+      - key: JABBAZI_CFBD_API_KEY
         sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
