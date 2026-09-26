@@ -47,8 +47,8 @@ jobs:
           python tools/train_player_prop_models.py \
             --input-dir /tmp/nfl-player-capture \
             --output-dir /tmp/nfl-models \
-            --train-before 2025-01-01T00:00:00+00:00 \
-            --test-before 2026-01-01T00:00:00+00:00
+            --train-before 2024-01-01T00:00:00+00:00 \
+            --test-before 2025-01-01T00:00:00+00:00
         env:
           PYTHONPATH: src:.
       - name: Capture Retrosheet MLB batter and pitcher history
