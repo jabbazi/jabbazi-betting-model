@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from jabazi.models.player_distribution import (
     MLB_PROP_MARKETS,
     NFL_PROP_MARKETS,
