@@ -263,12 +263,25 @@ class ScoreDistributionModel(ProbabilityModel):
                 "integrity": {
                     "event_identity": event.get("provider_event_id") == price.event_id,
                     "schedule_identity": True,
-                    "line_identity": True, "fresh_features": True,
+                    "line_identity": True,
+                    "fresh_features": True,
                     "schema": True,
                     "variance": summary["margin_variance"] > 0 and summary["total_variance"] > 0,
                     "no_duplicate_event": True,
-                    "starter": False, "roster": False, "injuries": False,
-                    "calibration": False,
+                    # Production context must come from separately archived, point-in-time
+                    # evidence. Missing evidence fails closed instead of being guessed.
+                    "starter": self.artifact.get("production_context", {}).get(
+                        "starter_verified", False
+                    ),
+                    "roster": self.artifact.get("production_context", {}).get(
+                        "roster_verified", False
+                    ),
+                    "injuries": self.artifact.get("production_context", {}).get(
+                        "injuries_verified", False
+                    ),
+                    "calibration": self.artifact.get("production_context", {}).get(
+                        "calibration_verified", False
+                    ),
                     "feature_drift": any(abs(z) > 6 for z in scaled[:-1]),
                 },
                 "source_checksum": self.artifact["source_checksum"],
@@ -278,7 +291,15 @@ class ScoreDistributionModel(ProbabilityModel):
                 "score_sample_count": len(samples),
                 "push_probability": result["push"],
                 "conditional_on_no_tie": price.market == "h2h",
-                "production_inputs_verified": False,
+                "production_inputs_verified": all(
+                    self.artifact.get("production_context", {}).get(key, False)
+                    for key in (
+                        "starter_verified",
+                        "roster_verified",
+                        "injuries_verified",
+                        "calibration_verified",
+                    )
+                ),
                 "limitations": self.artifact["limitations"],
             },
             approved_for_betting=False,
