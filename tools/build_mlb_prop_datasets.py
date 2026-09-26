@@ -120,7 +120,9 @@ def build_market(rows, market, value_field, opportunity_field, minimum_opps, *, 
                 decision = start - timedelta(hours=2)
                 if available < decision:
                     role = row.get("p_seq") if pitcher else row.get("b_lp")
-                    role = 0 if role is None else float(role)
+                    role = 0.0 if role in (None, "") else float(role)
+                    if not math.isfinite(role) or role < 0:
+                        raise ValueError("Invalid historical role value")
                     result.append({
                         "event_id": row["gid"],
                         "player_id": player,
