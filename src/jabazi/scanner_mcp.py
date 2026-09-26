@@ -123,7 +123,7 @@ main{{max-width:520px;margin:4vh auto}}input,button{{box-sizing:border-box;width
 margin:12px 0;border-radius:10px;font:inherit}}button{{background:#8648ef;color:white;border:0}}</style>
 <main><h1>Connect your private JABBAZI scanner</h1>
 <p>Authorize ChatGPT to start research scans and read NFL/MLB model probabilities and scan results.
-Each new scan can consume up to 15 odds-provider credits within your existing limits.</p>
+Each new scan uses the configured odds-provider credit budget within your existing limits.</p>
 <p>This connection cannot place bets, edit your ledger, publish to Discord or access your provider keys.
 Models remain research only.</p>
 <form method="post" action="/oauth/authorize">{hidden}
@@ -303,7 +303,7 @@ def tool(name, description, properties, required, readonly):
 
 
 TOOLS = [
-    tool("scan_everything", "Use when the owner says scan everything or requests a new JABBAZI model scan. Starts the real cloud scanner with fitted NFL/MLB research probabilities and current supported odds. Up to 15 provider credits; persists research records. Reuse the same UUID on retries. Poll get_scan_results until complete. Never infer unsupported probabilities or betting approval. No wagers or Discord posts.",
+    tool("scan_everything", "Use when the owner says scan everything or requests a new JABBAZI model scan. Starts the real cloud scanner with current team and deployed NFL/MLB player-model research probabilities plus supported odds. Uses the configured provider-credit budget and persists research records. Reuse the same UUID on retries. Poll get_scan_results until complete; running responses include live progress when available. Never infer unsupported probabilities or betting approval. No wagers or Discord posts.",
          {"request_id": {"type": "string", "format": "uuid", "description": "A new UUID per explicit new scan; reuse on retries."}}, ["request_id"], False),
     tool("get_scan_results", "Read one real scan page, waiting up to 10 seconds if RUNNING. Continue the same scan_id until terminal. Each page contains at most 25 rows. Total coverage is across all pages; fetch further pages for full retained coverage. Report scan ID, generated time, model version and coverage. Keep market consensus separate from model probability; all estimates remain research only. Stale prices are unavailable for action.",
          {"scan_id": {"type": "string", "format": "uuid"}, "page": {"type": "integer", "minimum": 1, "maximum": 11, "default": 1}}, ["scan_id"], True),
@@ -364,7 +364,7 @@ async def mcp(request: Request, tasks: BackgroundTasks):
             result = {"protocolVersion": requested if requested in VERSIONS else VERSIONS[0],
                       "capabilities": {"tools": {}},
                       "serverInfo": {"name": "jabbazi-private-scanner", "version": "1.0.0"},
-                      "instructions": "Use scan_everything for explicit new scans, then poll get_scan_results. Never substitute guessed probabilities. NFL/MLB are SHADOW_ONLY. No wagering or publishing tools."}
+                      "instructions": "Use scan_everything for explicit new scans, then poll get_scan_results. Never substitute guessed probabilities. Respect each returned team/player market validation stage; only PRODUCTION_APPROVED may influence cash. No wagering or publishing tools."}
         elif method == "ping":
             result = {}
         elif method == "tools/list":
