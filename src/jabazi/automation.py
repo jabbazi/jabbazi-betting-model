@@ -109,11 +109,27 @@ class AutomaticScanner:
         scanned = 0
         remaining = None
         models, model_errors = load_models(ledger if isinstance(ledger, Store) else None)
+        from .models.player_registry import load_player_models
+        player_models, player_model_errors = load_player_models(
+            ledger if isinstance(ledger, Store) else None
+        )
         errors.extend(model_errors)
+        errors.extend(player_model_errors)
+        from .research.prospective import validation_report
+        prospective = (
+            validation_report(ledger)
+            if isinstance(ledger, Store)
+            else {"buckets": []}
+        )
         actions = []
         run_id = str(uuid.uuid4())
         slate_events = {}
         from .feed_plan import FeedPlan
+
+        from .providers.player_features_live import LivePlayerFeatureCollector
+        player_features = LivePlayerFeatureCollector(
+            sportsdataio_api_key=self.settings.sportsdataio_api_key
+        )
 
         plan = FeedPlan(
             lambda sport, markets: TheOddsApiProvider(
@@ -124,6 +140,7 @@ class AutomaticScanner:
             self.credit_reserve,
             errors,
             lambda: not isinstance(ledger, Store) or ledger.acquire_lease("scanner", owner, 600),
+            player_models=player_models,
         )
         for sport, batch in plan.batches(selected):
             try:
@@ -151,8 +168,14 @@ class AutomaticScanner:
                     errors.extend(f"{sport['key']}:{event}:DUPLICATE_EVENT_IDENTITY" for event in sorted(duplicate_ids))
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
+                if isinstance(ledger, Store) and any(card.participant for card in cards):
+                    player_features.sync(ledger, cards)
                 for card in cards:
-                    model = models.get(card.sport)
+                    model = (
+                        player_models.get((card.sport, card.market))
+                        if card.participant
+                        else models.get(card.sport)
+                    )
                     # One bad game/model must not abort independent price research.
                     try:
                         estimate = model.estimate(card) if model and card.event_id not in duplicate_ids else None
@@ -160,7 +183,7 @@ class AutomaticScanner:
                         estimate = None
                         errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
                     from .reliability.layer import evaluate as reliability_evaluate
-                    reliability = reliability_evaluate(card, estimate, model)
+                    reliability = reliability_evaluate(card, estimate, model, prospective)
                     if estimate and isinstance(ledger, Store):
                         evidence = {
                             "event_id": card.event_id,
@@ -180,9 +203,17 @@ class AutomaticScanner:
                             "reliability": reliability,
                         }
                         ledger.append("model_prediction", card.event_id, evidence, digest(evidence))
-                        from .research.prospective import freeze_candidate
                         try:
-                            reliability["prospective_recorded"] = freeze_candidate(ledger, card, estimate, reliability)
+                            if card.participant:
+                                from .research.player_prospective import freeze_player_candidate
+                                reliability["prospective_recorded"] = freeze_player_candidate(
+                                    ledger, card, estimate, reliability
+                                )
+                            else:
+                                from .research.prospective import freeze_candidate
+                                reliability["prospective_recorded"] = freeze_candidate(
+                                    ledger, card, estimate, reliability
+                                )
                         except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
                             reliability["prospective_recorded"] = False
                             reliability["prospective_error"] = type(exc).__name__
@@ -192,8 +223,9 @@ class AutomaticScanner:
                         model_probability=estimate.probability if estimate else None,
                         uncertainty=estimate.uncertainty if estimate else Decimal(0),
                         current_exposure=ledger.open_exposure(),
-                        model_validated=bool(estimate and estimate.approved_for_betting
-                                             and reliability["model_can_influence_cash"]),
+                        model_validated=bool(
+                            estimate and reliability["model_can_influence_cash"]
+                        ),
                         jurisdiction=self.settings.jurisdiction,
                     )
                     action = replace(
@@ -212,7 +244,9 @@ class AutomaticScanner:
                             observed_at=card.observed_at,
                             source_at=card.source_timestamp,
                             starts_at=card.starts_at,
-                            model_approved=bool(estimate and estimate.approved_for_betting),
+                            model_approved=bool(
+                                estimate and reliability["model_can_influence_cash"]
+                            ),
                             database_ok=isinstance(ledger, Store),
                             required_features=("production_inputs_verified",),
                             available_features=("production_inputs_verified",)
@@ -315,13 +349,24 @@ class AutomaticScanner:
                     "completed_at": datetime.now(UTC).isoformat(),
                     "healthy": not errors,
                     "models_loaded": {
-                        sport: getattr(model, "artifact", {}).get("model_version")
-                        for sport, model in models.items()
+                        "team": {
+                            sport: getattr(model, "artifact", {}).get("model_version")
+                            for sport, model in models.items()
+                        },
+                        "player": {
+                            f"{sport}|{market}": getattr(model, "artifact", {}).get("model_version")
+                            for (sport, market), model in player_models.items()
+                        },
                     },
                     "modeled_actions": sum(a.model_probability is not None for a in actions),
                     "unmodeled_actions": sum(a.model_probability is None for a in actions),
                 },
                 run_id,
+            )
+        if plan.coverage is not None:
+            plan.coverage["player_feature_diagnostics"] = list(player_features.diagnostics)[-50:]
+            plan.coverage["player_feature_provider_configured"] = bool(
+                self.settings.sportsdataio_api_key
             )
         return AutomaticScanResult(
             scanned,
