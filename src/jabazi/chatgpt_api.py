@@ -146,8 +146,9 @@ def latest_record(conn, kind, scan_id):
     ).mappings().first()
 
 
-def submit(store, scan_id, max_credits, now=None):
+def submit(store, scan_id, max_credits=None, now=None):
     now = now or datetime.now(UTC)
+    max_credits = scan_credit_budget() if max_credits is None else max_credits
     # Serialize acceptance across API instances. Duplicate ids never recharge.
     with store.transaction() as conn:
         if record(conn, "chatgpt_scan_request", scan_id):
@@ -174,13 +175,18 @@ def submit(store, scan_id, max_credits, now=None):
     return True
 
 
-def run_background(scan_id, max_credits):
+def run_background(scan_id):
     from .api import ScanRequest, perform_scan
 
     store = None
     try:
         # Require durable storage before consuming any provider quota.
         store = store_factory()
+        with store.engine.connect() as conn:
+            request = record(conn, "chatgpt_scan_request", scan_id)
+        max_credits = int(
+            (request or {}).get("payload", {}).get("max_credits", scan_credit_budget())
+        )
 
         def on_progress(update):
             payload = dict(update)
@@ -347,7 +353,7 @@ def start_scan(body: ScanEverythingRequest, tasks: BackgroundTasks,
     finally:
         store.close()
     if accepted:
-        tasks.add_task(run_background, scan_id, max_credits)
+        tasks.add_task(run_background, scan_id)
     return JSONResponse(output.model_dump(), headers=PRIVATE_HEADERS)
 
 
