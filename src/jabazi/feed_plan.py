@@ -6,12 +6,12 @@ from datetime import UTC, datetime
 
 EVENT_MARKETS = {
     "americanfootball_nfl": (
+        "player_anytime_td",
         "player_pass_yds",
         "player_reception_yds",
         "player_rush_yds",
         "player_receptions",
         "player_pass_tds",
-        "player_anytime_td",
         "player_pass_attempts",
         "player_pass_completions",
         "player_rush_attempts",
@@ -165,24 +165,45 @@ class FeedPlan:
             }
         requests = 0
         if self.coverage["event_odds_enabled"]:
-            # Round robin avoids spending the whole event budget on one league.
+            # Saturdays/Sundays prioritize NFL event props while MLB still receives
+            # its base h2h/spread/total feed. Least-recently-requested NFL events
+            # rotate first, so consecutive scans can cover the full Sunday slate.
+            weekend_nfl = self.now.weekday() in {5, 6}
+            sport_order = list(candidates)
+            if weekend_nfl:
+                sport_order = ["americanfootball_nfl", "baseball_mlb"]
             while any(candidates.values()) and requests < self.max_events and not self.stopped:
                 progressed = False
-                for sport, events in candidates.items():
+                for sport in sport_order:
+                    events = candidates.get(sport, [])
                     if not events or requests >= self.max_events:
+                        continue
+                    if weekend_nfl and sport != "americanfootball_nfl" and candidates.get("americanfootball_nfl"):
                         continue
                     available = min(self.per_event, self.budget - self.spent)
                     if available <= 0:
                         break
                     event = events.pop(0)
-                    # Rotate market bundles per event using audited requests, not random selection.
                     all_markets = EVENT_MARKETS[sport]
-                    offset = sum(
+                    prior_count = sum(
                         len(p["markets"]) for p in history.get((sport, event["id"]), [])
-                    ) % len(all_markets)
-                    markets = tuple(
-                        all_markets[(offset + i) % len(all_markets)] for i in range(available)
                     )
+                    if sport == "americanfootball_nfl" and available > 0:
+                        # ATD is always present in the NFL bundle; rotate the
+                        # remaining slots across volume/yardage markets.
+                        rotating = tuple(m for m in all_markets if m != "player_anytime_td")
+                        offset = prior_count % len(rotating)
+                        others = tuple(
+                            rotating[(offset + i) % len(rotating)]
+                            for i in range(max(0, available - 1))
+                        )
+                        markets = ("player_anytime_td",) + others
+                    else:
+                        offset = prior_count % len(all_markets)
+                        markets = tuple(
+                            all_markets[(offset + i) % len(all_markets)]
+                            for i in range(available)
+                        )
                     before = self.spent
                     batch = self.fetch(sport, markets, event)
                     if self.spent == before:
