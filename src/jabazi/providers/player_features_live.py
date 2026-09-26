@@ -151,6 +151,52 @@ class LivePlayerFeatureCollector:
     def diagnostics(self):
         return tuple(self._diagnostics)
 
+
+    def provider_status(self):
+        result = {
+            "configured": bool(self.api_key),
+            "nfl": {"ok": False, "rows": 0},
+            "mlb": {"ok": False, "rows": 0},
+        }
+        if not self.api_key:
+            return result
+        try:
+            season = self._sportsdata("nfl/scores/json/CurrentSeason")
+            week = self._sportsdata("nfl/scores/json/CurrentWeek")
+            if isinstance(season, dict):
+                season = season.get("Season") or season.get("season")
+            if isinstance(week, dict):
+                week = week.get("Week") or week.get("week")
+            rows = self._sportsdata(
+                f"nfl/projections/json/PlayerGameProjectionStatsByWeek/{int(season)}/{int(week)}"
+            )
+            result["nfl"] = {
+                "ok": isinstance(rows, list) and len(rows) > 0,
+                "rows": len(rows) if isinstance(rows, list) else 0,
+                "season": int(season),
+                "week": int(week),
+            }
+        except urllib.error.HTTPError as exc:
+            result["nfl"] = {"ok": False, "rows": 0, "error": f"HTTP_{exc.code}"}
+        except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
+            result["nfl"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+
+        try:
+            local_date = self.now.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+            rows = self._sportsdata(
+                f"mlb/projections/json/PlayerGameProjectionStatsByDate/{local_date}"
+            )
+            result["mlb"] = {
+                "ok": isinstance(rows, list) and len(rows) > 0,
+                "rows": len(rows) if isinstance(rows, list) else 0,
+                "date": local_date,
+            }
+        except urllib.error.HTTPError as exc:
+            result["mlb"] = {"ok": False, "rows": 0, "error": f"HTTP_{exc.code}"}
+        except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
+            result["mlb"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+        return result
+
     def _sportsdata(self, path):
         if not self.api_key:
             return None
