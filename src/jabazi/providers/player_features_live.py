@@ -17,7 +17,6 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections import defaultdict
 from datetime import UTC, datetime
 from statistics import pstdev
 from zoneinfo import ZoneInfo
