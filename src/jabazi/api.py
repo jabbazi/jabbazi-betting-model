@@ -369,6 +369,10 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callb
             "arbitrages": _json([asdict(item) for item in result.arbitrages]),
             "disclaimer": "No wagers were placed. Market-only signals cannot become BET_NOW.",
         }
+    except __import__("jabazi.automation", fromlist=["ScannerBusy"]).ScannerBusy:
+        raise HTTPException(
+            status_code=409, detail="Scanner busy; retry the same research job shortly"
+        ) from None
     except Exception:
         raise HTTPException(
             status_code=503, detail="Scan unavailable; no actionable output"
