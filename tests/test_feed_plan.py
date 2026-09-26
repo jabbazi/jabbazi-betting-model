@@ -201,8 +201,8 @@ def test_prop_feed_reaches_archive_and_member_shortlist_without_fabricated_model
     try:
         archive_sheets(store, result)
         record = latest_sheet(store)
-        for sport in ("nfl", "mlb"):
-            rows = shortlist_rows(record, sport, 1)
+        for sport, group in (("nfl", 2), ("mlb", 1)):
+            rows = shortlist_rows(record, sport, group)
             assert len(rows) == 1 and rows[0]["participant"] == "Synthetic Player"
             assert rows[0]["best"] is None and rows[0]["edge"] is None
             assert rows[0]["reference"]["market_no_vig_probability"] == "0.5"
