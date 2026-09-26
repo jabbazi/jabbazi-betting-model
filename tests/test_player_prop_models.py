@@ -178,3 +178,38 @@ def test_team_bucket_can_promote_only_when_market_beaten_and_calibrated():
     stage, approved, _ = prospective_stage(record)
     assert stage == "PRODUCTION_APPROVED"
     assert approved is True
+
+
+def test_player_snapshot_is_market_specific():
+    from types import SimpleNamespace
+    from jabazi.models.player_distribution import PlayerPropModel
+
+    artifact = count_artifact()
+    artifact["stage"] = "SHADOW_ONLY"
+
+    class Store:
+        def list_records(self, kind, limit, entity=None):
+            assert kind == "player_feature_snapshot"
+            # Wrong-market data must never be accepted even if feature names match.
+            return [{
+                "payload": {
+                    "sport": "baseball_mlb",
+                    "event_id": "game-1",
+                    "participant": "Pitcher A",
+                    "market": "pitcher_outs",
+                    "features": {"usage": 0.0},
+                    "integrity": {},
+                }
+            }]
+
+    model = PlayerPropModel(artifact, Store())
+    price = SimpleNamespace(
+        sport="baseball_mlb",
+        event_id="game-1",
+        market="pitcher_strikeouts",
+        participant="Pitcher A",
+        in_play=False,
+        selection="over",
+        line=4.5,
+    )
+    assert model.estimate(price) is None
