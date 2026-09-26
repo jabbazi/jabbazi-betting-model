@@ -215,7 +215,13 @@ def present_action(value, now):
     row.update(
         decision="WATCH" if fresh else "STALE DATA",
         price_is_current=fresh,
-        probability_status="SHADOW_ONLY" if row["model_probability"] is not None else "UNAVAILABLE",
+        probability_status=(
+            row.get("model_stage")
+            if row["model_probability"] is not None and row.get("model_stage")
+            else "SHADOW_ONLY"
+            if row["model_probability"] is not None
+            else "UNAVAILABLE"
+        ),
         stake_dollars="0", maximum_playable_price=None,
     )
     if not fresh:
