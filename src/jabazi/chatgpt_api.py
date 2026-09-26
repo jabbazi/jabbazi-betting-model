@@ -34,6 +34,13 @@ RESULT_WAIT_SECONDS = 10
 PRIVATE_HEADERS = {"Cache-Control": "no-store", "Vary": "Authorization"}
 
 
+def scan_credit_budget() -> int:
+    value = int(os.getenv("JABBAZI_CHATGPT_MAX_CREDITS", "30"))
+    if not 15 <= value <= 60:
+        raise HTTPException(503, "Invalid ChatGPT scan credit budget")
+    return value
+
+
 def scanner_key() -> str:
     settings = Settings.from_environment()
     if len(settings.service_token) < 32:
@@ -107,12 +114,14 @@ class ScanPage(BaseModel):
     model_coverage: dict[str, Any] = {}
     event_market_coverage: dict[str, Any] | None = None
     result_ordering: str | None = None
+    progress: dict[str, Any] = Field(default_factory=dict)
     actions: list[dict[str, Any]] = []
     errors: list[str] = []
     betting_enabled: Literal[False] = False
     scope: str = (
-        "Full scan of active configured feeds within a 15-credit budget; NFL, MLB, CFB first. "
-        "Odds coverage is not trained-model coverage. Research only; no bets or Discord posts."
+        "Full scan of active configured feeds within the configured provider-credit budget; "
+        "NFL, MLB, CFB first. Odds coverage is not trained-model coverage. "
+        "Research only; no bets or Discord posts."
     )
 
 
@@ -128,7 +137,16 @@ def record(conn, kind, scan_id):
     ).mappings().first()
 
 
-def submit(store, scan_id, now=None):
+def latest_record(conn, kind, scan_id):
+    return conn.execute(
+        select(events)
+        .where(events.c.kind == kind, events.c.entity == scan_id)
+        .order_by(events.c.occurred_at.desc(), events.c.id.desc())
+        .limit(1)
+    ).mappings().first()
+
+
+def submit(store, scan_id, max_credits, now=None):
     now = now or datetime.now(UTC)
     # Serialize acceptance across API instances. Duplicate ids never recharge.
     with store.transaction() as conn:
@@ -150,26 +168,60 @@ def submit(store, scan_id, now=None):
                 )
         store._append(
             conn, "chatgpt_scan_request", scan_id,
-            {"started_at": now.isoformat(), "mode": "full", "max_credits": 15},
+            {"started_at": now.isoformat(), "mode": "full", "max_credits": max_credits},
             digest(["chatgpt_scan_request", scan_id]),
         )
     return True
 
 
-def run_background(scan_id):
+def run_background(scan_id, max_credits):
     from .api import ScanRequest, perform_scan
 
     store = None
     try:
         # Require durable storage before consuming any provider quota.
         store = store_factory()
+
+        def on_progress(update):
+            payload = dict(update)
+            payload["updated_at"] = datetime.now(UTC).isoformat()
+            store.append(
+                "chatgpt_scan_progress",
+                scan_id,
+                payload,
+                digest([
+                    "chatgpt_scan_progress",
+                    scan_id,
+                    payload.get("feeds_scanned"),
+                    payload.get("quotes_archived"),
+                    payload.get("credits_reserved"),
+                    payload.get("sport"),
+                ]),
+            )
+
+        on_progress({
+            "phase": "STARTING",
+            "feeds_scanned": 0,
+            "quotes_archived": 0,
+            "credits_reserved": 0,
+            "max_credits": max_credits,
+        })
         result = perform_scan(
-            ScanRequest(mode="full", credit_reserve=50, max_credits=15), model_first=True,
+            ScanRequest(mode="full", credit_reserve=50, max_credits=max_credits),
+            model_first=True,
+            progress_callback=on_progress,
         )
         result["status"] = (
             "FAILED" if result["feeds_scanned"] == 0
             else "PARTIAL" if result["errors"] else "COMPLETE"
         )
+        on_progress({
+            "phase": result["status"],
+            "feeds_scanned": result["feeds_scanned"],
+            "quotes_archived": result["quotes_archived"],
+            "credits_remaining": result.get("credits_remaining"),
+            "max_credits": max_credits,
+        })
     except Exception:
         result = {"status": "FAILED", "errors": ["Scan unavailable; no actionable output"]}
     try:
@@ -235,10 +287,12 @@ def scan_page(store, scan_id, page=1, now=None):
     with store.engine.connect() as conn:
         request = record(conn, "chatgpt_scan_request", scan_id)
         result = record(conn, "chatgpt_scan_result", scan_id)
+        progress_record = latest_record(conn, "chatgpt_scan_progress", scan_id)
     if request is None:
         raise HTTPException(404, "Scan not found")
     expired = (now - utc(request["occurred_at"])).total_seconds() >= JOB_SECONDS
     payload = result["payload"] if result else {}
+    progress = progress_record["payload"] if progress_record else {}
     rows = payload.get("actions", [])
     if page > max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE):
         raise HTTPException(404, "Result page not found")
@@ -255,21 +309,28 @@ def scan_page(store, scan_id, page=1, now=None):
         total_pages=max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE),
         next_page=page + 1 if page * PAGE_SIZE < len(rows) else None,
         total_returned_actions=len(rows), total_actions=total, truncated=total > len(rows),
-        feeds_scanned=payload.get("feeds_scanned", 0),
-        quotes_archived=payload.get("quotes_archived", 0),
-        credits_remaining=payload.get("credits_remaining"),
+        feeds_scanned=payload.get("feeds_scanned", progress.get("feeds_scanned", 0)),
+        quotes_archived=payload.get("quotes_archived", progress.get("quotes_archived", 0)),
+        credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
         model_coverage=payload.get("model_coverage", {}),
         event_market_coverage=payload.get("event_market_coverage"),
         result_ordering=payload.get("result_ordering"),
+        progress=progress,
         actions=[present_action(r, now) for r in page_rows],
         errors=payload.get("errors", []),
+        scope=(
+            f"Full scan of active configured feeds within a "
+            f"{request['payload'].get('max_credits', scan_credit_budget())}-credit budget; "
+            "NFL, MLB, CFB first. Odds coverage is not trained-model coverage. "
+            "Research only; no bets or Discord posts."
+        ),
     )
 
 
 @router.post(
     "/v1/chatgpt/scans", operation_id="scanEverything", tags=["chatgpt"],
     response_model=ScanPage,
-    description="Start an owner-only full research scan. Uses up to 15 provider credits and archives results. Reuse the same request_id on retries. No wagers or Discord publishing.",
+    description="Start an owner-only full research scan using the configured provider-credit budget and archive results. Reuse the same request_id on retries. No wagers or Discord publishing.",
     openapi_extra={"x-openai-isConsequential": True},
 )
 def start_scan(body: ScanEverythingRequest, tasks: BackgroundTasks,
@@ -279,13 +340,14 @@ def start_scan(body: ScanEverythingRequest, tasks: BackgroundTasks,
         raise HTTPException(503, "Odds provider is not configured")
     store = store_factory()
     scan_id = str(body.request_id)
+    max_credits = scan_credit_budget()
     try:
-        accepted = submit(store, scan_id)
+        accepted = submit(store, scan_id, max_credits)
         output = scan_page(store, scan_id)
     finally:
         store.close()
     if accepted:
-        tasks.add_task(run_background, scan_id)
+        tasks.add_task(run_background, scan_id, max_credits)
     return JSONResponse(output.model_dump(), headers=PRIVATE_HEADERS)
 
 
