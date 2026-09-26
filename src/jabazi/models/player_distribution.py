@@ -232,14 +232,14 @@ class PlayerPropModel(ProbabilityModel):
     def _snapshot(self, price):
         if self.store is None or not price.participant:
             return None
-        entity = f"{price.sport}|{price.event_id}|{price.participant}"
+        entity = f"{price.sport}|{price.event_id}|{price.participant}|{price.market}"
         records = self.store.list_records("player_feature_snapshot", 1, entity=entity)
         if not records:
             return None
         payload = records[0]["payload"]
         if payload.get("sport") != price.sport or payload.get("event_id") != price.event_id:
             return None
-        if payload.get("participant") != price.participant:
+        if payload.get("participant") != price.participant or payload.get("market") != price.market:
             return None
         return payload
 
