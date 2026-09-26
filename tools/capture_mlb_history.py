@@ -21,12 +21,14 @@ FIELDS = (
     "p_bfp",
     "p_k",
     "p_w",
+    "p_h",
+    "p_hr",
     "p_er",
     "date",
     "number",
     "gametype",
 )
-COUNTS = ("p_seq", "p_ipouts", "p_bfp", "p_k", "p_w", "p_er")
+COUNTS = ("p_seq", "p_ipouts", "p_bfp", "p_k", "p_w", "p_h", "p_hr", "p_er")
 BATTING_FIELDS = (
     "gid", "id", "team", "b_lp", "b_seq", "b_pa", "b_ab", "b_r", "b_h",
     "b_d", "b_t", "b_hr", "b_rbi", "b_w", "date", "number", "vishome",
