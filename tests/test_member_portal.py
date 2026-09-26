@@ -20,6 +20,7 @@ from jabazi.persistence.store import Store
 
 @pytest.fixture
 def portal(tmp_path, monkeypatch):
+    monkeypatch.setattr("jabazi.member_access.check_live_membership", lambda principal: None)
     url = "sqlite:///" + str(tmp_path / "member.db")
     store = Store(url, initialize=True)
     monkeypatch.setenv("JABBAZI_PLATFORM_DATABASE_URL", url)
