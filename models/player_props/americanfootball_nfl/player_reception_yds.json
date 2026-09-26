@@ -1,0 +1,102 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "americanfootball_nfl",
+  "market": "player_reception_yds",
+  "provider": "nflverse",
+  "source_checksum": "a09cc1e185ca537a146e17830cc63497173c8ace1792ece1af342c0d90aa7f13",
+  "feature_names": [
+    "games_prior",
+    "is_home",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "position_qb",
+    "position_rb",
+    "position_te",
+    "position_wr",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      16.864698424198515,
+      0.5011773229487412,
+      4.074533598985691,
+      30.014490128599892,
+      4.034040769299324,
+      30.147120230691954,
+      4.083680492664386,
+      30.16612328684419,
+      4.048273259675165,
+      30.045618245486992,
+      0.0,
+      0.25430175692809276,
+      0.23944937511320413,
+      0.49456620177504074,
+      30.283456290914586,
+      18.794260593659747
+    ],
+    "scale": [
+      9.634959530740167,
+      0.4999986139087051,
+      3.1878581635757555,
+      32.090931754713495,
+      2.4445886177978466,
+      22.29918077168254,
+      2.6071208183300216,
+      24.90396020114452,
+      2.514791304924755,
+      23.38600662032244,
+      1.0,
+      0.435467993486764,
+      0.42674743335036736,
+      0.4999704729650276,
+      21.603255309112352,
+      11.820835001925515
+    ]
+  },
+  "trained_at": "2026-09-26T02:25:02.496206+00:00",
+  "training_cutoff": "2023-12-31T00:15:00+00:00",
+  "stage": "VALIDATING",
+  "family": "normal_ridge",
+  "parameters": {
+    "coef": [
+      -0.10695473645488042,
+      0.49921079045794114,
+      1.4841989532719524,
+      0.33491552387968665,
+      1.9606261750518756,
+      5.546104240608911,
+      -1.082889136321192,
+      2.51877604499692,
+      4.7522916290527615,
+      -2.396048512542915,
+      0.0,
+      -0.2317533680239819,
+      1.2252840199585457,
+      2.0033703599365262,
+      6.408744010406326,
+      -0.15260053876040072
+    ],
+    "intercept": 29.400561492483185,
+    "sigma": 26.194663334727778
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 4801,
+    "mae": 18.425657838776885,
+    "rmse": 25.308216647419187,
+    "mean_bias": 0.44544012738043803
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "model_version": "nfl-player_reception_yds-dist-0.1.0-27d29608f9f1"
+}
