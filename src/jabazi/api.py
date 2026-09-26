@@ -18,7 +18,7 @@ import os
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .automation import AutomaticScanner
+from .automation import AutomaticScanner, ScannerBusy
 from .config import Settings
 
 
@@ -369,7 +369,7 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callb
             "arbitrages": _json([asdict(item) for item in result.arbitrages]),
             "disclaimer": "No wagers were placed. Market-only signals cannot become BET_NOW.",
         }
-    except __import__("jabazi.automation", fromlist=["ScannerBusy"]).ScannerBusy:
+    except ScannerBusy:
         raise HTTPException(
             status_code=409, detail="Scanner busy; retry the same research job shortly"
         ) from None
