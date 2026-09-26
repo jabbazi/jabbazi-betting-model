@@ -54,6 +54,7 @@ def archive_player_feature_snapshot(
     sport,
     event_id,
     participant,
+    market,
     player_id,
     starts_at,
     features_available_at,
@@ -71,7 +72,7 @@ def archive_player_feature_snapshot(
     This function does not fetch data.  The caller must provide real evidence from
     an authorized data source, including a checksum and timestamps.
     """
-    if not all((sport, event_id, participant, player_id, provider, source_checksum, feature_schema_version)):
+    if not all((sport, event_id, participant, market, player_id, provider, source_checksum, feature_schema_version)):
         raise ValueError("Player feature provenance and identity are required")
     start = _timestamp(starts_at)
     available = _timestamp(features_available_at)
@@ -92,6 +93,7 @@ def archive_player_feature_snapshot(
         "sport": sport,
         "event_id": str(event_id),
         "participant": participant,
+        "market": market,
         "player_id": str(player_id),
         "starts_at": start.isoformat(),
         "features_available_at": available.isoformat(),
@@ -112,7 +114,7 @@ def archive_player_feature_snapshot(
         "snapshot_id": snapshot_id,
         "archived_at": now.isoformat(),
     }
-    entity = f"{sport}|{event_id}|{participant}"
+    entity = f"{sport}|{event_id}|{participant}|{market}"
     store.append(
         "player_feature_snapshot",
         entity,
