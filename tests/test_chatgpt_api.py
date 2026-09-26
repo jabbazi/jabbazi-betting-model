@@ -143,6 +143,32 @@ def test_pending_read_returns_completion_without_starting_another_scan(setup):
     worker.assert_not_called()
 
 
+def test_running_page_exposes_latest_live_progress(setup):
+    _, store, _ = setup
+    scan_id = request(store)
+    payload = {
+        "phase": "SCANNING",
+        "feeds_scanned": 3,
+        "quotes_archived": 1234,
+        "credits_reserved": 12,
+        "max_credits": bridge.scan_credit_budget(),
+        "sport": "americanfootball_nfl",
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+    store.append(
+        "chatgpt_scan_progress",
+        scan_id,
+        payload,
+        digest(["chatgpt_scan_progress", scan_id, "test"]),
+    )
+    page = bridge.scan_page(store, scan_id)
+    assert page.status == "RUNNING"
+    assert page.feeds_scanned == 3
+    assert page.quotes_archived == 1234
+    assert page.progress["phase"] == "SCANNING"
+    assert page.progress["max_credits"] == bridge.scan_credit_budget()
+
+
 def test_pending_read_has_bounded_wait_and_retains_same_job(setup):
     client, store, headers = setup
     scan_id = request(store)
@@ -218,8 +244,9 @@ def test_background_calls_real_shared_scanner_contract_and_sanitizes_failure(set
     }) as scanner:
         bridge.run_background(scan_id)
     options = scanner.call_args.args[0]
-    assert options.mode == "full" and options.max_credits == 15 and options.credit_reserve == 50
-    assert scanner.call_args.kwargs == {"model_first": True}
+    assert options.mode == "full" and options.max_credits == bridge.scan_credit_budget() and options.credit_reserve == 50
+    assert scanner.call_args.kwargs["model_first"] is True
+    assert callable(scanner.call_args.kwargs["progress_callback"])
     assert bridge.scan_page(store, scan_id).status == "COMPLETE"
     with patch("jabazi.api.perform_scan", side_effect=RuntimeError("secret-example")):
         failed_id = str(uuid4())
