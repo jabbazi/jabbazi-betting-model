@@ -91,6 +91,7 @@ class ScannerModelStatus(BaseModel):
     # GPT Actions requires explicit object properties in response schemas.
     models: list[ScannerModelState]
     errors: list[str]
+    player_feature_provider: dict[str, Any] = Field(default_factory=dict)
 
 
 class ScanPage(BaseModel):
