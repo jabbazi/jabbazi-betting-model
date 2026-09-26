@@ -347,60 +347,86 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
 
 
 def promotion_decision(artifact, prospective):
-    """Return a new artifact; only frozen prospective evidence can approve betting."""
+    """Promote only from honest distribution + frozen priced prospective evidence.
+
+    Historical archives often lack sportsbook prop lines. In that case they can
+    validate the outcome distribution, but they cannot prove betting edge. The
+    market-relative/calibration/CLV gates therefore come from immutable prospective
+    priced forecasts. Historical line-level evidence, when it exists, is an
+    additional gate rather than a fabricated requirement.
+    """
     candidate = deepcopy(artifact)
     historical = candidate.get("validation", {})
+    distribution = candidate.get("distribution_validation", {})
     p = prospective or {}
-    checks = {
-        "distribution_n": int(candidate.get("distribution_validation", {}).get("n", 0)) >= 500,
-        "test_n": int(historical.get("test_sample_count", 0)) >= 500,
-        "historical_brier_vs_market": (
+
+    historical_priced_available = (
+        int(historical.get("test_sample_count", 0) or 0) >= 500
+        and historical.get("market_baseline_brier") is not None
+    )
+    historical_priced_ok = True
+    if historical_priced_available:
+        historical_priced_ok = (
             historical.get("brier") is not None
-            and historical.get("market_baseline_brier") is not None
             and historical["brier"] < historical["market_baseline_brier"]
-        ),
-        "historical_ece": historical.get("ece") is not None and historical["ece"] <= 0.04,
-        "historical_slope": (
-            historical.get("calibration_slope") is not None
+            and historical.get("ece") is not None
+            and historical["ece"] <= 0.04
+            and historical.get("calibration_slope") is not None
             and 0.80 <= historical["calibration_slope"] <= 1.20
-        ),
-        "prospective_n": int(p.get("sample_count", 0)) >= 500,
+        )
+
+    checks = {
+        "distribution_n": int(distribution.get("n", 0) or 0) >= 500,
+        "historical_priced_if_available": historical_priced_ok,
+        "prospective_n": int(p.get("sample_count", 0) or 0) >= 500,
         "prospective_brier_vs_market": (
             p.get("brier") is not None
             and p.get("market_baseline_brier") is not None
-            and p["brier"] < p["market_baseline_brier"]
+            and float(p["brier"]) + 0.002 < float(p["market_baseline_brier"])
         ),
-        "prospective_ece": p.get("ece") is not None and p["ece"] <= 0.04,
+        "prospective_ece": p.get("ece") is not None and float(p["ece"]) <= 0.04,
         "prospective_clv": (
             p.get("mean_clv_prob_points") is not None
-            and p.get("clv_sample_count", 0) >= 150
-            and p["mean_clv_prob_points"] >= 0
+            and int(p.get("clv_sample_count", 0) or 0) >= 150
+            and float(p["mean_clv_prob_points"]) >= 0
         ),
-        "data_health": p.get("data_health_failures", 1) == 0,
+        "data_health": int(p.get("data_health_failures", 1) or 0) == 0,
     }
+
     if all(checks.values()):
         stage = "PRODUCTION_APPROVED"
-    elif checks["test_n"] and checks["historical_brier_vs_market"] and int(p.get("sample_count", 0)) >= 200:
-        stage = "LIMITED_LIVE"
     elif (
-        int(historical.get("test_sample_count", 0)) >= 250
-        or int(candidate.get("distribution_validation", {}).get("n", 0)) >= 250
+        checks["distribution_n"]
+        and checks["historical_priced_if_available"]
+        and int(p.get("sample_count", 0) or 0) >= 200
+        and p.get("brier") is not None
+        and p.get("market_baseline_brier") is not None
+        and float(p["brier"]) < float(p["market_baseline_brier"])
+        and p.get("ece") is not None
+        and float(p["ece"]) <= 0.06
+        and checks["data_health"]
     ):
+        stage = "LIMITED_LIVE"
+    elif int(distribution.get("n", 0) or 0) >= 250:
         stage = "VALIDATING"
     else:
         stage = "SHADOW_ONLY"
+
     candidate["stage"] = stage
     candidate["validation"] = {
         **historical,
-        "prospective_sample_count": int(p.get("sample_count", 0)),
+        "historical_priced_evidence_available": historical_priced_available,
+        "prospective_sample_count": int(p.get("sample_count", 0) or 0),
         "prospective_brier": p.get("brier"),
         "prospective_market_baseline_brier": p.get("market_baseline_brier"),
         "prospective_ece": p.get("ece"),
         "prospective_mean_clv_prob_points": p.get("mean_clv_prob_points"),
         "promotion_checks": checks,
         "promotion_passed": stage == "PRODUCTION_APPROVED",
-        "reason": "All historical and frozen prospective gates passed"
-        if stage == "PRODUCTION_APPROVED"
-        else "Promotion gates incomplete; model remains research-limited",
+        "reason": (
+            "Held-out distribution and all frozen prospective pricing/calibration/CLV gates passed"
+            if stage == "PRODUCTION_APPROVED"
+            else "Promotion gates incomplete; model remains research-limited"
+        ),
     }
     return candidate
