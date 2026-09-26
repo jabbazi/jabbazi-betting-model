@@ -81,7 +81,12 @@ def worker(*, once=False):
     interval = int(os.getenv("JABBAZI_SCAN_INTERVAL_SECONDS", "7200"))
     if interval < 300:
         raise ValueError("Scan interval must be at least 300 seconds")
-    next_scan = 0.0
+    startup_delay = 0 if once else int(
+        os.getenv("JABBAZI_WORKER_STARTUP_SCAN_DELAY_SECONDS", "300")
+    )
+    if not 0 <= startup_delay <= interval:
+        raise ValueError("Worker startup scan delay must be between 0 and scan interval")
+    next_scan = time.monotonic() + startup_delay
     discord_process = None
     try:
         if not store.ready():
