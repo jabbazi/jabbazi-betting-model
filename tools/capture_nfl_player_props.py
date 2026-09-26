@@ -32,12 +32,12 @@ REQUIRED = {
 }
 
 
-def number(row, name):
+def number(row, name, *, nonnegative=True):
     value = row.get(name)
     if value in (None, "", "NA"):
         return 0.0
     result = float(value)
-    if not math.isfinite(result) or result < 0:
+    if not math.isfinite(result) or (nonnegative and result < 0):
         raise ValueError(f"Invalid {name}")
     return result
 
@@ -105,16 +105,16 @@ def parse_asset(path, schedule):
                 "week": int(row["week"]),
                 "starts_at": game["starts_at"],
                 "is_home": row["team"] == game["home_team"],
-                "passing_yards": number(row, "passing_yards"),
+                "passing_yards": number(row, "passing_yards", nonnegative=False),
                 "attempts": number(row, "attempts"),
                 "completions": number(row, "completions"),
                 "passing_tds": number(row, "passing_tds"),
                 "carries": number(row, "carries"),
-                "rushing_yards": number(row, "rushing_yards"),
+                "rushing_yards": number(row, "rushing_yards", nonnegative=False),
                 "rushing_tds": number(row, "rushing_tds"),
                 "receptions": number(row, "receptions"),
                 "targets": number(row, "targets"),
-                "receiving_yards": number(row, "receiving_yards"),
+                "receiving_yards": number(row, "receiving_yards", nonnegative=False),
                 "receiving_tds": number(row, "receiving_tds"),
             }
             base["anytime_td"] = float(base["rushing_tds"] + base["receiving_tds"] > 0)
