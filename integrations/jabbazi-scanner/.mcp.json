@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "jabbazi-research": {
+      "type": "streamable-http",
+      "url": "https://jabbazi-research-api.onrender.com/mcp",
+      "headers": {}
+    }
+  }
+}

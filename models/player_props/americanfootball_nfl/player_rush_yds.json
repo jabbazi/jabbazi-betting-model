@@ -1,0 +1,107 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "americanfootball_nfl",
+  "market": "player_rush_yds",
+  "provider": "nflverse",
+  "source_checksum": "a09cc1e185ca537a146e17830cc63497173c8ace1792ece1af342c0d90aa7f13",
+  "feature_names": [
+    "games_prior",
+    "is_home",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "position_qb",
+    "position_rb",
+    "position_te",
+    "position_wr",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      16.710429164743886,
+      0.5055376095985233,
+      8.227272727272727,
+      35.71504383940932,
+      7.968757828465947,
+      34.91754656792723,
+      8.206506691278252,
+      35.704968466389786,
+      8.081306722042763,
+      35.271646669743184,
+      0.26834333179510844,
+      0.7037378864790033,
+      0.008767881864328565,
+      0.01661282879556991,
+      34.74479755244918,
+      19.61446141165806
+    ],
+    "scale": [
+      9.585931139931526,
+      0.49996933393952486,
+      6.43316310472443,
+      34.19168488074603,
+      5.093211564708817,
+      24.17247596790473,
+      5.4338314136782095,
+      27.108059968804408,
+      5.2604375222122375,
+      25.53150402278222,
+      0.44309726706019353,
+      0.45660800870448204,
+      0.09322556576359095,
+      0.12781565911490894,
+      23.3716208700499,
+      12.07283507431551
+    ]
+  },
+  "trained_at": "2026-09-26T02:34:41.116672+00:00",
+  "training_cutoff": "2023-12-31T00:15:00+00:00",
+  "stage": "VALIDATING",
+  "family": "normal_ridge",
+  "parameters": {
+    "coef": [
+      -1.2579096093405917,
+      0.4673430119566398,
+      5.056809497028068,
+      0.0580294431796218,
+      4.087194257744775,
+      3.641356390531099,
+      1.0237155421876651,
+      4.629683939243072,
+      -2.3208461103407294,
+      1.9409963448489522,
+      2.1596064220349733,
+      3.0374305679477103,
+      0.6720673705595046,
+      0.2086747397544773,
+      4.170452372638363,
+      0.08304405645871603
+    ],
+    "intercept": 34.32510383017996,
+    "sigma": 27.595648297315513
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 1908,
+    "mae": 20.031920964260145,
+    "rmse": 28.161749048282072,
+    "mean_bias": -1.1619121289969405
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "artifact_schema_version": 2,
+  "split_policy": {
+    "train_before": "2024-01-01T00:00:00+00:00",
+    "test_before": "2025-01-01T00:00:00+00:00"
+  },
+  "model_version": "nfl-player_rush_yds-dist-0.2.0-45861839037b"
+}

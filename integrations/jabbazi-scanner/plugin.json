@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jabbazi-scanner",
+  "version": "0.2.0",
+  "description": "Private JABBAZI model scans combined with verified web research, current prices and honest model-validation limits.",
+  "author": {
+    "name": "JABBAZI"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "JABBAZI Scanner",
+        "shortDescription": "Combine cloud models and fresh research",
+        "longDescription": "Use JABBAZI's authenticated cloud model results alongside verified injuries, lineups, weather and market research. Rank a concise research card with traceable probabilities, source times and honest coverage. Shadow results stay research-only. Owner-only; no wager placement or Discord publishing.",
+        "developerName": "JABBAZI",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": "Scan everything using JABBAZI Research and fresh web research. Build my card with model versions, verified prices and clear research-only labels."
+      }
+    }
+  }
+}

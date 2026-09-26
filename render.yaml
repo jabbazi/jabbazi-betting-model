@@ -1,0 +1,85 @@
+# Review costs in Render before creating these paid resources.
+services:
+  - type: web
+    name: jabbazi-research-api
+    runtime: docker
+    plan: 0.5c-512mb
+    region: ohio
+    branch: build/production-foundations
+    autoDeployTrigger: "checksPass"
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m jabazi.runtime api
+    preDeployCommand: python -m jabazi.persistence.migrate
+    healthCheckPath: /readyz
+    envVars:
+      - key: JABAZI_ENV
+        value: production
+      - key: JABBAZI_PLATFORM_DATABASE_URL
+        fromDatabase:
+          name: jabbazi-research-db
+          property: connectionString
+      - key: JABBAZI_MODEL_TOKEN
+        generateValue: true
+      - key: JABAZI_BANKROLL
+        sync: false
+      - key: JABAZI_UNIT_SIZE
+        value: "30"
+      - key: JABAZI_ODDS_API_KEY
+        sync: false
+      - key: JABBAZI_SPORTSDATAIO_API_KEY
+        sync: false
+      - key: JABBAZI_CFBD_API_KEY
+        sync: false
+      - key: JABBAZI_MONTHLY_CREDIT_LIMIT
+        value: "3000"
+      - key: JABBAZI_DISCORD_REVIEW_ENABLED
+        value: "false"
+  - type: worker
+    name: jabbazi-research-worker
+    runtime: docker
+    plan: 0.5c-512mb
+    region: ohio
+    branch: build/production-foundations
+    autoDeployTrigger: "checksPass"
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m jabazi.runtime worker
+    preDeployCommand: python -m jabazi.persistence.migrate
+    envVars:
+      - key: JABAZI_ENV
+        value: production
+      - key: JABBAZI_PLATFORM_DATABASE_URL
+        fromDatabase:
+          name: jabbazi-research-db
+          property: connectionString
+      - key: JABBAZI_MODEL_TOKEN
+        fromService:
+          type: web
+          name: jabbazi-research-api
+          envVarKey: JABBAZI_MODEL_TOKEN
+      - key: JABAZI_BANKROLL
+        # Enter the same reviewed value on both services. A prompted value
+        # may be absent on the API, so do not depend on a fromService lookup.
+        sync: false
+      - key: JABAZI_UNIT_SIZE
+        value: "30"
+      - key: JABAZI_ODDS_API_KEY
+        sync: false
+      - key: JABBAZI_SPORTSDATAIO_API_KEY
+        sync: false
+      - key: JABBAZI_CFBD_API_KEY
+        sync: false
+      - key: JABBAZI_MONTHLY_CREDIT_LIMIT
+        value: "3000"
+      - key: JABBAZI_SCAN_INTERVAL_SECONDS
+        value: "7200"
+      - key: JABBAZI_DISCORD_REVIEW_ENABLED
+        value: "false"
+databases:
+  - name: jabbazi-research-db
+    plan: 0.1c-256mb
+    region: ohio
+    postgresMajorVersion: "17"
+    databaseName: jabbazi
+    diskSizeGB: 5
+    storageAutoscalingEnabled: false
+    ipAllowList: []
