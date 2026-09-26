@@ -482,6 +482,7 @@ class LivePlayerFeatureCollector:
                         sport=card.sport,
                         event_id=card.event_id,
                         participant=card.participant,
+                        market=card.market,
                         player_id=payload["player_id"],
                         starts_at=card.starts_at.isoformat(),
                         features_available_at=self.now.isoformat(),
