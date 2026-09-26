@@ -1,3 +1,6 @@
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+
 from jabazi.models.player_distribution import (
     MLB_PROP_MARKETS,
     NFL_PROP_MARKETS,
@@ -213,3 +216,71 @@ def test_player_snapshot_is_market_specific():
         line=4.5,
     )
     assert model.estimate(price) is None
+
+
+def test_research_only_snapshot_can_drive_probability_but_never_betting_approval():
+    from jabazi.models.player_distribution import PlayerPropModel
+    from jabazi.research.player_features import archive_player_feature_snapshot
+
+    captured = {}
+
+    class ArchiveStore:
+        def append(self, kind, entity, payload, key=None):
+            captured.update(kind=kind, entity=entity, payload=payload, key=key)
+            return True
+
+    now = datetime.now(UTC)
+    archive_player_feature_snapshot(
+        ArchiveStore(),
+        sport="americanfootball_nfl",
+        event_id="game-1",
+        participant="Player A",
+        market="player_anytime_td",
+        player_id="00-1",
+        starts_at=(now + timedelta(hours=4)).isoformat(),
+        features_available_at=now.isoformat(),
+        features={"red_zone_share": 0.3},
+        expected_opportunities=8.0,
+        integrity={
+            "event_identity": True,
+            "player_identity": True,
+            "fresh_features": True,
+            "schema": True,
+            "role": True,
+            "availability": True,
+            "injuries": False,
+            "no_duplicate_event": True,
+        },
+        provider="nflverse-history+depth-chart",
+        source_checksum="abc123",
+        feature_schema_version="test-v1",
+        research_only=True,
+    )
+    assert captured["payload"]["research_only"] is True
+    assert captured["payload"]["production_inputs_verified"] is False
+    assert captured["payload"]["integrity"]["injuries"] is False
+
+    artifact = binary_artifact()
+    artifact["stage"] = "PRODUCTION_APPROVED"
+    artifact["validation"] = {"promotion_passed": True, "prospective_sample_count": 1000}
+
+    class ModelStore:
+        def list_records(self, kind, limit, entity=None):
+            assert kind == "player_feature_snapshot"
+            return [{"payload": captured["payload"]}]
+
+    model = PlayerPropModel(artifact, ModelStore())
+    price = SimpleNamespace(
+        sport="americanfootball_nfl",
+        event_id="game-1",
+        market="player_anytime_td",
+        participant="Player A",
+        in_play=False,
+        selection="yes",
+        line=None,
+    )
+    estimate = model.estimate(price)
+    assert estimate is not None
+    assert 0 < float(estimate.probability) < 1
+    assert estimate.approved_for_betting is False
+    assert estimate.feature_snapshot["production_inputs_verified"] is False
