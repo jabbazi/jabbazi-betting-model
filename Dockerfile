@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-co
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY tools ./tools
+COPY models ./models
 COPY docs/discord ./docs/discord
 RUN python -m pip install --upgrade pip && python -m pip install '.[discord]'
 
