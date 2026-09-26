@@ -160,34 +160,55 @@ def model_status(authorization: Annotated[str | None, Header()] = None):
 
 def model_status_data():
     from .models.registry import load_models
+    from .models.player_registry import load_player_models, player_status
     from .models.team_elo import SPORTS
+    from .reliability.layer import status_buckets
 
     store = platform_store()
     try:
         models, errors = load_models(store)
+        player_models, player_errors = load_player_models(store)
         from .research.prospective import validation_report
         prospective = validation_report(store)
+
+        rows = []
+        for sport in SPORTS.values():
+            team_buckets = status_buckets(models[sport], prospective) if sport in models else {}
+            team_stages = {bucket["stage"] for bucket in team_buckets.values()}
+            team_status = (
+                "PRODUCTION_APPROVED"
+                if team_stages == {"PRODUCTION_APPROVED"} and team_stages
+                else "LIMITED_LIVE"
+                if "PRODUCTION_APPROVED" in team_stages or "LIMITED_LIVE" in team_stages
+                else "VALIDATING"
+                if "VALIDATING" in team_stages
+                else "SHADOW_ONLY"
+                if team_stages
+                else "UNAVAILABLE"
+            )
+            pstatus = player_status(player_models, sport)
+            rows.append(
+                {
+                    "market_buckets": team_buckets,
+                    "player_market_buckets": pstatus["market_buckets"],
+                    "sport": sport,
+                    "status": team_status,
+                    "approved_for_betting": bool(team_buckets)
+                    and all(bucket["approved_for_betting"] for bucket in team_buckets.values()),
+                    "version": models[sport].artifact["model_version"] if sport in models else None,
+                    "supported_markets": sorted(models[sport].supported_markets)
+                    if sport in models
+                    else [],
+                    "player_status": pstatus["status"],
+                    "player_supported_markets": pstatus["supported_markets"],
+                    "state_refreshed_at": models[sport].artifact.get("state_refreshed_at")
+                    if sport in models
+                    else None,
+                }
+            )
     finally:
         store.close()
-    return {
-        "models": [
-            {
-                "market_buckets": __import__("jabazi.reliability.layer", fromlist=["status_buckets"]).status_buckets(models[sport], prospective) if sport in models else {},
-                "sport": sport,
-                "status": "SHADOW_ONLY" if sport in models else "UNAVAILABLE",
-                "approved_for_betting": False,
-                "version": models[sport].artifact["model_version"] if sport in models else None,
-                "supported_markets": sorted(models[sport].supported_markets)
-                if sport in models
-                else [],
-                "state_refreshed_at": models[sport].artifact.get("state_refreshed_at")
-                if sport in models
-                else None,
-            }
-            for sport in SPORTS.values()
-        ],
-        "errors": errors,
-    }
+    return {"models": rows, "errors": errors + player_errors}
 
 
 @app.get("/v1/candidates")
@@ -217,9 +238,25 @@ def odds(limit: int = 100, authorization: Annotated[str | None, Header()] = None
 @app.get("/v1/model-health")
 def model_health(authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)
+    status = model_status_data()
+    approved_team_buckets = sum(
+        int(bucket.get("approved_for_betting") is True)
+        for model in status["models"]
+        for bucket in model.get("market_buckets", {}).values()
+    )
+    approved_player_buckets = sum(
+        int(bucket.get("approved_for_betting") is True)
+        for model in status["models"]
+        for bucket in model.get("player_market_buckets", {}).values()
+    )
     store = platform_store()
     try:
-        return {"recent_scans": store.list_records("scan_run", 20), "production_models_approved": 0}
+        return {
+            "recent_scans": store.list_records("scan_run", 20),
+            "production_team_market_buckets": approved_team_buckets,
+            "production_player_market_buckets": approved_player_buckets,
+            "model_status_errors": status.get("errors", []),
+        }
     finally:
         store.close()
 
@@ -311,7 +348,16 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False) -> dict:
                 "modeled_actions": sum(a.model_probability is not None for a in result.actions),
                 "unmodeled_actions": sum(a.model_probability is None for a in result.actions),
                 "versions": sorted({a.model_version for a in result.actions if a.model_version}),
-                "production_approved": False,
+                "production_approved": any(
+                    a.reliability.get("model_stage") == "PRODUCTION_APPROVED"
+                    for a in result.actions
+                    if a.model_probability is not None
+                ),
+                "production_approved_actions": sum(
+                    a.reliability.get("model_stage") == "PRODUCTION_APPROVED"
+                    for a in result.actions
+                    if a.model_probability is not None
+                ),
                 "returned_modeled_actions": sum(a.model_probability is not None for a in actions),
                 "returned_unmodeled_actions": sum(a.model_probability is None for a in actions),
             },
