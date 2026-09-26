@@ -10,6 +10,7 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 COPY tools ./tools
 COPY models ./models
+RUN test -f models/player_props/nfl-training-report.json && test -f models/player_props/mlb-training-report.json
 COPY docs/discord ./docs/discord
 RUN python -m pip install --upgrade pip && python -m pip install '.[discord]'
 
