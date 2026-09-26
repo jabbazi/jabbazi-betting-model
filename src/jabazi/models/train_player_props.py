@@ -140,32 +140,17 @@ def _fit_family(document, training_rows, market):
         artifact.update(family="count_nb", parameters=params)
 
     elif market in CONTINUOUS_MARKETS:
-        positive = (y > 0).astype(int)
-        if len(set(positive.tolist())) == 1:
-            active_coef = [0.0] * x.shape[1]
-            active_intercept = _constant_logit(float(positive.mean()))
-        else:
-            active = LogisticRegression(C=1.0, solver="lbfgs", max_iter=2000).fit(x, positive)
-            active_coef = active.coef_[0].tolist()
-            active_intercept = float(active.intercept_[0])
-        mask = y > 0
-        if not mask.any():
-            mean_coef = [0.0] * x.shape[1]
-            mean_intercept, sigma = math.log(1e-6), 1.0
-        else:
-            target = np.log1p(y[mask])
-            mean_model = Ridge(alpha=2.0).fit(x[mask], target)
-            residual = target - mean_model.predict(x[mask])
-            mean_coef = mean_model.coef_.tolist()
-            mean_intercept = float(mean_model.intercept_)
-            sigma = max(0.05, float(np.sqrt(np.mean(residual ** 2))))
+        # NFL yardage can legitimately be negative, so a signed residual
+        # distribution is required.  Ridge supplies the conditional mean;
+        # held-out residual scale supplies threshold probabilities.
+        model = Ridge(alpha=2.0).fit(x, y)
+        residual = y - model.predict(x)
+        sigma = max(1.0, float(np.sqrt(np.mean(residual ** 2))))
         artifact.update(
-            family="hurdle_lognormal",
+            family="normal_ridge",
             parameters={
-                "active_coef": active_coef,
-                "active_intercept": active_intercept,
-                "mean_coef": mean_coef,
-                "mean_intercept": mean_intercept,
+                "coef": model.coef_.tolist(),
+                "intercept": float(model.intercept_),
                 "sigma": sigma,
             },
         )
