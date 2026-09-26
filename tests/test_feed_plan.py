@@ -9,7 +9,7 @@ NOW = datetime(2026, 9, 23, 12, tzinfo=UTC)
 SPORTS = [{"key": s} for s in (*EVENT_MARKETS, "americanfootball_ncaaf")]
 
 
-def factory(calls):
+def factory(calls, base_now=NOW):
     class Provider:
         def __init__(self, sport, markets):
             self.sport, self.markets = sport, markets
@@ -20,14 +20,14 @@ def factory(calls):
                     "id": self.sport + str(i),
                     "away_team": "Away",
                     "home_team": "Home",
-                    "commence_time": (NOW + timedelta(hours=8 + i)).isoformat(),
+                    "commence_time": (base_now + timedelta(hours=8 + i)).isoformat(),
                     "bookmakers": [{"key": "synthetic"}],
                 }
                 for i in range(2)
             ]
             raw = next(e for e in events if e["id"] == event) if event else events
             return ProviderBatch(
-                "TEST_ONLY", NOW, json.dumps(raw).encode(), (), requests_remaining=10000
+                "TEST_ONLY", base_now, json.dumps(raw).encode(), (), requests_remaining=10000
             )
 
         def fetch(self):
@@ -71,13 +71,15 @@ def test_event_feeds_preserve_primary_coverage_and_budget_then_rotate_events_and
         store.close()
 
 
-def test_weekend_event_budget_prioritizes_nfl_and_always_requests_atd(tmp_path):
+def test_weekend_event_budget_prioritizes_nfl_and_always_requests_atd(tmp_path, monkeypatch):
     saturday = datetime(2026, 9, 26, 12, tzinfo=UTC)
+    monkeypatch.setenv("JABBAZI_MONTHLY_CREDIT_LIMIT", "10000")
+    monkeypatch.setenv("JABBAZI_WEEKEND_NFL_EVENT_PRIORITY", "true")
     store = Store("sqlite:///" + str(tmp_path / "weekend.db"), initialize=True)
     calls, errors = [], []
     try:
         plan = FeedPlan(
-            factory(calls),
+            factory(calls, saturday),
             store,
             30,
             50,
@@ -142,6 +144,7 @@ def test_prop_feed_reaches_archive_and_member_shortlist_without_fabricated_model
     Store(url, initialize=True).close()
     monkeypatch.setenv("JABBAZI_PLATFORM_DATABASE_URL", url)
     monkeypatch.setenv("JABBAZI_MONTHLY_CREDIT_LIMIT", "3000")
+    monkeypatch.setenv("JABBAZI_WEEKEND_NFL_EVENT_PRIORITY", "false")
     monkeypatch.setattr("jabazi.automation.load_models", lambda _: ({}, []))
     monkeypatch.setattr(AutomaticScanner, "_active_supported", lambda _: SPORTS)
 
