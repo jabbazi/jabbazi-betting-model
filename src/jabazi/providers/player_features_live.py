@@ -233,18 +233,26 @@ class LivePlayerFeatureCollector:
     def _nfl_projections(self):
         if self._nfl_projection is not None:
             return self._nfl_projection
+        # Cache failure as an empty feed for this scan. Without this sentinel, one
+        # provider error is retried once per player card and can stall a full scan.
+        self._nfl_projection = []
         if not self.api_key:
-            self._nfl_projection = []
             return self._nfl_projection
-        season = self._sportsdata("nfl/scores/json/CurrentSeason")
-        week = self._sportsdata("nfl/scores/json/CurrentWeek")
-        if isinstance(season, dict):
-            season = season.get("Season") or season.get("season")
-        if isinstance(week, dict):
-            week = week.get("Week") or week.get("week")
-        self._nfl_projection = self._sportsdata(
-            f"nfl/projections/json/PlayerGameProjectionStatsByWeek/{int(season)}/{int(week)}"
-        ) or []
+        try:
+            season = self._sportsdata("nfl/scores/json/CurrentSeason")
+            week = self._sportsdata("nfl/scores/json/CurrentWeek")
+            if isinstance(season, dict):
+                season = season.get("Season") or season.get("season")
+            if isinstance(week, dict):
+                week = week.get("Week") or week.get("week")
+            rows = self._sportsdata(
+                f"nfl/projections/json/PlayerGameProjectionStatsByWeek/{int(season)}/{int(week)}"
+            ) or []
+            self._nfl_projection = rows if isinstance(rows, list) else []
+        except urllib.error.HTTPError as exc:
+            self._diagnostics.append(f"SPORTSDATA_NFL_PROVIDER_HTTP_{exc.code}")
+        except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
+            self._diagnostics.append(f"SPORTSDATA_NFL_PROVIDER_{type(exc).__name__}")
         return self._nfl_projection
 
     def _projection_time_matches(self, value, starts_at, *, eastern=False):
@@ -364,10 +372,24 @@ class LivePlayerFeatureCollector:
 
     def _mlb_projections(self, starts_at):
         local_date = starts_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
-        if local_date not in self._mlb_projection:
-            self._mlb_projection[local_date] = (
-                self._sportsdata(f"mlb/projections/json/PlayerGameProjectionStatsByDate/{local_date}")
-                or []
+        if local_date in self._mlb_projection:
+            return self._mlb_projection[local_date]
+        # Same fail-fast rule as NFL: one provider failure per date, not per player.
+        self._mlb_projection[local_date] = []
+        if not self.api_key:
+            return self._mlb_projection[local_date]
+        try:
+            rows = self._sportsdata(
+                f"mlb/projections/json/PlayerGameProjectionStatsByDate/{local_date}"
+            ) or []
+            self._mlb_projection[local_date] = rows if isinstance(rows, list) else []
+        except urllib.error.HTTPError as exc:
+            self._diagnostics.append(
+                f"SPORTSDATA_MLB_PROVIDER_HTTP_{exc.code}:{local_date}"
+            )
+        except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
+            self._diagnostics.append(
+                f"SPORTSDATA_MLB_PROVIDER_{type(exc).__name__}:{local_date}"
             )
         return self._mlb_projection[local_date]
 
