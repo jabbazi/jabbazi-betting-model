@@ -256,6 +256,29 @@ def test_background_calls_real_shared_scanner_contract_and_sanitizes_failure(set
     assert records[0]["payload"]["status"] == "FAILED"
 
 
+def test_background_waits_for_shared_scanner_lease_without_recharging(setup):
+    _, store, _ = setup
+    scan_id = request(store)
+    complete = {
+        "feeds_scanned": 2,
+        "quotes_archived": 50,
+        "actions": [],
+        "errors": [],
+        "model_coverage": {"versions": ["test"]},
+        "credits_remaining": 100,
+    }
+    with patch(
+        "jabazi.api.perform_scan",
+        side_effect=[HTTPException(status_code=409, detail="busy"), complete],
+    ) as scanner, patch.object(bridge.time, "sleep", return_value=None) as pause:
+        bridge.run_background(scan_id)
+    assert scanner.call_count == 2
+    pause.assert_called_once_with(2)
+    page = bridge.scan_page(store, scan_id)
+    assert page.status == "COMPLETE"
+    assert page.progress["phase"] == "COMPLETE"
+
+
 def test_public_schema_exposes_only_scoped_actions(setup):
     client, _, _ = setup
     schema = client.get("/chatgpt/openapi.json").json()
