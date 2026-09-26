@@ -57,27 +57,76 @@ def market_bucket(market):
         "alternate_totals": "alternate_total",
         "team_totals": "team_total",
         "alternate_team_totals": "alternate_team_total",
-    }.get(market, "unsupported")
+    }.get(
+        market,
+        f"prop:{market}" if market.startswith(("player_", "pitcher_", "batter_")) else "unsupported",
+    )
+
+
+def _ece_from_table(rows):
+    total = sum(int(row.get("n", 0)) for row in rows or [])
+    if not total:
+        return None
+    return sum(
+        int(row.get("n", 0))
+        / total
+        * abs(float(row.get("mean_probability", 0)) - float(row.get("observed_hit_rate", 0)))
+        for row in rows
+    )
+
+
+def prospective_stage(record):
+    """Conservative team-market promotion from frozen prospective evidence only."""
+    model = record.get("model", {})
+    market = record.get("market", {})
+    n = int(model.get("n", 0) or 0)
+    ece = _ece_from_table(record.get("calibration"))
+    clean = (
+        int(record.get("identity_failures", 0) or 0) == 0
+        and int(record.get("input_verified", 0) or 0) == n
+    )
+    improves = (
+        model.get("brier") is not None
+        and market.get("brier") is not None
+        and model.get("log_loss") is not None
+        and market.get("log_loss") is not None
+        and float(model["brier"]) + 0.002 < float(market["brier"])
+        and float(model["log_loss"]) < float(market["log_loss"])
+    )
+    if n >= 1000 and clean and improves and ece is not None and ece <= 0.035:
+        return "PRODUCTION_APPROVED", True, "Strict frozen prospective gates passed"
+    if n >= 500 and clean and improves and ece is not None and ece <= 0.05:
+        return "LIMITED_LIVE", False, "Prospective evidence promising; full production sample not reached"
+    if n >= 100:
+        return "VALIDATING", False, "Prospective sample accumulating"
+    return "SHADOW_ONLY", False, "Insufficient frozen prospective promotion evidence"
 
 
 def status_buckets(model, prospective=None):
-    counts = {r["bucket"]: r for r in (prospective or {}).get("buckets", [])
-              if r["sport"] == model.sport and r["model_version"] == model.artifact["model_version"]}
-    return {
-        market_bucket(m): {
-            "stage": ModelStage.SHADOW_ONLY.value,
-            "model_version": model.artifact["model_version"],
-            "prospective_sample_count": counts.get(market_bucket(m), {}).get("model", {}).get("n", 0),
-            "frozen_prediction_count": counts.get(market_bucket(m), {}).get("frozen", 0),
-            "pending_result_count": counts.get(market_bucket(m), {}).get("pending", 0),
-            "approved_for_betting": False,
-            "reason": "No frozen prospective promotion evidence",
-        }
-        for m in sorted(model.supported_markets)
+    counts = {
+        r["bucket"]: r
+        for r in (prospective or {}).get("buckets", [])
+        if r["sport"] == model.sport and r["model_version"] == model.artifact["model_version"]
     }
+    result = {}
+    for market in sorted(model.supported_markets):
+        bucket = market_bucket(market)
+        record = counts.get(bucket, {})
+        stage, approved, reason = prospective_stage(record)
+        result[bucket] = {
+            "stage": stage,
+            "model_version": model.artifact["model_version"],
+            "prospective_sample_count": record.get("model", {}).get("n", 0),
+            "frozen_prediction_count": record.get("frozen", 0),
+            "pending_result_count": record.get("pending", 0),
+            "approved_for_betting": approved,
+            "calibration_ece": _ece_from_table(record.get("calibration")),
+            "reason": reason,
+        }
+    return result
 
 
-def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
+def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy()):
     p = float(estimate.probability) if estimate else None
     market = float(card.consensus_probability)
     snapshot = estimate.feature_snapshot if estimate else {}
@@ -93,10 +142,43 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         else {"state": "NORMAL", "reasons": [], "eligible": False}
     )
     fresh = not card.stale and not card.in_play
-    stage = "SHADOW_ONLY" if p is not None else "UNAVAILABLE"
+    if p is None:
+        stage = "UNAVAILABLE"
+    elif model is not None and hasattr(model, "stage"):
+        stage = getattr(model, "stage")
+    elif model is not None:
+        stage = status_buckets(model, prospective).get(
+            market_bucket(card.market), {}
+        ).get("stage", "SHADOW_ONLY")
+    else:
+        stage = "SHADOW_ONLY"
+    # Player artifacts carry their own promotion flag. Team score models are
+    # promoted dynamically from the frozen prospective bucket, so a production
+    # team stage may authorize influence even though the immutable score artifact
+    # itself was originally trained as research-only.
+    artifact_permission = bool(
+        estimate
+        and (
+            estimate.approved_for_betting
+            or (
+                model is not None
+                and not hasattr(model, "stage")
+                and stage == "PRODUCTION_APPROVED"
+            )
+        )
+    )
+    context_verified = bool(snapshot.get("production_inputs_verified"))
+    model_can_influence = bool(
+        artifact_permission
+        and stage == "PRODUCTION_APPROVED"
+        and audit["eligible"]
+        and context_verified
+    )
     decision = (
         "MODEL_QUARANTINE"
         if p is not None and not audit["eligible"]
+        else "BET_NOW"
+        if model_can_influence
         else "WATCH_FOR_PRICE"
         if p is None and card.market_relative_ev > 0
         else "WATCH"
@@ -127,7 +209,7 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
             model=ModelForecast(
                 estimate.model_name,
                 estimate.model_version,
-                ModelStage.SHADOW_ONLY,
+                ModelStage(stage) if stage in {member.value for member in ModelStage} else ModelStage.SHADOW_ONLY,
                 p,
                 card.observed_at,
                 True,
@@ -166,7 +248,12 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         calibration_bucket=f"{int(p * 20) * 5}-{min(100, int(p * 20) * 5 + 5)}"
         if p is not None
         else None,
-        calibration_sample_size=None,
+        calibration_sample_size=(
+            getattr(model, "artifact", {}).get("validation", {}).get("prospective_sample_count")
+            or getattr(model, "artifact", {}).get("validation", {}).get("test_sample_count")
+            if model is not None
+            else None
+        ),
         uncertainty_low=None,
         uncertainty_high=None,
         uncertainty_kind="policy_haircut_not_confidence_interval" if estimate else None,
@@ -174,7 +261,7 @@ def evaluate(card, estimate, model=None, policy=AnomalyPolicy()):
         anomaly_state=audit["state"],
         anomaly_reasons=audit["reasons"],
         model_lane_decision=decision,
-        model_can_influence_cash=False,
+        model_can_influence_cash=bool(model_can_influence and fresh),
         watch_trigger="Refresh pregame prices"
         if not fresh
         else "Validate frozen model bucket and resolve: " + ", ".join(audit["reasons"])
