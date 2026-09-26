@@ -224,7 +224,7 @@ def run_background(scan_id):
         on_progress({
             "phase": result["status"],
             "feeds_scanned": result["feeds_scanned"],
-            "quotes_archived": result["quotes_archived"],
+            "quotes_archived": result.get("quotes_archived", 0),
             "credits_remaining": result.get("credits_remaining"),
             "max_credits": max_credits,
         })
