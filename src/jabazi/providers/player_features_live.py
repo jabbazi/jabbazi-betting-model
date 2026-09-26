@@ -260,9 +260,14 @@ class LivePlayerFeatureCollector:
             # Home/away is a trained feature; do not guess it.
             return None
         injury = str((projection or {}).get("InjuryStatus") or "").strip().lower()
-        active = projection is not None and injury not in {
-            "out", "doubtful", "questionable", "inactive", "injured reserve"
-        }
+        active = (
+            projection is not None
+            and int((projection or {}).get("Activated") or 0) == 1
+            and int((projection or {}).get("Played") or 0) == 1
+            and injury not in {
+                "out", "doubtful", "questionable", "inactive", "injured reserve"
+            }
+        )
         projected_opportunities = {
             "player_pass_yds": _float(projection or {}, "PassingAttempts", _mean(opportunities, 3)),
             "player_pass_attempts": _float(projection or {}, "PassingAttempts", _mean(opportunities, 3)),
@@ -397,7 +402,7 @@ class LivePlayerFeatureCollector:
         active = injury not in {"out", "doubtful", "injured list"}
         if pitcher:
             role = 1.0 if int(projection.get("Started") or 0) == 1 else 0.0
-            role_ok = role == 1.0
+            role_ok = role == 1.0 and bool(projection.get("BattingOrderConfirmed"))
             # SportsDataIO exposes projected outs/pitches but not projected batters
             # faced in this record. Keep opportunity scale consistent with training
             # by using recent actual batters faced; starter confirmation is separate.
