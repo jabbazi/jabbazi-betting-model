@@ -66,6 +66,7 @@ def archive_player_feature_snapshot(
     feature_schema_version,
     roster_version=None,
     injury_version=None,
+    research_only=False,
 ):
     """Archive immutable pregame features and return the snapshot id.
 
@@ -86,7 +87,7 @@ def archive_player_feature_snapshot(
     if not isinstance(integrity, dict):
         raise ValueError("Integrity evidence must be a mapping")
     missing = [name for name in REQUIRED_INTEGRITY if integrity.get(name) is not True]
-    if missing:
+    if missing and not research_only:
         raise ValueError("Unverified player feature integrity: " + ",".join(missing))
 
     canonical = {
@@ -104,7 +105,11 @@ def archive_player_feature_snapshot(
         "source_checksum": source_checksum,
         "roster_version": roster_version,
         "injury_version": injury_version,
-        "integrity": {name: True for name in REQUIRED_INTEGRITY},
+        "integrity": {
+            name: bool(integrity.get(name) is True) for name in REQUIRED_INTEGRITY
+        },
+        "research_only": bool(missing),
+        "production_inputs_verified": not missing,
     }
     fingerprint = hashlib.sha256(
         json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
