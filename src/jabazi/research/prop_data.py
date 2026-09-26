@@ -84,7 +84,11 @@ def inspect_prop_dataset(document, *, train_before, test_before, minimum_per_spl
         if (part == "train" and result_at >= left) or (
             part == "calibration" and result_at >= right
         ):
-            raise ValueError("A training/calibration label crosses the next split boundary")
+            # The prediction itself is valid, but its label was not available
+            # before the next fold began. Exclude that observation rather than
+            # leaking the future result or invalidating the whole dataset.
+            excluded["split_boundary"] += 1
+            continue
 
         status = row.get("result_status")
         if status in {"dnp", "void"}:
