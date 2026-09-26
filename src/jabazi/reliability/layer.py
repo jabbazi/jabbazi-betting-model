@@ -167,10 +167,12 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
             )
         )
     )
+    context_verified = bool(snapshot.get("production_inputs_verified"))
     model_can_influence = bool(
         artifact_permission
         and stage == "PRODUCTION_APPROVED"
         and audit["eligible"]
+        and context_verified
     )
     decision = (
         "MODEL_QUARANTINE"
