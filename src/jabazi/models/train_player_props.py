@@ -319,19 +319,30 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
     artifact["calibration"] = _fit_calibration(artifact, calibration)
     artifact["distribution_validation"] = _distribution_validation(artifact, test)
     artifact["validation"] = _validation(artifact, test)
-    seed = json.dumps(
-        {
-            "sport": sport,
-            "market": market,
-            "source_checksum": document["manifest"]["source_checksum"],
-            "trained_at": artifact["trained_at"],
-            "features": artifact["feature_names"],
-        },
-        sort_keys=True,
-    )
+    # The version identifies the fitted probability function, not the wall-clock
+    # time of the training job. Identical fitted artifacts therefore keep one
+    # version so frozen prospective evidence can accumulate across redeploys.
+    version_payload = {
+        "artifact_schema_version": 2,
+        "sport": sport,
+        "market": market,
+        "family": artifact["family"],
+        "feature_names": artifact["feature_names"],
+        "scaler": artifact["scaler"],
+        "parameters": artifact["parameters"],
+        "calibration": artifact.get("calibration"),
+        "train_before": left.isoformat(),
+        "test_before": right.isoformat(),
+    }
+    seed = json.dumps(version_payload, sort_keys=True, separators=(",", ":"))
+    artifact["artifact_schema_version"] = 2
+    artifact["split_policy"] = {
+        "train_before": left.isoformat(),
+        "test_before": right.isoformat(),
+    }
     artifact["model_version"] = (
-        f"{sport.split('_')[-1]}-{market}-dist-0.1.0-" +
-        hashlib.sha256(seed.encode()).hexdigest()[:12]
+        f"{sport.split('_')[-1]}-{market}-dist-0.2.0-"
+        + hashlib.sha256(seed.encode()).hexdigest()[:12]
     )
     artifact["stage"] = (
         "VALIDATING"
