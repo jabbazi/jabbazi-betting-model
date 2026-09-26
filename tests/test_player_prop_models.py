@@ -114,6 +114,7 @@ def test_yards_probability_comes_from_distribution_not_mean():
 
 def test_player_model_cannot_backtest_itself_into_production():
     artifact = count_artifact()
+    artifact["distribution_validation"] = {"n": 2000, "mae": 1.0, "rmse": 1.5, "mean_bias": 0.0}
     artifact["validation"] = {
         "test_sample_count": 2000,
         "brier": 0.19,
