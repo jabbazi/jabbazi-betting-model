@@ -208,7 +208,15 @@ def model_status_data():
             )
     finally:
         store.close()
-    return {"models": rows, "errors": errors + player_errors}
+    from .providers.player_features_live import LivePlayerFeatureCollector
+    provider = LivePlayerFeatureCollector(
+        sportsdataio_api_key=Settings.from_environment().sportsdataio_api_key
+    ).provider_status()
+    return {
+        "models": rows,
+        "errors": errors + player_errors,
+        "player_feature_provider": provider,
+    }
 
 
 @app.get("/v1/candidates")
