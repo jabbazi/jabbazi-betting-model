@@ -312,7 +312,7 @@ def run_scan(
     return perform_scan(body)
 
 
-def perform_scan(body: ScanRequest, *, model_first: bool = False) -> dict:
+def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callback=None) -> dict:
     """Shared scanner execution; callers must authorize before invoking."""
     settings = Settings.from_environment()
     if not settings.api_key:
@@ -325,6 +325,7 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False) -> dict:
             settings.database_path,
             credit_reserve=body.credit_reserve,
             max_credits_per_run=body.max_credits,
+            progress_callback=progress_callback,
         ).run(body.mode)
         actions = sorted(
             result.actions,
