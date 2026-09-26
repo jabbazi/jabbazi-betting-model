@@ -235,6 +235,9 @@ class LivePlayerFeatureCollector:
             if _name(row.get("player_display_name")) == _name(card.participant)
         ]
         if not player_rows:
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:NFL_HISTORY_PLAYER_NOT_FOUND"
+            )
             return None
         player_rows.sort(key=lambda r: (int(r["season"]), int(r["week"]), r["game_id"]))
         values, opportunities = [], []
@@ -250,13 +253,23 @@ class LivePlayerFeatureCollector:
                 derived[opportunity] if opportunity in derived else _float(row, opportunity)
             )
         if len(values) < 3 or _mean(opportunities, 3) < minimum:
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:NFL_INSUFFICIENT_HISTORY_OR_ROLE"
+            )
             return None
 
         projection = self._nfl_projection_for(card.participant, card.starts_at)
+        if projection is None:
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_NFL_PROJECTION_NOT_MATCHED"
+            )
         position = str((projection or {}).get("Position") or player_rows[-1].get("position") or "")
         homeaway = str((projection or {}).get("HomeOrAway") or "").lower()
         if homeaway not in {"home", "away"}:
             # Home/away is a trained feature; do not guess it.
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_NFL_HOMEAWAY_UNAVAILABLE"
+            )
             return None
         injury = str((projection or {}).get("InjuryStatus") or "").strip().lower()
         active = (
@@ -392,10 +405,16 @@ class LivePlayerFeatureCollector:
                 values.append(derived[target])
                 opportunities.append(derived[opportunity])
         if len(values) < 5 or _mean(opportunities, 5) < minimum:
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:MLB_INSUFFICIENT_HISTORY_OR_ROLE"
+            )
             return None
 
         projection = self._mlb_projection_for(card.participant, card.starts_at)
         if not projection:
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_MLB_PROJECTION_NOT_MATCHED"
+            )
             return None
         injury = str(projection.get("InjuryStatus") or "").strip().lower()
         active = injury not in {"out", "doubtful", "injured list"}
@@ -472,8 +491,11 @@ class LivePlayerFeatureCollector:
                     continue
                 # Failed integrity is stored as a diagnostic, never as a usable snapshot.
                 if not all(payload["integrity"].values()):
+                    failed = ",".join(
+                        key for key, value in payload["integrity"].items() if value is not True
+                    )
                     self._diagnostics.append(
-                        f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:UNVERIFIED_PLAYER_INPUTS"
+                        f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:UNVERIFIED_PLAYER_INPUTS:{failed}"
                     )
                     continue
                 archived += bool(
