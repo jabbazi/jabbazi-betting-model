@@ -28,6 +28,8 @@ services:
         sync: false
       - key: JABBAZI_SPORTSDATAIO_API_KEY
         sync: false
+      - key: JABBAZI_CFBD_API_KEY
+        sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
       - key: JABBAZI_DISCORD_REVIEW_ENABLED
@@ -63,6 +65,8 @@ services:
       - key: JABAZI_ODDS_API_KEY
         sync: false
       - key: JABBAZI_SPORTSDATAIO_API_KEY
+        sync: false
+      - key: JABBAZI_CFBD_API_KEY
         sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
         value: "3000"
