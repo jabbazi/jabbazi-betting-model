@@ -27,6 +27,24 @@ NFL_STATS = (
     "https://github.com/nflverse/nflverse-data/releases/download/"
     "stats_player/stats_player_week_2026.csv.gz"
 )
+NFL_DEPTH = (
+    "https://github.com/nflverse/nflverse-data/releases/download/"
+    "depth_charts/depth_charts_2026.csv"
+)
+NFL_TEAM_NAMES = {
+    "ARI": "Arizona Cardinals", "ATL": "Atlanta Falcons", "BAL": "Baltimore Ravens",
+    "BUF": "Buffalo Bills", "CAR": "Carolina Panthers", "CHI": "Chicago Bears",
+    "CIN": "Cincinnati Bengals", "CLE": "Cleveland Browns", "DAL": "Dallas Cowboys",
+    "DEN": "Denver Broncos", "DET": "Detroit Lions", "GB": "Green Bay Packers",
+    "HOU": "Houston Texans", "IND": "Indianapolis Colts", "JAX": "Jacksonville Jaguars",
+    "KC": "Kansas City Chiefs", "LV": "Las Vegas Raiders", "LAC": "Los Angeles Chargers",
+    "LAR": "Los Angeles Rams", "LA": "Los Angeles Rams", "MIA": "Miami Dolphins",
+    "MIN": "Minnesota Vikings", "NE": "New England Patriots", "NO": "New Orleans Saints",
+    "NYG": "New York Giants", "NYJ": "New York Jets", "PHI": "Philadelphia Eagles",
+    "PIT": "Pittsburgh Steelers", "SEA": "Seattle Seahawks", "SF": "San Francisco 49ers",
+    "TB": "Tampa Bay Buccaneers", "TEN": "Tennessee Titans",
+    "WAS": "Washington Commanders", "WSH": "Washington Commanders",
+}
 SPORTSDATA_BASE = "https://api.sportsdata.io/v3"
 MLB_STATS_BASE = "https://statsapi.mlb.com/api/v1"
 
@@ -141,6 +159,7 @@ class LivePlayerFeatureCollector:
         self.api_key = sportsdataio_api_key
         self.now = now or datetime.now(UTC)
         self._nfl_rows = None
+        self._nfl_depth_rows = None
         self._nfl_projection = None
         self._mlb_projection = {}
         self._mlb_people = {}
@@ -230,6 +249,48 @@ class LivePlayerFeatureCollector:
         self._nfl_rows = rows
         return rows
 
+    def _nfl_depth_charts(self):
+        if self._nfl_depth_rows is not None:
+            return self._nfl_depth_rows
+        raw = _fetch_bytes(NFL_DEPTH)
+        checksum = hashlib.sha256(raw).hexdigest()
+        reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
+        required = {"dt", "team", "player_name", "gsis_id", "pos_abb", "pos_rank"}
+        if not required <= set(reader.fieldnames or []):
+            raise ValueError("nflverse current depth-chart schema mismatch")
+        rows = []
+        for row in reader:
+            row = dict(row)
+            row["_source_checksum"] = checksum
+            rows.append(row)
+        self._nfl_depth_rows = rows
+        return rows
+
+    def _nfl_depth_for(self, participant):
+        key = _name(participant)
+        matches = [
+            row for row in self._nfl_depth_charts()
+            if _name(row.get("player_name")) == key
+        ]
+        if not matches:
+            return None
+        def stamp(row):
+            try:
+                value = datetime.fromisoformat(str(row.get("dt")).replace("Z", "+00:00"))
+                return value if value.tzinfo else value.replace(tzinfo=UTC)
+            except (ValueError, TypeError):
+                return datetime.min.replace(tzinfo=UTC)
+        return max(matches, key=stamp)
+
+    def _nfl_event_role(self, card, depth, fallback_team):
+        team = str((depth or {}).get("team") or fallback_team or "").upper()
+        team_name = NFL_TEAM_NAMES.get(team)
+        sides = tuple(part.strip() for part in str(card.event).split(" @ ", 1))
+        if len(sides) != 2 or not team_name or team_name not in sides:
+            return team, None, False
+        is_home = team_name == sides[1]
+        return team, is_home, True
+
     def _nfl_projections(self):
         if self._nfl_projection is not None:
             return self._nfl_projection
@@ -313,16 +374,33 @@ class LivePlayerFeatureCollector:
             return None
 
         projection = self._nfl_projection_for(card.participant, card.starts_at)
+        depth = self._nfl_depth_for(card.participant)
         if projection is None:
             self._diagnostics.append(
                 f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_NFL_PROJECTION_NOT_MATCHED"
             )
-        position = str((projection or {}).get("Position") or player_rows[-1].get("position") or "")
-        homeaway = str((projection or {}).get("HomeOrAway") or "").lower()
-        if homeaway not in {"home", "away"}:
-            # Home/away is a trained feature; do not guess it.
+        if depth is None:
             self._diagnostics.append(
-                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_NFL_HOMEAWAY_UNAVAILABLE"
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:NFLVERSE_DEPTH_PLAYER_NOT_FOUND"
+            )
+        position = str(
+            (projection or {}).get("Position")
+            or (depth or {}).get("pos_abb")
+            or player_rows[-1].get("position")
+            or ""
+        ).upper()
+        team, fallback_is_home, event_identity = self._nfl_event_role(
+            card, depth, player_rows[-1].get("team")
+        )
+        homeaway = str((projection or {}).get("HomeOrAway") or "").lower()
+        if homeaway in {"home", "away"}:
+            is_home = homeaway == "home"
+            event_identity = True
+        elif fallback_is_home is not None:
+            is_home = fallback_is_home
+        else:
+            self._diagnostics.append(
+                f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:NFL_EVENT_TEAM_NOT_MATCHED"
             )
             return None
         injury = str((projection or {}).get("InjuryStatus") or "").strip().lower()
@@ -334,6 +412,8 @@ class LivePlayerFeatureCollector:
                 "out", "doubtful", "questionable", "inactive", "injured reserve"
             }
         )
+        depth_rank = _float(depth or {}, "pos_rank", 99.0)
+        depth_role = depth is not None and depth_rank <= 2.0
         projected_opportunities = {
             "player_pass_yds": _float(projection or {}, "PassingAttempts", _mean(opportunities, 3)),
             "player_pass_attempts": _float(projection or {}, "PassingAttempts", _mean(opportunities, 3)),
@@ -348,25 +428,42 @@ class LivePlayerFeatureCollector:
                 + _float(projection or {}, "ReceivingTargets", 0)
             ) or _mean(opportunities, 3),
         }[card.market]
-        features = _nfl_features(values, opportunities, position, homeaway == "home")
+        features = _nfl_features(values, opportunities, position, is_home)
+        depth_checksum = str((depth or {}).get("_source_checksum") or "")
+        source_checksum = hashlib.sha256(
+            (
+                player_rows[-1]["_source_checksum"]
+                + "|"
+                + depth_checksum
+                + "|"
+                + str((projection or {}).get("PlayerID") or "")
+            ).encode()
+        ).hexdigest()
         return {
-            "player_id": str((projection or {}).get("PlayerID") or player_rows[-1]["player_id"]),
+            "player_id": str(
+                (projection or {}).get("PlayerID")
+                or (depth or {}).get("gsis_id")
+                or player_rows[-1]["player_id"]
+            ),
             "features": features,
             "expected_opportunities": projected_opportunities,
-            "provider": "nflverse+SportsDataIO" if projection else "nflverse",
-            "source_checksum": player_rows[-1]["_source_checksum"],
+            "provider": (
+                "nflverse-history+depth-chart+SportsDataIO"
+                if projection else "nflverse-history+depth-chart"
+            ),
+            "source_checksum": source_checksum,
             "feature_schema_version": "nfl-player-rolling-v1",
             "integrity": {
-                "event_identity": projection is not None,
-                "player_identity": projection is not None,
+                "event_identity": event_identity,
+                "player_identity": depth is not None,
                 "fresh_features": True,
                 "schema": True,
-                "role": projected_opportunities >= minimum,
-                "availability": active,
-                "injuries": active,
-                "no_duplicate_event": projection is not None,
+                "role": projected_opportunities >= minimum and (depth_role or projection is not None),
+                "availability": active if projection is not None else depth is not None,
+                "injuries": active if projection is not None else False,
+                "no_duplicate_event": event_identity,
             },
-            "roster_version": str((projection or {}).get("Team") or ""),
+            "roster_version": str((projection or {}).get("Team") or team or ""),
             "injury_version": injury or None,
         }
 
@@ -557,15 +654,14 @@ class LivePlayerFeatureCollector:
                 )
                 if not payload:
                     continue
-                # Failed integrity is stored as a diagnostic, never as a usable snapshot.
-                if not all(payload["integrity"].values()):
+                research_only = not all(payload["integrity"].values())
+                if research_only:
                     failed = ",".join(
                         key for key, value in payload["integrity"].items() if value is not True
                     )
                     self._diagnostics.append(
-                        f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:UNVERIFIED_PLAYER_INPUTS:{failed}"
+                        f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:RESEARCH_ONLY_PLAYER_INPUTS:{failed}"
                     )
-                    continue
                 archived += bool(
                     archive_player_feature_snapshot(
                         store,
@@ -584,6 +680,7 @@ class LivePlayerFeatureCollector:
                         feature_schema_version=payload["feature_schema_version"],
                         roster_version=payload["roster_version"],
                         injury_version=payload["injury_version"],
+                        research_only=research_only,
                     )
                 )
             except (ValueError, KeyError, TypeError, OSError, urllib.error.URLError) as exc:
