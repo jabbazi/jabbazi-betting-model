@@ -81,8 +81,8 @@ def _name(value):
     return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
-def _fetch_json(url, timeout=20):
-    request = urllib.request.Request(url, headers={"User-Agent": "JABBAZI-Research/0.2"})
+def _fetch_json(url, timeout=20, *, headers=None):
+    request = urllib.request.Request(url, headers={"User-Agent": "JABBAZI-Research/0.2", **(headers or {})})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
@@ -157,7 +157,8 @@ def _innings_outs(value):
 
 class LivePlayerFeatureCollector:
     def __init__(self, *, sportsdataio_api_key="", now=None):
-        self.api_key = sportsdataio_api_key
+        self.api_key = sportsdataio_api_key.strip()
+        self._last_sportsdata_path = None
         self.now = now or datetime.now(UTC)
         self._nfl_rows = None
         self._nfl_depth_rows = None
@@ -197,7 +198,7 @@ class LivePlayerFeatureCollector:
                 "week": int(week),
             }
         except urllib.error.HTTPError as exc:
-            result["nfl"] = {"ok": False, "rows": 0, "error": f"HTTP_{exc.code}"}
+            result["nfl"] = self._provider_failure(exc.code)
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
             result["nfl"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
 
@@ -212,16 +213,29 @@ class LivePlayerFeatureCollector:
                 "date": local_date,
             }
         except urllib.error.HTTPError as exc:
-            result["mlb"] = {"ok": False, "rows": 0, "error": f"HTTP_{exc.code}"}
+            result["mlb"] = self._provider_failure(exc.code)
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
             result["mlb"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
         return result
 
+    def _provider_failure(self, status):
+        return {
+            "ok": False, "rows": 0, "error": f"HTTP_{status}",
+            "endpoint": self._last_sportsdata_path,
+            "action_required": (
+                "Verify the SportsDataIO key and access to this sport/feed; do not substitute trial data"
+                if status in (401, 403) else "Investigate provider availability before retrying"
+            ),
+        }
+
     def _sportsdata(self, path):
         if not self.api_key:
             return None
-        query = urllib.parse.urlencode({"key": self.api_key})
-        return _fetch_json(f"{SPORTSDATA_BASE}/{path}?{query}")
+        self._last_sportsdata_path = path
+        return _fetch_json(
+            f"{SPORTSDATA_BASE}/{path}",
+            headers={"Ocp-Apim-Subscription-Key": self.api_key},
+        )
 
     def _nfl_history(self):
         if self._nfl_rows is not None:
