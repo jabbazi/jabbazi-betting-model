@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -185,14 +186,22 @@ def fetch_update(artifact, *, now, result_store=None):
         raw=json.dumps(all_rows,sort_keys=True).encode()
     elif artifact["sport"] == SPORTS["nba"]:
         ending_year = now.year + 1 if now.month >= 7 else now.year
-        url = (
-            "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
-            f"espn_nba_schedules/nba_schedule_{ending_year}.csv"
-        )
-        with urllib.request.urlopen(url, timeout=45) as response:
-            raw = response.read(20_000_001)
-        if len(raw) > 20_000_000:
-            raise ValueError("NBA schedule response too large")
+        candidates = (ending_year, ending_year - 1) if now.month < 10 else (ending_year,)
+        raw = None
+        for season_file in candidates:
+            url = (
+                "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
+                f"espn_nba_schedules/nba_schedule_{season_file}.csv"
+            )
+            try:
+                with urllib.request.urlopen(url, timeout=45) as response:
+                    raw = response.read(20_000_001)
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code != 404 or season_file == candidates[-1]:
+                    raise
+        if raw is None or len(raw) > 20_000_000:
+            raise ValueError("NBA schedule response unavailable or too large")
         games, events = nba_schedule_rows(raw, now)
     elif artifact["sport"] == SPORTS["nfl"]:
         url = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
