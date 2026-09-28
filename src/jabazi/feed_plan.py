@@ -33,7 +33,19 @@ EVENT_MARKETS = {
         "alternate_totals",
         "team_totals",
     ),
-    "icehockey_nhl": ("alternate_spreads", "alternate_totals", "team_totals", "alternate_team_totals"),
+    "icehockey_nhl": (
+        "player_shots_on_goal",
+        "player_points",
+        "player_total_saves",
+        "player_assists",
+        "player_goals",
+        "player_power_play_points",
+        "player_blocked_shots",
+        "alternate_spreads",
+        "alternate_totals",
+        "team_totals",
+        "alternate_team_totals",
+    ),
 }
 PRIMARY = (*EVENT_MARKETS, "americanfootball_ncaaf")
 
