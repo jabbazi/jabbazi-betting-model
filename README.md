@@ -17,7 +17,9 @@ Documents in `docs/archive` describe older milestones and are not deployment ins
 
 The [NHL model and evaluation report](docs/experiments/nhl-goals/README.md) documents the
 coherent goals model, four-season data audit, held-out results and scanner integration.
-All NHL game-market buckets remain SHADOW_ONLY; player markets are unavailable.
+All NHL game-market buckets remain SHADOW_ONLY. NHL player-prop odds/history/training
+plumbing now exists for research, but no NHL player artifact is production-approved;
+same-day injury/scratch and starting-goalie evidence remain mandatory gates.
 
 ## Install and verify
 
