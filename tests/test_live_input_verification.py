@@ -87,6 +87,7 @@ def test_mlb_posted_batting_order_satisfies_current_injury_gate(monkeypatch):
         lambda card, person, pitcher: {
             "role": 2.0,
             "role_ok": True,
+            "active_roster": True,
             "event_identity": True,
             "team": "home",
             "source": "MLB StatsAPI posted battingOrder",
@@ -100,7 +101,7 @@ def test_mlb_posted_batting_order_satisfies_current_injury_gate(monkeypatch):
     assert "SportsDataIO" not in payload["provider"]
 
 
-def test_mlb_probable_pitcher_does_not_claim_injury_clearance(monkeypatch):
+def test_mlb_probable_pitcher_plus_active_roster_clears_current_gate(monkeypatch):
     collector = LivePlayerFeatureCollector(now=NOW, production_verified=False)
     start = NOW + timedelta(hours=3)
     card = SimpleNamespace(
@@ -135,6 +136,7 @@ def test_mlb_probable_pitcher_does_not_claim_injury_clearance(monkeypatch):
         lambda card, person, pitcher: {
             "role": 1.0,
             "role_ok": True,
+            "active_roster": True,
             "event_identity": True,
             "team": "home",
             "source": "MLB StatsAPI probablePitcher",
@@ -142,4 +144,4 @@ def test_mlb_probable_pitcher_does_not_claim_injury_clearance(monkeypatch):
     )
     payload = collector.mlb_snapshot(card)
     assert payload["integrity"]["availability"] is True
-    assert payload["integrity"]["injuries"] is False
+    assert payload["integrity"]["injuries"] is True
