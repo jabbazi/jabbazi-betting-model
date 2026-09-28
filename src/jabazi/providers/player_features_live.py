@@ -392,7 +392,7 @@ class LivePlayerFeatureCollector:
         return rows
 
     def _nfl_card_context(self, card):
-        parts = str(card.event).split(" @ ", 1)
+        parts = str(getattr(card, "event", "") or "").split(" @ ", 1)
         if len(parts) != 2:
             return None
         away, home = parts
