@@ -130,24 +130,26 @@ def normalize_rows(rows):
     return sorted(result, key=lambda row: (row["starts_at"], row["event_id"], row["player_id"]))
 
 
-def build_dataset(
+def build_datasets(
     *,
     rows,
-    market,
+    markets,
     provider,
     source_checksum,
     research_rights_reference,
     prediction_lead_hours=6,
 ):
-    if market not in MARKETS:
+    markets = tuple(dict.fromkeys(markets))
+    if not markets or any(market not in MARKETS for market in markets):
         raise ValueError("Unsupported NBA player market")
     if not all((provider, source_checksum, research_rights_reference)):
         raise ValueError("NBA dataset provenance is required")
     if not isinstance(prediction_lead_hours, int) or not 1 <= prediction_lead_hours <= 24:
         raise ValueError("Invalid NBA prediction lead")
+
     rows = normalize_rows(rows)
     prior = defaultdict(list)
-    output = []
+    outputs = {market: [] for market in markets}
     for current in rows:
         prediction_at = current["starts_at"] - timedelta(hours=prediction_lead_hours)
         history = [
@@ -155,8 +157,9 @@ def build_dataset(
             if row["result_available_at"] < prediction_at and row["minutes"] > 0
         ]
         if len(history) >= 5 and _mean([row["minutes"] for row in history], 5) >= 8:
-            features = _features(history[-40:], current)
-            output.append({
+            history = history[-40:]
+            features = _features(history, current)
+            base = {
                 "event_id": current["event_id"],
                 "player_id": current["player_id"],
                 "participant": current["participant"],
@@ -165,7 +168,6 @@ def build_dataset(
                 "starts_at": current["starts_at"].isoformat(),
                 "result_available_at": current["result_available_at"].isoformat(),
                 "result_status": "final" if current["minutes"] > 0 else "dnp",
-                "observed_value": _target(current, market),
                 "expected_opportunities": _mean([row["minutes"] for row in history], 5),
                 "features": features,
                 "market_line": None,
@@ -180,31 +182,56 @@ def build_dataset(
                     "same_day_rotation_verified": False,
                     "injury_status_verified": False,
                 },
-            })
+            }
+            for market in markets:
+                outputs[market].append({**base, "observed_value": _target(current, market)})
         prior[current["player_id"]].append(current)
-    canonical = json.dumps(
-        [[r["event_id"], r["player_id"], r["prediction_at"], r["observed_value"], r["features"]]
-         for r in output],
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return {
-        "manifest": {
-            "sport": SPORT,
-            "market": market,
-            "data_mode": "real",
-            "provider": provider,
-            "source_checksum": source_checksum,
-            "dataset_checksum": hashlib.sha256(canonical.encode()).hexdigest(),
-            "research_rights_reference": research_rights_reference,
-            "feature_schema_version": "nba-player-minutes-box-v1",
-            "prediction_lead_hours": prediction_lead_hours,
-            "market_prices_included": False,
-            "limitations": [
-                "No historical sportsbook prop-price archive is included.",
-                "Same-day injuries, scratches, starting lineup and rotation changes are not reconstructed.",
-                "DNP/void settlement requires separate book-specific handling.",
-            ],
-        },
-        "rows": output,
-    }
+
+    documents = {}
+    for market, output in outputs.items():
+        canonical = json.dumps(
+            [[r["event_id"], r["player_id"], r["prediction_at"], r["observed_value"], r["features"]]
+             for r in output],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        documents[market] = {
+            "manifest": {
+                "sport": SPORT,
+                "market": market,
+                "data_mode": "real",
+                "provider": provider,
+                "source_checksum": source_checksum,
+                "dataset_checksum": hashlib.sha256(canonical.encode()).hexdigest(),
+                "research_rights_reference": research_rights_reference,
+                "feature_schema_version": "nba-player-minutes-box-v1",
+                "prediction_lead_hours": prediction_lead_hours,
+                "market_prices_included": False,
+                "limitations": [
+                    "No historical sportsbook prop-price archive is included.",
+                    "Same-day injuries, scratches, starting lineup and rotation changes are not reconstructed.",
+                    "DNP/void settlement requires separate book-specific handling.",
+                ],
+            },
+            "rows": output,
+        }
+    return documents
+
+
+def build_dataset(
+    *,
+    rows,
+    market,
+    provider,
+    source_checksum,
+    research_rights_reference,
+    prediction_lead_hours=6,
+):
+    return build_datasets(
+        rows=rows,
+        markets=(market,),
+        provider=provider,
+        source_checksum=source_checksum,
+        research_rights_reference=research_rights_reference,
+        prediction_lead_hours=prediction_lead_hours,
+    )[market]
