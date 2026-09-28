@@ -44,10 +44,10 @@ SUPPORTED_LIVE_MARKETS = frozenset({
 })
 
 SKATER_TARGETS = {
-    "player_points": ("points", "timeOnIcePerGame", 8.0),
-    "player_assists": ("assists", "timeOnIcePerGame", 8.0),
-    "player_shots_on_goal": ("shots", "timeOnIcePerGame", 8.0),
-    "player_goals": ("goals", "timeOnIcePerGame", 8.0),
+    "player_points": ("points", "timeOnIcePerGame", 480.0),
+    "player_assists": ("assists", "timeOnIcePerGame", 480.0),
+    "player_shots_on_goal": ("shots", "timeOnIcePerGame", 480.0),
+    "player_goals": ("goals", "timeOnIcePerGame", 480.0),
 }
 GOALIE_TARGETS = {
     "player_total_saves": ("saves", "shotsAgainst", 15.0),
