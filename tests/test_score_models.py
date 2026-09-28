@@ -161,9 +161,11 @@ def test_failed_cloud_refresh_overrides_bundled_file_and_throttles():
     try:
         with patch("jabazi.models.refresh.fetch_update", side_effect=OSError("test")) as fetch:
             result = refresh_models(s)
-            assert all(result[k]["status"] == "UNAVAILABLE" for k in ("nfl", "mlb"))
-            assert refresh_models(s) == {"nfl": "NOT_DUE", "mlb": "NOT_DUE", "nhl": "NOT_DUE"}
-            assert fetch.call_count == 3
+            assert all(result[k]["status"] == "UNAVAILABLE" for k in ("nfl", "mlb", "nba"))
+            assert refresh_models(s) == {
+                "nfl": "NOT_DUE", "mlb": "NOT_DUE", "nhl": "NOT_DUE", "nba": "NOT_DUE"
+            }
+            assert fetch.call_count == 4
         models, errors = load_models(s)
         assert "americanfootball_nfl" not in models and "baseball_mlb" not in models
         assert len(errors) >= 2
