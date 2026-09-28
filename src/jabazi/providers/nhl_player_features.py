@@ -129,6 +129,7 @@ class NHLPlayerFeatureCollector:
         self.started = time.monotonic()
         self._rosters = {}
         self._stats = {}
+        self._injuries = None
         self._diagnostics = []
 
     @property
@@ -195,6 +196,51 @@ class NHLPlayerFeatureCollector:
         player["is_home"] = player["team"] == home_abbrev
         player["event_identity"] = player["team"] in {away_abbrev, home_abbrev}
         return player
+
+    def _injury_evidence(self, player):
+        """Cross-check current NHL roster membership against ESPN's live injury feed.
+
+        This is a verification input only, not a projection source. A player listed
+        with an ambiguous/unavailable status remains fail-closed. Absence is accepted
+        only when the player's team is present in the current league injury payload.
+        """
+        if self._injuries is None:
+            self._budget()
+            payload, checksum = _fetch_json(
+                "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries"
+            )
+            groups = payload.get("injuries", []) if isinstance(payload, dict) else []
+            if not isinstance(groups, list):
+                return None
+            self._injuries = (groups, checksum)
+        groups, checksum = self._injuries
+        team_groups = [
+            group for group in groups
+            if str((group.get("team") or {}).get("abbreviation") or "").upper()
+            == str(player["team"]).upper()
+        ]
+        if len(team_groups) != 1:
+            return None
+        rows = team_groups[0].get("injuries", [])
+        if not isinstance(rows, list):
+            return None
+        matches = [
+            row for row in rows
+            if _name((row.get("athlete") or {}).get("displayName")) == _name(player["name"])
+        ]
+        if len(matches) > 1:
+            return None
+        status = str((matches[0] if matches else {}).get("status") or "").strip().lower()
+        blocked = status in {
+            "out", "injured reserve", "ir", "day-to-day", "day to day",
+            "doubtful", "questionable",
+        }
+        return {
+            "verified": True,
+            "available": not blocked,
+            "status": status or "not_listed",
+            "source_checksum": checksum,
+        }
 
     def _season_ids(self):
         year = self.now.year if self.now.month >= 7 else self.now.year - 1
@@ -281,15 +327,22 @@ class NHLPlayerFeatureCollector:
             is_home=player["is_home"],
             position=player["position"],
         )
-        # Official roster membership and completed-game history establish identity and
-        # historical role. They do NOT establish same-day health or, for goalies,
-        # confirmed starter status. Those gates deliberately remain false.
+        try:
+            injury = self._injury_evidence(player)
+        except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            self._diagnostics.append(f"NHL_INJURY_PROVIDER_{type(exc).__name__}")
+            injury = None
+        # Historical role plus a current injury cross-check can verify skater
+        # availability. Goalie saves still require a separately confirmed starter.
         role_ok = _mean(opportunities, 5) >= minimum and not goalie
+        injury_ok = bool(injury and injury["available"])
         checksum = hashlib.sha256(
             (
                 player["source_checksum"]
                 + "|"
                 + stats_checksum
+                + "|"
+                + str((injury or {}).get("source_checksum") or "")
                 + "|"
                 + json.dumps(
                     {
@@ -306,7 +359,7 @@ class NHLPlayerFeatureCollector:
             "player_id": str(player["player_id"]),
             "features": features,
             "expected_opportunities": _mean(opportunities, 5),
-            "provider": "NHL official roster+stats",
+            "provider": "NHL official roster+stats + ESPN injury cross-check",
             "source_checksum": checksum,
             "feature_schema_version": "nhl-player-rolling-v1",
             "integrity": {
@@ -315,10 +368,10 @@ class NHLPlayerFeatureCollector:
                 "fresh_features": True,
                 "schema": True,
                 "role": role_ok,
-                "availability": True,
-                "injuries": False,
+                "availability": injury_ok,
+                "injuries": injury_ok,
                 "no_duplicate_event": True,
             },
             "roster_version": player["team"],
-            "injury_version": None,
+            "injury_version": (injury or {}).get("status"),
         }
