@@ -213,8 +213,10 @@ class LivePlayerFeatureCollector:
                 "ok": True,
                 "provider": "NHL official roster+stats",
                 "history_source_verified": True,
-                "lineup_injury_source_verified": False,
-                "note": "Official history is available; same-day injury and starting-goalie gates remain unverified.",
+                "lineup_injury_source_verified": True,
+                "injury_source": "ESPN NHL current injury feed",
+                "starting_goalie_source_verified": False,
+                "note": "Skater injury cross-check is live; goalie saves remain fail-closed until a starter is confirmed.",
             },
             "nba": {
                 "ok": False,
