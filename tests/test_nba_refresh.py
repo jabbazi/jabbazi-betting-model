@@ -166,3 +166,33 @@ def test_nba_offseason_state_cannot_infer_without_current_event():
         participant=None,
     )
     assert model.estimate(price) is None
+
+
+def test_nba_offseason_empty_results_do_not_call_prospective_archiver(monkeypatch):
+    import json
+    from unittest.mock import patch
+    from jabazi.models.refresh import BUNDLE_DIR, fetch_update
+
+    empty = (
+        "game_id,season,season_type,game_date_time,neutral_site,status_type_completed,"
+        "home_display_name,away_display_name,home_score,away_score\n"
+    ).encode()
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, limit):
+            return empty
+
+    monkeypatch.setattr(
+        "jabazi.models.refresh.urllib.request.urlopen",
+        lambda url, timeout=45: Response(),
+    )
+    artifact = json.loads((BUNDLE_DIR / "nba_scores.json").read_text())
+    with patch("jabazi.research.prospective.archive_results") as archive:
+        updated = fetch_update(artifact, now=NOW, result_store=object())
+    archive.assert_not_called()
+    assert updated["events"] == []
+    assert updated["offseason_context"] is True

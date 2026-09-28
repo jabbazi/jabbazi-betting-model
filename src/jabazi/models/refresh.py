@@ -315,10 +315,22 @@ def fetch_update(artifact, *, now, result_store=None):
         )
     if result_store is not None:
         from jabazi.research.prospective import archive_results
-        archive_results(result_store, artifact["sport"],
-                        [g for g in games if available_at(g) < now
-                         and timestamp(g["starts_at"]) >= now - timedelta(days=30)],
-                        observed_at=now, source_checksum=checksum)
+        completed = [
+            g for g in games
+            if available_at(g) < now
+            and timestamp(g["starts_at"]) >= now - timedelta(days=30)
+        ]
+        # Offseason refreshes can legitimately contain no new completed games.
+        # Do not fabricate results and do not poison a healthy shadow state by
+        # passing an empty result set into the prospective settlement adapter.
+        if completed:
+            archive_results(
+                result_store,
+                artifact["sport"],
+                completed,
+                observed_at=now,
+                source_checksum=checksum,
+            )
     return updated
 
 
