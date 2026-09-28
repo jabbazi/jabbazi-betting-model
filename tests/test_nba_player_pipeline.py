@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from jabazi.research.nba_player_experiment import build_dataset
+from jabazi.research.nba_player_experiment import build_dataset, build_datasets
 
 
 def rows():
@@ -65,3 +65,16 @@ def test_nba_combo_targets_share_same_observed_box_score():
 def test_nba_double_double_is_binary_target():
     document = build("player_double_double")
     assert {row["observed_value"] for row in document["rows"]} <= {0, 1}
+
+
+def test_multi_market_builder_matches_single_market_contract():
+    multi = build_datasets(
+        rows=rows(),
+        markets=("player_points", "player_assists", "player_double_double"),
+        provider="TEST_ONLY",
+        source_checksum="test-checksum",
+        research_rights_reference="test fixture",
+    )
+    assert multi["player_points"] == build("player_points")
+    assert multi["player_assists"] == build("player_assists")
+    assert multi["player_double_double"] == build("player_double_double")
