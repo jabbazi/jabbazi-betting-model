@@ -190,6 +190,10 @@ def refresh_models(store, *, now=None):
     try:
         sports = ("nfl", "mlb", "cfb", "nhl") if os.getenv("JABBAZI_CFBD_API_KEY") else ("nfl", "mlb", "nhl")
         for short in sports:
+            # Renew between bounded providers: combined multi-sport requests can
+            # exceed the original lease lifetime during a slow feed response.
+            if not store.acquire_lease("model_refresh", owner, 300):
+                return {"status": "LEASE_LOST", "models": report}
             previous = store.list_records("model_refresh_attempt", 1, entity=SPORTS[short])
             if previous:
                 elapsed = (now - timestamp(previous[0]["payload"]["attempted_at"])).total_seconds()

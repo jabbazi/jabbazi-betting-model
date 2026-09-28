@@ -298,3 +298,16 @@ def test_get_model_status_exposes_nhl_buckets(tmp_path, monkeypatch):
     assert nhl["version"] == artifact()["model_version"] and nhl["status"] == "SHADOW_ONLY"
     assert len(nhl["market_buckets"]) == 7 and nhl["player_status"] == "UNAVAILABLE"
     assert not nhl["approved_for_betting"]
+
+
+def test_refresh_stops_before_provider_when_lease_is_lost():
+    from jabazi.models.refresh import refresh_models
+    s = Store("sqlite:///:memory:", initialize=True)
+    try:
+        with (patch.object(s, "acquire_lease", side_effect=[True, False]),
+              patch("jabazi.models.refresh.fetch_update") as fetch):
+            assert refresh_models(s) == {"status": "LEASE_LOST", "models": {}}
+            fetch.assert_not_called()
+        assert not s.list_records("model_refresh_attempt")
+    finally:
+        s.close()
