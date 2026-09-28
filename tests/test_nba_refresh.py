@@ -146,7 +146,6 @@ def test_nba_offseason_empty_release_preserves_bundled_state_without_events(monk
 
 def test_nba_offseason_state_cannot_infer_without_current_event():
     import json
-    from decimal import Decimal
     from types import SimpleNamespace
     from jabazi.models.refresh import BUNDLE_DIR, nba_offseason_state
     from jabazi.models.score_distribution import ScoreDistributionModel
