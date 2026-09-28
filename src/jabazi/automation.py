@@ -24,7 +24,15 @@ from .domain.health import assess
 from .domain.models import Decision
 from .providers.the_odds_api import TheOddsApiProvider
 
-QUICK_SPORTS = ("baseball_mlb", "americanfootball_nfl", "americanfootball_ncaaf")
+QUICK_SPORTS = ("baseball_mlb", "americanfootball_nfl", "americanfootball_ncaaf", "icehockey_nhl")
+
+
+def is_player_market(card):
+    return card.market.startswith(("player_", "pitcher_", "batter_"))
+
+
+def select_model(card, models, player_models):
+    return player_models.get((card.sport, card.market)) if is_player_market(card) else models.get(card.sport)
 
 
 class ScannerBusy(RuntimeError):
@@ -103,7 +111,7 @@ class AutomaticScanner:
             else active
         )
         # Full scans still prioritize the owner's primary leagues within quota.
-        priority = {"americanfootball_nfl": 0, "baseball_mlb": 1, "americanfootball_ncaaf": 2}
+        priority = {"americanfootball_nfl": 0, "baseball_mlb": 1, "americanfootball_ncaaf": 2, "icehockey_nhl": 3}
         selected.sort(key=lambda item: (priority.get(item["key"], 3), item["key"]))
         policy = RiskPolicy(
             self.settings.bankroll,
@@ -191,14 +199,10 @@ class AutomaticScanner:
                     errors.extend(f"{sport['key']}:{event}:DUPLICATE_EVENT_IDENTITY" for event in sorted(duplicate_ids))
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
-                if isinstance(ledger, Store) and any(card.participant for card in cards):
-                    player_features.sync(ledger, cards)
+                if isinstance(ledger, Store) and any(is_player_market(card) for card in cards):
+                    player_features.sync(ledger, [card for card in cards if is_player_market(card)])
                 for card in cards:
-                    model = (
-                        player_models.get((card.sport, card.market))
-                        if card.participant
-                        else models.get(card.sport)
-                    )
+                    model = select_model(card, models, player_models)
                     # One bad game/model must not abort independent price research.
                     try:
                         estimate = model.estimate(card) if model and card.event_id not in duplicate_ids else None
@@ -227,7 +231,7 @@ class AutomaticScanner:
                         }
                         ledger.append("model_prediction", card.event_id, evidence, digest(evidence))
                         try:
-                            if card.participant:
+                            if is_player_market(card):
                                 from .research.player_prospective import freeze_player_candidate
                                 reliability["prospective_recorded"] = freeze_player_candidate(
                                     ledger, card, estimate, reliability
@@ -290,7 +294,7 @@ class AutomaticScanner:
                                 card.sport,
                                 card.event_id,
                                 players=frozenset({card.participant})
-                                if card.participant
+                                if is_player_market(card) and card.participant
                                 else frozenset(),
                                 theses=__import__("jabazi.domain.thesis", fromlist=["tags"]).tags(card),
                                 betting_date=datetime.now(UTC)

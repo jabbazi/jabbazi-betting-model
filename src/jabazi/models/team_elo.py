@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .base import ModelEstimate, ProbabilityModel
 
-SPORTS = {"mlb": "baseball_mlb", "nfl": "americanfootball_nfl", "cfb": "americanfootball_ncaaf"}
+SPORTS = {"mlb": "baseball_mlb", "nfl": "americanfootball_nfl", "cfb": "americanfootball_ncaaf", "nhl": "icehockey_nhl"}
 GRIDS = {
     "mlb": ((8, 16, 24), (16, 24, 32), (0.65, 0.85)),
     "nfl": ((16, 24, 32), (35, 50, 65), (0.50, 0.75)),

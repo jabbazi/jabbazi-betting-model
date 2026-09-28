@@ -122,7 +122,7 @@ def consent(request: Request):
 main{{max-width:520px;margin:4vh auto}}input,button{{box-sizing:border-box;width:100%;padding:16px;
 margin:12px 0;border-radius:10px;font:inherit}}button{{background:#8648ef;color:white;border:0}}</style>
 <main><h1>Connect your private JABBAZI scanner</h1>
-<p>Authorize ChatGPT to start research scans and read NFL/MLB model probabilities and scan results.
+<p>Authorize ChatGPT to start research scans and read NFL/MLB/CFB/NHL team and supported player model probabilities and scan results.
 Each new scan uses the configured odds-provider credit budget within your existing limits.</p>
 <p>This connection cannot place bets, edit your ledger, publish to Discord or access your provider keys.
 Models remain research only.</p>
@@ -307,7 +307,7 @@ TOOLS = [
          {"request_id": {"type": "string", "format": "uuid", "description": "A new UUID per explicit new scan; reuse on retries."}}, ["request_id"], False),
     tool("get_scan_results", "Read one real scan page, waiting up to 10 seconds if RUNNING. Continue the same scan_id until terminal. Each page contains at most 25 rows. Total coverage is across all pages; fetch further pages for full retained coverage. Report scan ID, generated time, model version and coverage. Keep market consensus separate from model probability; all estimates remain research only. Stale prices are unavailable for action.",
          {"scan_id": {"type": "string", "format": "uuid"}, "page": {"type": "integer", "minimum": 1, "maximum": 11, "default": 1}}, ["scan_id"], True),
-    tool("get_model_status", "Read deployed NFL/MLB model versions, refresh timestamps, coverage and SHADOW_ONLY/UNAVAILABLE status without consuming odds-provider credits. Model readiness does not mean betting approval or profitable edge.", {}, [], True),
+    tool("get_model_status", "Read deployed NFL/MLB/CFB/NHL team and supported player model versions, refresh timestamps, coverage and SHADOW_ONLY/UNAVAILABLE status without consuming odds-provider credits. Model readiness does not mean betting approval or profitable edge.", {}, [], True),
 ]
 
 

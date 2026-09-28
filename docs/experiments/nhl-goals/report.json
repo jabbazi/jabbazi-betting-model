@@ -1,0 +1,643 @@
+{
+  "historical_games": {
+    "20222023": 1312,
+    "20232024": 1312,
+    "20242025": 1312,
+    "20252026": 1312
+  },
+  "fit_games": 2591,
+  "calibration_games": 1310,
+  "test_games": 1312,
+  "selection": [
+    {
+      "alpha": 0.01,
+      "selection_goal_log_loss": 1.9328122178360538
+    },
+    {
+      "alpha": 0.1,
+      "selection_goal_log_loss": 1.9417525046373345
+    },
+    {
+      "alpha": 1.0,
+      "selection_goal_log_loss": 1.949356133213987
+    }
+  ],
+  "selected_alpha": 0.01,
+  "calibration_goal_factor": 0.9955162174069802,
+  "test": {
+    "league_baseline": {
+      "h2h": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.249685024217886,
+        "log_loss": 0.6925180187675681,
+        "calibration_intercept": 0.08693517408207517,
+        "calibration_slope": 0.01109548108870384,
+        "ece": 0.011509728568868893,
+        "reliability": [
+          {
+            "bucket": "50-55",
+            "n": 1312,
+            "mean_probability": 0.5336133871054543,
+            "observed_hit_rate": 0.5221036585365854,
+            "wilson_95": [
+              0.49504926094245033,
+              0.5490289928534474
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "spreads": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.21064170701897936,
+        "log_loss": 0.6122887671879924,
+        "calibration_intercept": -0.4588231877588448,
+        "calibration_slope": 0.4196067480230808,
+        "ece": 0.014907885537518428,
+        "reliability": [
+          {
+            "bucket": "20-30",
+            "n": 1312,
+            "mean_probability": 0.2861591876332133,
+            "observed_hit_rate": 0.3010670731707317,
+            "wilson_95": [
+              0.2768552141209894,
+              0.3264405017159319
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "totals": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.2510683439911111,
+        "log_loss": 0.695346684282933,
+        "calibration_intercept": -0.11411095829963695,
+        "calibration_slope": 0.03592496973070967,
+        "ece": 0.046491326682113095,
+        "reliability": [
+          {
+            "bucket": "30-40",
+            "n": 4,
+            "mean_probability": 0.39520290029203997,
+            "observed_hit_rate": 0.25,
+            "wilson_95": [
+              0.045586062644636216,
+              0.6993639475573634
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 1308,
+            "mean_probability": 0.42322950381822305,
+            "observed_hit_rate": 0.4694189602446483,
+            "wilson_95": [
+              0.4425016635743261,
+              0.4965153640912091
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "team_totals": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.24188422078736244,
+        "log_loss": 0.6768685467882071,
+        "calibration_intercept": -0.3081851613672742,
+        "calibration_slope": 0.14459926674318946,
+        "ece": 0.022453953653018943,
+        "reliability": [
+          {
+            "bucket": "30-40",
+            "n": 1312,
+            "mean_probability": 0.38455824146893225,
+            "observed_hit_rate": 0.4070121951219512,
+            "wilson_95": [
+              0.38073739932032724,
+              0.43382994677968956
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      }
+    },
+    "raw_form_model": {
+      "h2h": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.24685886659966957,
+        "log_loss": 0.6867889982151959,
+        "calibration_intercept": -0.04338898627182102,
+        "calibration_slope": 1.0084374282848643,
+        "ece": 0.020897960314043295,
+        "reliability": [
+          {
+            "bucket": "30-40",
+            "n": 10,
+            "mean_probability": 0.38016630043311606,
+            "observed_hit_rate": 0.3,
+            "wilson_95": [
+              0.10778928748621183,
+              0.6032267800204347
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 321,
+            "mean_probability": 0.4706564289772673,
+            "observed_hit_rate": 0.48286604361370716,
+            "wilson_95": [
+              0.4287263566169411,
+              0.5374109853983675
+            ]
+          },
+          {
+            "bucket": "50-55",
+            "n": 507,
+            "mean_probability": 0.5248719491597261,
+            "observed_hit_rate": 0.5108481262327417,
+            "wilson_95": [
+              0.467417308062796,
+              0.5541157855615292
+            ]
+          },
+          {
+            "bucket": "55-60",
+            "n": 360,
+            "mean_probability": 0.5722077376611564,
+            "observed_hit_rate": 0.5444444444444444,
+            "wilson_95": [
+              0.49279926582575945,
+              0.5951510949905957
+            ]
+          },
+          {
+            "bucket": "60-65",
+            "n": 95,
+            "mean_probability": 0.6190422459898249,
+            "observed_hit_rate": 0.6,
+            "wilson_95": [
+              0.49945418140451453,
+              0.6927725733222401
+            ]
+          },
+          {
+            "bucket": "65-70",
+            "n": 15,
+            "mean_probability": 0.6697621197550038,
+            "observed_hit_rate": 0.8666666666666667,
+            "wilson_95": [
+              0.6211750079348376,
+              0.9626395301086407
+            ]
+          },
+          {
+            "bucket": "70-75",
+            "n": 4,
+            "mean_probability": 0.7074323186726718,
+            "observed_hit_rate": 0.5,
+            "wilson_95": [
+              0.15003570882017148,
+              0.8499642911798285
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "spreads": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.20633184755377665,
+        "log_loss": 0.6019145921234349,
+        "calibration_intercept": 0.4753719945642164,
+        "calibration_slope": 1.4646421422752691,
+        "ece": 0.01619582533575017,
+        "reliability": [
+          {
+            "bucket": "10-20",
+            "n": 34,
+            "mean_probability": 0.18481460589164597,
+            "observed_hit_rate": 0.11764705882352941,
+            "wilson_95": [
+              0.04671370973436122,
+              0.26621174796298774
+            ]
+          },
+          {
+            "bucket": "20-30",
+            "n": 769,
+            "mean_probability": 0.2627241613580236,
+            "observed_hit_rate": 0.27308192457737324,
+            "wilson_95": [
+              0.2427773104282029,
+              0.3056424433738699
+            ]
+          },
+          {
+            "bucket": "30-40",
+            "n": 489,
+            "mean_probability": 0.33007075640564953,
+            "observed_hit_rate": 0.34151329243353784,
+            "wilson_95": [
+              0.3008626843790643,
+              0.38463464376855955
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 20,
+            "mean_probability": 0.4297646896564486,
+            "observed_hit_rate": 0.7,
+            "wilson_95": [
+              0.4810232237710206,
+              0.854524726031006
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "totals": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.24947901520712001,
+        "log_loss": 0.6921611704813619,
+        "calibration_intercept": 0.07219249246624984,
+        "calibration_slope": 0.7427216760403749,
+        "ece": 0.03456063012122218,
+        "reliability": [
+          {
+            "bucket": "30-40",
+            "n": 234,
+            "mean_probability": 0.37867018977823486,
+            "observed_hit_rate": 0.4230769230769231,
+            "wilson_95": [
+              0.36151848923245,
+              0.4871202686635615
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 1020,
+            "mean_probability": 0.44246574027739666,
+            "observed_hit_rate": 0.47058823529411764,
+            "wilson_95": [
+              0.4401240587914417,
+              0.5012731260855939
+            ]
+          },
+          {
+            "bucket": "50-55",
+            "n": 58,
+            "mean_probability": 0.5126305825845681,
+            "observed_hit_rate": 0.6206896551724138,
+            "wilson_95": [
+              0.4920257173616557,
+              0.734359110973963
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "team_totals": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.23887875641203518,
+        "log_loss": 0.6706055793970611,
+        "calibration_intercept": 0.10760847438972246,
+        "calibration_slope": 1.100694472381706,
+        "ece": 0.015680325882230686,
+        "reliability": [
+          {
+            "bucket": "20-30",
+            "n": 26,
+            "mean_probability": 0.28151511430728576,
+            "observed_hit_rate": 0.3076923076923077,
+            "wilson_95": [
+              0.16501120939792674,
+              0.49988611514231246
+            ]
+          },
+          {
+            "bucket": "30-40",
+            "n": 726,
+            "mean_probability": 0.3627627590411262,
+            "observed_hit_rate": 0.3677685950413223,
+            "wilson_95": [
+              0.3334738753522392,
+              0.4034553432617724
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 542,
+            "mean_probability": 0.4318819272589341,
+            "observed_hit_rate": 0.4612546125461255,
+            "wilson_95": [
+              0.419706327359948,
+              0.5033482730955687
+            ]
+          },
+          {
+            "bucket": "50-55",
+            "n": 18,
+            "mean_probability": 0.5187637870931101,
+            "observed_hit_rate": 0.5,
+            "wilson_95": [
+              0.2903070395897999,
+              0.7096929604102
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      }
+    },
+    "calibrated_form_model": {
+      "h2h": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.24685793852753282,
+        "log_loss": 0.6867872645760069,
+        "calibration_intercept": -0.04349729592615995,
+        "calibration_slope": 1.0108212603380509,
+        "ece": 0.02004880636256955,
+        "reliability": [
+          {
+            "bucket": "30-40",
+            "n": 10,
+            "mean_probability": 0.3804643180489503,
+            "observed_hit_rate": 0.3,
+            "wilson_95": [
+              0.10778928748621183,
+              0.6032267800204347
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 320,
+            "mean_probability": 0.470660231136916,
+            "observed_hit_rate": 0.48125,
+            "wilson_95": [
+              0.4270525151254418,
+              0.5358923319849974
+            ]
+          },
+          {
+            "bucket": "50-55",
+            "n": 508,
+            "mean_probability": 0.524791559550861,
+            "observed_hit_rate": 0.5118110236220472,
+            "wilson_95": [
+              0.4684173815662885,
+              0.5550273716542391
+            ]
+          },
+          {
+            "bucket": "55-60",
+            "n": 361,
+            "mean_probability": 0.572143416632288,
+            "observed_hit_rate": 0.5429362880886427,
+            "wilson_95": [
+              0.49136503302031176,
+              0.5936033477783692
+            ]
+          },
+          {
+            "bucket": "60-65",
+            "n": 94,
+            "mean_probability": 0.618999151555466,
+            "observed_hit_rate": 0.6063829787234043,
+            "wilson_95": [
+              0.5053093955361283,
+              0.6991026337029684
+            ]
+          },
+          {
+            "bucket": "65-70",
+            "n": 15,
+            "mean_probability": 0.6694133123968738,
+            "observed_hit_rate": 0.8666666666666667,
+            "wilson_95": [
+              0.6211750079348376,
+              0.9626395301086407
+            ]
+          },
+          {
+            "bucket": "70-75",
+            "n": 4,
+            "mean_probability": 0.7070146286652099,
+            "observed_hit_rate": 0.5,
+            "wilson_95": [
+              0.15003570882017148,
+              0.8499642911798285
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "spreads": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.2063527731180733,
+        "log_loss": 0.6019602671649094,
+        "calibration_intercept": 0.4819856898651201,
+        "calibration_slope": 1.4674860590562264,
+        "ece": 0.017663648810247783,
+        "reliability": [
+          {
+            "bucket": "10-20",
+            "n": 37,
+            "mean_probability": 0.18581330385523734,
+            "observed_hit_rate": 0.10810810810810811,
+            "wilson_95": [
+              0.04285120520506268,
+              0.24708846415167163
+            ]
+          },
+          {
+            "bucket": "20-30",
+            "n": 770,
+            "mean_probability": 0.26267367252201923,
+            "observed_hit_rate": 0.274025974025974,
+            "wilson_95": [
+              0.24370195876710302,
+              0.30659360559645676
+            ]
+          },
+          {
+            "bucket": "30-40",
+            "n": 486,
+            "mean_probability": 0.32976467861040387,
+            "observed_hit_rate": 0.3436213991769547,
+            "wilson_95": [
+              0.3027722239519252,
+              0.3869233837710611
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 19,
+            "mean_probability": 0.43031701878882,
+            "observed_hit_rate": 0.6842105263157895,
+            "wilson_95": [
+              0.4601001017506463,
+              0.846358289955714
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "totals": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.24979031969733304,
+        "log_loss": 0.692802832546039,
+        "calibration_intercept": 0.08545854783565274,
+        "calibration_slope": 0.7436801592855287,
+        "ece": 0.0388352833892316,
+        "reliability": [
+          {
+            "bucket": "30-40",
+            "n": 276,
+            "mean_probability": 0.37812645799277184,
+            "observed_hit_rate": 0.4166666666666667,
+            "wilson_95": [
+              0.3600359253456695,
+              0.4755853689865528
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 992,
+            "mean_probability": 0.440706742801559,
+            "observed_hit_rate": 0.47580645161290325,
+            "wilson_95": [
+              0.4448810594039383,
+              0.5069185039001052
+            ]
+          },
+          {
+            "bucket": "50-55",
+            "n": 44,
+            "mean_probability": 0.5114572029131043,
+            "observed_hit_rate": 0.6363636363636364,
+            "wilson_95": [
+              0.48866107278891047,
+              0.7621666587250857
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      },
+      "team_totals": {
+        "independent_games": 1312,
+        "predictions": 1312,
+        "brier": 0.23898343687075352,
+        "log_loss": 0.6708244817553283,
+        "calibration_intercept": 0.12233576676629146,
+        "calibration_slope": 1.1017437990928856,
+        "ece": 0.019404244463060813,
+        "reliability": [
+          {
+            "bucket": "20-30",
+            "n": 34,
+            "mean_probability": 0.2836453778359736,
+            "observed_hit_rate": 0.29411764705882354,
+            "wilson_95": [
+              0.16834452609931952,
+              0.4616922588146376
+            ]
+          },
+          {
+            "bucket": "30-40",
+            "n": 755,
+            "mean_probability": 0.362351088721216,
+            "observed_hit_rate": 0.37218543046357616,
+            "wilson_95": [
+              0.3384329383110599,
+              0.40723203314016254
+            ]
+          },
+          {
+            "bucket": "40-50",
+            "n": 506,
+            "mean_probability": 0.4310256235373059,
+            "observed_hit_rate": 0.4644268774703557,
+            "wilson_95": [
+              0.42140220216374674,
+              0.5079876318552897
+            ]
+          },
+          {
+            "bucket": "50-55",
+            "n": 17,
+            "mean_probability": 0.5162558280208102,
+            "observed_hit_rate": 0.47058823529411764,
+            "wilson_95": [
+              0.26164801196088106,
+              0.6903710268845051
+            ]
+          }
+        ],
+        "market_baseline": null,
+        "clv": null,
+        "roi": null
+      }
+    }
+  },
+  "paired_brier_difference": {
+    "h2h": {
+      "model_minus_baseline": -0.002827085690353224,
+      "game_bootstrap_95": [
+        -0.0055632375070296895,
+        -3.834344206038229e-05
+      ]
+    },
+    "spreads": {
+      "model_minus_baseline": -0.004288933900906062,
+      "game_bootstrap_95": [
+        -0.006514521499251114,
+        -0.0021301275162470394
+      ]
+    },
+    "totals": {
+      "model_minus_baseline": -0.0012780242937780566,
+      "game_bootstrap_95": [
+        -0.0034310975220545256,
+        0.0007244715767393183
+      ]
+    },
+    "team_totals": {
+      "model_minus_baseline": -0.0029007839166089217,
+      "game_bootstrap_95": [
+        -0.005435276481963061,
+        -0.00034348572222173737
+      ]
+    }
+  }
+}
