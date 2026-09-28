@@ -165,7 +165,8 @@ def _threshold_rows(rows, artifact):
     result = []
     for row in rows:
         line = row.get("market_line")
-        side = str(row.get("market_side", "over")).lower()
+        raw_side = row.get("market_side")
+        side = str(raw_side if raw_side is not None else "over").lower()
         if artifact["market"] in BINARY_MARKETS:
             line = 0.5 if line is None else line
             side = "yes" if side in {"over", "yes"} else "no"
@@ -192,8 +193,11 @@ def _fit_calibration(artifact, calibration_rows):
         from sklearn.isotonic import IsotonicRegression
     except ImportError as exc:
         raise RuntimeError("Install project research dependencies") from exc
-    positive = [str(row.get("market_side", "over")).lower() in {"over", "yes"}
-                for row, _, _ in threshold]
+    positive = [
+        str(row.get("market_side") if row.get("market_side") is not None else "over").lower()
+        in {"over", "yes"}
+        for row, _, _ in threshold
+    ]
     x = np.asarray([raw if pos else 1 - raw for pos, (_, raw, _) in zip(positive, threshold)])
     y = np.asarray([outcome if pos else 1 - outcome for pos, (_, _, outcome) in zip(positive, threshold)])
     model = IsotonicRegression(out_of_bounds="clip").fit(x, y)
@@ -249,7 +253,11 @@ def _validation(artifact, test_rows):
             "reason": "No threshold-specific test evidence",
         }
     probabilities = [calibrated_probability(
-        artifact, row["features"], str(row.get("market_side", "over")),
+        artifact,
+        row["features"],
+        str(row.get("market_side") if row.get("market_side") is not None else "yes")
+        if artifact["market"] in BINARY_MARKETS
+        else str(row.get("market_side") if row.get("market_side") is not None else "over"),
         row.get("market_line", 0.5 if artifact["market"] in BINARY_MARKETS else None),
     ) for row, _, _ in threshold]
     outcomes = [outcome for _, _, outcome in threshold]
