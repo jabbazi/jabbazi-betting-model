@@ -191,6 +191,10 @@ def test_nhl_count_artifact_can_infer_but_cannot_self_approve():
     assert 0 < float(estimate.probability) < 1
     assert estimate.approved_for_betting is False
     assert estimate.feature_snapshot["production_inputs_verified"] is False
+    assert estimate.feature_snapshot["integrity"]["variance"] is True
+    assert estimate.feature_snapshot["integrity"]["starter"] is True
+    assert estimate.feature_snapshot["integrity"]["roster"] is True
+    assert estimate.feature_snapshot["integrity"]["calibration"] is False
 
 
 def test_historical_dataset_uses_only_lagged_prior_results():
