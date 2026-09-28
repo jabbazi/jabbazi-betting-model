@@ -21,6 +21,16 @@ All NHL game-market buckets remain SHADOW_ONLY. NHL player-prop odds/history/tra
 plumbing now exists for research, but no NHL player artifact is production-approved;
 same-day injury/scratch and starting-goalie evidence remain mandatory gates.
 
+## NBA research release
+
+NBA is now a first-class research model namespace. The branch contains a trained
+SHADOW_ONLY team score artifact and 12 VALIDATING player-prop artifacts covering
+points, rebounds, assists, threes, blocks, steals, turnovers, PRA/PR/PA/RA and
+double-double. Historical fitting used 4,932 completed team games and 129,050
+player-game rows; the player artifacts each have 24,280 held-out observations.
+No NBA model is production-approved: same-day rotation/injury inputs, archived
+decision-time prop prices and frozen prospective market/CLV evidence remain required.
+
 ## Install and verify
 
 Requires Python 3.12 or later.
