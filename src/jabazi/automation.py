@@ -24,7 +24,13 @@ from .domain.health import assess
 from .domain.models import Decision
 from .providers.the_odds_api import TheOddsApiProvider
 
-QUICK_SPORTS = ("baseball_mlb", "americanfootball_nfl", "americanfootball_ncaaf", "icehockey_nhl")
+QUICK_SPORTS = (
+    "baseball_mlb",
+    "americanfootball_nfl",
+    "americanfootball_ncaaf",
+    "icehockey_nhl",
+    "basketball_nba",
+)
 
 
 def is_player_market(card):
@@ -121,7 +127,13 @@ class AutomaticScanner:
             else active
         )
         # Full scans still prioritize the owner's primary leagues within quota.
-        priority = {"americanfootball_nfl": 0, "baseball_mlb": 1, "americanfootball_ncaaf": 2, "icehockey_nhl": 3}
+        priority = {
+            "americanfootball_nfl": 0,
+            "baseball_mlb": 1,
+            "americanfootball_ncaaf": 2,
+            "icehockey_nhl": 3,
+            "basketball_nba": 4,
+        }
         selected.sort(key=lambda item: (priority.get(item["key"], 3), item["key"]))
         policy = RiskPolicy(
             self.settings.bankroll,
