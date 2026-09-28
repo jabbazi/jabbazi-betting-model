@@ -53,6 +53,9 @@ MARKET_FAMILIES: dict[str, tuple[str, ...]] = {
         "player_steals",
         "player_turnovers",
         "player_points_rebounds_assists",
+        "player_points_rebounds",
+        "player_points_assists",
+        "player_rebounds_assists",
         "player_double_double",
     ),
     "football_player": (
