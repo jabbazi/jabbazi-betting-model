@@ -8,6 +8,7 @@ on:
     paths:
       - "src/jabazi/models/team_elo.py"
       - "src/jabazi/models/player_distribution.py"
+      - "src/jabazi/models/train_player_props.py"
       - "src/jabazi/research/train_scores.py"
       - "src/jabazi/research/nba_player_experiment.py"
       - "tools/capture_nba_sportsdataverse.py"
