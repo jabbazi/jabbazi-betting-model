@@ -60,6 +60,7 @@ def inspect_prop_dataset(document, *, train_before, test_before, minimum_per_spl
         raise ValueError("Invalid chronological split policy")
 
     seen, features = set(), None
+    event_splits = {}
     counts, excluded = Counter(), Counter()
     dates = {part: [] for part in ("train", "calibration", "test")}
     threshold_rows = Counter()
@@ -81,6 +82,10 @@ def inspect_prop_dataset(document, *, train_before, test_before, minimum_per_spl
             raise ValueError("Future features or invalid result timing")
 
         part = "train" if decision < left else "calibration" if decision < right else "test"
+        identity = (start, part)
+        if row["event_id"] in event_splits and event_splits[row["event_id"]] != identity:
+            raise ValueError("Event identity or chronological split differs between player rows")
+        event_splits[row["event_id"]] = identity
         if (part == "train" and result_at >= left) or (
             part == "calibration" and result_at >= right
         ):

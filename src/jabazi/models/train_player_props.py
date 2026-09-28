@@ -18,7 +18,9 @@ from .player_distribution import (
     COUNT_MARKETS,
     PLAYER_PROP_MARKETS,
     raw_probability,
+    calibrated_probability,
 )
+from .player_calibration import apply_calibration
 from jabazi.research.prop_data import inspect_prop_dataset, timestamp
 
 
@@ -169,6 +171,8 @@ def _threshold_rows(rows, artifact):
             side = "yes" if side in {"over", "yes"} else "no"
         if line is None or side not in {"over", "under", "yes", "no"}:
             continue
+        if artifact["market"] not in BINARY_MARKETS and float(line).is_integer():
+            continue  # Push settlement is not represented by a binary pricing target.
         raw = raw_probability(artifact, row["features"], side, line)
         observed = float(row["observed_value"])
         if side in {"over", "yes"}:
@@ -188,19 +192,17 @@ def _fit_calibration(artifact, calibration_rows):
         from sklearn.isotonic import IsotonicRegression
     except ImportError as exc:
         raise RuntimeError("Install project research dependencies") from exc
-    x = np.asarray([raw for _, raw, _ in threshold])
-    y = np.asarray([outcome for _, _, outcome in threshold])
+    positive = [str(row.get("market_side", "over")).lower() in {"over", "yes"}
+                for row, _, _ in threshold]
+    x = np.asarray([raw if pos else 1 - raw for pos, (_, raw, _) in zip(positive, threshold)])
+    y = np.asarray([outcome if pos else 1 - outcome for pos, (_, _, outcome) in zip(positive, threshold)])
     model = IsotonicRegression(out_of_bounds="clip").fit(x, y)
-    return {"method": "isotonic", "x": model.X_thresholds_.tolist(), "y": model.y_thresholds_.tolist()}
+    return {"method": "isotonic", "orientation": "positive", "interpolation": "linear",
+            "x": model.X_thresholds_.tolist(), "y": model.y_thresholds_.tolist()}
 
 
 def _apply_calibration(raw, calibration):
-    if not calibration:
-        return raw
-    from bisect import bisect_right
-    x, y = calibration["x"], calibration["y"]
-    index = min(len(y)-1, max(0, bisect_right(x, raw)-1))
-    return float(y[index])
+    return apply_calibration(raw, calibration)
 
 
 def _distribution_validation(artifact, test_rows):
@@ -246,7 +248,10 @@ def _validation(artifact, test_rows):
             "promotion_passed": False,
             "reason": "No threshold-specific test evidence",
         }
-    probabilities = [_apply_calibration(raw, artifact.get("calibration")) for _, raw, _ in threshold]
+    probabilities = [calibrated_probability(
+        artifact, row["features"], str(row.get("market_side", "over")),
+        row.get("market_line", 0.5 if artifact["market"] in BINARY_MARKETS else None),
+    ) for row, _, _ in threshold]
     outcomes = [outcome for _, _, outcome in threshold]
     slope, intercept = _calibration_slope_intercept(probabilities, outcomes)
     baselines = [
@@ -323,7 +328,7 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
     # time of the training job. Identical fitted artifacts therefore keep one
     # version so frozen prospective evidence can accumulate across redeploys.
     version_payload = {
-        "artifact_schema_version": 2,
+        "artifact_schema_version": 3,
         "sport": sport,
         "market": market,
         "family": artifact["family"],
@@ -335,13 +340,13 @@ def fit_prop_model(document, *, train_before, test_before, minimum_per_split=100
         "test_before": right.isoformat(),
     }
     seed = json.dumps(version_payload, sort_keys=True, separators=(",", ":"))
-    artifact["artifact_schema_version"] = 2
+    artifact["artifact_schema_version"] = 3
     artifact["split_policy"] = {
         "train_before": left.isoformat(),
         "test_before": right.isoformat(),
     }
     artifact["model_version"] = (
-        f"{sport.split('_')[-1]}-{market}-dist-0.2.0-"
+        f"{sport.split('_')[-1]}-{market}-dist-0.3.0-"
         + hashlib.sha256(seed.encode()).hexdigest()[:12]
     )
     artifact["stage"] = (
