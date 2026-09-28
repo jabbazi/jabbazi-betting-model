@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 
 from jabazi.models.train_player_props import fit_prop_model
-from jabazi.research.nba_player_experiment import MARKETS, build_dataset
+from jabazi.research.nba_player_experiment import MARKETS, build_datasets
 from jabazi.research.prop_data import inspect_prop_dataset
 
 TRAIN_BEFORE = "2024-07-01T00:00:00+00:00"
@@ -29,14 +29,15 @@ def run(source, output):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     report = {"approved_for_betting": False, "markets": {}}
+    documents = build_datasets(
+        rows=payload["rows"],
+        markets=sorted(MARKETS),
+        provider=str(payload.get("provider") or ""),
+        source_checksum=str(payload.get("source_checksum") or ""),
+        research_rights_reference=str(payload.get("research_rights_reference") or ""),
+    )
     for market in sorted(MARKETS):
-        document = build_dataset(
-            rows=payload["rows"],
-            market=market,
-            provider=str(payload.get("provider") or ""),
-            source_checksum=str(payload.get("source_checksum") or ""),
-            research_rights_reference=str(payload.get("research_rights_reference") or ""),
-        )
+        document = documents[market]
         inspection = inspect_prop_dataset(
             document,
             train_before=TRAIN_BEFORE,
