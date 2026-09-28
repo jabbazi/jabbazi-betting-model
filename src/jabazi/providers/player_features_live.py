@@ -181,6 +181,8 @@ class LivePlayerFeatureCollector:
         self._mlb_projection = {}
         self._mlb_people = {}
         self._mlb_logs = {}
+        self._mlb_schedule = {}
+        self._mlb_live = {}
         self._nhl_collector = None
         self._diagnostics = []
         if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
@@ -617,6 +619,95 @@ class LivePlayerFeatureCollector:
         self._mlb_logs[key] = splits
         return splits
 
+    def _mlb_event_context(self, card):
+        """Resolve one Odds API event to an official MLB game and posted role evidence."""
+        local_date = card.starts_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+        if local_date not in self._mlb_schedule:
+            query = urllib.parse.urlencode({
+                "sportId": 1,
+                "date": local_date,
+                "hydrate": "probablePitcher",
+            })
+            payload = _fetch_json(f"{MLB_STATS_BASE}/schedule?{query}")
+            games = []
+            for date in payload.get("dates", []) if isinstance(payload, dict) else []:
+                games.extend(date.get("games", []))
+            self._mlb_schedule[local_date] = games
+
+        from jabazi.providers.history import MLB_ALIASES
+        parts = str(card.event).split(" @ ", 1)
+        if len(parts) != 2:
+            return None
+        away, home = [MLB_ALIASES.get(part.strip(), part.strip()) for part in parts]
+        matches = []
+        for game in self._mlb_schedule[local_date]:
+            try:
+                game_away = MLB_ALIASES.get(game["teams"]["away"]["team"]["name"], game["teams"]["away"]["team"]["name"])
+                game_home = MLB_ALIASES.get(game["teams"]["home"]["team"]["name"], game["teams"]["home"]["team"]["name"])
+                start = datetime.fromisoformat(str(game["gameDate"]).replace("Z", "+00:00")).astimezone(UTC)
+                if (
+                    game_away == away
+                    and game_home == home
+                    and abs((start - card.starts_at.astimezone(UTC)).total_seconds()) <= 3 * 3600
+                ):
+                    matches.append(game)
+            except (KeyError, TypeError, ValueError):
+                continue
+        if len(matches) != 1:
+            return None
+        game = matches[0]
+        game_pk = int(game["gamePk"])
+        if game_pk not in self._mlb_live:
+            try:
+                self._mlb_live[game_pk] = _fetch_json(f"https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live")
+            except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError):
+                self._mlb_live[game_pk] = {}
+        return game, self._mlb_live[game_pk]
+
+    def _mlb_official_role(self, card, person, pitcher):
+        context = self._mlb_event_context(card)
+        if not context or not person:
+            return None
+        game, live = context
+        pid = int(person["id"])
+        sides = ("away", "home")
+        participant_side = None
+        for side in sides:
+            team = (live.get("gameData", {}).get("teams", {}).get(side, {}) or {}).get("name")
+            if team and team in str(card.event):
+                roster = (
+                    live.get("liveData", {}).get("boxscore", {}).get("teams", {}).get(side, {})
+                )
+                players = roster.get("players", {}) if isinstance(roster, dict) else {}
+                if f"ID{pid}" in players:
+                    participant_side = side
+                    break
+        if pitcher:
+            probable = [
+                (game.get("teams", {}).get(side, {}).get("probablePitcher") or {}).get("id")
+                for side in sides
+            ]
+            confirmed = pid in probable
+            return {
+                "role": 1.0 if confirmed else 0.0,
+                "role_ok": confirmed,
+                "event_identity": confirmed or participant_side is not None,
+                "team": participant_side,
+                "source": "MLB StatsAPI probablePitcher",
+            }
+        if participant_side is None:
+            return None
+        box = live.get("liveData", {}).get("boxscore", {}).get("teams", {}).get(participant_side, {})
+        order = [int(value) for value in box.get("battingOrder", []) if str(value).isdigit()]
+        confirmed = pid in order
+        return {
+            "role": float(order.index(pid) + 1) if confirmed else 0.0,
+            "role_ok": confirmed,
+            "event_identity": True,
+            "team": participant_side,
+            "source": "MLB StatsAPI posted battingOrder",
+        }
+
     def mlb_snapshot(self, card):
         market = MLB_MARKETS.get(card.market)
         if not market or not card.participant or card.starts_at is None:
@@ -677,60 +768,78 @@ class LivePlayerFeatureCollector:
             return None
 
         projection = self._mlb_projection_for(card.participant, card.starts_at)
+        person = self._mlb_person(card.participant)
+        official = self._mlb_official_role(card, person, pitcher)
         if not projection:
             self._diagnostics.append(
                 f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_MLB_PROJECTION_NOT_MATCHED"
             )
-            return None
-        injury = str(projection.get("InjuryStatus") or "").strip().lower()
-        active = injury not in {"out", "doubtful", "injured list"}
-        if pitcher:
-            role = 1.0 if int(projection.get("Started") or 0) == 1 else 0.0
-            role_ok = role == 1.0 and bool(projection.get("BattingOrderConfirmed"))
-            # SportsDataIO exposes projected outs/pitches but not projected batters
-            # faced in this record. Keep opportunity scale consistent with training
-            # by using recent actual batters faced; starter confirmation is separate.
+        injury = str((projection or {}).get("InjuryStatus") or "").strip().lower()
+        active = bool(projection) and injury not in {"out", "doubtful", "injured list"}
+        if projection:
+            if pitcher:
+                role = 1.0 if int(projection.get("Started") or 0) == 1 else 0.0
+                role_ok = role == 1.0 and bool(projection.get("BattingOrderConfirmed"))
+                projected_opps = _mean(opportunities, 5)
+            else:
+                role = float(projection.get("BattingOrder") or 0)
+                role_ok = role >= 1 and bool(projection.get("BattingOrderConfirmed"))
+                projected_opps = _float(projection, "PlateAppearances", _mean(opportunities, 5))
+            event_identity = True
+            role_source = "SportsDataIO projection"
+        elif official:
+            role = official["role"]
+            role_ok = official["role_ok"]
             projected_opps = _mean(opportunities, 5)
+            event_identity = official["event_identity"]
+            role_source = official["source"]
         else:
-            role = float(projection.get("BattingOrder") or 0)
-            role_ok = role >= 1 and bool(projection.get("BattingOrderConfirmed"))
-            projected_opps = _float(projection, "PlateAppearances", _mean(opportunities, 5))
+            role = 0.0
+            role_ok = False
+            projected_opps = _mean(opportunities, 5)
+            event_identity = False
+            role_source = "unverified"
         features = _mlb_features(values, opportunities, role)
-        person = self._mlb_person(card.participant)
         checksum = hashlib.sha256(
             json.dumps(
                 {
                     "person": person.get("id") if person else None,
                     "last": values[-20:],
                     "projection": {
-                        key: projection.get(key)
+                        key: (projection or {}).get(key)
                         for key in (
                             "PlayerID", "Team", "Position", "InjuryStatus", "Started",
                             "BattingOrder", "BattingOrderConfirmed",
                         )
                     },
+                    "official_role": official,
+                    "role_source": role_source,
                 },
                 sort_keys=True,
             ).encode()
         ).hexdigest()
         return {
-            "player_id": str(projection.get("PlayerID") or (person or {}).get("id") or ""),
+            "player_id": str((projection or {}).get("PlayerID") or (person or {}).get("id") or ""),
             "features": features,
             "expected_opportunities": projected_opps,
-            "provider": "MLB StatsAPI+SportsDataIO",
+            "provider": (
+                "MLB StatsAPI+SportsDataIO"
+                if projection
+                else "MLB StatsAPI official history+schedule/role"
+            ),
             "source_checksum": checksum,
             "feature_schema_version": "mlb-player-rolling-v1",
             "integrity": {
-                "event_identity": True,
+                "event_identity": event_identity,
                 "player_identity": person is not None,
                 "fresh_features": True,
                 "schema": True,
                 "role": role_ok and projected_opps >= minimum,
-                "availability": active,
-                "injuries": active,
-                "no_duplicate_event": True,
+                "availability": active if projection else bool(official and official["role_ok"]),
+                "injuries": active if projection else False,
+                "no_duplicate_event": event_identity,
             },
-            "roster_version": str(projection.get("Team") or ""),
+            "roster_version": str((projection or {}).get("Team") or (official or {}).get("team") or ""),
             "injury_version": injury or None,
         }
 
