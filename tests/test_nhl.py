@@ -339,7 +339,7 @@ def test_failed_refresh_retries_after_backoff_not_six_hours():
         with patch("jabazi.models.refresh.fetch_update", side_effect=ValueError):
             first = refresh_models(s, now=now)
         with patch("jabazi.models.refresh.fetch_update", side_effect=ValueError) as fetch:
-            refresh_models(s, now=now+timedelta(minutes=4)); fetch.assert_not_called()
-            refresh_models(s, now=now+timedelta(minutes=6)); assert fetch.call_count == len(first)
+            refresh_models(s, now=now+timedelta(seconds=30)); fetch.assert_not_called()
+            refresh_models(s, now=now+timedelta(minutes=2)); assert fetch.call_count == len(first)
     finally:
         s.close()
