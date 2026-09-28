@@ -43,7 +43,7 @@ jobs:
           root = Path(os.environ["RUNNER_TEMP"])
           team = json.loads((root / "nba-team" / "artifact.json").read_text())
           players = json.loads((root / "nba-player" / "report.json").read_text())
-          assert team.get("stage") == "SHADOW_ONLY"
+          assert team.get("status") == "SHADOW_ONLY"
           assert players["approved_for_betting"] is False
           for row in players["markets"].values():
               artifact = row.get("artifact")
