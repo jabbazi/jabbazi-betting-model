@@ -25,7 +25,7 @@ PLAYER = (
     "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
     "espn_nba_player_boxscores/player_box_{season}.csv"
 )
-DEFAULT_SEASONS = (2022, 2023, 2024, 2025)
+DEFAULT_SEASONS = (2023, 2024, 2025, 2026)
 
 
 def fetch(url, max_bytes=80_000_000):
@@ -103,7 +103,10 @@ def capture(output, seasons=DEFAULT_SEASONS):
                     start = parse_time(row["game_date_time"])
                     game = {
                         "game_id": gid,
-                        "season": int(float(row["season"])),
+                        # SportsDataverse NBA release/season labels use the ending
+                        # year (2026 = 2025-26). JABBAZI model seasons use the
+                        # starting year so chronological split labels stay explicit.
+                        "season": int(float(row["season"])) - 1,
                         "starts_at": start.isoformat(),
                         "home_team": str(row["home_display_name"]).strip(),
                         "away_team": str(row["away_display_name"]).strip(),
