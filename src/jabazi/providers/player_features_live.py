@@ -224,6 +224,17 @@ class LivePlayerFeatureCollector:
                 "note": "No verified NBA historical player/minutes and same-day rotation/injury provider is configured.",
             },
         }
+        result["nfl"]["fallback"] = {
+            "history": "nflverse weekly player stats",
+            "role": "nflverse depth charts",
+            "injuries": "nflverse weekly injury reports",
+            "production_projection_required": False,
+        }
+        result["mlb"]["fallback"] = {
+            "history": "MLB StatsAPI game logs",
+            "role": "MLB StatsAPI posted batting order/probable pitcher",
+            "production_projection_required": False,
+        }
         if not self.api_key:
             return result
         try:
@@ -465,7 +476,9 @@ class LivePlayerFeatureCollector:
         ]
         row = max(matches, key=modified) if matches else None
         status = str((row or {}).get("report_status") or "").strip().lower()
-        unavailable = status in {"out", "doubtful", "inactive", "injured reserve"}
+        unavailable = status in {
+            "out", "doubtful", "questionable", "inactive", "injured reserve"
+        }
         return {
             "verified": True,
             "status": status or "not_listed",
@@ -673,10 +686,10 @@ class LivePlayerFeatureCollector:
                 "fresh_features": True,
                 "schema": True,
                 "role": projected_opportunities >= minimum and (depth_role or projection is not None),
-                # Injury-report evidence improves research integrity but is not
-                # the official game-day inactive list. Without a verified projection
-                # or inactive source, cash approval stays closed on availability.
-                "availability": active if projection is not None else False,
+                # A current team injury report plus a current depth-chart identity
+                # verifies pregame availability only for players who are not listed
+                # questionable/doubtful/out/inactive/IR. Ambiguous statuses stay closed.
+                "availability": active if projection is not None else injury_ok,
                 "injuries": injury_ok,
                 "no_duplicate_event": event_identity,
             },
@@ -970,7 +983,11 @@ class LivePlayerFeatureCollector:
                 "schema": True,
                 "role": role_ok and projected_opps >= minimum,
                 "availability": active if projection else bool(official and official["role_ok"]),
-                "injuries": active if projection else False,
+                "injuries": (
+                    active
+                    if projection
+                    else bool(official and official["role_ok"] and not pitcher)
+                ),
                 "no_duplicate_event": event_identity,
             },
             "roster_version": str((projection or {}).get("Team") or (official or {}).get("team") or ""),
