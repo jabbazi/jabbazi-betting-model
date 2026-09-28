@@ -1,4 +1,4 @@
-"""Distributional NFL/MLB/NHL player-prop inference.
+"""Distributional NFL/MLB/NHL/NBA player-prop inference.
 
 Artifacts are JSON, reproducible and fail closed.  A fitted mean is never treated as a
 threshold hit probability; every supported market maps to an explicit distribution.
@@ -47,13 +47,28 @@ NHL_PROP_MARKETS = frozenset({
     "player_goals",
     "player_total_saves",
 })
+NBA_PROP_MARKETS = frozenset({
+    "player_points",
+    "player_rebounds",
+    "player_assists",
+    "player_threes",
+    "player_blocks",
+    "player_steals",
+    "player_turnovers",
+    "player_points_rebounds_assists",
+    "player_points_rebounds",
+    "player_points_assists",
+    "player_rebounds_assists",
+    "player_double_double",
+})
 PLAYER_PROP_MARKETS = {
     "americanfootball_nfl": NFL_PROP_MARKETS,
     "baseball_mlb": MLB_PROP_MARKETS,
     "icehockey_nhl": NHL_PROP_MARKETS,
+    "basketball_nba": NBA_PROP_MARKETS,
 }
 
-BINARY_MARKETS = frozenset({"player_anytime_td", "batter_home_runs"})
+BINARY_MARKETS = frozenset({"player_anytime_td", "batter_home_runs", "player_double_double"})
 COUNT_MARKETS = frozenset({
     "player_pass_attempts",
     "player_pass_completions",
@@ -77,9 +92,20 @@ COUNT_MARKETS = frozenset({
     "player_shots_on_goal",
     "player_goals",
     "player_total_saves",
+    "player_points",
+    "player_rebounds",
+    "player_assists",
+    "player_threes",
+    "player_blocks",
+    "player_steals",
+    "player_turnovers",
+    "player_points_rebounds_assists",
+    "player_points_rebounds",
+    "player_points_assists",
+    "player_rebounds_assists",
 })
 CONTINUOUS_MARKETS = (
-    NFL_PROP_MARKETS | MLB_PROP_MARKETS | NHL_PROP_MARKETS
+    NFL_PROP_MARKETS | MLB_PROP_MARKETS | NHL_PROP_MARKETS | NBA_PROP_MARKETS
 ) - BINARY_MARKETS - COUNT_MARKETS
 
 
