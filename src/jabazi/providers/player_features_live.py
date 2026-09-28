@@ -12,12 +12,13 @@ import hashlib
 import io
 import json
 import math
+import os
 import re
 import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import pstdev
 from zoneinfo import ZoneInfo
 
@@ -156,11 +157,18 @@ def _innings_outs(value):
 
 
 class LivePlayerFeatureCollector:
-    def __init__(self, *, sportsdataio_api_key="", now=None):
+    def __init__(self, *, sportsdataio_api_key="", now=None, production_verified=None):
         self.api_key = sportsdataio_api_key.strip()
+        # Operator attestation after verifying the account/feed contract, not a
+        # claim inferred from successful HTTP authentication.
+        self.production_verified = (
+            os.getenv("JABBAZI_SPORTSDATAIO_DATA_MODE", "UNVERIFIED") == "PRODUCTION_VERIFIED"
+            if production_verified is None else production_verified is True
+        )
         self._last_sportsdata_path = None
         self.now = now or datetime.now(UTC)
         self._nfl_rows = None
+        self._nfl_completed = None
         self._nfl_depth_rows = None
         self._nfl_projection = None
         self._mlb_projection = {}
@@ -176,6 +184,8 @@ class LivePlayerFeatureCollector:
     def provider_status(self):
         result = {
             "configured": bool(self.api_key),
+            "production_data_verified": self.production_verified,
+            "data_mode": "PRODUCTION_VERIFIED" if self.production_verified else "UNVERIFIED",
             "nfl": {"ok": False, "rows": 0},
             "mlb": {"ok": False, "rows": 0},
         }
@@ -271,7 +281,7 @@ class LivePlayerFeatureCollector:
     def _nfl_depth_charts(self):
         if self._nfl_depth_rows is not None:
             return self._nfl_depth_rows
-        raw = _fetch_bytes(NFL_DEPTH)
+        raw = _fetch_bytes(NFL_DEPTH.replace("2026.csv", f"{self.now.year if self.now.month >= 7 else self.now.year - 1}.csv"))
         checksum = hashlib.sha256(raw).hexdigest()
         reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
         required = {"dt", "team", "player_name", "gsis_id", "pos_abb", "pos_rank"}
@@ -316,6 +326,9 @@ class LivePlayerFeatureCollector:
         # Cache failure as an empty feed for this scan. Without this sentinel, one
         # provider error is retried once per player card and can stall a full scan.
         self._nfl_projection = []
+        if not self.production_verified:
+            self._diagnostics.append("SPORTSDATA_NFL_UNVERIFIED_DATA_QUARANTINED")
+            return self._nfl_projection
         if not self.api_key:
             return self._nfl_projection
         try:
@@ -359,14 +372,31 @@ class LivePlayerFeatureCollector:
         ]
         return matches[0] if len(matches) == 1 else None
 
+    def _nfl_available_games(self):
+        if self._nfl_completed is None:
+            from jabazi.providers.history import nfl_rows
+            raw = _fetch_bytes("https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv")
+            games = nfl_rows(raw.decode(), {self.now.year - 1, self.now.year})
+            self._nfl_completed = {
+                g["game_id"]: datetime.fromisoformat(g["starts_at"]) + timedelta(days=2)
+                for g in games
+            }
+        return self._nfl_completed
+
     def nfl_snapshot(self, card):
         market = NFL_MARKETS.get(card.market)
         if not market or not card.participant:
             return None
         target, opportunity, minimum = market
+        if card.starts_at is None:
+            return None
+        available_games = self._nfl_available_games()
+        cutoff = min(self.now, card.starts_at)
         player_rows = [
             row for row in self._nfl_history()
             if _name(row.get("player_display_name")) == _name(card.participant)
+            and row.get("game_id") in available_games
+            and available_games[row["game_id"]] < cutoff
         ]
         if not player_rows:
             self._diagnostics.append(
@@ -456,7 +486,7 @@ class LivePlayerFeatureCollector:
                 + "|"
                 + depth_checksum
                 + "|"
-                + str((projection or {}).get("PlayerID") or "")
+                + json.dumps(projection or {}, sort_keys=True, allow_nan=False)
             ).encode()
         ).hexdigest()
         return {
@@ -493,6 +523,9 @@ class LivePlayerFeatureCollector:
             return self._mlb_projection[local_date]
         # Same fail-fast rule as NFL: one provider failure per date, not per player.
         self._mlb_projection[local_date] = []
+        if not self.production_verified:
+            self._diagnostics.append("SPORTSDATA_MLB_UNVERIFIED_DATA_QUARANTINED")
+            return self._mlb_projection[local_date]
         if not self.api_key:
             return self._mlb_projection[local_date]
         try:
@@ -559,7 +592,22 @@ class LivePlayerFeatureCollector:
         pitcher = card.market.startswith("pitcher_")
         logs = self._mlb_game_logs(card.participant, "pitching" if pitcher else "hitting")
         values, opportunities = [], []
+        # Conservative availability proxy: no same-day or yesterday results.
+        # Historical receipt timestamps are unavailable from this endpoint.
+        cutoff = min(self.now, card.starts_at).astimezone(UTC).date() - timedelta(days=2)
+        eligible = []
+        seen_games = set()
         for split in logs:
+            try:
+                date = datetime.strptime(str(split.get("date")), "%Y-%m-%d").date()
+            except (TypeError, ValueError):
+                continue
+            game_id = (split.get("game") or {}).get("gamePk")
+            if date > cutoff or not game_id or game_id in seen_games:
+                continue
+            seen_games.add(game_id)
+            eligible.append(split)
+        for split in sorted(eligible, key=lambda row: (row["date"], row["game"]["gamePk"])):
             stat = split.get("stat", {})
             if pitcher:
                 derived = {
@@ -701,6 +749,7 @@ class LivePlayerFeatureCollector:
                         roster_version=payload["roster_version"],
                         injury_version=payload["injury_version"],
                         research_only=research_only,
+                        provider_data_verified=(self.production_verified if "SportsDataIO" in payload["provider"] else None),
                     )
                 )
             except (ValueError, KeyError, TypeError, OSError, urllib.error.URLError) as exc:

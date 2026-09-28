@@ -278,6 +278,7 @@ def test_research_only_snapshot_can_drive_probability_but_never_betting_approval
         in_play=False,
         selection="yes",
         line=None,
+        starts_at=now + timedelta(hours=4),
     )
     estimate = model.estimate(price)
     assert estimate is not None

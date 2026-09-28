@@ -111,3 +111,10 @@ conditional Brier/log loss, same-quote market comparison and calibration buckets
 with Wilson intervals. `get_model_status` includes frozen and graded counts.
 See [the evidence policy](docs/PROSPECTIVE_VALIDATION.md). These are research
 labels, not ticket settlements, and do not automatically promote a model.
+
+### Data authenticity and current validation status
+
+See [the September 28 data-trust release](docs/DATA_TRUST_RELEASE_2026-09-28.md)
+for provider quarantine, point-in-time player history, frozen evaluation verification,
+and NBA's explicitly untrained status. A successful provider response alone does not
+establish that a subscription supplies accurate production data.

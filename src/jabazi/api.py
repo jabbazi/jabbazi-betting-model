@@ -208,6 +208,14 @@ def model_status_data():
             )
     finally:
         store.close()
+    # Coverage discovery must distinguish an untrained sport from a silent omission.
+    rows.append({
+        "sport": "basketball_nba", "status": "UNAVAILABLE", "version": None,
+        "approved_for_betting": False, "supported_markets": [], "market_buckets": {},
+        "player_status": "UNAVAILABLE", "player_supported_markets": [],
+        "player_market_buckets": {}, "state_refreshed_at": None,
+        "reason": "No trained NBA team/player artifact or verified live feature provider",
+    })
     from .providers.player_features_live import LivePlayerFeatureCollector
     provider = LivePlayerFeatureCollector(
         sportsdataio_api_key=Settings.from_environment().sportsdataio_api_key

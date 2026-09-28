@@ -67,6 +67,7 @@ def archive_player_feature_snapshot(
     roster_version=None,
     injury_version=None,
     research_only=False,
+    provider_data_verified=None,
 ):
     """Archive immutable pregame features and return the snapshot id.
 
@@ -108,8 +109,9 @@ def archive_player_feature_snapshot(
         "integrity": {
             name: bool(integrity.get(name) is True) for name in REQUIRED_INTEGRITY
         },
-        "research_only": bool(missing),
-        "production_inputs_verified": not missing,
+        "research_only": bool(missing) or bool(research_only),
+        "production_inputs_verified": not missing and not research_only,
+        "provider_data_verified": provider_data_verified is True,
     }
     fingerprint = hashlib.sha256(
         json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
