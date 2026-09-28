@@ -30,7 +30,7 @@ def load_models(store=None):
     from .refresh import BUNDLE_DIR
     from .score_distribution import ScoreDistributionModel
 
-    for short in ("nfl", "mlb", "cfb", "nhl"):
+    for short in ("nfl", "mlb", "cfb", "nhl", "nba"):
         sport = SPORTS[short]
         records = store.list_records("game_model", 1, entity=sport) if store else []
         path = BUNDLE_DIR / ("nhl_goals.json" if short == "nhl" else f"{short}_scores.json")
