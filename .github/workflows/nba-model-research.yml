@@ -2,9 +2,9 @@ name: NBA model research artifact
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
     branches:
-      - build/production-foundations
+      - audit/all-models-completion-20260928
     paths:
       - "src/jabazi/models/team_elo.py"
       - "src/jabazi/models/player_distribution.py"
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -58,7 +58,7 @@ jobs:
           }, indent=2))
           PY
       - name: Commit reproducible research artifacts to owner branch
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'audit/all-models-completion-20260928'
+        if: github.event_name == 'push' && github.ref_name == 'audit/all-models-completion-20260928'
         run: |
           mkdir -p src/jabazi/models/artifacts models/player_props/basketball_nba
           cp "$RUNNER_TEMP/nba-team/artifact.json" src/jabazi/models/artifacts/nba_scores.json
@@ -68,7 +68,7 @@ jobs:
           git add src/jabazi/models/artifacts/nba_scores.json models/player_props/basketball_nba
           if ! git diff --cached --quiet; then
             git commit -m "Add reproducible NBA research artifacts"
-            git push origin "HEAD:${GITHUB_HEAD_REF}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
       - uses: actions/upload-artifact@v4
         with:
