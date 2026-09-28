@@ -29,10 +29,10 @@ INITIAL_MARKETS = frozenset({
     "player_total_saves",
 })
 TARGETS = {
-    "player_points": ("skater", "points", "timeOnIcePerGame", 8.0),
-    "player_assists": ("skater", "assists", "timeOnIcePerGame", 8.0),
-    "player_shots_on_goal": ("skater", "shots", "timeOnIcePerGame", 8.0),
-    "player_goals": ("skater", "goals", "timeOnIcePerGame", 8.0),
+    "player_points": ("skater", "points", "timeOnIcePerGame", 480.0),
+    "player_assists": ("skater", "assists", "timeOnIcePerGame", 480.0),
+    "player_shots_on_goal": ("skater", "shots", "timeOnIcePerGame", 480.0),
+    "player_goals": ("skater", "goals", "timeOnIcePerGame", 480.0),
     "player_total_saves": ("goalie", "saves", "shotsAgainst", 15.0),
 }
 TEAM_BY_ABBREV = {abbrev: canonical(name) for abbrev, name in NAMES.items()}
