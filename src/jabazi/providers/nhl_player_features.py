@@ -130,7 +130,7 @@ class NHLPlayerFeatureCollector:
         self.started = time.monotonic()
         self._rosters = {}
         self._stats = {}
-        self._injuries = None
+        self._injuries = {}
         self._diagnostics = []
 
     @property
@@ -205,24 +205,28 @@ class NHLPlayerFeatureCollector:
         with an ambiguous/unavailable status remains fail-closed. Absence is accepted
         only when the player's team is present in the current league injury payload.
         """
-        if self._injuries is None:
+        team = str(player["team"]).upper()
+        if team not in self._injuries:
             self._budget()
+            query = urllib.parse.urlencode({"team": team})
             payload, checksum = _fetch_json(
-                "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries"
+                "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries?" + query
             )
-            groups = payload.get("injuries", []) if isinstance(payload, dict) else []
+            groups = payload.get("injuries", []) if isinstance(payload, dict) else None
             if not isinstance(groups, list):
                 return None
-            self._injuries = (groups, checksum)
-        groups, checksum = self._injuries
+            self._injuries[team] = (groups, checksum)
+        groups, checksum = self._injuries[team]
         team_groups = [
             group for group in groups
-            if str((group.get("team") or {}).get("abbreviation") or "").upper()
-            == str(player["team"]).upper()
+            if str((group.get("team") or {}).get("abbreviation") or "").upper() == team
         ]
-        if len(team_groups) != 1:
+        if not groups:
+            rows = []
+        elif len(team_groups) == 1:
+            rows = team_groups[0].get("injuries", [])
+        else:
             return None
-        rows = team_groups[0].get("injuries", [])
         if not isinstance(rows, list):
             return None
         matches = [
