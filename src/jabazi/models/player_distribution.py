@@ -1,4 +1,4 @@
-"""Distributional NFL/MLB player-prop inference.
+"""Distributional NFL/MLB/NHL player-prop inference.
 
 Artifacts are JSON, reproducible and fail closed.  A fitted mean is never treated as a
 threshold hit probability; every supported market maps to an explicit distribution.
@@ -37,13 +37,6 @@ MLB_PROP_MARKETS = frozenset({
     "batter_runs_scored",
     "batter_hits_runs_rbis",
     "batter_walks",
-    "player_points",
-    "player_power_play_points",
-    "player_assists",
-    "player_blocked_shots",
-    "player_shots_on_goal",
-    "player_goals",
-    "player_total_saves",
 })
 NHL_PROP_MARKETS = frozenset({
     "player_points",
@@ -77,8 +70,17 @@ COUNT_MARKETS = frozenset({
     "batter_runs_scored",
     "batter_hits_runs_rbis",
     "batter_walks",
+    "player_points",
+    "player_power_play_points",
+    "player_assists",
+    "player_blocked_shots",
+    "player_shots_on_goal",
+    "player_goals",
+    "player_total_saves",
 })
-CONTINUOUS_MARKETS = (NFL_PROP_MARKETS | MLB_PROP_MARKETS) - BINARY_MARKETS - COUNT_MARKETS
+CONTINUOUS_MARKETS = (
+    NFL_PROP_MARKETS | MLB_PROP_MARKETS | NHL_PROP_MARKETS
+) - BINARY_MARKETS - COUNT_MARKETS
 
 
 def _sigmoid(value: float) -> float:
