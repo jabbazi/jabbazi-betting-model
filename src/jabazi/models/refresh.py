@@ -139,13 +139,15 @@ def nba_schedule_rows(raw, now):
     return games, events
 
 
-def update_state(artifact, games, events, *, now, response_checksum):
+def update_state(artifact, games, events, *, now, response_checksum, allow_stale_state=False):
     short = next(k for k, v in SPORTS.items() if v == artifact["sport"])
     games = validate_history({"sport": artifact["sport"], "games": games}, short)
     recent = [g for g in games if available_at(g) < now]
+    if not recent:
+        raise ValueError("Completed game coverage unavailable")
     if (
-        not recent
-        or (now - max(timestamp(g["starts_at"]) for g in recent)).total_seconds() > 7 * 86400
+        not allow_stale_state
+        and (now - max(timestamp(g["starts_at"]) for g in recent)).total_seconds() > 7 * 86400
     ):
         raise ValueError("Recent completed game coverage unavailable")
     state = state_from_games(recent, now=now, window=artifact["window"])
@@ -240,7 +242,19 @@ def fetch_update(artifact, *, now, result_store=None):
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
     checksum = hashlib.sha256(raw).hexdigest()
-    updated = update_state(artifact, games, events, now=now, response_checksum=checksum)
+    allow_stale_state = (
+        artifact["sport"] == SPORTS["nba"]
+        and now.month < 10
+        and not events
+    )
+    updated = update_state(
+        artifact,
+        games,
+        events,
+        now=now,
+        response_checksum=checksum,
+        allow_stale_state=allow_stale_state,
+    )
     if result_store is not None:
         from jabazi.research.prospective import archive_results
         archive_results(result_store, artifact["sport"],
