@@ -769,7 +769,7 @@ class LivePlayerFeatureCollector:
             self._mlb_schedule[local_date] = games
 
         from jabazi.providers.history import MLB_ALIASES
-        parts = str(card.event).split(" @ ", 1)
+        parts = str(getattr(card, "event", "") or "").split(" @ ", 1)
         if len(parts) != 2:
             return None
         away, home = [MLB_ALIASES.get(part.strip(), part.strip()) for part in parts]
