@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import math
+import random
 
 from sqlalchemy import select
 
 from jabazi.persistence.store import digest, events
+from jabazi.research.player_features import REQUIRED_INTEGRITY
 
 POLICY = "first-fresh-player-market-version-line-v1"
 
@@ -114,6 +116,7 @@ def archive_player_result(
     source_checksum,
     result_status="final",
     closing_no_vig_probability=None,
+    closing_quote=None,
 ):
     if observed_at.tzinfo is None or not source_checksum:
         raise ValueError("Player result provenance required")
@@ -139,6 +142,7 @@ def archive_player_result(
         "source_checksum": source_checksum,
         "result_status": result_status,
         "closing_no_vig_probability": closing,
+        "closing_quote": closing_quote,
     }
     key = digest(["player_prospective_result", payload])
     with store.transaction() as conn:
@@ -210,6 +214,57 @@ def _ece(pairs, bins=10):
     return score
 
 
+def _trusted_forecast(f):
+    """Legacy/research records remain archived but cannot establish promotion evidence."""
+    snapshot = f.get("feature_snapshot", {})
+    integrity = snapshot.get("integrity", {})
+    return (
+        snapshot.get("research_only") is False
+        and snapshot.get("production_inputs_verified") is True
+        and all(integrity.get(k) is True for k in REQUIRED_INTEGRITY)
+        and (
+            "sportsdataio" not in str(snapshot.get("provider", "")).lower()
+            or snapshot.get("provider_data_verified") is True
+        )
+    )
+
+
+def _event_comparison(values):
+    """Equal-weight independent events; resample games, never correlated prop rows."""
+    if not values:
+        return {"independent_events": 0, "brier_difference": None, "interval_95": None}
+    means = [sum(v) / len(v) for _, v in sorted(values.items())]
+    mean = sum(means) / len(means)
+    interval = None
+    if len(means) >= 2:
+        rng = random.Random(20260928)
+        samples = sorted(sum(rng.choices(means, k=len(means))) / len(means) for _ in range(400))
+        interval = [samples[9], samples[389]]
+    return {"independent_events": len(means), "brier_difference": mean,
+            "interval_95": interval, "method": "equal-event-weight-bootstrap-400-v1"}
+
+
+def _closing_probability(f, result):
+    """A closing price belongs to one side/threshold/settlement, not a player stat."""
+    quote = result.get("closing_quote")
+    if not isinstance(quote, dict):
+        return None
+    try:
+        if any(quote[k] != f[k] for k in (
+            "sport", "event_id", "participant", "market", "selection", "line"
+        )):
+            return None
+        rules = f.get("feature_snapshot", {}).get("settlement_rules")
+        if not rules or quote.get("settlement_rules") != rules or not quote.get("source_checksum"):
+            return None
+        if not (_timestamp(f["predicted_at"]) <= _timestamp(quote["observed_at"]) < _timestamp(f["starts_at"])):
+            return None
+        p = float(quote["no_vig_probability"])
+        return p if math.isfinite(p) and 0 < p < 1 else None
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def validation_report(store):
     latest = {}
     for row in _records(store, "player_prospective_result"):
@@ -224,8 +279,13 @@ def validation_report(store):
             "frozen": 0, "pending": 0, "pushes": 0, "excluded": 0,
             "identity_failures": 0, "pairs": [], "market_pairs": [], "clv": [],
             "data_health_failures": 0,
+            "event_ids": set(), "clv_event_ids": set(),
+            "event_losses": {},
         })
         g["frozen"] += 1
+        if not _trusted_forecast(f):
+            g["data_health_failures"] += 1
+            continue
         result = latest.get((f["sport"], f["event_id"], f["participant"], f["market"]))
         if result is None:
             g["pending"] += 1
@@ -242,29 +302,31 @@ def validation_report(store):
             g["pushes"] += 1
             continue
         y = int(outcome)
+        g["event_ids"].add(f["event_id"])
         g["pairs"].append((float(f["probability"]), y))
         g["market_pairs"].append((float(f["market_probability"]), y))
-        if result.get("closing_no_vig_probability") is not None:
+        g["event_losses"].setdefault(f["event_id"], []).append(
+            (float(f["probability"]) - y)**2 - (float(f["market_probability"]) - y)**2
+        )
+        closing = _closing_probability(f, result)
+        if closing is not None:
             # Positive means the market moved toward the forecasted side.
             g["clv"].append(
                 100 * (
-                    float(result["closing_no_vig_probability"])
+                    closing
                     - float(f["market_probability"])
                 )
             )
-        integrity = f.get("feature_snapshot", {}).get("integrity", {})
-        required = (
-            "event_identity", "player_identity", "fresh_features", "schema",
-            "role", "availability", "injuries", "no_duplicate_event",
-        )
-        if not all(integrity.get(k) is True for k in required):
-            g["data_health_failures"] += 1
+            g["clv_event_ids"].add(f["event_id"])
 
     buckets = []
     for (sport, version, market), g in sorted(groups.items()):
         model_pairs = g.pop("pairs")
         market_pairs = g.pop("market_pairs")
         clv = g.pop("clv")
+        independent_events = len(g.pop("event_ids"))
+        clv_events = len(g.pop("clv_event_ids"))
+        event_comparison = _event_comparison(g.pop("event_losses"))
         model = _metrics(model_pairs)
         market_metrics = _metrics(market_pairs)
         buckets.append({
@@ -273,6 +335,9 @@ def validation_report(store):
             "market": market,
             **g,
             "sample_count": model["n"],
+            "independent_event_count": independent_events,
+            "clv_independent_event_count": clv_events,
+            "event_weighted_market_comparison": event_comparison,
             "brier": model["brier"],
             "log_loss": model["log_loss"],
             "market_baseline_brier": market_metrics["brier"],
