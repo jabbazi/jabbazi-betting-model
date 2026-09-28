@@ -242,3 +242,20 @@ def test_historical_dataset_uses_only_lagged_prior_results():
     assert first["features_available_at"] < first["prediction_at"] < first["starts_at"]
     assert first["market_no_vig_probability"] is None
     assert document["manifest"]["market_prices_included"] is False
+
+
+def test_registered_nhl_artifacts_are_validating_not_approved():
+    from jabazi.models.player_registry import load_player_models, player_status
+
+    models, errors = load_player_models()
+    assert not [error for error in errors if error.startswith("icehockey_nhl:")]
+    status = player_status(models, "icehockey_nhl")
+    assert status["status"] == "VALIDATING"
+    assert status["approved_for_betting"] is False
+    assert {
+        "player_assists",
+        "player_goals",
+        "player_points",
+        "player_shots_on_goal",
+        "player_total_saves",
+    } <= set(status["supported_markets"])
