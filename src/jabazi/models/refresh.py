@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -138,13 +139,15 @@ def nba_schedule_rows(raw, now):
     return games, events
 
 
-def update_state(artifact, games, events, *, now, response_checksum):
+def update_state(artifact, games, events, *, now, response_checksum, allow_stale_state=False):
     short = next(k for k, v in SPORTS.items() if v == artifact["sport"])
     games = validate_history({"sport": artifact["sport"], "games": games}, short)
     recent = [g for g in games if available_at(g) < now]
+    if not recent:
+        raise ValueError("Completed game coverage unavailable")
     if (
-        not recent
-        or (now - max(timestamp(g["starts_at"]) for g in recent)).total_seconds() > 7 * 86400
+        not allow_stale_state
+        and (now - max(timestamp(g["starts_at"]) for g in recent)).total_seconds() > 7 * 86400
     ):
         raise ValueError("Recent completed game coverage unavailable")
     state = state_from_games(recent, now=now, window=artifact["window"])
@@ -185,14 +188,22 @@ def fetch_update(artifact, *, now, result_store=None):
         raw=json.dumps(all_rows,sort_keys=True).encode()
     elif artifact["sport"] == SPORTS["nba"]:
         ending_year = now.year + 1 if now.month >= 7 else now.year
-        url = (
-            "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
-            f"espn_nba_schedules/nba_schedule_{ending_year}.csv"
-        )
-        with urllib.request.urlopen(url, timeout=45) as response:
-            raw = response.read(20_000_001)
-        if len(raw) > 20_000_000:
-            raise ValueError("NBA schedule response too large")
+        candidates = (ending_year, ending_year - 1) if now.month < 10 else (ending_year,)
+        raw = None
+        for season_file in candidates:
+            url = (
+                "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
+                f"espn_nba_schedules/nba_schedule_{season_file}.csv"
+            )
+            try:
+                with urllib.request.urlopen(url, timeout=45) as response:
+                    raw = response.read(20_000_001)
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code != 404 or season_file == candidates[-1]:
+                    raise
+        if raw is None or len(raw) > 20_000_000:
+            raise ValueError("NBA schedule response unavailable or too large")
         games, events = nba_schedule_rows(raw, now)
     elif artifact["sport"] == SPORTS["nfl"]:
         url = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
@@ -231,7 +242,19 @@ def fetch_update(artifact, *, now, result_store=None):
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
     checksum = hashlib.sha256(raw).hexdigest()
-    updated = update_state(artifact, games, events, now=now, response_checksum=checksum)
+    allow_stale_state = (
+        artifact["sport"] == SPORTS["nba"]
+        and now.month < 10
+        and not events
+    )
+    updated = update_state(
+        artifact,
+        games,
+        events,
+        now=now,
+        response_checksum=checksum,
+        allow_stale_state=allow_stale_state,
+    )
     if result_store is not None:
         from jabazi.research.prospective import archive_results
         archive_results(result_store, artifact["sport"],
