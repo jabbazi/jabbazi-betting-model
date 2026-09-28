@@ -8,6 +8,7 @@ from __future__ import annotations
 from bisect import bisect_right
 from dataclasses import dataclass
 from decimal import Decimal
+from datetime import UTC, datetime
 import math
 
 from .base import ModelEstimate, ProbabilityModel
@@ -241,6 +242,22 @@ class PlayerPropModel(ProbabilityModel):
             return None
         if payload.get("participant") != price.participant or payload.get("market") != price.market:
             return None
+        # Old provider snapshots lack authenticity evidence: quarantine them
+        # without deleting or rewriting their immutable audit records.
+        if "sportsdataio" in str(payload.get("provider", "")).lower() and payload.get("provider_data_verified") is not True:
+            return None
+        try:
+            stamp = datetime.fromisoformat(payload["features_available_at"])
+            start = datetime.fromisoformat(payload["starts_at"])
+            now = datetime.now(UTC)
+            if stamp.tzinfo is None or start.tzinfo is None:
+                return None
+            if stamp > now or stamp >= start or start <= now or (now-stamp).total_seconds() > 3600:
+                return None
+            if price.starts_at != start:
+                return None
+        except (ValueError, TypeError, KeyError):
+            return None
         return payload
 
     def estimate(self, price):
@@ -273,6 +290,8 @@ class PlayerPropModel(ProbabilityModel):
             self.stage == "PRODUCTION_APPROVED"
             and validation.get("promotion_passed") is True
             and integrity_ok
+            and snapshot.get("research_only") is False
+            and snapshot.get("production_inputs_verified") is True
         )
         n = int(validation.get("prospective_sample_count", 0) or 0)
         uncertainty = max(0.02, min(0.20, 1.96 * math.sqrt(max(calibrated * (1-calibrated), 1e-6) / max(n, 25))))
