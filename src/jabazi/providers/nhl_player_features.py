@@ -247,6 +247,60 @@ class NHLPlayerFeatureCollector:
             "source_checksum": checksum,
         }
 
+    def _goalie_starter_evidence(self, card, player):
+        """Require explicit ESPN game-level starter evidence for goalie-save props."""
+        teams = self._event_teams(card)
+        if not teams or card.starts_at is None:
+            return None
+        away, home, _, _ = teams
+        day = card.starts_at.astimezone(UTC).strftime("%Y%m%d")
+        payload, scoreboard_checksum = _fetch_json(
+            f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={day}"
+        )
+        events = payload.get("events", []) if isinstance(payload, dict) else []
+        matches = []
+        for event in events:
+            competitors = (
+                (((event.get("competitions") or [{}])[0]).get("competitors") or [])
+                if isinstance(event, dict) else []
+            )
+            names = {
+                canonical((row.get("team") or {}).get("displayName"))
+                for row in competitors
+                if isinstance(row, dict)
+            }
+            if {away, home} <= names:
+                matches.append(event)
+        if len(matches) != 1:
+            return None
+        event_id = str(matches[0].get("id") or "")
+        if not event_id:
+            return None
+        summary, summary_checksum = _fetch_json(
+            f"https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event={event_id}"
+        )
+        found = []
+        for team_block in ((summary.get("boxscore") or {}).get("players") or []):
+            for stat_group in team_block.get("statistics", []) if isinstance(team_block, dict) else []:
+                for row in stat_group.get("athletes", []) if isinstance(stat_group, dict) else []:
+                    athlete = row.get("athlete") or {}
+                    if _name(athlete.get("displayName") or athlete.get("fullName")) != _name(player["name"]):
+                        continue
+                    starter = row.get("starter")
+                    if starter is None:
+                        starter = athlete.get("starter")
+                    found.append(starter is True)
+        if len(found) != 1:
+            return None
+        return {
+            "verified": True,
+            "starter": found[0],
+            "event_id": event_id,
+            "source_checksum": hashlib.sha256(
+                (scoreboard_checksum + "|" + summary_checksum).encode()
+            ).hexdigest(),
+        }
+
     def _season_ids(self):
         year = self.now.year if self.now.month >= 7 else self.now.year - 1
         current = year * 10000 + year + 1
@@ -337,10 +391,19 @@ class NHLPlayerFeatureCollector:
         except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
             self._diagnostics.append(f"NHL_INJURY_PROVIDER_{type(exc).__name__}")
             injury = None
-        # Historical role plus a current injury cross-check can verify skater
-        # availability. Goalie saves still require a separately confirmed starter.
-        role_ok = _mean(opportunities, 5) >= minimum and not goalie
+        starter = None
+        if goalie:
+            try:
+                starter = self._goalie_starter_evidence(card, player)
+            except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+                self._diagnostics.append(f"NHL_GOALIE_STARTER_PROVIDER_{type(exc).__name__}")
+                starter = None
         injury_ok = bool(injury and injury["available"])
+        role_ok = (
+            _mean(opportunities, 5) >= minimum
+            and injury_ok
+            and (not goalie or bool(starter and starter["starter"]))
+        )
         checksum = hashlib.sha256(
             (
                 player["source_checksum"]
@@ -348,6 +411,8 @@ class NHLPlayerFeatureCollector:
                 + stats_checksum
                 + "|"
                 + str((injury or {}).get("source_checksum") or "")
+                + "|"
+                + str((starter or {}).get("source_checksum") or "")
                 + "|"
                 + json.dumps(
                     {
@@ -378,5 +443,8 @@ class NHLPlayerFeatureCollector:
                 "no_duplicate_event": True,
             },
             "roster_version": player["team"],
-            "injury_version": (injury or {}).get("status"),
+            "injury_version": (
+                str((injury or {}).get("status") or "")
+                + ("|goalie_starter:" + str((starter or {}).get("starter")).lower() if goalie else "")
+            ).strip("|"),
         }
