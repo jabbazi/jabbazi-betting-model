@@ -75,6 +75,31 @@ def fake_fetch(url, timeout=12):
             for i in range(1, 7)
         ]
         return {"data": rows}, "skater-stats"
+    if "scoreboard?dates=" in url:
+        return {
+            "events": [{
+                "id": "nhl-test-event",
+                "competitions": [{
+                    "competitors": [
+                        {"team": {"displayName": "Florida Panthers"}},
+                        {"team": {"displayName": "Carolina Hurricanes"}},
+                    ]
+                }],
+            }]
+        }, "espn-scoreboard"
+    if "summary?event=nhl-test-event" in url:
+        return {
+            "boxscore": {
+                "players": [{
+                    "statistics": [{
+                        "athletes": [{
+                            "starter": False,
+                            "athlete": {"displayName": "Sergei Bobrovsky"},
+                        }]
+                    }]
+                }]
+            }
+        }, "espn-summary"
     if "/goalie/summary?" in url:
         rows = [
             {
