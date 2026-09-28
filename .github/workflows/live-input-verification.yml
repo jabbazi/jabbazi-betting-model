@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - feature/live-input-verification-20260928
+      - build/production-foundations
     paths:
       - "tools/verify_live_inputs.py"
       - "src/jabazi/providers/player_features_live.py"
