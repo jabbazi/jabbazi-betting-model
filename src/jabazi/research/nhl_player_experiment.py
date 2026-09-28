@@ -35,7 +35,7 @@ TARGETS = {
     "player_goals": ("skater", "goals", "timeOnIcePerGame", 8.0),
     "player_total_saves": ("goalie", "saves", "shotsAgainst", 15.0),
 }
-TEAM_BY_ABBREV = {abbr: canonical(name) for abbrev, name in NAMES.items()}
+TEAM_BY_ABBREV = {abbrev: canonical(name) for abbrev, name in NAMES.items()}
 
 
 def _float(row, key):
