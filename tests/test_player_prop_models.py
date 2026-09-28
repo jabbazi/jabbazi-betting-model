@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from jabazi.models.player_distribution import (
     MLB_PROP_MARKETS,
+    NBA_PROP_MARKETS,
     NFL_PROP_MARKETS,
     raw_probability,
 )
@@ -86,6 +87,21 @@ def test_requested_mlb_markets_are_modeled():
         "batter_runs_scored",
     }
     assert required <= MLB_PROP_MARKETS
+
+
+def test_requested_nba_markets_are_registered_but_need_real_artifacts():
+    required = {
+        "player_points",
+        "player_rebounds",
+        "player_assists",
+        "player_threes",
+        "player_points_rebounds_assists",
+        "player_points_rebounds",
+        "player_points_assists",
+        "player_rebounds_assists",
+        "player_double_double",
+    }
+    assert required <= NBA_PROP_MARKETS
 
 
 def test_count_ladder_is_monotone():
