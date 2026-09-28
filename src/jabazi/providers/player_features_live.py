@@ -189,6 +189,7 @@ class LivePlayerFeatureCollector:
         self._mlb_logs = {}
         self._mlb_schedule = {}
         self._mlb_live = {}
+        self._mlb_active_rosters = {}
         self._nhl_collector = None
         self._diagnostics = []
         if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
@@ -213,16 +214,30 @@ class LivePlayerFeatureCollector:
                 "ok": True,
                 "provider": "NHL official roster+stats",
                 "history_source_verified": True,
-                "lineup_injury_source_verified": False,
-                "note": "Official history is available; same-day injury and starting-goalie gates remain unverified.",
+                "lineup_injury_source_verified": True,
+                "injury_source": "ESPN NHL current injury feed",
+                "starting_goalie_source_verified": False,
+                "note": "Skater injury cross-check is live; goalie saves remain fail-closed until a starter is confirmed.",
             },
             "nba": {
                 "ok": False,
                 "provider": None,
                 "history_source_verified": False,
                 "lineup_injury_source_verified": False,
-                "note": "No verified NBA historical player/minutes and same-day rotation/injury provider is configured.",
+                "injury_source": "ESPN NBA current injury feed (monitored separately)",
+                "note": "Historical artifacts exist; same-day rotation/starting-lineup verification is not yet configured.",
             },
+        }
+        result["nfl"]["fallback"] = {
+            "history": "nflverse weekly player stats",
+            "role": "nflverse depth charts",
+            "injuries": "nflverse weekly injury reports",
+            "production_projection_required": False,
+        }
+        result["mlb"]["fallback"] = {
+            "history": "MLB StatsAPI game logs",
+            "role": "MLB StatsAPI posted batting order/probable pitcher",
+            "production_projection_required": False,
         }
         if not self.api_key:
             return result
@@ -236,31 +251,31 @@ class LivePlayerFeatureCollector:
             rows = self._sportsdata(
                 f"nfl/projections/json/PlayerGameProjectionStatsByWeek/{int(season)}/{int(week)}"
             )
-            result["nfl"] = {
+            result["nfl"].update({
                 "ok": isinstance(rows, list) and len(rows) > 0,
                 "rows": len(rows) if isinstance(rows, list) else 0,
                 "season": int(season),
                 "week": int(week),
-            }
+            })
         except urllib.error.HTTPError as exc:
-            result["nfl"] = self._provider_failure(exc.code)
+            result["nfl"].update(self._provider_failure(exc.code))
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
-            result["nfl"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+            result["nfl"].update({"ok": False, "rows": 0, "error": type(exc).__name__})
 
         try:
             local_date = self.now.astimezone(ZoneInfo("America/New_York")).date().isoformat()
             rows = self._sportsdata(
                 f"mlb/projections/json/PlayerGameProjectionStatsByDate/{local_date}"
             )
-            result["mlb"] = {
+            result["mlb"].update({
                 "ok": isinstance(rows, list) and len(rows) > 0,
                 "rows": len(rows) if isinstance(rows, list) else 0,
                 "date": local_date,
-            }
+            })
         except urllib.error.HTTPError as exc:
-            result["mlb"] = self._provider_failure(exc.code)
+            result["mlb"].update(self._provider_failure(exc.code))
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
-            result["mlb"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+            result["mlb"].update({"ok": False, "rows": 0, "error": type(exc).__name__})
         return result
 
     def _provider_failure(self, status):
@@ -465,7 +480,9 @@ class LivePlayerFeatureCollector:
         ]
         row = max(matches, key=modified) if matches else None
         status = str((row or {}).get("report_status") or "").strip().lower()
-        unavailable = status in {"out", "doubtful", "inactive", "injured reserve"}
+        unavailable = status in {
+            "out", "doubtful", "questionable", "inactive", "injured reserve"
+        }
         return {
             "verified": True,
             "status": status or "not_listed",
@@ -673,10 +690,10 @@ class LivePlayerFeatureCollector:
                 "fresh_features": True,
                 "schema": True,
                 "role": projected_opportunities >= minimum and (depth_role or projection is not None),
-                # Injury-report evidence improves research integrity but is not
-                # the official game-day inactive list. Without a verified projection
-                # or inactive source, cash approval stays closed on availability.
-                "availability": active if projection is not None else False,
+                # A current team injury report plus a current depth-chart identity
+                # verifies pregame availability only for players who are not listed
+                # questionable/doubtful/out/inactive/IR. Ambiguous statuses stay closed.
+                "availability": active if projection is not None else injury_ok,
                 "injuries": injury_ok,
                 "no_duplicate_event": event_identity,
             },
@@ -798,6 +815,24 @@ class LivePlayerFeatureCollector:
                 self._mlb_live[game_pk] = {}
         return game, self._mlb_live[game_pk]
 
+    def _mlb_active_roster_has(self, team_id, person_id, date):
+        key = (int(team_id), str(date))
+        if key not in self._mlb_active_rosters:
+            query = urllib.parse.urlencode({
+                "rosterType": "active",
+                "date": str(date),
+            })
+            payload = _fetch_json(f"{MLB_STATS_BASE}/teams/{int(team_id)}/roster?{query}")
+            roster = payload.get("roster", []) if isinstance(payload, dict) else []
+            if not isinstance(roster, list):
+                return False
+            self._mlb_active_rosters[key] = {
+                int((row.get("person") or {}).get("id"))
+                for row in roster
+                if (row.get("person") or {}).get("id") is not None
+            }
+        return int(person_id) in self._mlb_active_rosters[key]
+
     def _mlb_official_role(self, card, person, pitcher):
         context = self._mlb_event_context(card)
         if not context or not person:
@@ -816,30 +851,49 @@ class LivePlayerFeatureCollector:
                 if f"ID{pid}" in players:
                     participant_side = side
                     break
+        local_date = card.starts_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
         if pitcher:
-            probable = [
-                (game.get("teams", {}).get(side, {}).get("probablePitcher") or {}).get("id")
-                for side in sides
-            ]
-            confirmed = pid in probable
+            probable_side = next(
+                (
+                    side for side in sides
+                    if (game.get("teams", {}).get(side, {}).get("probablePitcher") or {}).get("id")
+                    == pid
+                ),
+                None,
+            )
+            confirmed = probable_side is not None
+            team_id = (
+                (game.get("teams", {}).get(probable_side, {}).get("team") or {}).get("id")
+                if probable_side else None
+            )
+            active_roster = bool(
+                confirmed and team_id
+                and self._mlb_active_roster_has(team_id, pid, local_date)
+            )
             return {
                 "role": 1.0 if confirmed else 0.0,
-                "role_ok": confirmed,
+                "role_ok": confirmed and active_roster,
+                "active_roster": active_roster,
                 "event_identity": confirmed or participant_side is not None,
-                "team": participant_side,
-                "source": "MLB StatsAPI probablePitcher",
+                "team": probable_side or participant_side,
+                "source": "MLB StatsAPI probablePitcher+active roster",
             }
         if participant_side is None:
             return None
         box = live.get("liveData", {}).get("boxscore", {}).get("teams", {}).get(participant_side, {})
         order = [int(value) for value in box.get("battingOrder", []) if str(value).isdigit()]
         confirmed = pid in order
+        team_id = (game.get("teams", {}).get(participant_side, {}).get("team") or {}).get("id")
+        active_roster = bool(
+            confirmed and team_id and self._mlb_active_roster_has(team_id, pid, local_date)
+        )
         return {
             "role": float(order.index(pid) + 1) if confirmed else 0.0,
-            "role_ok": confirmed,
+            "role_ok": confirmed and active_roster,
+            "active_roster": active_roster,
             "event_identity": True,
             "team": participant_side,
-            "source": "MLB StatsAPI posted battingOrder",
+            "source": "MLB StatsAPI posted battingOrder+active roster",
         }
 
     def mlb_snapshot(self, card):
@@ -970,7 +1024,11 @@ class LivePlayerFeatureCollector:
                 "schema": True,
                 "role": role_ok and projected_opps >= minimum,
                 "availability": active if projection else bool(official and official["role_ok"]),
-                "injuries": active if projection else False,
+                "injuries": (
+                    active
+                    if projection
+                    else bool(official and official.get("active_roster") and official["role_ok"])
+                ),
                 "no_duplicate_event": event_identity,
             },
             "roster_version": str((projection or {}).get("Team") or (official or {}).get("team") or ""),
