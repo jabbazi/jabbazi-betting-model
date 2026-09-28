@@ -1,4 +1,4 @@
-"""Budgeted game and NFL/MLB event-market ingestion; no probability fabrication."""
+"""Budgeted game and major-sport event-market ingestion; no probability fabrication."""
 
 import json
 import os
@@ -32,6 +32,21 @@ EVENT_MARKETS = {
         "alternate_spreads",
         "alternate_totals",
         "team_totals",
+    ),
+    "basketball_nba": (
+        "player_points",
+        "player_rebounds",
+        "player_assists",
+        "player_threes",
+        "player_points_rebounds_assists",
+        "player_points_rebounds",
+        "player_points_assists",
+        "player_rebounds_assists",
+        "player_double_double",
+        "alternate_spreads",
+        "alternate_totals",
+        "team_totals",
+        "alternate_team_totals",
     ),
     "icehockey_nhl": (
         "player_shots_on_goal",
