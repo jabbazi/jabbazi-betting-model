@@ -426,14 +426,19 @@ class LivePlayerFeatureCollector:
         return rows
 
     def _nfl_injury_evidence(self, card, participant, depth):
-        context = self._nfl_card_context(card)
+        try:
+            context = self._nfl_card_context(card)
+            injury_rows = self._nfl_injuries()
+        except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            self._diagnostics.append(f"NFLVERSE_INJURY_PROVIDER_{type(exc).__name__}")
+            return None
         if not context:
             return None
         team = str((depth or {}).get("team") or "").upper()
         if team not in {context["home_abbr"], context["away_abbr"]}:
             return None
         rows = [
-            row for row in self._nfl_injuries()
+            row for row in injury_rows
             if str(row.get("team") or "").upper() == team
             and int(row.get("week") or -1) == context["week"]
         ]
