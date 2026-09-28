@@ -189,6 +189,7 @@ class LivePlayerFeatureCollector:
         self._mlb_logs = {}
         self._mlb_schedule = {}
         self._mlb_live = {}
+        self._mlb_active_rosters = {}
         self._nhl_collector = None
         self._diagnostics = []
         if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
@@ -829,6 +830,24 @@ class LivePlayerFeatureCollector:
                 self._mlb_live[game_pk] = {}
         return game, self._mlb_live[game_pk]
 
+    def _mlb_active_roster_has(self, team_id, person_id, date):
+        key = (int(team_id), str(date))
+        if key not in self._mlb_active_rosters:
+            query = urllib.parse.urlencode({
+                "rosterType": "active",
+                "date": str(date),
+            })
+            payload = _fetch_json(f"{MLB_STATS_BASE}/teams/{int(team_id)}/roster?{query}")
+            roster = payload.get("roster", []) if isinstance(payload, dict) else []
+            if not isinstance(roster, list):
+                return False
+            self._mlb_active_rosters[key] = {
+                int((row.get("person") or {}).get("id"))
+                for row in roster
+                if (row.get("person") or {}).get("id") is not None
+            }
+        return int(person_id) in self._mlb_active_rosters[key]
+
     def _mlb_official_role(self, card, person, pitcher):
         context = self._mlb_event_context(card)
         if not context or not person:
@@ -847,30 +866,49 @@ class LivePlayerFeatureCollector:
                 if f"ID{pid}" in players:
                     participant_side = side
                     break
+        local_date = card.starts_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
         if pitcher:
-            probable = [
-                (game.get("teams", {}).get(side, {}).get("probablePitcher") or {}).get("id")
-                for side in sides
-            ]
-            confirmed = pid in probable
+            probable_side = next(
+                (
+                    side for side in sides
+                    if (game.get("teams", {}).get(side, {}).get("probablePitcher") or {}).get("id")
+                    == pid
+                ),
+                None,
+            )
+            confirmed = probable_side is not None
+            team_id = (
+                (game.get("teams", {}).get(probable_side, {}).get("team") or {}).get("id")
+                if probable_side else None
+            )
+            active_roster = bool(
+                confirmed and team_id
+                and self._mlb_active_roster_has(team_id, pid, local_date)
+            )
             return {
                 "role": 1.0 if confirmed else 0.0,
-                "role_ok": confirmed,
+                "role_ok": confirmed and active_roster,
+                "active_roster": active_roster,
                 "event_identity": confirmed or participant_side is not None,
-                "team": participant_side,
-                "source": "MLB StatsAPI probablePitcher",
+                "team": probable_side or participant_side,
+                "source": "MLB StatsAPI probablePitcher+active roster",
             }
         if participant_side is None:
             return None
         box = live.get("liveData", {}).get("boxscore", {}).get("teams", {}).get(participant_side, {})
         order = [int(value) for value in box.get("battingOrder", []) if str(value).isdigit()]
         confirmed = pid in order
+        team_id = (game.get("teams", {}).get(participant_side, {}).get("team") or {}).get("id")
+        active_roster = bool(
+            confirmed and team_id and self._mlb_active_roster_has(team_id, pid, local_date)
+        )
         return {
             "role": float(order.index(pid) + 1) if confirmed else 0.0,
-            "role_ok": confirmed,
+            "role_ok": confirmed and active_roster,
+            "active_roster": active_roster,
             "event_identity": True,
             "team": participant_side,
-            "source": "MLB StatsAPI posted battingOrder",
+            "source": "MLB StatsAPI posted battingOrder+active roster",
         }
 
     def mlb_snapshot(self, card):
@@ -1004,7 +1042,7 @@ class LivePlayerFeatureCollector:
                 "injuries": (
                     active
                     if projection
-                    else bool(official and official["role_ok"] and not pitcher)
+                    else bool(official and official.get("active_roster") and official["role_ok"])
                 ),
                 "no_duplicate_event": event_identity,
             },
