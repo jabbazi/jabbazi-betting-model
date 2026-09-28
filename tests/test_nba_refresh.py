@@ -31,3 +31,39 @@ def test_nba_schedule_refresh_fails_closed_on_bad_rows():
     games, events = nba_schedule_rows(raw, NOW)
     assert games == []
     assert events == []
+
+
+def test_nba_preseason_refresh_falls_back_without_enabling_stale_inference(monkeypatch):
+    import json
+    import urllib.error
+    from jabazi.models.refresh import BUNDLE_DIR, fetch_update
+
+    raw = (
+        "game_id,season,season_type,game_date_time,neutral_site,status_type_completed,"
+        "home_display_name,away_display_name,home_score,away_score\n"
+        "1,2026,2,2026-06-15T00:00:00+00:00,false,true,Boston Celtics,New York Knicks,110,101\n"
+    ).encode()
+    calls = []
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, limit):
+            return raw
+
+    def urlopen(url, timeout=45):
+        calls.append(url)
+        if "nba_schedule_2027.csv" in url:
+            raise urllib.error.HTTPError(url, 404, "not published", {}, None)
+        assert "nba_schedule_2026.csv" in url
+        return Response()
+
+    monkeypatch.setattr("jabazi.models.refresh.urllib.request.urlopen", urlopen)
+    artifact = json.loads((BUNDLE_DIR / "nba_scores.json").read_text())
+    updated = fetch_update(artifact, now=NOW)
+    assert len(calls) == 2
+    assert updated["state_refreshed_at"] == NOW.isoformat()
+    assert updated["events"] == []
+    assert updated["state_latest_game_at"].startswith("2026-06-15")
