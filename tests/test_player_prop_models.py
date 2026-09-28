@@ -400,3 +400,20 @@ def test_nflverse_injury_report_can_verify_injury_status_but_not_game_day_availa
     assert evidence["verified"] is True
     assert evidence["available_by_injury_report"] is True
     assert evidence["status"] == "not_listed"
+
+
+def test_binary_historical_row_without_explicit_side_defaults_to_positive():
+    from jabazi.models.train_player_props import _threshold_rows
+
+    artifact = binary_artifact()
+    rows = [{
+        "features": {"red_zone_share": 0.3},
+        "observed_value": 1,
+        "market_side": None,
+        "market_line": None,
+    }]
+    threshold = _threshold_rows(rows, artifact)
+    assert len(threshold) == 1
+    _, probability, outcome = threshold[0]
+    assert 0 < probability < 1
+    assert outcome == 1
