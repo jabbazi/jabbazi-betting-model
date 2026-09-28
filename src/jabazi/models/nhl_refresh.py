@@ -42,17 +42,13 @@ def fetch_update(artifact, *, now, result_store=None):
     if result_store is not None:
         from jabazi.research.prospective import archive_results
 
-        archive_results(
-            result_store,
-            SPORT,
-            [
-                g
-                for g in games
-                if g["completed"]
-                and timestamp(g["available_at"]) < now
-                and timestamp(g["starts_at"]) >= now - timedelta(days=30)
-            ],
-            observed_at=now,
-            source_checksum=checksum,
-        )
+        completed = [g for g in games if g["completed"]
+                     and timestamp(g["available_at"]) < now
+                     and timestamp(g["starts_at"]) >= now - timedelta(days=30)]
+        # Opening week has a valid future schedule and zero completed games.
+        # The historical-result validator correctly rejects empty training data;
+        # there is simply nothing to archive in this refresh yet.
+        if completed:
+            archive_results(result_store, SPORT, completed, observed_at=now,
+                            source_checksum=checksum)
     return updated

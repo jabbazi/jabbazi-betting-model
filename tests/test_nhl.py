@@ -311,3 +311,30 @@ def test_refresh_stops_before_provider_when_lease_is_lost():
         assert not s.list_records("model_refresh_attempt")
     finally:
         s.close()
+
+
+def test_opening_week_refresh_with_real_store_does_not_require_completed_games():
+    from jabazi.models.nhl_refresh import fetch_update
+    a = artifact(); now = timestamp(a["state_refreshed_at"])
+    s = Store("sqlite:///:memory:", initialize=True)
+    try:
+        with patch("jabazi.models.nhl_refresh.fetch_clubs", return_value=(a["events"], "test")):
+            updated = fetch_update(a, now=now, result_store=s)
+        assert updated["events"] and not s.list_records("prospective_result")
+        NHLGoalsModel(updated)
+    finally:
+        s.close()
+
+
+def test_failed_refresh_retries_after_backoff_not_six_hours():
+    from jabazi.models.refresh import refresh_models
+    a = artifact(); now = timestamp(a["state_refreshed_at"])
+    s = Store("sqlite:///:memory:", initialize=True)
+    try:
+        with patch("jabazi.models.refresh.fetch_update", side_effect=ValueError):
+            first = refresh_models(s, now=now)
+        with patch("jabazi.models.refresh.fetch_update", side_effect=ValueError) as fetch:
+            refresh_models(s, now=now+timedelta(minutes=4)); fetch.assert_not_called()
+            refresh_models(s, now=now+timedelta(minutes=6)); assert fetch.call_count == len(first)
+    finally:
+        s.close()

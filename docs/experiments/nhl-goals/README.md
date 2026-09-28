@@ -31,6 +31,7 @@ All raw/calibrated/baseline scores, reliability bins, Wilson hit-rate intervals,
 
 - Model version, exact feature vectors/history, source checksums, quote IDs and code commit are frozen with scanner predictions.
 - Recency weighting: 90-day half-life, 365-day horizon, ten league-average pseudo-games. Offseason history decays; Arizona is not silently treated as Utah. Utah franchise name changes use an explicit alias.
+- Rest covariates currently measure time since the last eligible result under the 48-hour rule, not complete schedule-based back-to-back context. This proxy is identical in training and inference; direct schedule rest is a follow-up.
 - Historical result availability is a conservative start-plus-48-hours proxy, not an archived publication timestamp. Corrections could have arrived later. This limits retrospective claims.
 - Missing confirmed goalie, lineup, injury, special-teams and shot-quality inputs. No empty-net tactical model. Regulation score dependence is not fitted beyond OT tie resolution.
 - The current artifact is scoped to 2026–27. A new season requires a reviewed artifact refresh, not silent relabeling.

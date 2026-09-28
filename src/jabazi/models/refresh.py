@@ -197,7 +197,10 @@ def refresh_models(store, *, now=None):
             previous = store.list_records("model_refresh_attempt", 1, entity=SPORTS[short])
             if previous:
                 elapsed = (now - timestamp(previous[0]["payload"]["attempted_at"])).total_seconds()
-                if 0 <= elapsed < 6 * 3600:
+                latest = store.list_records("game_model", 1, entity=SPORTS[short])
+                failed = bool(latest and latest[0]["payload"].get("status") == "UNAVAILABLE")
+                retry_after = 300 if failed else 6 * 3600
+                if 0 <= elapsed < retry_after:
                     report[short] = "NOT_DUE"
                     continue
             store.append("model_refresh_attempt", SPORTS[short], {"attempted_at": now.isoformat()})
