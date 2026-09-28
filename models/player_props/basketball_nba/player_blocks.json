@@ -3,7 +3,7 @@
   "sport": "basketball_nba",
   "market": "player_blocks",
   "provider": "SportsDataverse ESPN NBA player box scores",
-  "source_checksum": "cb42fc0d90e2bbe01694560471c7ad12bc4a27bdc3bc759ffb3acd8b93540304",
+  "source_checksum": "548c6363fa30be46c8291b44099dd574e8d9d8ee9441d9c9df0bd8f1b5de82ea",
   "feature_names": [
     "games_prior",
     "is_home",
@@ -117,7 +117,7 @@
       2.316941795819647
     ]
   },
-  "trained_at": "2026-09-28T19:42:13.766872+00:00",
+  "trained_at": "2026-09-28T19:48:45.619478+00:00",
   "training_cutoff": "2024-04-14T13:30:00+00:00",
   "stage": "VALIDATING",
   "family": "count_nb",

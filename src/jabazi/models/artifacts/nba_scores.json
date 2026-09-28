@@ -2,7 +2,7 @@
   "schema_version": 1,
   "sport": "basketball_nba",
   "model_name": "nba_paired_score_research",
-  "model_version": "nba-score-ridge-0.1.0-0faa36877e71",
+  "model_version": "nba-score-ridge-0.1.0-2bc18d2633e3",
   "status": "SHADOW_ONLY",
   "approved_for_betting": false,
   "features": [
@@ -4977,9 +4977,9 @@
       -15.387489283341935
     ]
   ],
-  "source_checksum": "0faa36877e718e324e03663d9c2f1b69b37f9fb8138443efbf298bb5e7fad1c3",
-  "trained_at": "2026-09-28T19:41:09.585717+00:00",
-  "state_refreshed_at": "2026-09-28T19:41:09.585717+00:00",
+  "source_checksum": "2bc18d2633e333d874a58827a89484669b794296aa58cc7d68ab239a2f21f34e",
+  "trained_at": "2026-09-28T19:47:41.366785+00:00",
+  "state_refreshed_at": "2026-09-28T19:47:41.366785+00:00",
   "window": 16,
   "minimum_games": 8,
   "team_state": {
