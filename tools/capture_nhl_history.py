@@ -48,7 +48,8 @@ def capture(output, opening_date):
             receipts.extend(r[1] for r in pool.map(lambda club: get(club, season), clubs))
     (output / "receipts.json").write_text(json.dumps(receipts, indent=2) + "\n")
     url = "https://api-web.nhle.com/v1/schedule/" + opening_date
-    with urllib.request.urlopen(url, timeout=30) as r:
+    request = urllib.request.Request(url, headers={"User-Agent": "JABBAZI-Research/0.4"})
+    with urllib.request.urlopen(request, timeout=30) as r:
         raw = r.read(4_000_001)
     if len(raw) > 4_000_000:
         raise ValueError("Oversize schedule")
