@@ -2,6 +2,18 @@ name: NHL player research artifact
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - build/production-foundations
+    paths:
+      - "src/jabazi/providers/nhl_player_features.py"
+      - "src/jabazi/research/nhl_player_experiment.py"
+      - "src/jabazi/models/player_distribution.py"
+      - "src/jabazi/models/train_player_props.py"
+      - "tools/capture_nhl_history.py"
+      - "tools/capture_nhl_player_history.py"
+      - "tools/train_nhl_player_props.py"
+      - ".github/workflows/nhl-player-research.yml"
   push:
     branches:
       - audit/all-models-completion-20260928
