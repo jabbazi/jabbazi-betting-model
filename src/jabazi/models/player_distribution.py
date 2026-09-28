@@ -37,10 +37,27 @@ MLB_PROP_MARKETS = frozenset({
     "batter_runs_scored",
     "batter_hits_runs_rbis",
     "batter_walks",
+    "player_points",
+    "player_power_play_points",
+    "player_assists",
+    "player_blocked_shots",
+    "player_shots_on_goal",
+    "player_goals",
+    "player_total_saves",
+})
+NHL_PROP_MARKETS = frozenset({
+    "player_points",
+    "player_power_play_points",
+    "player_assists",
+    "player_blocked_shots",
+    "player_shots_on_goal",
+    "player_goals",
+    "player_total_saves",
 })
 PLAYER_PROP_MARKETS = {
     "americanfootball_nfl": NFL_PROP_MARKETS,
     "baseball_mlb": MLB_PROP_MARKETS,
+    "icehockey_nhl": NHL_PROP_MARKETS,
 }
 
 BINARY_MARKETS = frozenset({"player_anytime_td", "batter_home_runs"})
