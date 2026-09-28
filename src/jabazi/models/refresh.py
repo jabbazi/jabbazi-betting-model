@@ -139,6 +139,47 @@ def nba_schedule_rows(raw, now):
     return games, events
 
 
+def nba_offseason_state(artifact, *, now, response_checksum):
+    """Refresh NBA model metadata during offseason without inventing current games.
+
+    The bundled team_state is preserved exactly. No future events are published.
+    ScoreDistributionModel's own event/recent-game checks therefore keep inference
+    unavailable until real current-season schedule and completed-game context exists.
+    """
+    if artifact.get("sport") != SPORTS["nba"]:
+        raise ValueError("NBA offseason state requires NBA artifact")
+    state = artifact.get("team_state")
+    if not isinstance(state, dict) or not state:
+        raise ValueError("NBA bundled offseason team state unavailable")
+    latest = []
+    for games in state.values():
+        if not isinstance(games, list):
+            raise ValueError("Malformed NBA bundled team state")
+        for game in games:
+            if not isinstance(game, list) or len(game) < 4:
+                raise ValueError("Malformed NBA bundled team game")
+            latest.append(timestamp(game[2]))
+    if not latest:
+        raise ValueError("NBA bundled offseason history unavailable")
+    value = artifact | {
+        "team_state": state,
+        "events": [],
+        "state_refreshed_at": now.isoformat(),
+        "state_source_checksum": response_checksum,
+        "state_latest_game_at": max(latest).isoformat(),
+        "offseason_context": True,
+        "production_context": {
+            **artifact.get("production_context", {}),
+            "starter_verified": False,
+            "roster_verified": False,
+            "injuries_verified": False,
+            "calibration_verified": False,
+        },
+    }
+    ScoreDistributionModel(value)
+    return value
+
+
 def update_state(artifact, games, events, *, now, response_checksum, allow_stale_state=False):
     short = next(k for k, v in SPORTS.items() if v == artifact["sport"])
     games = validate_history({"sport": artifact["sport"], "games": games}, short)
@@ -252,19 +293,26 @@ def fetch_update(artifact, *, now, result_store=None):
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
     checksum = hashlib.sha256(raw).hexdigest()
-    allow_stale_state = (
-        artifact["sport"] == SPORTS["nba"]
-        and now.month < 10
-        and not events
-    )
-    updated = update_state(
-        artifact,
-        games,
-        events,
-        now=now,
-        response_checksum=checksum,
-        allow_stale_state=allow_stale_state,
-    )
+    if artifact["sport"] == SPORTS["nba"] and now.month < 10 and not games:
+        updated = nba_offseason_state(
+            artifact,
+            now=now,
+            response_checksum=checksum,
+        )
+    else:
+        allow_stale_state = (
+            artifact["sport"] == SPORTS["nba"]
+            and now.month < 10
+            and not events
+        )
+        updated = update_state(
+            artifact,
+            games,
+            events,
+            now=now,
+            response_checksum=checksum,
+            allow_stale_state=allow_stale_state,
+        )
     if result_store is not None:
         from jabazi.research.prospective import archive_results
         archive_results(result_store, artifact["sport"],
