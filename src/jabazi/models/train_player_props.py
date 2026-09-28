@@ -390,6 +390,7 @@ def promotion_decision(artifact, prospective):
         "distribution_n": int(distribution.get("n", 0) or 0) >= 500,
         "historical_priced_if_available": historical_priced_ok,
         "prospective_n": int(p.get("sample_count", 0) or 0) >= 500,
+        "independent_events": int(p.get("independent_event_count", 0) or 0) >= 500,
         "prospective_brier_vs_market": (
             p.get("brier") is not None
             and p.get("market_baseline_brier") is not None
@@ -399,9 +400,11 @@ def promotion_decision(artifact, prospective):
         "prospective_clv": (
             p.get("mean_clv_prob_points") is not None
             and int(p.get("clv_sample_count", 0) or 0) >= 150
+            and int(p.get("clv_independent_event_count", 0) or 0) >= 150
             and float(p["mean_clv_prob_points"]) >= 0
         ),
         "data_health": int(p.get("data_health_failures", 1) or 0) == 0,
+        "result_identity": p.get("identity_failures") == 0,
     }
 
     if all(checks.values()):
@@ -410,12 +413,14 @@ def promotion_decision(artifact, prospective):
         checks["distribution_n"]
         and checks["historical_priced_if_available"]
         and int(p.get("sample_count", 0) or 0) >= 200
+        and int(p.get("independent_event_count", 0) or 0) >= 200
         and p.get("brier") is not None
         and p.get("market_baseline_brier") is not None
         and float(p["brier"]) < float(p["market_baseline_brier"])
         and p.get("ece") is not None
         and float(p["ece"]) <= 0.06
         and checks["data_health"]
+        and checks["result_identity"]
     ):
         stage = "LIMITED_LIVE"
     elif int(distribution.get("n", 0) or 0) >= 250:
@@ -428,6 +433,7 @@ def promotion_decision(artifact, prospective):
         **historical,
         "historical_priced_evidence_available": historical_priced_available,
         "prospective_sample_count": int(p.get("sample_count", 0) or 0),
+        "prospective_independent_event_count": int(p.get("independent_event_count", 0) or 0),
         "prospective_brier": p.get("brier"),
         "prospective_market_baseline_brier": p.get("market_baseline_brier"),
         "prospective_ece": p.get("ece"),

@@ -142,16 +142,24 @@ def test_player_model_production_requires_strict_prospective_evidence():
     }
     prospective = {
         "sample_count": 800,
+        "independent_event_count": 800,
+        "identity_failures": 0,
         "brier": 0.20,
         "market_baseline_brier": 0.225,
         "ece": 0.025,
         "clv_sample_count": 250,
+        "clv_independent_event_count": 250,
         "mean_clv_prob_points": 0.4,
         "data_health_failures": 0,
     }
     promoted = promotion_decision(artifact, prospective)
     assert promoted["stage"] == "PRODUCTION_APPROVED"
     assert promoted["validation"]["promotion_passed"] is True
+    prospective["independent_event_count"] = 1
+    assert promotion_decision(artifact, prospective)["stage"] == "VALIDATING"
+    prospective["independent_event_count"] = 800
+    prospective["identity_failures"] = 1
+    assert promotion_decision(artifact, prospective)["stage"] == "VALIDATING"
 
 
 def test_team_bucket_cannot_promote_on_sample_size_alone():
