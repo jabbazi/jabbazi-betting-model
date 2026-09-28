@@ -355,3 +355,48 @@ def test_live_nfl_history_uses_previous_and_current_season(monkeypatch):
     rows = collector._nfl_history()
     assert {int(row["season"]) for row in rows} == {2025, 2026}
     assert len({row["_source_checksum"] for row in rows}) == 1
+
+
+def test_nflverse_injury_report_can_verify_injury_status_but_not_game_day_availability(monkeypatch):
+    from jabazi.providers.player_features_live import LivePlayerFeatureCollector
+
+    now = datetime(2026, 9, 28, 18, tzinfo=UTC)
+    collector = LivePlayerFeatureCollector(now=now, production_verified=False)
+    monkeypatch.setattr(
+        collector,
+        "_nfl_card_context",
+        lambda card: {
+            "week": 3,
+            "home_abbr": "CHI",
+            "away_abbr": "PHI",
+            "home": "Chicago Bears",
+            "away": "Philadelphia Eagles",
+            "start": card.starts_at,
+        },
+    )
+    monkeypatch.setattr(
+        collector,
+        "_nfl_injuries",
+        lambda: [{
+            "season": "2026",
+            "team": "PHI",
+            "week": "3",
+            "gsis_id": "00-TEST",
+            "full_name": "Test Player",
+            "report_status": "",
+            "date_modified": (now - timedelta(hours=4)).isoformat(),
+            "_source_checksum": "injury-checksum",
+        }],
+    )
+    card = SimpleNamespace(
+        event="Philadelphia Eagles @ Chicago Bears",
+        starts_at=now + timedelta(hours=6),
+    )
+    evidence = collector._nfl_injury_evidence(
+        card,
+        "Test Player",
+        {"team": "PHI", "gsis_id": "00-TEST"},
+    )
+    assert evidence["verified"] is True
+    assert evidence["available_by_injury_report"] is True
+    assert evidence["status"] == "not_listed"
