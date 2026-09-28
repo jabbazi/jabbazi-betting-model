@@ -31,6 +31,13 @@ def card(market, participant):
 
 
 def fake_fetch(url, timeout=12):
+    if "site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries" in url:
+        return {
+            "injuries": [
+                {"team": {"abbreviation": "CAR"}, "injuries": []},
+                {"team": {"abbreviation": "FLA"}, "injuries": []},
+            ]
+        }, "espn-injuries"
     if "/roster/CAR/current" in url:
         return {
             "forwards": [{
@@ -108,8 +115,8 @@ def test_official_skater_history_builds_research_only_snapshot(monkeypatch):
     assert snapshot["features"]["position_goalie"] == 0
     assert snapshot["integrity"]["event_identity"] is True
     assert snapshot["integrity"]["role"] is True
-    # Official historical stats and roster membership do not establish same-day health.
-    assert snapshot["integrity"]["injuries"] is False
+    assert snapshot["integrity"]["injuries"] is True
+    assert snapshot["integrity"]["availability"] is True
 
 
 def test_goalie_history_never_claims_starting_role(monkeypatch):
@@ -121,7 +128,8 @@ def test_goalie_history_never_claims_starting_role(monkeypatch):
     assert snapshot is not None
     assert snapshot["features"]["position_goalie"] == 1
     assert snapshot["integrity"]["role"] is False
-    assert snapshot["integrity"]["injuries"] is False
+    assert snapshot["integrity"]["injuries"] is True
+    assert snapshot["integrity"]["availability"] is True
 
 
 @pytest.mark.parametrize("market", ["player_power_play_points", "player_blocked_shots"])
@@ -263,3 +271,25 @@ def test_registered_nhl_artifacts_are_validating_not_approved():
         "player_shots_on_goal",
         "player_total_saves",
     } <= set(status["supported_markets"])
+
+
+def test_nhl_injury_crosscheck_keeps_ambiguous_player_fail_closed(monkeypatch):
+    def injured_fetch(url, timeout=12):
+        if "site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries" in url:
+            return {
+                "injuries": [{
+                    "team": {"abbreviation": "CAR"},
+                    "injuries": [{
+                        "athlete": {"displayName": "Sebastian Aho"},
+                        "status": "Day-To-Day",
+                    }],
+                }]
+            }, "injury-checksum"
+        return fake_fetch(url, timeout)
+
+    monkeypatch.setattr(nhlp, "_fetch_json", injured_fetch)
+    collector = nhlp.NHLPlayerFeatureCollector(now=NOW)
+    snapshot = collector.snapshot(card("player_shots_on_goal", "Sebastian Aho"))
+    assert snapshot is not None
+    assert snapshot["integrity"]["availability"] is False
+    assert snapshot["integrity"]["injuries"] is False
