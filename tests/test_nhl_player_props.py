@@ -63,7 +63,7 @@ def fake_fetch(url, timeout=12):
                 "assists": i % 2,
                 "shots": 2 + i % 4,
                 "goals": i % 2,
-                "timeOnIcePerGame": "19:30",
+                "timeOnIcePerGame": 1170,
             }
             for i in range(1, 7)
         ]
