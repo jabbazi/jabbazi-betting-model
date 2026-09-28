@@ -32,7 +32,17 @@ def is_player_market(card):
 
 
 def select_model(card, models, player_models):
-    return player_models.get((card.sport, card.market)) if is_player_market(card) else models.get(card.sport)
+    if not is_player_market(card):
+        return models.get(card.sport), card
+    model = player_models.get((card.sport, card.market))
+    if model is not None:
+        return model, card
+    if card.market.endswith("_alternate"):
+        base = card.market.removesuffix("_alternate")
+        model = player_models.get((card.sport, base))
+        if model is not None:
+            return model, replace(card, market=base)
+    return None, card
 
 
 class ScannerBusy(RuntimeError):
@@ -200,12 +210,24 @@ class AutomaticScanner:
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
                 if isinstance(ledger, Store) and any(is_player_market(card) for card in cards):
-                    player_features.sync(ledger, [card for card in cards if is_player_market(card)])
+                    feature_cards = []
+                    for card in cards:
+                        if not is_player_market(card):
+                            continue
+                        model, inference_card = select_model(card, models, player_models)
+                        if model is not None:
+                            feature_cards.append(inference_card)
+                    if feature_cards:
+                        player_features.sync(ledger, feature_cards)
                 for card in cards:
-                    model = select_model(card, models, player_models)
+                    model, inference_card = select_model(card, models, player_models)
                     # One bad game/model must not abort independent price research.
                     try:
-                        estimate = model.estimate(card) if model and card.event_id not in duplicate_ids else None
+                        estimate = (
+                            model.estimate(inference_card)
+                            if model and card.event_id not in duplicate_ids
+                            else None
+                        )
                     except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
                         estimate = None
                         errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
@@ -216,6 +238,7 @@ class AutomaticScanner:
                             "event_id": card.event_id,
                             "sport": card.sport,
                             "market": card.market,
+                            "model_market": inference_card.market,
                             "selection": card.selection,
                             "line": card.line,
                             "probability": estimate.probability,
@@ -234,7 +257,7 @@ class AutomaticScanner:
                             if is_player_market(card):
                                 from .research.player_prospective import freeze_player_candidate
                                 reliability["prospective_recorded"] = freeze_player_candidate(
-                                    ledger, card, estimate, reliability
+                                    ledger, inference_card, estimate, reliability
                                 )
                             else:
                                 from .research.prospective import freeze_candidate

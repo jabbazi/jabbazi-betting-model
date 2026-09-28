@@ -219,5 +219,28 @@ def test_nhl_base_and_derivative_feeds_respect_existing_budget():
     plan = FeedPlan(factory(calls), None, 9, 50, errors, lambda: True, now=NOW)
     list(plan.batches([{"key": "icehockey_nhl"}]))
     assert plan.spent <= 9 and not errors
-    assert any(s == "icehockey_nhl" and e and "alternate_spreads" in m for s,e,m in calls)
-    assert not any(s == "icehockey_nhl" and any(x.startswith("player_") for x in m) for s,e,m in calls)
+    event_calls = [(s, e, m) for s, e, m in calls if s == "icehockey_nhl" and e]
+    assert event_calls
+    assert any("player_shots_on_goal" in markets for _, _, markets in event_calls)
+    assert any(any(market.startswith("player_") for market in markets)
+               for _, _, markets in event_calls)
+
+
+def test_nba_base_and_player_market_feeds_are_bounded_and_model_independent():
+    calls, errors = [], []
+    plan = FeedPlan(factory(calls), None, 9, 50, errors, lambda: True, now=NOW)
+    result = list(plan.batches([{"key": "basketball_nba"}]))
+    assert result
+    assert plan.spent <= 9 and not errors
+    base = [call for call in calls if call[0] == "basketball_nba" and call[1] is None]
+    event = [call for call in calls if call[0] == "basketball_nba" and call[1] is not None]
+    assert len(base) == 1
+    assert event
+    assert any(
+        market in {"player_points", "player_rebounds", "player_assists", "player_threes"}
+        for _, _, markets in event
+        for market in markets
+    )
+    coverage = plan.coverage["sports"]["basketball_nba"]
+    assert coverage["player_model_status"] == "UNAVAILABLE"
+    assert coverage["player_model_markets"] == {}

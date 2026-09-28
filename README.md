@@ -3,8 +3,8 @@
 **Research infrastructure, not a production-approved betting service.** No model
 in the active registry can produce approved paid picks. The platform does not place bets.
 
-This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB/NHL shadow
-baselines, audited pricing, central portfolio reservations, PostgreSQL-capable
+This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB/NHL team
+models plus NBA research-model architecture, audited pricing, central portfolio reservations, PostgreSQL-capable
 storage, an authenticated API, and research frameworks for calibration, props,
 alternates, correlated parlays, and historical execution evaluation.
 
@@ -17,7 +17,19 @@ Documents in `docs/archive` describe older milestones and are not deployment ins
 
 The [NHL model and evaluation report](docs/experiments/nhl-goals/README.md) documents the
 coherent goals model, four-season data audit, held-out results and scanner integration.
-All NHL game-market buckets remain SHADOW_ONLY; player markets are unavailable.
+All NHL game-market buckets remain SHADOW_ONLY. NHL player-prop odds/history/training
+plumbing now exists for research, but no NHL player artifact is production-approved;
+same-day injury/scratch and starting-goalie evidence remain mandatory gates.
+
+## NBA research release
+
+NBA is now a first-class research model namespace. The branch contains a trained
+SHADOW_ONLY team score artifact and 12 VALIDATING player-prop artifacts covering
+points, rebounds, assists, threes, blocks, steals, turnovers, PRA/PR/PA/RA and
+double-double. Historical fitting used 4,932 completed team games and 129,050
+player-game rows; the player artifacts each have 24,280 held-out observations.
+No NBA model is production-approved: same-day rotation/injury inputs, archived
+decision-time prop prices and frozen prospective market/CLV evidence remain required.
 
 ## Install and verify
 
@@ -60,8 +72,10 @@ The Render blueprint prepares an API, worker and private database for cost revie
 
 ## Model training
 
-No private data, live ledger, or model artifacts are committed. Existing trained
-MLB/NFL research artifacts remain in the earlier saved starter. Reproduce them:
+No private data or live ledger is committed. Reviewed reproducible research artifacts
+may be committed when their source provenance and fail-closed status are documented;
+the NHL player artifacts are one such research-only set. Existing MLB/NFL research
+artifacts can be reproduced with:
 
 ```bash
 python -m jabazi history --sport nfl --as-of 2026-09-22 --output data/nfl_history.json

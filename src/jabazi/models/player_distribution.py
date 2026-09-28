@@ -1,4 +1,4 @@
-"""Distributional NFL/MLB player-prop inference.
+"""Distributional NFL/MLB/NHL/NBA player-prop inference.
 
 Artifacts are JSON, reproducible and fail closed.  A fitted mean is never treated as a
 threshold hit probability; every supported market maps to an explicit distribution.
@@ -38,12 +38,37 @@ MLB_PROP_MARKETS = frozenset({
     "batter_hits_runs_rbis",
     "batter_walks",
 })
+NHL_PROP_MARKETS = frozenset({
+    "player_points",
+    "player_power_play_points",
+    "player_assists",
+    "player_blocked_shots",
+    "player_shots_on_goal",
+    "player_goals",
+    "player_total_saves",
+})
+NBA_PROP_MARKETS = frozenset({
+    "player_points",
+    "player_rebounds",
+    "player_assists",
+    "player_threes",
+    "player_blocks",
+    "player_steals",
+    "player_turnovers",
+    "player_points_rebounds_assists",
+    "player_points_rebounds",
+    "player_points_assists",
+    "player_rebounds_assists",
+    "player_double_double",
+})
 PLAYER_PROP_MARKETS = {
     "americanfootball_nfl": NFL_PROP_MARKETS,
     "baseball_mlb": MLB_PROP_MARKETS,
+    "icehockey_nhl": NHL_PROP_MARKETS,
+    "basketball_nba": NBA_PROP_MARKETS,
 }
 
-BINARY_MARKETS = frozenset({"player_anytime_td", "batter_home_runs"})
+BINARY_MARKETS = frozenset({"player_anytime_td", "batter_home_runs", "player_double_double"})
 COUNT_MARKETS = frozenset({
     "player_pass_attempts",
     "player_pass_completions",
@@ -60,8 +85,28 @@ COUNT_MARKETS = frozenset({
     "batter_runs_scored",
     "batter_hits_runs_rbis",
     "batter_walks",
+    "player_points",
+    "player_power_play_points",
+    "player_assists",
+    "player_blocked_shots",
+    "player_shots_on_goal",
+    "player_goals",
+    "player_total_saves",
+    "player_points",
+    "player_rebounds",
+    "player_assists",
+    "player_threes",
+    "player_blocks",
+    "player_steals",
+    "player_turnovers",
+    "player_points_rebounds_assists",
+    "player_points_rebounds",
+    "player_points_assists",
+    "player_rebounds_assists",
 })
-CONTINUOUS_MARKETS = (NFL_PROP_MARKETS | MLB_PROP_MARKETS) - BINARY_MARKETS - COUNT_MARKETS
+CONTINUOUS_MARKETS = (
+    NFL_PROP_MARKETS | MLB_PROP_MARKETS | NHL_PROP_MARKETS | NBA_PROP_MARKETS
+) - BINARY_MARKETS - COUNT_MARKETS
 
 
 def _sigmoid(value: float) -> float:
@@ -307,7 +352,17 @@ class PlayerPropModel(ProbabilityModel):
             "event_identity", "player_identity", "fresh_features", "schema",
             "role", "availability", "injuries", "no_duplicate_event",
         )
-        integrity = snapshot.get("integrity", {})
+        integrity = dict(snapshot.get("integrity", {}))
+        # Reliability-layer fields shared with team models. Player distributions
+        # have explicit variance by construction; role/player identity supply the
+        # analogous starter/roster checks. Large model-market disagreements still
+        # require an actual fitted calibrator before they can escape quarantine.
+        integrity["variance"] = self.artifact["family"] in {
+            "binary_logistic", "count_nb", "normal_ridge", "hurdle_lognormal"
+        }
+        integrity["starter"] = integrity.get("role") is True
+        integrity["roster"] = integrity.get("player_identity") is True
+        integrity["calibration"] = self.artifact.get("calibration") is not None
         integrity_ok = all(integrity.get(key) is True for key in required)
         approved = (
             self.stage == "PRODUCTION_APPROVED"

@@ -1,4 +1,4 @@
-"""Live point-in-time feature collector for NFL and MLB player props.
+"""Live point-in-time feature collector for NFL, MLB and NHL player props.
 
 Model features are built from completed-game history only. SportsDataIO projections
 are used as pregame role/availability evidence, never as the model probability.
@@ -33,6 +33,10 @@ def _nfl_stats_url(season):
 NFL_DEPTH = (
     "https://github.com/nflverse/nflverse-data/releases/download/"
     "depth_charts/depth_charts_2026.csv"
+)
+NFL_INJURIES = (
+    "https://github.com/nflverse/nflverse-data/releases/download/"
+    "injuries/injuries_2026.csv"
 )
 NFL_TEAM_NAMES = {
     "ARI": "Arizona Cardinals", "ATL": "Atlanta Falcons", "BAL": "Baltimore Ravens",
@@ -177,10 +181,15 @@ class LivePlayerFeatureCollector:
         self._nfl_rows = None
         self._nfl_completed = None
         self._nfl_depth_rows = None
+        self._nfl_injury_rows = None
+        self._nfl_schedule_rows = None
         self._nfl_projection = None
         self._mlb_projection = {}
         self._mlb_people = {}
         self._mlb_logs = {}
+        self._mlb_schedule = {}
+        self._mlb_live = {}
+        self._nhl_collector = None
         self._diagnostics = []
         if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
             raise ValueError("Player collection budget must be 0-120 seconds")
@@ -189,7 +198,8 @@ class LivePlayerFeatureCollector:
 
     @property
     def diagnostics(self):
-        return tuple(self._diagnostics)
+        nhl = self._nhl_collector.diagnostics if self._nhl_collector is not None else ()
+        return tuple(self._diagnostics) + tuple(nhl)
 
 
     def provider_status(self):
@@ -199,6 +209,20 @@ class LivePlayerFeatureCollector:
             "data_mode": "PRODUCTION_VERIFIED" if self.production_verified else "UNVERIFIED",
             "nfl": {"ok": False, "rows": 0},
             "mlb": {"ok": False, "rows": 0},
+            "nhl": {
+                "ok": True,
+                "provider": "NHL official roster+stats",
+                "history_source_verified": True,
+                "lineup_injury_source_verified": False,
+                "note": "Official history is available; same-day injury and starting-goalie gates remain unverified.",
+            },
+            "nba": {
+                "ok": False,
+                "provider": None,
+                "history_source_verified": False,
+                "lineup_injury_source_verified": False,
+                "note": "No verified NBA historical player/minutes and same-day rotation/injury provider is configured.",
+            },
         }
         if not self.api_key:
             return result
@@ -334,6 +358,123 @@ class LivePlayerFeatureCollector:
         is_home = team_name == sides[1]
         return team, is_home, True
 
+    def _nfl_schedule(self):
+        if self._nfl_schedule_rows is not None:
+            return self._nfl_schedule_rows
+        raw = _fetch_bytes(
+            "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
+        )
+        reader = csv.DictReader(io.StringIO(raw.decode()))
+        rows = []
+        season = self.now.year if self.now.month >= 7 else self.now.year - 1
+        for row in reader:
+            if int(row.get("season") or 0) != season or row.get("game_type") != "REG":
+                continue
+            if not row.get("gameday") or not row.get("gametime"):
+                continue
+            try:
+                start = (
+                    datetime.fromisoformat(row["gameday"] + "T" + row["gametime"])
+                    .replace(tzinfo=ZoneInfo("America/New_York"))
+                    .astimezone(UTC)
+                )
+            except ValueError:
+                continue
+            rows.append({
+                "week": int(row["week"]),
+                "start": start,
+                "home": NFL_TEAM_NAMES.get(row.get("home_team")),
+                "away": NFL_TEAM_NAMES.get(row.get("away_team")),
+                "home_abbr": row.get("home_team"),
+                "away_abbr": row.get("away_team"),
+            })
+        self._nfl_schedule_rows = rows
+        return rows
+
+    def _nfl_card_context(self, card):
+        parts = str(getattr(card, "event", "") or "").split(" @ ", 1)
+        if len(parts) != 2:
+            return None
+        away, home = parts
+        matches = [
+            row for row in self._nfl_schedule()
+            if row["away"] == away
+            and row["home"] == home
+            and abs((row["start"] - card.starts_at.astimezone(UTC)).total_seconds()) <= 3 * 3600
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def _nfl_injuries(self):
+        if self._nfl_injury_rows is not None:
+            return self._nfl_injury_rows
+        season = self.now.year if self.now.month >= 7 else self.now.year - 1
+        url = NFL_INJURIES.replace("2026.csv", f"{season}.csv")
+        raw = _fetch_bytes(url)
+        checksum = hashlib.sha256(raw).hexdigest()
+        reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
+        required = {"season", "team", "week", "gsis_id", "full_name", "report_status", "date_modified"}
+        if not required <= set(reader.fieldnames or []):
+            raise ValueError("nflverse injury-report schema mismatch")
+        rows = []
+        for row in reader:
+            if int(row.get("season") or 0) != season:
+                continue
+            copy = dict(row)
+            copy["_source_checksum"] = checksum
+            rows.append(copy)
+        self._nfl_injury_rows = rows
+        return rows
+
+    def _nfl_injury_evidence(self, card, participant, depth):
+        try:
+            context = self._nfl_card_context(card)
+            injury_rows = self._nfl_injuries()
+        except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            self._diagnostics.append(f"NFLVERSE_INJURY_PROVIDER_{type(exc).__name__}")
+            return None
+        if not context:
+            return None
+        team = str((depth or {}).get("team") or "").upper()
+        if team not in {context["home_abbr"], context["away_abbr"]}:
+            return None
+        rows = [
+            row for row in injury_rows
+            if str(row.get("team") or "").upper() == team
+            and int(row.get("week") or -1) == context["week"]
+        ]
+        if not rows:
+            return None
+
+        def modified(row):
+            try:
+                value = datetime.fromisoformat(str(row.get("date_modified")).replace("Z", "+00:00"))
+                if value.tzinfo is None:
+                    value = value.replace(tzinfo=UTC)
+                return value.astimezone(UTC)
+            except (TypeError, ValueError):
+                return datetime.min.replace(tzinfo=UTC)
+
+        latest_team = max(modified(row) for row in rows)
+        if latest_team > self.now or (self.now - latest_team).total_seconds() > 96 * 3600:
+            return None
+        gsis = str((depth or {}).get("gsis_id") or "")
+        matches = [
+            row for row in rows
+            if (gsis and str(row.get("gsis_id") or "") == gsis)
+            or _name(row.get("full_name")) == _name(participant)
+        ]
+        row = max(matches, key=modified) if matches else None
+        status = str((row or {}).get("report_status") or "").strip().lower()
+        unavailable = status in {"out", "doubtful", "inactive", "injured reserve"}
+        return {
+            "verified": True,
+            "status": status or "not_listed",
+            "available_by_injury_report": not unavailable,
+            "modified_at": latest_team.isoformat(),
+            "source_checksum": rows[0]["_source_checksum"],
+            "week": context["week"],
+        }
+
     def _nfl_projections(self):
         if self._nfl_projection is not None:
             return self._nfl_projection
@@ -440,6 +581,7 @@ class LivePlayerFeatureCollector:
 
         projection = self._nfl_projection_for(card.participant, card.starts_at)
         depth = self._nfl_depth_for(card.participant)
+        injury_evidence = self._nfl_injury_evidence(card, card.participant, depth)
         if projection is None:
             self._diagnostics.append(
                 f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_NFL_PROJECTION_NOT_MATCHED"
@@ -477,6 +619,10 @@ class LivePlayerFeatureCollector:
                 "out", "doubtful", "questionable", "inactive", "injured reserve"
             }
         )
+        injury_ok = (
+            active if projection is not None
+            else bool(injury_evidence and injury_evidence["available_by_injury_report"])
+        )
         depth_rank = _float(depth or {}, "pos_rank", 99.0)
         depth_role = depth is not None and depth_rank <= 2.0
         projected_opportunities = {
@@ -495,11 +641,14 @@ class LivePlayerFeatureCollector:
         }[card.market]
         features = _nfl_features(values, opportunities, position, is_home)
         depth_checksum = str((depth or {}).get("_source_checksum") or "")
+        injury_checksum = str((injury_evidence or {}).get("source_checksum") or "")
         source_checksum = hashlib.sha256(
             (
                 player_rows[-1]["_source_checksum"]
                 + "|"
                 + depth_checksum
+                + "|"
+                + injury_checksum
                 + "|"
                 + json.dumps(projection or {}, sort_keys=True, allow_nan=False)
             ).encode()
@@ -524,12 +673,15 @@ class LivePlayerFeatureCollector:
                 "fresh_features": True,
                 "schema": True,
                 "role": projected_opportunities >= minimum and (depth_role or projection is not None),
-                "availability": active if projection is not None else depth is not None,
-                "injuries": active if projection is not None else False,
+                # Injury-report evidence improves research integrity but is not
+                # the official game-day inactive list. Without a verified projection
+                # or inactive source, cash approval stays closed on availability.
+                "availability": active if projection is not None else False,
+                "injuries": injury_ok,
                 "no_duplicate_event": event_identity,
             },
             "roster_version": str((projection or {}).get("Team") or team or ""),
-            "injury_version": injury or None,
+            "injury_version": injury or (injury_evidence or {}).get("modified_at"),
         }
 
     def _mlb_projections(self, starts_at):
@@ -601,6 +753,95 @@ class LivePlayerFeatureCollector:
         self._mlb_logs[key] = splits
         return splits
 
+    def _mlb_event_context(self, card):
+        """Resolve one Odds API event to an official MLB game and posted role evidence."""
+        local_date = card.starts_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+        if local_date not in self._mlb_schedule:
+            query = urllib.parse.urlencode({
+                "sportId": 1,
+                "date": local_date,
+                "hydrate": "probablePitcher",
+            })
+            payload = _fetch_json(f"{MLB_STATS_BASE}/schedule?{query}")
+            games = []
+            for date in payload.get("dates", []) if isinstance(payload, dict) else []:
+                games.extend(date.get("games", []))
+            self._mlb_schedule[local_date] = games
+
+        from jabazi.providers.history import MLB_ALIASES
+        parts = str(getattr(card, "event", "") or "").split(" @ ", 1)
+        if len(parts) != 2:
+            return None
+        away, home = [MLB_ALIASES.get(part.strip(), part.strip()) for part in parts]
+        matches = []
+        for game in self._mlb_schedule[local_date]:
+            try:
+                game_away = MLB_ALIASES.get(game["teams"]["away"]["team"]["name"], game["teams"]["away"]["team"]["name"])
+                game_home = MLB_ALIASES.get(game["teams"]["home"]["team"]["name"], game["teams"]["home"]["team"]["name"])
+                start = datetime.fromisoformat(str(game["gameDate"]).replace("Z", "+00:00")).astimezone(UTC)
+                if (
+                    game_away == away
+                    and game_home == home
+                    and abs((start - card.starts_at.astimezone(UTC)).total_seconds()) <= 3 * 3600
+                ):
+                    matches.append(game)
+            except (KeyError, TypeError, ValueError):
+                continue
+        if len(matches) != 1:
+            return None
+        game = matches[0]
+        game_pk = int(game["gamePk"])
+        if game_pk not in self._mlb_live:
+            try:
+                self._mlb_live[game_pk] = _fetch_json(f"https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live")
+            except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError):
+                self._mlb_live[game_pk] = {}
+        return game, self._mlb_live[game_pk]
+
+    def _mlb_official_role(self, card, person, pitcher):
+        context = self._mlb_event_context(card)
+        if not context or not person:
+            return None
+        game, live = context
+        pid = int(person["id"])
+        sides = ("away", "home")
+        participant_side = None
+        for side in sides:
+            team = (live.get("gameData", {}).get("teams", {}).get(side, {}) or {}).get("name")
+            if team and team in str(card.event):
+                roster = (
+                    live.get("liveData", {}).get("boxscore", {}).get("teams", {}).get(side, {})
+                )
+                players = roster.get("players", {}) if isinstance(roster, dict) else {}
+                if f"ID{pid}" in players:
+                    participant_side = side
+                    break
+        if pitcher:
+            probable = [
+                (game.get("teams", {}).get(side, {}).get("probablePitcher") or {}).get("id")
+                for side in sides
+            ]
+            confirmed = pid in probable
+            return {
+                "role": 1.0 if confirmed else 0.0,
+                "role_ok": confirmed,
+                "event_identity": confirmed or participant_side is not None,
+                "team": participant_side,
+                "source": "MLB StatsAPI probablePitcher",
+            }
+        if participant_side is None:
+            return None
+        box = live.get("liveData", {}).get("boxscore", {}).get("teams", {}).get(participant_side, {})
+        order = [int(value) for value in box.get("battingOrder", []) if str(value).isdigit()]
+        confirmed = pid in order
+        return {
+            "role": float(order.index(pid) + 1) if confirmed else 0.0,
+            "role_ok": confirmed,
+            "event_identity": True,
+            "team": participant_side,
+            "source": "MLB StatsAPI posted battingOrder",
+        }
+
     def mlb_snapshot(self, card):
         market = MLB_MARKETS.get(card.market)
         if not market or not card.participant or card.starts_at is None:
@@ -661,60 +902,78 @@ class LivePlayerFeatureCollector:
             return None
 
         projection = self._mlb_projection_for(card.participant, card.starts_at)
+        person = self._mlb_person(card.participant)
+        official = self._mlb_official_role(card, person, pitcher)
         if not projection:
             self._diagnostics.append(
                 f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:SPORTSDATA_MLB_PROJECTION_NOT_MATCHED"
             )
-            return None
-        injury = str(projection.get("InjuryStatus") or "").strip().lower()
-        active = injury not in {"out", "doubtful", "injured list"}
-        if pitcher:
-            role = 1.0 if int(projection.get("Started") or 0) == 1 else 0.0
-            role_ok = role == 1.0 and bool(projection.get("BattingOrderConfirmed"))
-            # SportsDataIO exposes projected outs/pitches but not projected batters
-            # faced in this record. Keep opportunity scale consistent with training
-            # by using recent actual batters faced; starter confirmation is separate.
+        injury = str((projection or {}).get("InjuryStatus") or "").strip().lower()
+        active = bool(projection) and injury not in {"out", "doubtful", "injured list"}
+        if projection:
+            if pitcher:
+                role = 1.0 if int(projection.get("Started") or 0) == 1 else 0.0
+                role_ok = role == 1.0 and bool(projection.get("BattingOrderConfirmed"))
+                projected_opps = _mean(opportunities, 5)
+            else:
+                role = float(projection.get("BattingOrder") or 0)
+                role_ok = role >= 1 and bool(projection.get("BattingOrderConfirmed"))
+                projected_opps = _float(projection, "PlateAppearances", _mean(opportunities, 5))
+            event_identity = True
+            role_source = "SportsDataIO projection"
+        elif official:
+            role = official["role"]
+            role_ok = official["role_ok"]
             projected_opps = _mean(opportunities, 5)
+            event_identity = official["event_identity"]
+            role_source = official["source"]
         else:
-            role = float(projection.get("BattingOrder") or 0)
-            role_ok = role >= 1 and bool(projection.get("BattingOrderConfirmed"))
-            projected_opps = _float(projection, "PlateAppearances", _mean(opportunities, 5))
+            role = 0.0
+            role_ok = False
+            projected_opps = _mean(opportunities, 5)
+            event_identity = False
+            role_source = "unverified"
         features = _mlb_features(values, opportunities, role)
-        person = self._mlb_person(card.participant)
         checksum = hashlib.sha256(
             json.dumps(
                 {
                     "person": person.get("id") if person else None,
                     "last": values[-20:],
                     "projection": {
-                        key: projection.get(key)
+                        key: (projection or {}).get(key)
                         for key in (
                             "PlayerID", "Team", "Position", "InjuryStatus", "Started",
                             "BattingOrder", "BattingOrderConfirmed",
                         )
                     },
+                    "official_role": official,
+                    "role_source": role_source,
                 },
                 sort_keys=True,
             ).encode()
         ).hexdigest()
         return {
-            "player_id": str(projection.get("PlayerID") or (person or {}).get("id") or ""),
+            "player_id": str((projection or {}).get("PlayerID") or (person or {}).get("id") or ""),
             "features": features,
             "expected_opportunities": projected_opps,
-            "provider": "MLB StatsAPI+SportsDataIO",
+            "provider": (
+                "MLB StatsAPI+SportsDataIO"
+                if projection
+                else "MLB StatsAPI official history+schedule/role"
+            ),
             "source_checksum": checksum,
             "feature_schema_version": "mlb-player-rolling-v1",
             "integrity": {
-                "event_identity": True,
+                "event_identity": event_identity,
                 "player_identity": person is not None,
                 "fresh_features": True,
                 "schema": True,
                 "role": role_ok and projected_opps >= minimum,
-                "availability": active,
-                "injuries": active,
-                "no_duplicate_event": True,
+                "availability": active if projection else bool(official and official["role_ok"]),
+                "injuries": active if projection else False,
+                "no_duplicate_event": event_identity,
             },
-            "roster_version": str(projection.get("Team") or ""),
+            "roster_version": str((projection or {}).get("Team") or (official or {}).get("team") or ""),
             "injury_version": injury or None,
         }
 
@@ -734,13 +993,28 @@ class LivePlayerFeatureCollector:
                 continue
             seen.add(key)
             try:
-                payload = (
-                    self.nfl_snapshot(card)
-                    if card.sport == "americanfootball_nfl"
-                    else self.mlb_snapshot(card)
-                    if card.sport == "baseball_mlb"
-                    else None
-                )
+                if card.sport == "americanfootball_nfl":
+                    payload = self.nfl_snapshot(card)
+                elif card.sport == "baseball_mlb":
+                    payload = self.mlb_snapshot(card)
+                elif card.sport == "icehockey_nhl":
+                    if self._nhl_collector is None:
+                        from jabazi.providers.nhl_player_features import NHLPlayerFeatureCollector
+                        remaining = max(
+                            1.0,
+                            min(
+                                30.0,
+                                self._max_seconds
+                                - self._collection_elapsed
+                                - (time.monotonic() - started),
+                            ),
+                        )
+                        self._nhl_collector = NHLPlayerFeatureCollector(
+                            now=self.now, max_seconds=remaining
+                        )
+                    payload = self._nhl_collector.snapshot(card)
+                else:
+                    payload = None
                 if not payload:
                     continue
                 research_only = not all(payload["integrity"].values())

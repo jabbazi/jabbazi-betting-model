@@ -214,9 +214,10 @@ def test_team_totals_use_team_model_not_player_model():
         line=D("3.5"),
     )
     m = NHLGoalsModel(a)
-    assert select_model(p, {SPORT: m}, {}) is m
+    assert select_model(p, {SPORT: m}, {}) == (m, p)
     assert m.estimate(p) is not None
-    assert select_model(replace(p, market="player_goals"), {SPORT: m}, {}) is None
+    player_card = replace(p, market="player_goals")
+    assert select_model(player_card, {SPORT: m}, {}) == (None, player_card)
 
 
 def test_refresh_merges_state_and_rejects_wrong_season():
@@ -296,7 +297,11 @@ def test_get_model_status_exposes_nhl_buckets(tmp_path, monkeypatch):
     assert r.status_code == 200
     nhl = next(r for r in r.json()["models"] if r["sport"] == SPORT)
     assert nhl["version"] == artifact()["model_version"] and nhl["status"] == "SHADOW_ONLY"
-    assert len(nhl["market_buckets"]) == 7 and nhl["player_status"] == "UNAVAILABLE"
+    assert len(nhl["market_buckets"]) == 7 and nhl["player_status"] == "VALIDATING"
+    assert {
+        "player_assists", "player_goals", "player_points",
+        "player_shots_on_goal", "player_total_saves",
+    } <= set(nhl["player_supported_markets"])
     assert not nhl["approved_for_betting"]
 
 

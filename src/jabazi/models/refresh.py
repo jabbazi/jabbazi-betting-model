@@ -89,6 +89,55 @@ def schedule_mlb(raw, now, home_venues=None):
     return events
 
 
+def nba_schedule_rows(raw, now):
+    """Normalize SportsDataverse NBA schedule rows for state refresh."""
+    games, events = [], []
+    for row in csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))):
+        if str(row.get("season_type")) not in {"2", "2.0", "regular-season", "Regular Season"}:
+            continue
+        try:
+            start = timestamp(str(row["game_date_time"]).replace("Z", "+00:00"))
+            season = int(float(row["season"])) - 1
+            home = str(row["home_display_name"]).strip()
+            away = str(row["away_display_name"]).strip()
+            neutral = str(row.get("neutral_site", "")).strip().lower() in {"true", "t", "1", "yes"}
+            completed = str(row.get("status_type_completed", "")).strip().lower() in {
+                "true", "t", "1", "yes"
+            }
+            gid = str(row["game_id"])
+            if not gid or not home or not away or home == away:
+                raise ValueError("Invalid NBA schedule identity")
+            if completed:
+                hs, aws = int(float(row["home_score"])), int(float(row["away_score"]))
+                if min(hs, aws) < 0:
+                    raise ValueError("Invalid NBA final score")
+                games.append({
+                    "game_id": gid,
+                    "season": season,
+                    "starts_at": start.isoformat(),
+                    "home_team": home,
+                    "away_team": away,
+                    "home_score": hs,
+                    "away_score": aws,
+                    "neutral_site": neutral,
+                    "home_moneyline": None,
+                    "away_moneyline": None,
+                    "odds_observed_at": None,
+                })
+            elif now < start <= now + timedelta(days=10):
+                events.append({
+                    "game_id": gid,
+                    "season": season,
+                    "home_team": home,
+                    "away_team": away,
+                    "starts_at": start.isoformat(),
+                    "neutral_site": neutral,
+                })
+        except (KeyError, TypeError, ValueError):
+            continue
+    return games, events
+
+
 def update_state(artifact, games, events, *, now, response_checksum):
     short = next(k for k, v in SPORTS.items() if v == artifact["sport"])
     games = validate_history({"sport": artifact["sport"], "games": games}, short)
@@ -134,6 +183,17 @@ def fetch_update(artifact, *, now, result_store=None):
                 for g in all_rows if not g.get("completed") and type(g.get("neutralSite")) is bool
                 and now < timestamp(g["startDate"]) <= now+timedelta(days=10)]
         raw=json.dumps(all_rows,sort_keys=True).encode()
+    elif artifact["sport"] == SPORTS["nba"]:
+        ending_year = now.year + 1 if now.month >= 7 else now.year
+        url = (
+            "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
+            f"espn_nba_schedules/nba_schedule_{ending_year}.csv"
+        )
+        with urllib.request.urlopen(url, timeout=45) as response:
+            raw = response.read(20_000_001)
+        if len(raw) > 20_000_000:
+            raise ValueError("NBA schedule response too large")
+        games, events = nba_schedule_rows(raw, now)
     elif artifact["sport"] == SPORTS["nfl"]:
         url = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
         with urllib.request.urlopen(url, timeout=30) as response:
@@ -188,7 +248,12 @@ def refresh_models(store, *, now=None):
         return {"status": "BUSY"}
     report = {}
     try:
-        sports = ("nfl", "mlb", "cfb", "nhl") if os.getenv("JABBAZI_CFBD_API_KEY") else ("nfl", "mlb", "nhl")
+        sports = ["nfl", "mlb", "nhl"]
+        if os.getenv("JABBAZI_CFBD_API_KEY"):
+            sports.append("cfb")
+        if (BUNDLE_DIR / "nba_scores.json").exists():
+            sports.append("nba")
+        sports = tuple(sports)
         for short in sports:
             # Renew between bounded providers: combined multi-sport requests can
             # exceed the original lease lifetime during a slow feed response.

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from jabazi.models.player_distribution import (
     MLB_PROP_MARKETS,
+    NBA_PROP_MARKETS,
     NFL_PROP_MARKETS,
     raw_probability,
 )
@@ -86,6 +87,21 @@ def test_requested_mlb_markets_are_modeled():
         "batter_runs_scored",
     }
     assert required <= MLB_PROP_MARKETS
+
+
+def test_requested_nba_markets_are_registered_but_need_real_artifacts():
+    required = {
+        "player_points",
+        "player_rebounds",
+        "player_assists",
+        "player_threes",
+        "player_points_rebounds_assists",
+        "player_points_rebounds",
+        "player_points_assists",
+        "player_rebounds_assists",
+        "player_double_double",
+    }
+    assert required <= NBA_PROP_MARKETS
 
 
 def test_count_ladder_is_monotone():
@@ -339,3 +355,65 @@ def test_live_nfl_history_uses_previous_and_current_season(monkeypatch):
     rows = collector._nfl_history()
     assert {int(row["season"]) for row in rows} == {2025, 2026}
     assert len({row["_source_checksum"] for row in rows}) == 1
+
+
+def test_nflverse_injury_report_can_verify_injury_status_but_not_game_day_availability(monkeypatch):
+    from jabazi.providers.player_features_live import LivePlayerFeatureCollector
+
+    now = datetime(2026, 9, 28, 18, tzinfo=UTC)
+    collector = LivePlayerFeatureCollector(now=now, production_verified=False)
+    monkeypatch.setattr(
+        collector,
+        "_nfl_card_context",
+        lambda card: {
+            "week": 3,
+            "home_abbr": "CHI",
+            "away_abbr": "PHI",
+            "home": "Chicago Bears",
+            "away": "Philadelphia Eagles",
+            "start": card.starts_at,
+        },
+    )
+    monkeypatch.setattr(
+        collector,
+        "_nfl_injuries",
+        lambda: [{
+            "season": "2026",
+            "team": "PHI",
+            "week": "3",
+            "gsis_id": "00-TEST",
+            "full_name": "Test Player",
+            "report_status": "",
+            "date_modified": (now - timedelta(hours=4)).isoformat(),
+            "_source_checksum": "injury-checksum",
+        }],
+    )
+    card = SimpleNamespace(
+        event="Philadelphia Eagles @ Chicago Bears",
+        starts_at=now + timedelta(hours=6),
+    )
+    evidence = collector._nfl_injury_evidence(
+        card,
+        "Test Player",
+        {"team": "PHI", "gsis_id": "00-TEST"},
+    )
+    assert evidence["verified"] is True
+    assert evidence["available_by_injury_report"] is True
+    assert evidence["status"] == "not_listed"
+
+
+def test_binary_historical_row_without_explicit_side_defaults_to_positive():
+    from jabazi.models.train_player_props import _threshold_rows
+
+    artifact = binary_artifact()
+    rows = [{
+        "features": {"red_zone_share": 0.3},
+        "observed_value": 1,
+        "market_side": None,
+        "market_line": None,
+    }]
+    threshold = _threshold_rows(rows, artifact)
+    assert len(threshold) == 1
+    _, probability, outcome = threshold[0]
+    assert 0 < probability < 1
+    assert outcome == 1

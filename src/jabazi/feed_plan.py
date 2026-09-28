@@ -1,4 +1,4 @@
-"""Budgeted game and NFL/MLB event-market ingestion; no probability fabrication."""
+"""Budgeted game and major-sport event-market ingestion; no probability fabrication."""
 
 import json
 import os
@@ -33,7 +33,42 @@ EVENT_MARKETS = {
         "alternate_totals",
         "team_totals",
     ),
-    "icehockey_nhl": ("alternate_spreads", "alternate_totals", "team_totals", "alternate_team_totals"),
+    "basketball_nba": (
+        "player_points",
+        "player_rebounds",
+        "player_assists",
+        "player_threes",
+        "player_points_rebounds_assists",
+        "player_points_rebounds",
+        "player_points_assists",
+        "player_rebounds_assists",
+        "player_double_double",
+        "player_points_alternate",
+        "player_rebounds_alternate",
+        "player_assists_alternate",
+        "player_threes_alternate",
+        "player_points_rebounds_assists_alternate",
+        "player_points_rebounds_alternate",
+        "player_points_assists_alternate",
+        "player_rebounds_assists_alternate",
+        "alternate_spreads",
+        "alternate_totals",
+        "team_totals",
+        "alternate_team_totals",
+    ),
+    "icehockey_nhl": (
+        "player_shots_on_goal",
+        "player_points",
+        "player_total_saves",
+        "player_assists",
+        "player_goals",
+        "player_power_play_points",
+        "player_blocked_shots",
+        "alternate_spreads",
+        "alternate_totals",
+        "team_totals",
+        "alternate_team_totals",
+    ),
 }
 PRIMARY = (*EVENT_MARKETS, "americanfootball_ncaaf")
 

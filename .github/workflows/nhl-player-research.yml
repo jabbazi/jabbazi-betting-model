@@ -1,0 +1,63 @@
+name: NHL player research artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/all-models-completion-20260928
+    paths:
+      - "src/jabazi/providers/nhl_player_features.py"
+      - "src/jabazi/research/nhl_player_experiment.py"
+      - "src/jabazi/models/player_distribution.py"
+      - "src/jabazi/models/train_player_props.py"
+      - "tools/capture_nhl_history.py"
+      - "tools/capture_nhl_player_history.py"
+      - "tools/train_nhl_player_props.py"
+      - ".github/workflows/nhl-player-research.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install research dependencies
+        run: python -m pip install '.[research]'
+      - name: Capture official NHL schedules
+        run: python tools/capture_nhl_history.py --output "$RUNNER_TEMP/nhl-schedules" --opening-date 2026-09-29
+      - name: Capture official NHL per-game player history
+        run: python tools/capture_nhl_player_history.py --output "$RUNNER_TEMP/nhl-player-history"
+      - name: Fit research-only NHL player artifacts
+        run: |
+          python tools/train_nhl_player_props.py \
+            --schedule-dir "$RUNNER_TEMP/nhl-schedules" \
+            --stats-dir "$RUNNER_TEMP/nhl-player-history" \
+            --output "$RUNNER_TEMP/nhl-player-artifacts" \
+            --research-rights-reference "Public NHL endpoints; commercial-use rights require owner review before any monetized use"
+      - name: Verify no artifact self-promoted
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "nhl-player-artifacts"
+          report = json.loads((root / "report.json").read_text())
+          assert report["approved_for_betting"] is False
+          for row in report["markets"].values():
+              artifact = row.get("artifact")
+              if artifact:
+                  assert artifact["stage"] in {"SHADOW_ONLY", "VALIDATING"}
+          print(json.dumps(report, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-player-research-artifacts
+          path: ${{ runner.temp }}/nhl-player-artifacts
+          retention-days: 14
+          if-no-files-found: error
