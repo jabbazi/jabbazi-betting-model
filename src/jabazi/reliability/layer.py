@@ -113,6 +113,8 @@ def status_buckets(model, prospective=None):
         bucket = market_bucket(market)
         record = counts.get(bucket, {})
         stage, approved, reason = prospective_stage(record)
+        if getattr(model, "stage", None) == "SHADOW_ONLY":
+            stage, approved, reason = "SHADOW_ONLY", False, "Research release locked pending required context and validation"
         result[bucket] = {
             "stage": stage,
             "model_version": model.artifact["model_version"],
@@ -237,8 +239,8 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
     return dict(
         v42_decision=legacy.decision.value,
         v42_reasons=list(legacy.reasons),
-        raw_model_probability=p,
-        calibrated_model_probability=None,
+        raw_model_probability=snapshot.get("raw_model_probability", p),
+        calibrated_model_probability=snapshot.get("calibrated_model_probability"),
         market_no_vig_probability=market,
         market_aware_probability=None,
         probability_difference=p - market if p is not None else None,

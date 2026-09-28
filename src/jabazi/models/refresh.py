@@ -112,6 +112,9 @@ def update_state(artifact, games, events, *, now, response_checksum):
 
 
 def fetch_update(artifact, *, now, result_store=None):
+    if artifact["sport"] == SPORTS["nhl"]:
+        from .nhl_refresh import fetch_update as fetch_nhl
+        return fetch_nhl(artifact, now=now, result_store=result_store)
     if artifact["sport"] == SPORTS["cfb"]:
         from jabazi.providers.history import fetch_json, cfb_rows
         key = os.getenv("JABBAZI_CFBD_API_KEY", "")
@@ -185,8 +188,12 @@ def refresh_models(store, *, now=None):
         return {"status": "BUSY"}
     report = {}
     try:
-        sports = ("nfl", "mlb", "cfb") if os.getenv("JABBAZI_CFBD_API_KEY") else ("nfl", "mlb")
+        sports = ("nfl", "mlb", "cfb", "nhl") if os.getenv("JABBAZI_CFBD_API_KEY") else ("nfl", "mlb", "nhl")
         for short in sports:
+            # Renew between bounded providers: combined multi-sport requests can
+            # exceed the original lease lifetime during a slow feed response.
+            if not store.acquire_lease("model_refresh", owner, 300):
+                return {"status": "LEASE_LOST", "models": report}
             previous = store.list_records("model_refresh_attempt", 1, entity=SPORTS[short])
             if previous:
                 elapsed = (now - timestamp(previous[0]["payload"]["attempted_at"])).total_seconds()
@@ -195,8 +202,12 @@ def refresh_models(store, *, now=None):
                     continue
             store.append("model_refresh_attempt", SPORTS[short], {"attempted_at": now.isoformat()})
             try:
-                path = BUNDLE_DIR / f"{short}_scores.json"
+                path = BUNDLE_DIR / ("nhl_goals.json" if short == "nhl" else f"{short}_scores.json")
                 artifact = json.loads(path.read_text())
+                if short == "nhl":
+                    prior = store.list_records("game_model", 1, entity=SPORTS[short])
+                    if prior and prior[0]["payload"].get("model_version") == artifact["model_version"]:
+                        artifact = prior[0]["payload"]
                 updated = fetch_update(artifact, now=now, result_store=store)
                 key = digest(["game_model", updated])
                 store.append("game_model", SPORTS[short], updated, key)

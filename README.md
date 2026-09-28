@@ -3,7 +3,7 @@
 **Research infrastructure, not a production-approved betting service.** No model
 in the active registry can produce approved paid picks. The platform does not place bets.
 
-This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB shadow
+This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB/NHL shadow
 baselines, audited pricing, central portfolio reservations, PostgreSQL-capable
 storage, an authenticated API, and research frameworks for calibration, props,
 alternates, correlated parlays, and historical execution evaluation.
@@ -12,6 +12,12 @@ Start with [the implementation audit](docs/IMPLEMENTATION_STATUS.md),
 [the cloud launch checklist](docs/GO_LIVE.md), [deployment instructions](docs/DEPLOYMENT.md),
 and [mathematical conventions](docs/MATH.md).
 Documents in `docs/archive` describe older milestones and are not deployment instructions.
+
+## NHL research release
+
+The [NHL model and evaluation report](docs/experiments/nhl-goals/README.md) documents the
+coherent goals model, four-season data audit, held-out results and scanner integration.
+All NHL game-market buckets remain SHADOW_ONLY; player markets are unavailable.
 
 ## Install and verify
 

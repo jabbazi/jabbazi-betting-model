@@ -19,7 +19,7 @@ from jabazi.persistence.store import Store
 
 
 def artifact(short="nfl"):
-    return json.loads((BUNDLE_DIR / f"{short}_scores.json").read_text())
+    return json.loads((BUNDLE_DIR / ("nhl_goals.json" if short == "nhl" else f"{short}_scores.json")).read_text())
 
 
 def card(a):
@@ -162,8 +162,8 @@ def test_failed_cloud_refresh_overrides_bundled_file_and_throttles():
         with patch("jabazi.models.refresh.fetch_update", side_effect=OSError("test")) as fetch:
             result = refresh_models(s)
             assert all(result[k]["status"] == "UNAVAILABLE" for k in ("nfl", "mlb"))
-            assert refresh_models(s) == {"nfl": "NOT_DUE", "mlb": "NOT_DUE"}
-            assert fetch.call_count == 2
+            assert refresh_models(s) == {"nfl": "NOT_DUE", "mlb": "NOT_DUE", "nhl": "NOT_DUE"}
+            assert fetch.call_count == 3
         models, errors = load_models(s)
         assert "americanfootball_nfl" not in models and "baseball_mlb" not in models
         assert len(errors) >= 2
@@ -200,7 +200,7 @@ def test_actual_scanner_uses_cloud_artifact_and_archives_prediction(tmp_path):
     s.close()
 
 
-@pytest.mark.parametrize("short", ["nfl", "mlb"])
+@pytest.mark.parametrize("short", ["nfl", "mlb", "nhl"])
 def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, short):
     """Real registry/inference/scanner/API/storage/presentation; no paid data calls."""
     from uuid import uuid4
@@ -211,7 +211,8 @@ def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, 
     monkeypatch.setenv("JABAZI_ODDS_API_KEY", "test-only")
     a = artifact(short)
     p = card(a)
-    estimate = ScoreDistributionModel(a).estimate(p)
+    from jabazi.models.nhl_goals import NHLGoalsModel
+    estimate = (NHLGoalsModel(a) if short == "nhl" else ScoreDistributionModel(a)).estimate(p)
     s = Store("sqlite:///" + str(tmp_path / "chat-model.db"), initialize=True)
     s.append("game_model", a["sport"], a)
     scan_id = str(uuid4())

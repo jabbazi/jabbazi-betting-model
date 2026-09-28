@@ -30,10 +30,10 @@ def load_models(store=None):
     from .refresh import BUNDLE_DIR
     from .score_distribution import ScoreDistributionModel
 
-    for short in ("nfl", "mlb", "cfb"):
+    for short in ("nfl", "mlb", "cfb", "nhl"):
         sport = SPORTS[short]
         records = store.list_records("game_model", 1, entity=sport) if store else []
-        path = BUNDLE_DIR / f"{short}_scores.json"
+        path = BUNDLE_DIR / ("nhl_goals.json" if short == "nhl" else f"{short}_scores.json")
         if not records and not path.exists():
             continue
         # A malformed or failed latest cloud refresh must not revive old files.
@@ -42,7 +42,11 @@ def load_models(store=None):
             artifact = records[0]["payload"] if records else json.loads(path.read_text())
             if artifact.get("status") == "UNAVAILABLE":
                 raise ValueError("Model refresh unavailable")
-            model = ScoreDistributionModel(artifact)
+            if short == "nhl":
+                from .nhl_goals import NHLGoalsModel
+                model = NHLGoalsModel(artifact)
+            else:
+                model = ScoreDistributionModel(artifact)
             if model.sport != sport:
                 raise ValueError("Artifact league mismatch")
             result[sport] = model

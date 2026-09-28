@@ -33,6 +33,7 @@ EVENT_MARKETS = {
         "alternate_totals",
         "team_totals",
     ),
+    "icehockey_nhl": ("alternate_spreads", "alternate_totals", "team_totals", "alternate_team_totals"),
 }
 PRIMARY = (*EVENT_MARKETS, "americanfootball_ncaaf")
 
@@ -97,7 +98,7 @@ class FeedPlan:
             return None
 
     def batches(self, selected):
-        candidates = {sport: [] for sport in EVENT_MARKETS}
+        candidates = {sport: [] for sport in EVENT_MARKETS if any(s["key"] == sport for s in selected)}
         primary = [s for s in selected if s["key"] in PRIMARY]
         other = [s for s in selected if s["key"] not in PRIMARY]
         for sport in primary:
@@ -174,7 +175,7 @@ class FeedPlan:
             weekend_nfl = self.weekend_nfl_priority and self.now.weekday() in {5, 6}
             sport_order = list(candidates)
             if weekend_nfl:
-                sport_order = ["americanfootball_nfl", "baseball_mlb"]
+                sport_order = ["americanfootball_nfl", "baseball_mlb"] + [s for s in candidates if s not in {"americanfootball_nfl", "baseball_mlb"}]
             while any(candidates.values()) and requests < self.max_events and not self.stopped:
                 progressed = False
                 for sport in sport_order:

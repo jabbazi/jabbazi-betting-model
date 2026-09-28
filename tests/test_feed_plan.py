@@ -1,12 +1,12 @@
 import json
 from datetime import UTC, datetime, timedelta
 
-from jabazi.feed_plan import FeedPlan, EVENT_MARKETS
+from jabazi.feed_plan import FeedPlan
 from jabazi.persistence.store import Store
 from jabazi.providers.base import ProviderBatch
 
 NOW = datetime(2026, 9, 23, 12, tzinfo=UTC)
-SPORTS = [{"key": s} for s in (*EVENT_MARKETS, "americanfootball_ncaaf")]
+SPORTS = [{"key": s} for s in ("americanfootball_nfl", "baseball_mlb", "americanfootball_ncaaf")]
 
 
 def factory(calls, base_now=NOW):
@@ -208,3 +208,16 @@ def test_prop_feed_reaches_archive_and_member_shortlist_without_fabricated_model
             assert rows[0]["reference"]["market_no_vig_probability"] == "0.5"
     finally:
         store.close()
+
+
+def test_nhl_base_and_derivative_feeds_respect_existing_budget():
+    calls, errors = [], []
+    plan = FeedPlan(factory(calls), None, 15, 50, errors, lambda: True, now=NOW)
+    result = list(plan.batches(SPORTS + [{"key": "icehockey_nhl"}]))
+    assert len(result) == 5 and plan.spent == 15
+    assert {s for s,e,m in calls if e is None} == {r["key"] for r in SPORTS} | {"icehockey_nhl"}
+    plan = FeedPlan(factory(calls), None, 9, 50, errors, lambda: True, now=NOW)
+    list(plan.batches([{"key": "icehockey_nhl"}]))
+    assert plan.spent <= 9 and not errors
+    assert any(s == "icehockey_nhl" and e and "alternate_spreads" in m for s,e,m in calls)
+    assert not any(s == "icehockey_nhl" and any(x.startswith("player_") for x in m) for s,e,m in calls)

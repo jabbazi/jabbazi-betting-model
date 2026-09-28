@@ -121,7 +121,7 @@ class ScanPage(BaseModel):
     betting_enabled: Literal[False] = False
     scope: str = (
         "Full scan of active configured feeds within the configured provider-credit budget; "
-        "NFL, MLB, CFB first. Odds coverage is not trained-model coverage. "
+        "NFL, MLB, CFB, NHL first. Odds coverage is not trained-model coverage. "
         "Research only; no bets or Discord posts."
     )
 
@@ -342,7 +342,7 @@ def scan_page(store, scan_id, page=1, now=None):
         scope=(
             f"Full scan of active configured feeds within a "
             f"{request['payload'].get('max_credits', scan_credit_budget())}-credit budget; "
-            "NFL, MLB, CFB first. Odds coverage is not trained-model coverage. "
+            "NFL, MLB, CFB, NHL first. Odds coverage is not trained-model coverage. "
             "Research only; no bets or Discord posts."
         ),
     )
