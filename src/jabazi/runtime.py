@@ -88,6 +88,7 @@ def worker(*, once=False):
         raise ValueError("Worker startup scan delay must be between 0 and scan interval")
     next_scan = time.monotonic() + startup_delay
     discord_process = None
+    initial_model_refresh = True
     try:
         if not store.ready():
             raise RuntimeError("Database migration required")
@@ -104,12 +105,17 @@ def worker(*, once=False):
                     report["status"] = "WAITING_FOR_ODDS_CREDENTIAL"
                 else:
                     report["closing"] = ClosingCollector(store, settings.api_key).run()
+                    if initial_model_refresh:
+                        from .models.refresh import refresh_models
+                        report["model_refresh"] = refresh_models(store)
+                        initial_model_refresh = False
                     if time.monotonic() >= next_scan:
                         # Schedule from completion; no concurrent jobs or catch-up storms.
                         try:
                             from .models.refresh import refresh_models
 
-                            report["model_refresh"] = refresh_models(store)
+                            if "model_refresh" not in report:
+                                report["model_refresh"] = refresh_models(store)
                             result = AutomaticScanner(
                                 settings,
                                 max_credits_per_run=int(os.getenv("JABBAZI_SCAN_MAX_CREDITS", "15")),
