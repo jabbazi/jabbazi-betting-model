@@ -1,0 +1,29 @@
+name: Live input verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  push:
+    branches:
+      - feature/live-input-verification-20260928
+    paths:
+      - "tools/verify_live_inputs.py"
+      - "src/jabazi/providers/player_features_live.py"
+      - "src/jabazi/providers/nhl_player_features.py"
+      - ".github/workflows/live-input-verification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify live sources without odds-provider credits
+        run: PYTHONPATH=src python tools/verify_live_inputs.py
