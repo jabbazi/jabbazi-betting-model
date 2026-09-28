@@ -191,3 +191,54 @@ def test_nhl_count_artifact_can_infer_but_cannot_self_approve():
     assert 0 < float(estimate.probability) < 1
     assert estimate.approved_for_betting is False
     assert estimate.feature_snapshot["production_inputs_verified"] is False
+
+
+def test_historical_dataset_uses_only_lagged_prior_results():
+    from jabazi.research.nhl_player_experiment import build_dataset
+
+    base = datetime(2025, 1, 1, 23, tzinfo=UTC)
+    games = []
+    stats = []
+    for i in range(8):
+        start = base + timedelta(days=3 * i)
+        gid = str(2025020001 + i)
+        games.append({
+            "game_id": gid,
+            "completed": True,
+            "starts_at": start.isoformat(),
+            "available_at": (start + timedelta(hours=48)).isoformat(),
+            "home_team": "Carolina Hurricanes",
+            "away_team": "Florida Panthers",
+        })
+        stats.append({
+            "playerId": 8478427,
+            "gameId": int(gid),
+            "gameDate": start.date().isoformat(),
+            "teamAbbrevs": "CAR",
+            "skaterFullName": "Sebastian Aho",
+            "positionCode": "C",
+            "shots": i,
+            "points": i % 3,
+            "assists": i % 2,
+            "goals": i % 2,
+            "timeOnIcePerGame": "19:00",
+        })
+
+    document = build_dataset(
+        games=games,
+        skater_rows=stats,
+        goalie_rows=[],
+        market="player_shots_on_goal",
+        source_checksum="source-test",
+        research_rights_reference="test fixture only",
+    )
+    assert len(document["rows"]) == 3
+    first = document["rows"][0]
+    # Game six can only use games one through five; its own six-shot outcome
+    # cannot enter the feature vector.
+    assert first["observed_value"] == 5
+    assert first["features"]["last1_value"] == 4
+    assert first["features"]["games_prior"] == 5
+    assert first["features_available_at"] < first["prediction_at"] < first["starts_at"]
+    assert first["market_no_vig_probability"] is None
+    assert document["manifest"]["market_prices_included"] is False
