@@ -113,17 +113,23 @@ class NBAPlayerFeatureCollector:
                 continue
             payload,checksum=_json(f"{ESPN}/teams/{meta['id']}/roster")
             athletes=payload.get("athletes",[]) if isinstance(payload,dict) else []
+            flattened=[]
             for group in athletes:
-                rows=group.get("items",[]) if isinstance(group,dict) else []
-                for athlete in rows:
-                    if _name(athlete.get("displayName") or athlete.get("fullName"))==_name(card.participant):
-                        matches.append({
-                            "player_id":str(athlete.get("id") or ""),
-                            "team_name":team_name,
-                            "team_id":meta["id"],
-                            "team_abbr":meta["abbr"],
-                            "checksum":checksum,
-                        })
+                if not isinstance(group,dict):
+                    continue
+                if isinstance(group.get("items"),list):
+                    flattened.extend(row for row in group["items"] if isinstance(row,dict))
+                elif group.get("id"):
+                    flattened.append(group)
+            for athlete in flattened:
+                if _name(athlete.get("displayName") or athlete.get("fullName"))==_name(card.participant):
+                    matches.append({
+                        "player_id":str(athlete.get("id") or ""),
+                        "team_name":team_name,
+                        "team_id":meta["id"],
+                        "team_abbr":meta["abbr"],
+                        "checksum":checksum,
+                    })
         return matches[0] if len(matches)==1 and matches[0]["player_id"] else None
 
     def _injury(self,player):
