@@ -104,3 +104,65 @@ def test_nba_preseason_refresh_falls_back_from_empty_upcoming_release(monkeypatc
     assert len(calls) == 2
     assert updated["events"] == []
     assert updated["state_latest_game_at"].startswith("2026-06-15")
+
+
+def test_nba_offseason_empty_release_preserves_bundled_state_without_events(monkeypatch):
+    import json
+    from jabazi.models.refresh import BUNDLE_DIR, fetch_update
+    from jabazi.models.score_distribution import ScoreDistributionModel
+
+    empty = (
+        "game_id,season,season_type,game_date_time,neutral_site,status_type_completed,"
+        "home_display_name,away_display_name,home_score,away_score\n"
+    ).encode()
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, limit):
+            return empty
+
+    monkeypatch.setattr(
+        "jabazi.models.refresh.urllib.request.urlopen",
+        lambda url, timeout=45: Response(),
+    )
+    artifact = json.loads((BUNDLE_DIR / "nba_scores.json").read_text())
+    original_state = artifact["team_state"]
+    updated = fetch_update(artifact, now=NOW)
+    assert updated["team_state"] == original_state
+    assert updated["events"] == []
+    assert updated["offseason_context"] is True
+    assert updated["state_refreshed_at"] == NOW.isoformat()
+    assert updated["production_context"] == {
+        "starter_verified": False,
+        "roster_verified": False,
+        "injuries_verified": False,
+        "calibration_verified": False,
+    }
+    ScoreDistributionModel(updated)
+
+
+def test_nba_offseason_state_cannot_infer_without_current_event():
+    import json
+    from types import SimpleNamespace
+    from jabazi.models.refresh import BUNDLE_DIR, nba_offseason_state
+    from jabazi.models.score_distribution import ScoreDistributionModel
+
+    artifact = json.loads((BUNDLE_DIR / "nba_scores.json").read_text())
+    updated = nba_offseason_state(artifact, now=NOW, response_checksum="offseason")
+    model = ScoreDistributionModel(updated)
+    price = SimpleNamespace(
+        sport="basketball_nba",
+        market="h2h",
+        event="New York Knicks @ Boston Celtics",
+        event_id="future-test",
+        starts_at=NOW + __import__("datetime").timedelta(days=1),
+        observed_at=NOW,
+        in_play=False,
+        selection="Boston Celtics",
+        line=None,
+        participant=None,
+    )
+    assert model.estimate(price) is None
