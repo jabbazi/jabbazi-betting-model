@@ -13,10 +13,10 @@ state honestly. It does **not** mean every market is approved for wagering.
 | CFB team markets | implemented | SHADOW_ONLY | prospective evidence and current team context |
 | CFB player props | intentionally unsupported | UNAVAILABLE | prohibited by product scope; do not add |
 | NHL team markets | implemented | SHADOW_ONLY | opening-season prospective evidence, goalie/personnel context |
-| NHL SOG/points/assists/goals/saves | capture/train/live research path implemented | SHADOW_ONLY until artifacts are measured | four-season artifact run, same-day injuries, starting goalies, prospective prices |
+| NHL SOG/points/assists/goals/saves | four-season artifacts + live research path implemented | VALIDATING | archived line calibration, same-day injuries/scratches, starting goalies, prospective prices/CLV |
 | NHL PP points/blocks | odds discovery only | UNAVAILABLE model | validated historical/live feature source |
-| NBA team markets | registry/training architecture implemented | UNAVAILABLE artifact | verified multi-season game history + current schedule/context |
-| NBA player core/combo props | distribution/joint architecture + odds discovery implemented | UNAVAILABLE artifact | historical player/minutes data + current rotation/injury inputs + training |
+| NBA team markets | registry/training/refresh architecture implemented; automated artifact job active | RESEARCH ARTIFACT PENDING | workflow verification, current context, prospective market-relative evidence |
+| NBA player core/combo props | causal history capture/training + distribution/joint architecture + odds discovery implemented | RESEARCH ARTIFACT PENDING | workflow verification, current rotation/injury inputs, prospective priced evidence |
 | NBA cross-player SGP dependence | not modeled | UNAVAILABLE | aligned joint team/player simulation and validation |
 
 ## Promotion policy
@@ -33,13 +33,11 @@ remains evidence-driven:
 
 ## Immediate execution sequence
 
-1. Run the automated four-season NHL player capture/trainer and inspect all five artifacts.
-2. Add verified same-day NHL injuries/scratches and starting-goalie evidence.
-3. Start NHL prospective priced forecasts on opening-week markets.
-4. Resolve NFL/MLB production player-provider authentication/data-rights or integrate a
+1. Re-run the five NHL player artifacts with the corrected seconds-based TOI role floor.
+2. Add verified same-day NHL injuries/scratches and starting-goalie evidence, then freeze prospective prices.
+3. Complete the automated NBA artifact job and inspect team/player diagnostics.
+4. Add current NBA rotation/injury evidence and freeze prospective NBA forecasts.
+5. Resolve NFL/MLB production player-provider authentication/data-rights or integrate a
    separately verified provider; do not enable PRODUCTION_VERIFIED on trial/401 data.
-5. Acquire/verify NBA multi-season team and player/minutes history, then fit the existing
-   score and player-distribution contracts.
-6. Add current NBA rotation/injury evidence and freeze prospective NBA forecasts.
-7. Continue team-model prospective validation without replacing champions that fail to
+6. Continue team-model prospective validation without replacing champions that fail to
    show statistically credible improvement.
