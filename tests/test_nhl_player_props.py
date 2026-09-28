@@ -11,8 +11,8 @@ from jabazi.models.player_distribution import (
 from jabazi.providers import nhl_player_features as nhlp
 
 
-NOW = datetime(2026, 9, 28, 18, tzinfo=UTC)
-START = datetime(2026, 9, 29, 23, tzinfo=UTC)
+NOW = datetime.now(UTC)
+START = NOW + timedelta(days=1)
 
 
 def card(market, participant):
@@ -225,7 +225,7 @@ def test_historical_dataset_uses_only_lagged_prior_results():
             "points": i % 3,
             "assists": i % 2,
             "goals": i % 2,
-            "timeOnIcePerGame": "19:00",
+            "timeOnIcePerGame": 1140,
         })
 
     document = build_dataset(
