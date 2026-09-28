@@ -110,7 +110,7 @@ def test_official_skater_history_builds_research_only_snapshot(monkeypatch):
     snapshot = collector.snapshot(card("player_shots_on_goal", "Sebastian Aho"))
     assert snapshot is not None
     assert snapshot["player_id"] == "8478427"
-    assert snapshot["provider"] == "NHL official roster+stats"
+    assert snapshot["provider"] == "NHL official roster+stats + ESPN injury cross-check"
     assert snapshot["features"]["position_forward"] == 1
     assert snapshot["features"]["position_goalie"] == 0
     assert snapshot["integrity"]["event_identity"] is True
