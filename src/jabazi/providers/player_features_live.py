@@ -250,31 +250,31 @@ class LivePlayerFeatureCollector:
             rows = self._sportsdata(
                 f"nfl/projections/json/PlayerGameProjectionStatsByWeek/{int(season)}/{int(week)}"
             )
-            result["nfl"] = {
+            result["nfl"].update({
                 "ok": isinstance(rows, list) and len(rows) > 0,
                 "rows": len(rows) if isinstance(rows, list) else 0,
                 "season": int(season),
                 "week": int(week),
-            }
+            })
         except urllib.error.HTTPError as exc:
-            result["nfl"] = self._provider_failure(exc.code)
+            result["nfl"].update(self._provider_failure(exc.code))
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
-            result["nfl"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+            result["nfl"].update({"ok": False, "rows": 0, "error": type(exc).__name__})
 
         try:
             local_date = self.now.astimezone(ZoneInfo("America/New_York")).date().isoformat()
             rows = self._sportsdata(
                 f"mlb/projections/json/PlayerGameProjectionStatsByDate/{local_date}"
             )
-            result["mlb"] = {
+            result["mlb"].update({
                 "ok": isinstance(rows, list) and len(rows) > 0,
                 "rows": len(rows) if isinstance(rows, list) else 0,
                 "date": local_date,
-            }
+            })
         except urllib.error.HTTPError as exc:
-            result["mlb"] = self._provider_failure(exc.code)
+            result["mlb"].update(self._provider_failure(exc.code))
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
-            result["mlb"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+            result["mlb"].update({"ok": False, "rows": 0, "error": type(exc).__name__})
 
         try:
             nba_injuries = _fetch_json(
