@@ -330,7 +330,11 @@ def refresh_models(store, *, now=None):
                         "error_type": type(exc).__name__,
                     },
                 )
-                report[short] = {"status": "UNAVAILABLE", "error_type": type(exc).__name__}
+                report[short] = {
+                    "status": "UNAVAILABLE",
+                    "error_type": type(exc).__name__,
+                    "error": str(exc)[:200],
+                }
         store.append(
             "model_refresh_result",
             "score_models",
