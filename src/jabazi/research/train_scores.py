@@ -1,4 +1,4 @@
-"""Reproducible NFL/MLB score-distribution experiments. Never a model approval."""
+"""Reproducible NFL/MLB/NBA score-distribution experiments. Never a model approval."""
 
 import argparse
 import hashlib
@@ -19,7 +19,7 @@ from jabazi.models.team_elo import SPORTS, market_probability, metrics, timestam
 
 
 def training_rows(payload, sport, feature_policy=None):
-    window, minimum = (8, 4) if sport in {"nfl", "cfb"} else (20, 10)
+    window, minimum = (8, 4) if sport in {"nfl", "cfb"} else (16, 8) if sport == "nba" else (20, 10)
     state, pending, output = {}, deque(), []
     for game in validate_history(payload, sport):
         start = timestamp(game["starts_at"])
@@ -109,9 +109,11 @@ def train(source, output, sport, *, now=None):
         "source_checksum": checksum,
         "trained_at": now.isoformat(),
         "state_refreshed_at": now.isoformat(),
-        "window": 8 if sport == "nfl" else 20,
-        "minimum_games": 4 if sport == "nfl" else 10,
-        "team_state": state_from_games(all_games, now=now, window=8 if sport == "nfl" else 20),
+        "window": 8 if sport == "nfl" else 16 if sport == "nba" else 20,
+        "minimum_games": 4 if sport == "nfl" else 8 if sport == "nba" else 10,
+        "team_state": state_from_games(
+            all_games, now=now, window=8 if sport == "nfl" else 16 if sport == "nba" else 20
+        ),
         "events": [],
         "history_provider": payload.get("provider"),
         "limitations": [
@@ -126,8 +128,8 @@ def train(source, output, sport, *, now=None):
             "Internal research; provider commercial-use permissions require review before monetization",
         ],
     }
-    threshold = 44.5 if sport == "nfl" else 8.5
-    spread = -3.5 if sport == "nfl" else -1.5
+    threshold = 44.5 if sport == "nfl" else 224.5 if sport == "nba" else 8.5
+    spread = -3.5 if sport == "nfl" else -4.5 if sport == "nba" else -1.5
     results = {key: [] for key in ("moneyline", "spread", "total")}
     reference = {key: [] for key in results}
     pooled = [(r["game"]["home_score"], r["game"]["away_score"]) for r in calibration]
@@ -197,7 +199,7 @@ def train(source, output, sport, *, now=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("sport", choices=("nfl", "mlb"))
+    parser.add_argument("sport", choices=("nfl", "mlb", "nba"))
     parser.add_argument("source")
     parser.add_argument("output")
     args = parser.parse_args()
