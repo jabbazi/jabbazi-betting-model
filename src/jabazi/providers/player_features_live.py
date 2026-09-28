@@ -208,6 +208,13 @@ class LivePlayerFeatureCollector:
                 "lineup_injury_source_verified": False,
                 "note": "Official history is available; same-day injury and starting-goalie gates remain unverified.",
             },
+            "nba": {
+                "ok": False,
+                "provider": None,
+                "history_source_verified": False,
+                "lineup_injury_source_verified": False,
+                "note": "No verified NBA historical player/minutes and same-day rotation/injury provider is configured.",
+            },
         }
         if not self.api_key:
             return result
