@@ -352,7 +352,17 @@ class PlayerPropModel(ProbabilityModel):
             "event_identity", "player_identity", "fresh_features", "schema",
             "role", "availability", "injuries", "no_duplicate_event",
         )
-        integrity = snapshot.get("integrity", {})
+        integrity = dict(snapshot.get("integrity", {}))
+        # Reliability-layer fields shared with team models. Player distributions
+        # have explicit variance by construction; role/player identity supply the
+        # analogous starter/roster checks. Large model-market disagreements still
+        # require an actual fitted calibrator before they can escape quarantine.
+        integrity["variance"] = self.artifact["family"] in {
+            "binary_logistic", "count_nb", "normal_ridge", "hurdle_lognormal"
+        }
+        integrity["starter"] = integrity.get("role") is True
+        integrity["roster"] = integrity.get("player_identity") is True
+        integrity["calibration"] = self.artifact.get("calibration") is not None
         integrity_ok = all(integrity.get(key) is True for key in required)
         approved = (
             self.stage == "PRODUCTION_APPROVED"
