@@ -218,8 +218,9 @@ class LivePlayerFeatureCollector:
                 "history_source_verified": True,
                 "lineup_injury_source_verified": True,
                 "injury_source": "ESPN NHL current injury feed",
-                "starting_goalie_source_verified": False,
-                "note": "Skater injury cross-check is live; goalie saves remain fail-closed until a starter is confirmed.",
+                "starting_goalie_source_verified": True,
+                "starting_goalie_verification_mode": "ESPN game-level explicit starter flag",
+                "note": "Skater injury cross-check is live; goalie saves clear role only when the game-level feed explicitly marks the goalie as starter.",
             },
             "nba": {
                 "ok": True,
