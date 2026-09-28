@@ -14,6 +14,7 @@ import json
 import math
 import os
 import re
+import time
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -85,13 +86,19 @@ def _name(value):
 def _fetch_json(url, timeout=20, *, headers=None):
     request = urllib.request.Request(url, headers={"User-Agent": "JABBAZI-Research/0.2", **(headers or {})})
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.load(response)
+        raw = response.read(16_000_001)
+        if len(raw) > 16_000_000:
+            raise ValueError("Player JSON response exceeds size limit")
+        return json.loads(raw)
 
 
-def _fetch_bytes(url, timeout=30):
+def _fetch_bytes(url, timeout=30, *, max_bytes=32_000_000):
     request = urllib.request.Request(url, headers={"User-Agent": "JABBAZI-Research/0.2"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+        raw = response.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise ValueError("Player history response exceeds size limit")
+        return raw
 
 
 def _mean(values, n):
@@ -157,7 +164,7 @@ def _innings_outs(value):
 
 
 class LivePlayerFeatureCollector:
-    def __init__(self, *, sportsdataio_api_key="", now=None, production_verified=None):
+    def __init__(self, *, sportsdataio_api_key="", now=None, production_verified=None, max_seconds=90):
         self.api_key = sportsdataio_api_key.strip()
         # Operator attestation after verifying the account/feed contract, not a
         # claim inferred from successful HTTP authentication.
@@ -175,6 +182,10 @@ class LivePlayerFeatureCollector:
         self._mlb_people = {}
         self._mlb_logs = {}
         self._diagnostics = []
+        if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
+            raise ValueError("Player collection budget must be 0-120 seconds")
+        self._max_seconds = float(max_seconds)
+        self._collection_elapsed = 0.0
 
     @property
     def diagnostics(self):
@@ -250,6 +261,8 @@ class LivePlayerFeatureCollector:
     def _nfl_history(self):
         if self._nfl_rows is not None:
             return self._nfl_rows
+        # A failed feed is retried on the next scan, never once per player.
+        self._nfl_rows = []
         rows = []
         digest = hashlib.sha256()
         seasons = (self.now.year - 1, self.now.year)
@@ -281,6 +294,7 @@ class LivePlayerFeatureCollector:
     def _nfl_depth_charts(self):
         if self._nfl_depth_rows is not None:
             return self._nfl_depth_rows
+        self._nfl_depth_rows = []
         raw = _fetch_bytes(NFL_DEPTH.replace("2026.csv", f"{self.now.year if self.now.month >= 7 else self.now.year - 1}.csv"))
         checksum = hashlib.sha256(raw).hexdigest()
         reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
@@ -374,6 +388,7 @@ class LivePlayerFeatureCollector:
 
     def _nfl_available_games(self):
         if self._nfl_completed is None:
+            self._nfl_completed = {}
             from jabazi.providers.history import nfl_rows
             raw = _fetch_bytes("https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv")
             games = nfl_rows(raw.decode(), {self.now.year - 1, self.now.year})
@@ -556,6 +571,7 @@ class LivePlayerFeatureCollector:
         key = _name(participant)
         if key in self._mlb_people:
             return self._mlb_people[key]
+        self._mlb_people[key] = None
         query = urllib.parse.urlencode(
             {"names": participant, "sportIds": 1, "active": "true"}
         )
@@ -572,6 +588,7 @@ class LivePlayerFeatureCollector:
         key = (person["id"], group, self.now.year)
         if key in self._mlb_logs:
             return self._mlb_logs[key]
+        self._mlb_logs[key] = []
         query = urllib.parse.urlencode(
             {"stats": "gameLog", "group": group, "season": self.now.year}
         )
@@ -705,7 +722,11 @@ class LivePlayerFeatureCollector:
         """Archive one evidence snapshot per unique prop participant/event/market."""
         seen = set()
         archived = 0
+        started = time.monotonic()
         for card in cards:
+            if self._collection_elapsed + time.monotonic() - started >= self._max_seconds:
+                self._diagnostics.append("PLAYER_FEATURE_BUDGET_EXHAUSTED")
+                break
             if not card.participant or card.in_play:
                 continue
             key = (card.sport, card.event_id, card.participant, card.market)
@@ -756,4 +777,5 @@ class LivePlayerFeatureCollector:
                 self._diagnostics.append(
                     f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:{type(exc).__name__}"
                 )
+        self._collection_elapsed += time.monotonic() - started
         return archived
