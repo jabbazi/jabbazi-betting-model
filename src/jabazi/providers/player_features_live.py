@@ -191,6 +191,7 @@ class LivePlayerFeatureCollector:
         self._mlb_live = {}
         self._mlb_active_rosters = {}
         self._nhl_collector = None
+        self._nba_collector = None
         self._diagnostics = []
         if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
             raise ValueError("Player collection budget must be 0-120 seconds")
@@ -200,7 +201,8 @@ class LivePlayerFeatureCollector:
     @property
     def diagnostics(self):
         nhl = self._nhl_collector.diagnostics if self._nhl_collector is not None else ()
-        return tuple(self._diagnostics) + tuple(nhl)
+        nba = self._nba_collector.diagnostics if self._nba_collector is not None else ()
+        return tuple(self._diagnostics) + tuple(nhl) + tuple(nba)
 
 
     def provider_status(self):
@@ -220,12 +222,12 @@ class LivePlayerFeatureCollector:
                 "note": "Skater injury cross-check is live; goalie saves remain fail-closed until a starter is confirmed.",
             },
             "nba": {
-                "ok": False,
-                "provider": None,
-                "history_source_verified": False,
-                "lineup_injury_source_verified": False,
-                "injury_source": "ESPN NBA current injury feed (monitored separately)",
-                "note": "Historical artifacts exist; same-day rotation/starting-lineup verification is not yet configured.",
+                "ok": True,
+                "provider": "SportsDataverse ESPN history + ESPN roster/injury verification",
+                "history_source_verified": True,
+                "lineup_injury_source_verified": True,
+                "starting_lineup_required": False,
+                "note": "Current model role gate uses active roster, injury clearance, and recent rotation minutes; announced starting-five status is not a model input.",
             },
         }
         result["nfl"]["fallback"] = {
@@ -1071,6 +1073,11 @@ class LivePlayerFeatureCollector:
                             now=self.now, max_seconds=remaining
                         )
                     payload = self._nhl_collector.snapshot(card)
+                elif card.sport == "basketball_nba":
+                    if self._nba_collector is None:
+                        from jabazi.providers.nba_player_features import NBAPlayerFeatureCollector
+                        self._nba_collector = NBAPlayerFeatureCollector(now=self.now)
+                    payload = self._nba_collector.snapshot(card)
                 else:
                     payload = None
                 if not payload:
