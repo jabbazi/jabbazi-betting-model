@@ -5,13 +5,13 @@ threshold hit probability; every supported market maps to an explicit distributi
 """
 from __future__ import annotations
 
-from bisect import bisect_right
 from dataclasses import dataclass
 from decimal import Decimal
 from datetime import UTC, datetime
 import math
 
 from .base import ModelEstimate, ProbabilityModel
+from .player_calibration import apply_calibration
 
 
 NFL_PROP_MARKETS = frozenset({
@@ -112,12 +112,14 @@ def _standardize(features: dict[str, float], artifact: dict) -> list[float]:
     names = artifact["feature_names"]
     means = artifact["scaler"]["mean"]
     scales = artifact["scaler"]["scale"]
+    if not len(names) == len(means) == len(scales) or len(set(names)) != len(names):
+        raise ValueError("Malformed player scaler")
     if set(features) != set(names):
         raise ValueError("Player feature schema mismatch")
     result = []
     for name, center, scale in zip(names, means, scales):
         value = float(features[name])
-        if not math.isfinite(value):
+        if not all(math.isfinite(float(v)) for v in (value, center, scale)) or float(scale) <= 0:
             raise ValueError("Non-finite player feature")
         result.append((value - float(center)) / max(float(scale), 1e-12))
     return result
@@ -130,14 +132,7 @@ def _linear(vector: list[float], coefficients: list[float], intercept: float) ->
 
 
 def _isotonic(raw: float, calibration: dict | None) -> float:
-    if not calibration:
-        return raw
-    x = [float(v) for v in calibration.get("x", [])]
-    y = [float(v) for v in calibration.get("y", [])]
-    if not x or len(x) != len(y):
-        return raw
-    index = min(len(y) - 1, max(0, bisect_right(x, raw) - 1))
-    return min(1.0, max(0.0, y[index]))
+    return apply_calibration(raw, calibration)
 
 
 def distribution_mean(artifact: dict, features: dict[str, float]) -> tuple[float, float | None]:
@@ -168,6 +163,8 @@ def raw_probability(artifact: dict, features: dict[str, float], side: str, line)
     params = artifact["parameters"]
 
     if family == "binary_logistic":
+        if line is not None and float(line) != 0.5:
+            raise ValueError("Binary prop only supports the anytime/0.5 threshold")
         yes = _sigmoid(_linear(vector, params["coef"], params["intercept"]))
         if side in {"yes", "over"}:
             return yes
@@ -178,6 +175,8 @@ def raw_probability(artifact: dict, features: dict[str, float], side: str, line)
     if line is None:
         raise ValueError("Threshold prop requires a line")
     threshold = float(line)
+    if not math.isfinite(threshold):
+        raise ValueError("Non-finite prop threshold")
     if family == "count_nb":
         mean = math.exp(_linear(vector, params["coef"], params["intercept"]))
         cdf = _negative_binomial_cdf(math.floor(threshold), mean, float(params.get("dispersion", 0)))
@@ -203,8 +202,32 @@ def raw_probability(artifact: dict, features: dict[str, float], side: str, line)
     if side == "over":
         return min(1.0, max(0.0, over))
     if side == "under":
+        if family == "count_nb":
+            # Strictly below an integer threshold: equality is a push, not a win.
+            return _negative_binomial_cdf(math.ceil(threshold) - 1, mean, float(params.get("dispersion", 0)))
         return min(1.0, max(0.0, 1.0 - over))
     raise ValueError("Threshold prop side must be Over/Under")
+
+
+def calibrated_probability(artifact, features, side, line):
+    """One calibrated positive tail; obtain its opposite by complementation.
+
+The scanner's scalar EV contract has no push payout. Whole-number non-binary
+lines stay unavailable until that contract explicitly accounts for settlements.
+"""
+    binary = artifact["market"] in BINARY_MARKETS
+    if not binary and (line is None or not math.isfinite(float(line)) or float(line).is_integer()):
+        raise ValueError("Push-capable player line requires settlement-aware pricing")
+    side = side.lower()
+    if side not in ({"yes", "no", "over", "under"} if binary else {"over", "under"}):
+        raise ValueError("Unsupported player market side")
+    positive = side in {"yes", "over"}
+    calibration = artifact.get("calibration")
+    if calibration and calibration.get("orientation") != "positive" and not positive:
+        raise ValueError("Legacy calibrator has no verified negative-side mapping")
+    raw = raw_probability(artifact, features, "yes" if binary else "over", line)
+    p = apply_calibration(raw, calibration)
+    return p if positive else 1 - p
 
 
 @dataclass(frozen=True)
@@ -276,9 +299,9 @@ class PlayerPropModel(ProbabilityModel):
             probability = raw_probability(
                 self.artifact, features, price.selection, price.line
             )
+            calibrated = calibrated_probability(self.artifact, features, price.selection, price.line)
         except (ValueError, TypeError, KeyError, OverflowError):
             return None
-        calibrated = _isotonic(probability, self.artifact.get("calibration"))
         validation = self.artifact.get("validation", {})
         required = (
             "event_identity", "player_identity", "fresh_features", "schema",

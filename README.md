@@ -118,3 +118,13 @@ See [the September 28 data-trust release](docs/DATA_TRUST_RELEASE_2026-09-28.md)
 for provider quarantine, point-in-time player history, frozen evaluation verification,
 and NBA's explicitly untrained status. A successful provider response alone does not
 establish that a subscription supplies accurate production data.
+
+### NFL player probability reliability
+
+The [September 28 anytime-TD experiment](docs/experiments/nfl-atd-reliability/README.md)
+records a chronological opportunity-based challenger comparison and probability
+correctness fixes. The challenger did not establish a Brier/calibration improvement
+and is not registered for live inference. New player calibrators share one
+positive-side probability across complementary outcomes. Legacy calibrated
+negative-side quotes and whole-number player lines remain unavailable until their
+calibration or push-aware pricing contract is supported.
