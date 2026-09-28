@@ -1,4 +1,4 @@
-"""Live point-in-time feature collector for NFL and MLB player props.
+"""Live point-in-time feature collector for NFL, MLB and NHL player props.
 
 Model features are built from completed-game history only. SportsDataIO projections
 are used as pregame role/availability evidence, never as the model probability.
@@ -181,6 +181,7 @@ class LivePlayerFeatureCollector:
         self._mlb_projection = {}
         self._mlb_people = {}
         self._mlb_logs = {}
+        self._nhl_collector = None
         self._diagnostics = []
         if not math.isfinite(max_seconds) or not 0 < max_seconds <= 120:
             raise ValueError("Player collection budget must be 0-120 seconds")
@@ -189,7 +190,8 @@ class LivePlayerFeatureCollector:
 
     @property
     def diagnostics(self):
-        return tuple(self._diagnostics)
+        nhl = self._nhl_collector.diagnostics if self._nhl_collector is not None else ()
+        return tuple(self._diagnostics) + tuple(nhl)
 
 
     def provider_status(self):
@@ -199,6 +201,13 @@ class LivePlayerFeatureCollector:
             "data_mode": "PRODUCTION_VERIFIED" if self.production_verified else "UNVERIFIED",
             "nfl": {"ok": False, "rows": 0},
             "mlb": {"ok": False, "rows": 0},
+            "nhl": {
+                "ok": True,
+                "provider": "NHL official roster+stats",
+                "history_source_verified": True,
+                "lineup_injury_source_verified": False,
+                "note": "Official history is available; same-day injury and starting-goalie gates remain unverified.",
+            },
         }
         if not self.api_key:
             return result
@@ -734,13 +743,28 @@ class LivePlayerFeatureCollector:
                 continue
             seen.add(key)
             try:
-                payload = (
-                    self.nfl_snapshot(card)
-                    if card.sport == "americanfootball_nfl"
-                    else self.mlb_snapshot(card)
-                    if card.sport == "baseball_mlb"
-                    else None
-                )
+                if card.sport == "americanfootball_nfl":
+                    payload = self.nfl_snapshot(card)
+                elif card.sport == "baseball_mlb":
+                    payload = self.mlb_snapshot(card)
+                elif card.sport == "icehockey_nhl":
+                    if self._nhl_collector is None:
+                        from jabazi.providers.nhl_player_features import NHLPlayerFeatureCollector
+                        remaining = max(
+                            1.0,
+                            min(
+                                30.0,
+                                self._max_seconds
+                                - self._collection_elapsed
+                                - (time.monotonic() - started),
+                            ),
+                        )
+                        self._nhl_collector = NHLPlayerFeatureCollector(
+                            now=self.now, max_seconds=remaining
+                        )
+                    payload = self._nhl_collector.snapshot(card)
+                else:
+                    payload = None
                 if not payload:
                     continue
                 research_only = not all(payload["integrity"].values())
