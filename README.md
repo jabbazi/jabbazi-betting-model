@@ -3,8 +3,8 @@
 **Research infrastructure, not a production-approved betting service.** No model
 in the active registry can produce approved paid picks. The platform does not place bets.
 
-This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB/NHL shadow
-baselines, audited pricing, central portfolio reservations, PostgreSQL-capable
+This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB/NHL team
+models plus NBA research-model architecture, audited pricing, central portfolio reservations, PostgreSQL-capable
 storage, an authenticated API, and research frameworks for calibration, props,
 alternates, correlated parlays, and historical execution evaluation.
 
@@ -62,8 +62,10 @@ The Render blueprint prepares an API, worker and private database for cost revie
 
 ## Model training
 
-No private data, live ledger, or model artifacts are committed. Existing trained
-MLB/NFL research artifacts remain in the earlier saved starter. Reproduce them:
+No private data or live ledger is committed. Reviewed reproducible research artifacts
+may be committed when their source provenance and fail-closed status are documented;
+the NHL player artifacts are one such research-only set. Existing MLB/NFL research
+artifacts can be reproduced with:
 
 ```bash
 python -m jabazi history --sport nfl --as-of 2026-09-22 --output data/nfl_history.json
