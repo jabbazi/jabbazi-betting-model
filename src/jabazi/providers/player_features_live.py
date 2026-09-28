@@ -274,6 +274,22 @@ class LivePlayerFeatureCollector:
             result["mlb"] = self._provider_failure(exc.code)
         except (ValueError, TypeError, OSError, urllib.error.URLError) as exc:
             result["mlb"] = {"ok": False, "rows": 0, "error": type(exc).__name__}
+
+        try:
+            nba_injuries = _fetch_json(
+                "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
+            )
+            injury_groups = (
+                nba_injuries.get("injuries", []) if isinstance(nba_injuries, dict) else None
+            )
+            result["nba"]["injury_source_verified"] = isinstance(injury_groups, list)
+            result["nba"]["injury_source"] = "ESPN NBA current injury feed"
+            result["nba"]["injury_groups"] = (
+                len(injury_groups) if isinstance(injury_groups, list) else 0
+            )
+        except (ValueError, TypeError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            result["nba"]["injury_source_verified"] = False
+            result["nba"]["injury_error"] = type(exc).__name__
         return result
 
     def _provider_failure(self, status):
