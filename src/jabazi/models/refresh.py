@@ -190,6 +190,7 @@ def fetch_update(artifact, *, now, result_store=None):
         ending_year = now.year + 1 if now.month >= 7 else now.year
         candidates = (ending_year, ending_year - 1) if now.month < 10 else (ending_year,)
         raw = None
+        games, events = [], []
         for season_file in candidates:
             url = (
                 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
@@ -197,14 +198,23 @@ def fetch_update(artifact, *, now, result_store=None):
             )
             try:
                 with urllib.request.urlopen(url, timeout=45) as response:
-                    raw = response.read(20_000_001)
-                break
+                    candidate_raw = response.read(20_000_001)
             except urllib.error.HTTPError as exc:
-                if exc.code != 404 or season_file == candidates[-1]:
-                    raise
-        if raw is None or len(raw) > 20_000_000:
-            raise ValueError("NBA schedule response unavailable or too large")
-        games, events = nba_schedule_rows(raw, now)
+                if exc.code == 404 and season_file != candidates[-1]:
+                    continue
+                raise
+            if len(candidate_raw) > 20_000_000:
+                raise ValueError("NBA schedule response too large")
+            candidate_games, candidate_events = nba_schedule_rows(candidate_raw, now)
+            # Before October an upcoming-season release may exist as an empty
+            # placeholder. Fall back to the latest completed-season file rather
+            # than poisoning the model state with an empty refresh.
+            if candidate_games or candidate_events or season_file == candidates[-1]:
+                raw = candidate_raw
+                games, events = candidate_games, candidate_events
+                break
+        if raw is None:
+            raise ValueError("NBA schedule response unavailable")
     elif artifact["sport"] == SPORTS["nfl"]:
         url = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
         with urllib.request.urlopen(url, timeout=30) as response:
