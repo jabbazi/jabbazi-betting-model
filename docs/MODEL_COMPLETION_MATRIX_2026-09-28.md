@@ -15,8 +15,8 @@ state honestly. It does **not** mean every market is approved for wagering.
 | NHL team markets | implemented | SHADOW_ONLY | opening-season prospective evidence, goalie/personnel context |
 | NHL SOG/points/assists/goals/saves | four-season artifacts + live research path implemented | VALIDATING | archived line calibration, same-day injuries/scratches, starting goalies, prospective prices/CLV |
 | NHL PP points/blocks | odds discovery only | UNAVAILABLE model | validated historical/live feature source |
-| NBA team markets | registry/training/refresh architecture implemented; automated artifact job active | RESEARCH ARTIFACT PENDING | workflow verification, current context, prospective market-relative evidence |
-| NBA player core/combo props | causal history capture/training + distribution/joint architecture + odds discovery implemented | RESEARCH ARTIFACT PENDING | workflow verification, current rotation/injury inputs, prospective priced evidence |
+| NBA team markets | trained score artifact + registry/refresh architecture implemented | SHADOW_ONLY | current rotation/context and prospective market-relative evidence |
+| NBA player core/combo props | 12 trained artifacts + causal history/distribution/joint architecture + odds discovery implemented | VALIDATING | current rotation/injury inputs, archived/prospective priced evidence and CLV |
 | NBA cross-player SGP dependence | not modeled | UNAVAILABLE | aligned joint team/player simulation and validation |
 
 ## Promotion policy
@@ -35,9 +35,8 @@ remains evidence-driven:
 
 1. Re-run the five NHL player artifacts with the corrected seconds-based TOI role floor.
 2. Add verified same-day NHL injuries/scratches and starting-goalie evidence, then freeze prospective prices.
-3. Complete the automated NBA artifact job and inspect team/player diagnostics.
-4. Add current NBA rotation/injury evidence and freeze prospective NBA forecasts.
-5. Resolve NFL/MLB production player-provider authentication/data-rights or integrate a
+3. Add current NBA rotation/injury evidence and freeze prospective NBA forecasts.
+4. Resolve NFL/MLB production player-provider authentication/data-rights or integrate a
    separately verified provider; do not enable PRODUCTION_VERIFIED on trial/401 data.
-6. Continue team-model prospective validation without replacing champions that fail to
+5. Continue team-model prospective validation without replacing champions that fail to
    show statistically credible improvement.
