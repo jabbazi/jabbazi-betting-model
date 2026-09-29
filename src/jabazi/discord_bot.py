@@ -220,6 +220,30 @@ def build_client(config, store):
             channel = await self.fetch_channel(channel_id)
             return channel
 
+        async def checked_public_channel(self, channel_id):
+            token = os.environ["JABBAZI_DISCORD_BOT_TOKEN"]
+            async with httpx.AsyncClient(
+                base_url="https://discord.com/api/v10",
+                headers={"Authorization": "Bot " + token},
+                timeout=15,
+            ) as http:
+                guild = (await http.get(f"/guilds/{config.guild}")).json()
+                if int(guild["owner_id"]) != config.owner:
+                    raise ValueError("Server owner mismatch")
+                response = await http.get(f"/channels/{channel_id}")
+                response.raise_for_status()
+                document = response.json()
+                if int(document.get("guild_id", 0)) != config.guild or document.get("type") != 0:
+                    raise ValueError("Public target must be configured guild text channel")
+                view = 1 << 10
+                everyone = [
+                    p for p in document.get("permission_overwrites", [])
+                    if int(p["id"]) == config.guild and p["type"] == 0
+                ]
+                if everyone and int(everyone[0]["deny"]) & view:
+                    raise ValueError("Results channel unexpectedly denies public visibility")
+            return await self.fetch_channel(channel_id)
+
         async def send_sheets(self, channel, record, sports, page=None):
             if record is None:
                 return await channel.send("CHEAT SHEETS UNAVAILABLE — no recent completed scan.")
@@ -425,6 +449,21 @@ def build_client(config, store):
                     allowed_mentions=discord.AllowedMentions.none(),
                 )
 
+        async def publish_results_once(self):
+            if not config.results_channel:
+                return
+            from .performance import report as performance_report
+            from .discord_content import performance_text
+            report = await asyncio.to_thread(performance_report, store)
+            text = performance_text(report)
+            key = digest(["discord_results", config.guild, text])
+            if not await asyncio.to_thread(
+                store.append, "discord_results_claim", str(config.results_channel), {}, key
+            ):
+                return
+            channel = await self.checked_public_channel(config.results_channel)
+            await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+
         async def publish_once(self):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
@@ -465,6 +504,7 @@ def build_client(config, store):
                     await self.publish_status_once()
                     await self.publish_best_two_once()
                     await self.publish_official_picks_once()
+                    await self.publish_results_once()
                 except Exception:  # noqa: BLE001 -- isolate delivery from scanner, redact errors
                     print("DISCORD_PUBLISH_UNAVAILABLE", flush=True)
                 await asyncio.sleep(60)
