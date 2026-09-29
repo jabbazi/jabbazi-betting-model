@@ -315,9 +315,19 @@ def build_client(config, store):
                 if int(guild["owner_id"]) != config.owner:
                     raise ValueError("Server owner mismatch")
                 member = await get(f"/guilds/{config.guild}/members/{self.user.id}")
+                guild_roles = await get(f"/guilds/{config.guild}/roles")
+                vip_alias_ids = {
+                    int(role["id"])
+                    for role in guild_roles
+                    if str(role.get("name") or "").strip().upper()
+                    in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+                }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(
-                    document, config, self.user.id, (int(r) for r in member.get("roles", []))
+                    document,
+                    config,
+                    self.user.id,
+                    tuple(int(r) for r in member.get("roles", [])) + tuple(vip_alias_ids),
                 )
             channel = await self.fetch_channel(channel_id)
             return channel
@@ -458,10 +468,27 @@ def build_client(config, store):
                             allowed_mentions=discord.AllowedMentions.none(),
                         )
                     except discord.Forbidden:
-                        await message.channel.send(
-                            "Enable direct messages from this server, then type !vip again for your private app link.",
-                            allowed_mentions=discord.AllowedMentions.none(),
-                        )
+                        if config.support_channel:
+                            support = await self.fetch_channel(config.support_channel)
+                            thread = await support.create_thread(
+                                name=f"vip-access-{member.id}",
+                                type=discord.ChannelType.private_thread,
+                                invitable=False,
+                                reason="Private JABBAZI VIP app-link fallback",
+                            )
+                            await thread.add_user(member)
+                            await thread.send(
+                                embed=embed, allowed_mentions=discord.AllowedMentions.none()
+                            )
+                            await message.channel.send(
+                                f"Your private VIP access thread is ready: {thread.mention}",
+                                allowed_mentions=discord.AllowedMentions.none(),
+                            )
+                        else:
+                            await message.channel.send(
+                                "Your DMs are closed. Use /vip for a private in-app link.",
+                                allowed_mentions=discord.AllowedMentions.none(),
+                            )
                     return
                 channel = await self.checked_channel(message.channel.id)
                 # One command response per channel per 30 seconds, across replicas.
