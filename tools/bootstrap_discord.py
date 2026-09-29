@@ -114,7 +114,6 @@ def main():
 
         channels = http.get(f"/guilds/{guild}/channels").raise_for_status().json()
         by_key = {(c["name"], c["type"]): c for c in channels}
-        by_id = {str(c["id"]): c for c in channels}
 
         def desired_overwrites(access):
             if access == "public":
@@ -141,7 +140,6 @@ def main():
                 put_overwrite(http, channel["id"], target, target_type, allow, deny)
 
         desired_channel_names = set()
-        desired_category_names = {category["name"] for category in bp["categories"]}
 
         for category in bp["categories"]:
             parent = by_key.get((category["name"], 4))
