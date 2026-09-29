@@ -90,11 +90,14 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["price_stale"] = c.stale
         rows[-1]["in_play"] = c.in_play
         reliability = action.reliability or {}
+        health_value = (reliability.get("research_priority_components") or {}).get(
+            "data_health"
+        )
         rows[-1]["data_health"] = (
             "HEALTHY"
-            if reliability.get("data_health") is True
+            if health_value == 1 and not c.stale and not c.in_play
             else "UNHEALTHY"
-            if reliability.get("data_health") is False
+            if health_value == 0
             else "UNKNOWN"
         )
     payload = {
