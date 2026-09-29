@@ -45,7 +45,7 @@ def latest_entitlement(store, member_id, *, now=None):
     return {**p,"active":bool(active)}
 
 
-def active_members(store, *, limit=5000, now=None):
+def active_members(store, *, limit=1000, now=None):
     now=now or datetime.now(UTC)
     rows=store.list_records("discord_entitlement",limit)
     latest={}
