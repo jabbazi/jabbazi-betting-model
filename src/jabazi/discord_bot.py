@@ -240,8 +240,12 @@ def build_client(config, store):
                     p for p in document.get("permission_overwrites", [])
                     if int(p["id"]) == config.guild and p["type"] == 0
                 ]
-                if everyone and int(everyone[0]["deny"]) & view:
-                    raise ValueError("Results channel unexpectedly denies public visibility")
+                if (
+                    len(everyone) != 1
+                    or int(everyone[0]["deny"]) & view
+                    or not int(everyone[0]["allow"]) & view
+                ):
+                    raise ValueError("Results channel must explicitly allow public visibility")
             return await self.fetch_channel(channel_id)
 
         async def send_sheets(self, channel, record, sports, page=None):
