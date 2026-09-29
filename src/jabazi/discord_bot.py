@@ -7,6 +7,8 @@ No token, user message content, or provider exception text is logged.
 import asyncio
 import io
 import os
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -108,10 +110,12 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
     if len(public) != 1 or not int(public[0]["deny"]) & view or int(public[0]["allow"]) & view:
         raise ValueError("Research channels must explicitly deny public visibility")
-    access_roles = set(config.viewer_roles) | set(bot_role_ids)
+    approved_roles = config.viewer_roles | frozenset(bot_role_ids)
     if config.vip_role:
-        access_roles.add(config.vip_role)
-    allowed = {(1, config.owner), (1, bot_id)} | {(0, r) for r in access_roles}
+        approved_roles = approved_roles | frozenset({config.vip_role})
+    allowed = {(1, config.owner), (1, bot_id)} | {
+        (0, role_id) for role_id in approved_roles
+    }
     for p in entries:
         if int(p["allow"]) & view and (p["type"], int(p["id"])) not in allowed:
             raise ValueError("Unreviewed research channel access")
@@ -163,6 +167,45 @@ def build_client(config, store):
 
     class ResearchClient(discord.Client):
         async def on_ready(self):
+            if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":
+                try:
+                    done = await asyncio.to_thread(
+                        store.list_records, "discord_compact_migration", 1, entity="v1"
+                    )
+                    if not done:
+                        result = await asyncio.to_thread(
+                            subprocess.run,
+                            [
+                                sys.executable,
+                                "tools/bootstrap_discord.py",
+                                "--apply",
+                                "--archive-obsolete",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=90,
+                            check=False,
+                        )
+                        if result.returncode != 0:
+                            detail = (result.stderr or result.stdout or "unknown").strip()
+                            detail = detail.splitlines()[-1][:180] if detail else "unknown"
+                            detail = detail.replace(os.getenv("JABBAZI_DISCORD_BOT_TOKEN", ""), "[redacted]")
+                            print(
+                                "DISCORD_COMPACT_MIGRATION_FAILED: " + detail,
+                                flush=True,
+                            )
+                            raise RuntimeError("Discord compact migration failed")
+                        await asyncio.to_thread(
+                            store.append,
+                            "discord_compact_migration",
+                            "v1",
+                            {"status": "APPLIED"},
+                            digest(["discord_compact_migration", "v1"]),
+                        )
+                        print("DISCORD_COMPACT_MIGRATION_APPLIED", flush=True)
+                except Exception:  # noqa: BLE001 -- never expose Discord credentials
+                    print("DISCORD_COMPACT_MIGRATION_UNAVAILABLE", flush=True)
+
             # Owner-requested branding: only the configured server's displayed icon.
             try:
                 guild = await self.fetch_guild(config.guild)
@@ -434,8 +477,7 @@ def build_client(config, store):
                 return
             try:
                 if command[0] == "portal":
-                    # App access is based on the member's current VIP-family role.
-                    # It must not depend on cheat-sheet channel permissions.
+                    # Current VIP-family role grants app access; billing is not required.
                     member = await message.guild.fetch_member(message.author.id)
                     allowed = member_has_vip(config, member)
                     if not allowed:
