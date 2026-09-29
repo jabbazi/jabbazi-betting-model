@@ -43,7 +43,10 @@ def main():
             raise SystemExit("Configured Discord owner does not own target guild")
         existing_roles=http.get(f"/guilds/{guild}/roles").raise_for_status().json()
         roles={r["name"]:r for r in existing_roles}
-        plan={"create_roles":[],"create_categories":[],"create_channels":[]}
+        plan={
+            "create_roles":[],"create_categories":[],"create_channels":[],
+            "repair_permissions":[],"hide_deprecated":[],
+        }
         for spec in bp["roles"]:
             if spec["name"] not in roles:
                 plan["create_roles"].append(spec["name"])
@@ -76,27 +79,59 @@ def main():
         for category in bp["categories"]:
             key=(category["name"],4)
             parent=by_name.get(key)
+            desired_overwrites=overwrites(category["access"])
             if parent is None:
                 plan["create_categories"].append(category["name"])
                 if args.apply:
                     parent=http.post(f"/guilds/{guild}/channels",json={
                         "name":category["name"],"type":4,
-                        "permission_overwrites":overwrites(category["access"]),
+                        "permission_overwrites":desired_overwrites,
                     }).raise_for_status().json()
+                    by_name[key]=parent
+            else:
+                plan["repair_permissions"].append(category["name"])
+                if args.apply:
+                    parent=http.patch(
+                        f"/channels/{parent['id']}",
+                        json={"permission_overwrites":desired_overwrites},
+                    ).raise_for_status().json()
                     by_name[key]=parent
             for name in category["channels"]:
                 key=(name,0)
-                if key in by_name:
-                    continue
-                plan["create_channels"].append(name)
-                if args.apply:
-                    if parent is None:
-                        raise RuntimeError("Category must exist before channel creation")
-                    by_name[key]=http.post(f"/guilds/{guild}/channels",json={
-                        "name":name,"type":0,"parent_id":parent["id"],
-                        "permission_overwrites":overwrites(category["access"]),
-                        "rate_limit_per_user":5 if name in {"general","sports-talk","bet-talk"} else 0,
-                    }).raise_for_status().json()
+                existing=by_name.get(key)
+                if existing is None:
+                    plan["create_channels"].append(name)
+                    if args.apply:
+                        if parent is None:
+                            raise RuntimeError("Category must exist before channel creation")
+                        by_name[key]=http.post(f"/guilds/{guild}/channels",json={
+                            "name":name,"type":0,"parent_id":parent["id"],
+                            "permission_overwrites":desired_overwrites,
+                            "rate_limit_per_user":5 if name in {"general","sports-talk"} else 0,
+                        }).raise_for_status().json()
+                else:
+                    plan["repair_permissions"].append(name)
+                    if args.apply:
+                        http.patch(f"/channels/{existing['id']}",json={
+                            "parent_id":parent["id"],
+                            "permission_overwrites":desired_overwrites,
+                            "rate_limit_per_user":5 if name in {"general","sports-talk"} else 0,
+                        }).raise_for_status()
+        keep={name for category in bp["categories"] for name in category["channels"]}
+        for name in bp.get("deprecated_channels",[]):
+            channel=by_name.get((name,0))
+            if channel is None or name in keep:
+                continue
+            plan["hide_deprecated"].append(name)
+            if args.apply:
+                # Archive clutter non-destructively: hide from regular members while
+                # retaining owner access and history for later manual deletion.
+                http.patch(f"/channels/{channel['id']}",json={
+                    "permission_overwrites":[
+                        {"id":guild,"type":0,"allow":"0","deny":str(VIEW)},
+                        {"id":owner,"type":1,"allow":str(VIEW|SEND|READ_HISTORY),"deny":"0"},
+                    ],
+                }).raise_for_status()
         try:
             automod=http.get(f"/guilds/{guild}/auto-moderation/rules").raise_for_status().json()
         except httpx.HTTPStatusError:
@@ -123,7 +158,7 @@ def main():
             "mode":"APPLIED" if args.apply else "DRY_RUN",
             "guild_id":guild,
             "plan":plan,
-            "note":"No existing role/channel was deleted or overwritten.",
+            "note":"No role/channel is deleted. Existing core permissions are repaired; deprecated clutter is hidden from regular members.",
         },indent=2))
 
 
