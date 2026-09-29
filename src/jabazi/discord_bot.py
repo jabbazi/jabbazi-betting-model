@@ -419,7 +419,7 @@ def build_client(config, store):
                 vip_alias_ids = {
                     int(role["id"])
                     for role in guild_roles
-                    if is_vip_name(role.get("name"))
+                    if is_vip_name(role.get("name")) or role.get("name", "").upper() in {"JABBAZI TEAM", "MODERATOR"}
                 }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(

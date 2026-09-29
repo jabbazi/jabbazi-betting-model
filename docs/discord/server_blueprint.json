@@ -78,7 +78,7 @@
   ],
   "categories": [
     {
-      "name": "━━ START HERE ━━",
+      "name": "\u2501\u2501 START HERE \u2501\u2501",
       "access": "public",
       "channels": [
         "welcome",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "name": "━━ TODAY’S JABBAZI ━━",
+      "name": "\u2501\u2501 TODAY\u2019S JABBAZI \u2501\u2501",
       "access": "vip",
       "channels": [
         "jabbazi-main-card",
@@ -99,14 +99,14 @@
       ]
     },
     {
-      "name": "━━ CHEAT SHEET ━━",
+      "name": "\u2501\u2501 CHEAT SHEET \u2501\u2501",
       "access": "vip",
       "channels": [
         "daily-moneyline-cheat-sheet"
       ]
     },
     {
-      "name": "━━ VIP RESEARCH ━━",
+      "name": "\u2501\u2501 VIP RESEARCH \u2501\u2501",
       "access": "vip",
       "channels": [
         "vip-research",
@@ -115,7 +115,7 @@
       ]
     },
     {
-      "name": "━━ COMMUNITY ━━",
+      "name": "\u2501\u2501 COMMUNITY \u2501\u2501",
       "access": "public",
       "channels": [
         "general",
@@ -124,7 +124,7 @@
       ]
     },
     {
-      "name": "━━ RESULTS & SUPPORT ━━",
+      "name": "\u2501\u2501 RESULTS & SUPPORT \u2501\u2501",
       "access": "public",
       "channels": [
         "results",
@@ -132,7 +132,7 @@
       ]
     },
     {
-      "name": "━━ STAFF ONLY ━━",
+      "name": "\u2501\u2501 STAFF ONLY \u2501\u2501",
       "access": "staff",
       "channels": [
         "staff-chat",
@@ -211,6 +211,7 @@
       "vip-sgps"
     ],
     "results": [
+      "results-and-clv",
       "daily-results"
     ],
     "support": [
@@ -219,6 +220,44 @@
     "market-watch": [
       "line-movement",
       "odds-shopping"
+    ],
+    "welcome": [
+      "welcome-and-rules"
+    ],
+    "how-to-use-jabbazi": [
+      "vip-guide",
+      "learn-how-to"
+    ],
+    "vip-access": [
+      "vip-membership",
+      "upgrade-to-vip"
+    ],
+    "alerts-and-support": [
+      "choose-your-roles",
+      "choose-your-alerts"
+    ],
+    "general": [
+      "guru-lounge"
+    ],
+    "winning-tickets": [
+      "member-wins"
+    ],
+    "live-watch": [
+      "live-game-chat",
+      "pick-updates"
+    ],
+    "promo-boosts": [
+      "odds-and-promos"
+    ],
+    "daily-moneyline-cheat-sheet": [
+      "cheat-sheets"
+    ],
+    "staff-chat": [
+      "staff-chat"
+    ],
+    "bot-log": [
+      "bot-log",
+      "scanner-errors"
     ]
   }
 }

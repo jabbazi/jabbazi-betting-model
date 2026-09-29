@@ -163,12 +163,12 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
              {"id": "8", "name": "VIP", "permissions": "0", "position": 2},
              {"id": "10", "name": "MODERATOR", "permissions": "0", "position": 3},
              {"id": "11", "name": "BOT", "permissions": str(MANAGE_CHANNELS | MANAGE_ROLES), "position": 10}]
-    channels = [{"id": "20", "name": "━━ DAILY JABBAZI ━━", "type": 4, "permission_overwrites": []},
-                {"id": "21", "name": "vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []},
+    channels = [{"id": "20", "name": "╰➤ 🏆 VIP PICKS", "type": 4, "permission_overwrites": []},
+                {"id": "21", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []},
                 {"id": "22", "name": "open-a-ticket", "type": 0, "parent_id": "20", "permission_overwrites": []},
-                {"id": "23", "name": "tennis", "type": 0, "parent_id": "20", "permission_overwrites": [
+                {"id": "23", "name": "🎾│tennis-chat", "type": 0, "parent_id": "20", "permission_overwrites": [
                     {"id": "7", "type": 0, "allow": str(VIEW), "deny": "0"}]},
-                {"id": "24", "name": "vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []}]
+                {"id": "24", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []}]
     original = copy.deepcopy(channels)
     mutations = []
     def handler(req):

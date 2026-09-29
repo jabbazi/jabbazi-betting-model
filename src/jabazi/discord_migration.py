@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -31,6 +32,11 @@ CHANNEL_ENV = {
     "results": "RESULTS_CHANNEL_ID",
     "support": "SUPPORT_CHANNEL_ID",
 }
+
+
+def channel_name(name):
+    """Match observed legacy emoji/separator prefixes without changing history."""
+    return re.sub(r"^[^a-z0-9]+", "", name.lower())
 
 
 def configured_vip_ids():
@@ -89,7 +95,7 @@ def request(http, method, path, operation, **kwargs):
         if attempt < 2:
             time.sleep(max(0, delay))
     if response.status_code >= 400:
-        raise RuntimeError(f"DISCORD_OPERATION_{operation}_HTTP_{response.status_code}")
+        raise RuntimeError(f"DISCORD_OPERATION_{operation}_HTTP_{response.status_code}_PATH_{path}")
     return response.json() if response.content else None
 
 
@@ -188,9 +194,9 @@ def migrate(*, apply=False, archive_obsolete=False):
                 if configured and existing is None:
                     raise ValueError(f"Configured channel ID missing for {name}; review before migration")
                 if existing is None:
-                    existing = next((c for c in exact if c["name"] == name), None)
+                    existing = next((c for c in exact if channel_name(c["name"]) == name), None)
                 if existing is None:
-                    existing = next((c for c in exact if c["name"] in aliases.get(name, [])), None)
+                    existing = next((c for c in exact if channel_name(c["name"]) in aliases.get(name, [])), None)
                 channel = upsert(existing, {"name": name, "type": 0, "parent_id": parent["id"], "position": order,
                     "permission_overwrites": desired(category["access"], name == "jabbazi-main-card"),
                     "rate_limit_per_user": 5 if name in {"general", "sports-talk"} else 0}, "UPSERT_CHANNEL")
@@ -199,10 +205,10 @@ def migrate(*, apply=False, archive_obsolete=False):
                 targets.append((channel, category["access"]))
         if archive_obsolete:
             # Only managed/known legacy channels; never delete content or unknown integrations.
-            old_parents = {str(c["id"]) for c in channels if c["type"] == 4 and c["name"].startswith("━━")}
+            old_parents = {str(c["id"]) for c in channels if c["type"] == 4 and c["name"].startswith(("━━", "╰➤"))}
             legacy_names = set(bp.get("deprecated_channels", [])) | set(plan["channel_ids"])
             obsolete = [c for c in channels if c["type"] != 4 and str(c["id"]) not in used
-                        and (c["name"] in legacy_names or str(c.get("parent_id")) in old_parents)]
+                        and (channel_name(c["name"]) in legacy_names or str(c.get("parent_id")) in old_parents)]
             if obsolete:
                 archive = next((c for c in channels if c["type"] == 4 and c["name"] == ARCHIVE), None)
                 archive = upsert(archive, {"name": ARCHIVE, "type": 4, "position": 99,

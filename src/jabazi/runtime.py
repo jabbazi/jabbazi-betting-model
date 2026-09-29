@@ -100,7 +100,10 @@ def worker(*, once=False):
                 try:
                     from .discord_reconcile import reconcile
                     result = reconcile()
-                    print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN"), flush=True)
+                    from .discord_migration import CHANNEL_ENV
+                    for name, suffix in CHANNEL_ENV.items():
+                        os.environ["JABBAZI_DISCORD_" + suffix] = result["channel_ids"][name]
+                    print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN") + " BACKUP=" + result.get("backup_id", "") + " CHANNELS=" + str(result["channel_ids"]), flush=True)
                 except Exception:
                     print("DISCORD_RECONCILE_UNAVAILABLE", flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
