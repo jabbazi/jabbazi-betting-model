@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .discord_sheets import latest_sheet, parse_command
+from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .discord_daily import daily_moneyline, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
 from .sheet_images import render_card, page_count
@@ -24,13 +24,13 @@ class BotConfig:
     status_channel: int
     sheets_channel: int
     viewer_roles: frozenset[int]
+    brand_channels: frozenset[int] = frozenset()
+    brand_gif_url: str = ""
     vip_role: int = 0
     main_card_channel: int = 0
     best_two_channel: int = 0
     results_channel: int = 0
     support_channel: int = 0
-    brand_channels: frozenset[int] = frozenset()
-    brand_gif_url: str = ""
 
     @classmethod
     def from_env(cls):
@@ -43,22 +43,30 @@ class BotConfig:
         roles = os.getenv("JABBAZI_DISCORD_VIEWER_ROLE_IDS", "").split(",")
         roles = frozenset(int(r.strip()) for r in roles if r.strip())
         result = cls(
-            required("GUILD_ID"),
-            required("OWNER_ID"),
-            required("STATUS_CHANNEL_ID"),
-            required("SHEETS_CHANNEL_ID"),
-            roles,
-            int(os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "0") or 0),
-            int(os.getenv("JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID", "0") or 0),
-            int(os.getenv("JABBAZI_DISCORD_BEST_TWO_CHANNEL_ID", "0") or 0),
-            int(os.getenv("JABBAZI_DISCORD_RESULTS_CHANNEL_ID", "0") or 0),
-            int(os.getenv("JABBAZI_DISCORD_SUPPORT_CHANNEL_ID", "0") or 0),
-            frozenset(
-                int(c.strip())
-                for c in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
-                if c.strip()
+            guild=required("GUILD_ID"),
+            owner=required("OWNER_ID"),
+            status_channel=required("STATUS_CHANNEL_ID"),
+            sheets_channel=required("SHEETS_CHANNEL_ID"),
+            viewer_roles=roles,
+            brand_channels=frozenset(
+                int(channel.strip())
+                for channel in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
+                if channel.strip()
             ),
-            os.getenv("JABBAZI_DISCORD_BRAND_GIF_URL", ""),
+            brand_gif_url=os.getenv("JABBAZI_DISCORD_BRAND_GIF_URL", ""),
+            vip_role=int(os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "0") or 0),
+            main_card_channel=int(
+                os.getenv("JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID", "0") or 0
+            ),
+            best_two_channel=int(
+                os.getenv("JABBAZI_DISCORD_BEST_TWO_CHANNEL_ID", "0") or 0
+            ),
+            results_channel=int(
+                os.getenv("JABBAZI_DISCORD_RESULTS_CHANNEL_ID", "0") or 0
+            ),
+            support_channel=int(
+                os.getenv("JABBAZI_DISCORD_SUPPORT_CHANNEL_ID", "0") or 0
+            ),
         )
         if result.status_channel == result.sheets_channel:
             raise ValueError("Use separate status and sheet channels")
@@ -549,6 +557,27 @@ def build_client(config, store):
             await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
 
         async def publish_once(self):
+            """Legacy research-sheet publisher retained for explicit/manual use only."""
+            record = await asyncio.to_thread(latest_sheet, store)
+            if record is None:
+                return
+            channel = await self.checked_channel(config.sheets_channel)
+            key = digest(["discord_sheet", config.guild, channel.id, record["id"], "legacy-v2"])
+            claim = {"sheet_id": record["id"], "channel": str(channel.id)}
+            if not await asyncio.to_thread(
+                store.append, "sheet_delivery_claim", key, claim, key
+            ):
+                return
+            try:
+                message = await self.send_sheets(channel, record, tuple(SPORTS))
+                result = {"status": "delivered", "message_id": str(message.id)}
+            except Exception:
+                result = {"status": "needs_review"}
+            await asyncio.to_thread(
+                store.append, "sheet_delivery_result", key, result, digest([key, "result"])
+            )
+
+        async def publish_daily_once(self):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
                 return
@@ -584,7 +613,7 @@ def build_client(config, store):
             await self.wait_until_ready()
             while not self.is_closed():
                 try:
-                    await self.publish_once()
+                    await self.publish_daily_once()
                     await self.publish_status_once()
                     await self.publish_best_two_once()
                     await self.publish_official_picks_once()
