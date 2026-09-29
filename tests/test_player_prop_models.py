@@ -357,7 +357,7 @@ def test_live_nfl_history_uses_previous_and_current_season(monkeypatch):
     assert len({row["_source_checksum"] for row in rows}) == 1
 
 
-def test_nflverse_injury_report_can_verify_injury_status_but_not_game_day_availability(monkeypatch):
+def test_espn_injury_report_can_verify_clear_current_status(monkeypatch):
     from jabazi.providers.player_features_live import LivePlayerFeatureCollector
 
     now = datetime(2026, 9, 28, 18, tzinfo=UTC)
@@ -375,18 +375,13 @@ def test_nflverse_injury_report_can_verify_injury_status_but_not_game_day_availa
         },
     )
     monkeypatch.setattr(
-        collector,
-        "_nfl_injuries",
-        lambda: [{
-            "season": "2026",
-            "team": "PHI",
-            "week": "3",
-            "gsis_id": "00-TEST",
-            "full_name": "Test Player",
-            "report_status": "",
-            "date_modified": (now - timedelta(hours=4)).isoformat(),
-            "_source_checksum": "injury-checksum",
-        }],
+        "jabazi.providers.player_features_live._fetch_json",
+        lambda url, timeout=20, headers=None: {
+            "injuries": [{
+                "team": {"abbreviation": "PHI"},
+                "injuries": [],
+            }]
+        },
     )
     card = SimpleNamespace(
         event="Philadelphia Eagles @ Chicago Bears",
