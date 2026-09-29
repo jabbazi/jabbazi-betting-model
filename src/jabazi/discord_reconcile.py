@@ -5,4 +5,5 @@ from .discord_migration import migrate
 
 def reconcile():
     result = migrate(apply=True, archive_obsolete=True)
-    return {"status": "RECONCILED", **result}
+    incomplete = any(w.startswith("DISCORD_OPERATION_") for w in result["warnings"])
+    return {"status": "ARCHIVE_INCOMPLETE" if incomplete else "RECONCILED", **result}
