@@ -294,3 +294,24 @@ def test_adversarial_review_requires_sourced_pregame_evidence():
         assert review["cash_influence"] is False
     finally:
         store.close()
+
+
+def test_portfolio_correlation_key_can_bind_before_new_exposure():
+    from jabazi.domain.portfolio import Position, Limits, allocate
+
+    limits = Limits(Decimal("3000"), correlation=Decimal(".04"))
+    existing = Position(
+        Decimal("120"), "americanfootball_nfl", "g1",
+        theses=frozenset({"favorite_side"}), betting_date="2026-09-29",
+        correlation_keys=frozenset({"event:g1"}),
+    )
+    proposal = Position(
+        Decimal("0"), "americanfootball_nfl", "g1",
+        theses=frozenset({"favorite_side"}), betting_date="2026-09-29",
+        correlation_keys=frozenset({"event:g1"}),
+    )
+    result = allocate(
+        Decimal(".60"), Decimal("2.0"), proposal, [existing], limits
+    )
+    assert result.dollars == 0
+    assert "correlation:event:g1" in result.reasons
