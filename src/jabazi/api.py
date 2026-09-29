@@ -160,7 +160,9 @@ def discord_entitlement(
     store = platform_store()
     try:
         record_id = set_entitlement(store, **body.model_dump())
-        return {"status": "RECORDED", "id": record_id}
+        from .discord_roles import sync_member_role
+        role_sync = sync_member_role(store, body.member_id)
+        return {"status": "RECORDED", "id": record_id, "role_sync": role_sync}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Invalid entitlement evidence") from exc
     finally:
