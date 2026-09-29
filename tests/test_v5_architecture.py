@@ -174,3 +174,51 @@ def test_exact_clv_requires_matching_entry_and_close_snapshots():
         assert result["clv_probability_points"] == pytest.approx(0.05)
     finally:
         store.close()
+
+
+def test_opportunity_model_trains_chronologically_and_stays_validating():
+    from jabazi.models.train_opportunity import fit_opportunity_model, estimate_opportunity
+
+    rows = []
+    starts = [
+        "2023-01-10T00:00:00+00:00", "2023-02-10T00:00:00+00:00",
+        "2023-03-10T00:00:00+00:00", "2024-02-10T00:00:00+00:00",
+        "2024-03-10T00:00:00+00:00", "2024-04-10T00:00:00+00:00",
+        "2025-02-10T00:00:00+00:00", "2025-03-10T00:00:00+00:00",
+        "2025-04-10T00:00:00+00:00",
+    ]
+    for i, start in enumerate(starts):
+        dt = datetime.fromisoformat(start)
+        rows.append({
+            "event_id": f"e{i}",
+            "player_id": "p1",
+            "prediction_at": (dt - timedelta(hours=6)).isoformat(),
+            "features_available_at": (dt - timedelta(days=2)).isoformat(),
+            "starts_at": dt.isoformat(),
+            "result_available_at": (dt + timedelta(days=1)).isoformat(),
+            "features": {"mean5_minutes": 28.0 + i, "is_home": float(i % 2)},
+            "observed_opportunity": 29.0 + i,
+            "opportunity_unit": "minutes",
+        })
+    doc = {
+        "manifest": {
+            "sport": "basketball_nba",
+            "provider": "TEST",
+            "source_checksum": "abc",
+        },
+        "rows": rows,
+    }
+    artifact = fit_opportunity_model(
+        doc,
+        train_before="2024-01-01T00:00:00+00:00",
+        test_before="2025-01-01T00:00:00+00:00",
+        minimum_per_split=2,
+    )
+    assert artifact["stage"] == "VALIDATING"
+    assert artifact["approved_for_betting"] is False
+    estimate = estimate_opportunity(
+        artifact, {"mean5_minutes": 35.0, "is_home": 1.0}
+    )
+    assert estimate.unit == "minutes"
+    assert estimate.low <= estimate.mean <= estimate.high
+    assert estimate.approved_for_betting is False
