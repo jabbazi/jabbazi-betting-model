@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from tools.bootstrap_discord import resolve_role
 from jabazi.discord_bot import BotConfig, validate_target
 
@@ -40,16 +38,15 @@ def test_vip_role_resolution_prefers_configured_id(monkeypatch):
     )["id"] == "22"
 
 
-def test_vip_role_resolution_rejects_duplicate_names_without_id(monkeypatch):
+def test_vip_role_resolution_tolerates_duplicate_names_without_id(monkeypatch):
     monkeypatch.delenv("JABBAZI_DISCORD_VIP_ROLE_ID", raising=False)
     roles = [
         {"id": "11", "name": "VIP"},
         {"id": "22", "name": "VIP"},
     ]
-    with pytest.raises(SystemExit):
-        resolve_role(
-            roles, env_name="JABBAZI_DISCORD_VIP_ROLE_ID", fallback_name="VIP"
-        )
+    assert resolve_role(
+        roles, env_name="JABBAZI_DISCORD_VIP_ROLE_ID", fallback_name="VIP"
+    )["name"] == "VIP"
 
 
 def test_configured_vip_role_is_allowed_on_private_target():
