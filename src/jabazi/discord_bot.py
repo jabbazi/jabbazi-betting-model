@@ -390,7 +390,7 @@ def build_client(config, store):
             payload = best_two_embed(candidate)
             if payload is None:
                 return
-            key = digest(["discord_best_two", config.guild, scan_id, candidate])
+            key = digest(["discord_best_two", config.guild, candidate])
             if not await asyncio.to_thread(
                 store.append, "discord_best_two_claim", str(config.best_two_channel), {}, key
             ):
@@ -411,7 +411,13 @@ def build_client(config, store):
                 payload = official_pick_embed(row["payload"])
                 if payload is None:
                     continue
-                key = digest(["discord_official_pick", config.guild, row["id"]])
+                price = row["payload"].get("price") or {}
+                key = digest([
+                    "discord_official_pick", config.guild,
+                    price.get("event_id"), price.get("market"), price.get("participant"),
+                    price.get("selection"), price.get("line"),
+                    row["payload"].get("model_version"),
+                ])
                 if not await asyncio.to_thread(
                     store.append, "discord_official_pick_claim", str(channel.id), {}, key
                 ):
