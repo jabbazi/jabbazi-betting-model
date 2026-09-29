@@ -439,9 +439,23 @@ class AutomaticScanner:
                 source_rows = ledger.list_records("source_pick", 500)
                 action_rows = []
                 for action in actions:
-                    row = action.as_dict()
-                    row["reliability"] = action.reliability or {}
-                    action_rows.append(row)
+                    price = action.price
+                    rel = action.reliability or {}
+                    action_rows.append({
+                        "event_id": price.event_id,
+                        "sport": price.sport,
+                        "event": price.event,
+                        "market": price.market,
+                        "participant": price.participant,
+                        "selection": price.selection,
+                        "line": price.line,
+                        "model_probability": action.model_probability,
+                        "market_no_vig_probability": price.consensus_probability,
+                        "uncertainty": action.uncertainty,
+                        "uncertainty_low": rel.get("uncertainty_low"),
+                        "uncertainty_high": rel.get("uncertainty_high"),
+                        "reliability": rel,
+                    })
                 candidate = build_best_two(action_rows, source_rows)
                 best_two = {
                     "status": candidate.status,
