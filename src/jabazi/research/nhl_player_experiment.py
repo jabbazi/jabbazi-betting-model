@@ -220,6 +220,8 @@ def build_dataset(
                 "result_status": "final",
                 "observed_value": current["observed_value"],
                 "expected_opportunities": _mean(opportunities, 5),
+                "observed_opportunity": current["opportunity"],
+                "opportunity_unit": "shots_faced" if kind == "goalie" else "time_on_ice",
                 "features": features,
                 "market_line": None,
                 "market_side": None,
