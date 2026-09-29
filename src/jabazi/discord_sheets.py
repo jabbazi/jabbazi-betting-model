@@ -76,7 +76,11 @@ def archive_sheets(store, result, *, now=None):
                         action.expected_roi,
                         "DATA_UNHEALTHY"
                         if result.errors
-                        else str(action.decision.value).replace("_", " "),
+                        else (
+                            str(action.decision.value).replace("_", " ")
+                            if getattr(action, "decision", None) is not None
+                            else "RESEARCH / NOT AN OFFICIAL PICK"
+                        ),
                         action.reason,
                     ),
                     strict=True,
@@ -89,7 +93,7 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["executable"] = c.executable
         rows[-1]["price_stale"] = c.stale
         rows[-1]["in_play"] = c.in_play
-        reliability = action.reliability or {}
+        reliability = getattr(action, "reliability", None) or {}
         health_value = (reliability.get("research_priority_components") or {}).get(
             "data_health"
         )
