@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .discord_sheets import SPORTS, latest_sheet, parse_command
+from .discord_daily import daily_moneyline, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
 from .sheet_images import render_card, page_count, SHEET_FORMAT_VERSION
 
@@ -140,6 +141,46 @@ def build_client(config, store):
                 print("DISCORD_AVATAR_UNAVAILABLE", flush=True)
 
         async def setup_hook(self):
+            self.tree = discord.app_commands.CommandTree(self)
+
+            @self.tree.command(name="cheatsheet", description="Show today's frozen 9 AM JABBAZI moneyline sheet")
+            async def cheatsheet(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild:
+                    return await interaction.response.send_message(
+                        "This command is only available in the JABBAZI server.", ephemeral=True
+                    )
+                record = await asyncio.to_thread(daily_moneyline, store)
+                await interaction.response.send_message(
+                    render_daily_moneyline(record),
+                    ephemeral=False,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+
+            @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
+            async def vip(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild:
+                    return await interaction.response.send_message(
+                        "This command is only available in the JABBAZI server.", ephemeral=True
+                    )
+                member = interaction.user
+                role_ids = {role.id for role in getattr(member, "roles", [])}
+                allowed = member.id == config.owner or bool(role_ids & config.viewer_roles)
+                if not allowed:
+                    return await interaction.response.send_message(
+                        "VIP access is not active on your account. Use #upgrade-to-vip or contact support.",
+                        ephemeral=True,
+                    )
+                from .member_access import issue_ticket, portal_origin
+                ticket = await asyncio.to_thread(
+                    issue_ticket, store, guild=config.guild, member=member.id, authorized=True
+                )
+                link = portal_origin() + "/vip#access=" + ticket
+                await interaction.response.send_message(
+                    f"Your private JABBAZI member link (expires quickly): {link}",
+                    ephemeral=True,
+                )
+
+            await self.tree.sync(guild=discord.Object(id=config.guild))
             self.publisher = asyncio.create_task(self.publish_loop())
 
         async def checked_channel(self, channel_id):
@@ -304,25 +345,35 @@ def build_client(config, store):
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)
 
         async def publish_once(self):
-            record = await asyncio.to_thread(latest_sheet, store)
+            record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
                 return
             channel = await self.checked_channel(config.sheets_channel)
-            key = digest(
-                ["discord_sheet", config.guild, channel.id, record["id"], SHEET_FORMAT_VERSION]
-            )
+            key = digest(["discord_daily_moneyline", config.guild, channel.id, record["id"]])
             claim = {"sheet_id": record["id"], "channel": str(channel.id)}
-            if not await asyncio.to_thread(store.append, "sheet_delivery_claim", key, claim, key):
+            if not await asyncio.to_thread(
+                store.append, "daily_sheet_delivery_claim", key, claim, key
+            ):
                 return
-            # Claim before sending: ambiguous network failures require manual review,
-            # never automatic duplicate publications.
             try:
-                message = await self.send_sheets(channel, record, tuple(SPORTS))
-                result = {"status": "delivered", "message_id": str(message.id)}
+                text = render_daily_moneyline(record)
+                messages = []
+                while text:
+                    split = min(len(text), 1900)
+                    if split < len(text):
+                        newline = text.rfind("\n", 0, split)
+                        if newline > 500:
+                            split = newline
+                    part, text = text[:split], text[split:].lstrip()
+                    message = await channel.send(
+                        part, allowed_mentions=discord.AllowedMentions.none()
+                    )
+                    messages.append(str(message.id))
+                result = {"status": "delivered", "message_ids": messages}
             except Exception:  # noqa: BLE001 -- uncertain delivery must be audited, not retried
                 result = {"status": "needs_review"}
             await asyncio.to_thread(
-                store.append, "sheet_delivery_result", key, result, digest([key, "result"])
+                store.append, "daily_sheet_delivery_result", key, result, digest([key, "result"])
             )
 
         async def publish_loop(self):
