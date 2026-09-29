@@ -58,7 +58,9 @@ def clv(entry, close):
     identity = ("sport", "event_id", "market", "selection", "participant", "line")
     if any(entry.get(k) != close.get(k) for k in identity):
         raise ValueError("CLV identity mismatch")
-    if entry["observed_at"] >= close["observed_at"]:
+    entry_at = datetime.fromisoformat(str(entry["observed_at"]).replace("Z", "+00:00"))
+    close_at = datetime.fromisoformat(str(close["observed_at"]).replace("Z", "+00:00"))
+    if entry_at.tzinfo is None or close_at.tzinfo is None or entry_at >= close_at:
         raise ValueError("Closing snapshot must follow entry snapshot")
     ep = float(entry["consensus_no_vig_probability"])
     cp = float(close["consensus_no_vig_probability"])
@@ -75,10 +77,7 @@ def clv(entry, close):
         "clv_decimal": ed - cd,
         "entry_decimal": ed,
         "closing_decimal": cd,
-        "minutes_between": (
-            datetime.fromisoformat(close["observed_at"])
-            - datetime.fromisoformat(entry["observed_at"])
-        ).total_seconds() / 60,
+        "minutes_between": (close_at - entry_at).total_seconds() / 60,
     }
 
 
