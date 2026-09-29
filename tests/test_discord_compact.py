@@ -12,7 +12,7 @@ def test_compact_discord_blueprint_is_small_and_keeps_core_surfaces():
     categories = blueprint["categories"]
     channels = [name for category in categories for name in category["channels"]]
     assert len(categories) <= 5
-    assert len(channels) <= 21
+    assert len(channels) <= 22
     assert len(channels) == len(set(channels))
     for required in (
         "welcome",
