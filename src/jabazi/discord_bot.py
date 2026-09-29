@@ -167,6 +167,13 @@ def build_client(config, store):
 
     class ResearchClient(discord.Client):
         async def on_ready(self):
+            desired_name = os.getenv("JABBAZI_DISCORD_BOT_NAME", "JABBAZI GURU").strip()
+            if desired_name and self.user and self.user.name != desired_name:
+                try:
+                    await self.user.edit(username=desired_name)
+                    print("DISCORD_BOT_NAME_UPDATED", flush=True)
+                except discord.HTTPException:
+                    print("DISCORD_BOT_NAME_UPDATE_UNAVAILABLE", flush=True)
             if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":
                 try:
                     done = await asyncio.to_thread(
