@@ -48,8 +48,8 @@ def configured_vip_ids():
 
 def overwrites(access, *, guild, owner, bot, vip, staff, read_only=False):
     rows = [{"id": str(guild), "type": 0,
-             "allow": str(VIEW | READ | SEND | THREAD_SEND) if access == "public" else "0",
-             "deny": "0" if access == "public" else str(VIEW)}]
+             "allow": str(VIEW | READ | (0 if read_only else SEND | THREAD_SEND)) if access == "public" else "0",
+             "deny": str(SEND | THREAD_SEND) if access == "public" and read_only else "0" if access == "public" else str(VIEW)}]
     for role in (set(vip) if access == "vip" else set()) | set(staff):
         rows.append({"id": str(role), "type": 0, "allow": str(VIEW | READ | THREAD_SEND | (0 if read_only else SEND)),
                      "deny": str(SEND) if read_only else "0"})
@@ -163,8 +163,15 @@ def migrate(*, apply=False, archive_obsolete=False):
             finally:
                 store.close()
 
-        def desired(access, read_only=False):
-            return overwrites(access, guild=guild, owner=owner, bot=bot, vip=vip, staff=staff, read_only=read_only)
+        def desired(access, read_only=False, archive=False):
+            rows = overwrites(access, guild=guild, owner=owner, bot=bot, vip=vip, staff=staff, read_only=read_only)
+            if archive:
+                # Historical archives need visibility/history only. Do not try
+                # to grant posting/thread bits denied to the bot in old read-only
+                # channels; Discord rejects such overwrite mutations with 403.
+                for row in rows:
+                    row["allow"] = str(int(row["allow"]) & (VIEW | READ))
+            return rows
 
         def upsert(existing, payload, operation):
             if existing and all(existing.get(k) == v for k, v in payload.items()):
@@ -209,13 +216,22 @@ def migrate(*, apply=False, archive_obsolete=False):
                 if existing is None:
                     existing = next((c for c in exact if channel_name(c["name"]) in aliases.get(name, [])), None)
                 channel = upsert(existing, {"name": name, "type": 0, "parent_id": parent["id"], "position": order,
-                    "permission_overwrites": desired(category["access"], name == "jabbazi-main-card"),
+                    "permission_overwrites": desired(category["access"], name in {"jabbazi-main-card", "welcome", "how-to-use-jabbazi", "vip-access", "alerts-and-support", "results"}),
                     "topic": bp.get("channel_topics", {}).get(name, ""),
                     "rate_limit_per_user": 5 if name in {"general", "sports-talk"} else 0}, "UPSERT_CHANNEL")
                 used.add(str(channel["id"]))
                 plan["channel_ids"][name] = str(channel["id"])
                 targets.append((channel, category["access"]))
         if archive_obsolete:
+            def preserve_hidden(channel):
+                if effective_permissions(guild, bot, membership["roles"], roles, channel, owner) & VIEW:
+                    return False
+                ordinary_visible = effective_permissions(guild, "free-simulation", [], roles, channel, owner) & VIEW
+                vip_visible = any(effective_permissions(guild, "vip-simulation", [role], roles, channel, owner) & VIEW for role in vip)
+                if ordinary_visible or vip_visible:
+                    return False
+                plan["warnings"].append("PRESERVED_ALREADY_HIDDEN_LEGACY: " + str(channel["id"]))
+                return True
             # Only managed/known legacy channels; never delete content or unknown integrations.
             old_parents = {str(c["id"]) for c in channels if c["type"] == 4 and c["name"].startswith(("━━", "╰➤"))}
             legacy_names = set(bp.get("deprecated_channels", [])) | set(plan["channel_ids"])
@@ -225,13 +241,17 @@ def migrate(*, apply=False, archive_obsolete=False):
             if obsolete:
                 archive = next((c for c in channels if c["type"] == 4 and c["name"] == ARCHIVE), None)
                 archive = upsert(archive, {"name": ARCHIVE, "type": 4, "position": 99,
-                                          "permission_overwrites": desired("staff")}, "UPSERT_ARCHIVE")
+                                          "permission_overwrites": desired("staff", archive=True)}, "UPSERT_ARCHIVE")
                 for channel in obsolete:
-                    archived = upsert(channel, {"parent_id": archive["id"], "permission_overwrites": desired("staff")}, "ARCHIVE_CHANNEL")
+                    if preserve_hidden(channel):
+                        continue
+                    archived = upsert(channel, {"parent_id": archive["id"], "permission_overwrites": desired("staff", archive=True)}, "ARCHIVE_CHANNEL")
                     targets.append((archived, "staff"))
             for category in channels:
                 if category["type"] == 4 and str(category["id"]) not in used and str(category["id"]) in old_parents:
-                    hidden = upsert(category, {"permission_overwrites": desired("staff")}, "HIDE_OLD_CATEGORY")
+                    if preserve_hidden(category):
+                        continue
+                    hidden = upsert(category, {"permission_overwrites": desired("staff", archive=True)}, "HIDE_OLD_CATEGORY")
                     targets.append((hidden, "staff"))
         # Create only missing opt-in alerts; no duplicate VIP-family roles.
         for spec in bp["roles"]:
