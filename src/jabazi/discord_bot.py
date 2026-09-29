@@ -25,6 +25,9 @@ class BotConfig:
     sheets_channel: int
     viewer_roles: frozenset[int]
     vip_role: int = 0
+    main_card_channel: int = 0
+    best_two_channel: int = 0
+    results_channel: int = 0
     brand_channels: frozenset[int] = frozenset()
     brand_gif_url: str = ""
 
@@ -45,6 +48,9 @@ class BotConfig:
             required("SHEETS_CHANNEL_ID"),
             roles,
             int(os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "0") or 0),
+            int(os.getenv("JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID", "0") or 0),
+            int(os.getenv("JABBAZI_DISCORD_BEST_TWO_CHANNEL_ID", "0") or 0),
+            int(os.getenv("JABBAZI_DISCORD_RESULTS_CHANNEL_ID", "0") or 0),
             frozenset(
                 int(c.strip())
                 for c in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
@@ -81,8 +87,12 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     """Fail closed on wrong guild, public target, or unreviewed explicit grants."""
     if int(document.get("guild_id", 0)) != config.guild or document.get("type") != 0:
         raise ValueError("Research target must be a text channel in the configured guild")
-    if int(document["id"]) not in (config.status_channel, config.sheets_channel):
-        raise ValueError("Target is not an approved research channel")
+    approved = {
+        config.status_channel, config.sheets_channel, config.main_card_channel,
+        config.best_two_channel, config.results_channel,
+    } - {0}
+    if int(document["id"]) not in approved:
+        raise ValueError("Target is not an approved JABBAZI channel")
     view = 1 << 10
     entries = document.get("permission_overwrites", [])
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
@@ -346,6 +356,71 @@ def build_client(config, store):
             except Exception:  # noqa: BLE001 -- do not expose credentials through SDK errors
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)
 
+        async def publish_status_once(self):
+            channel = await self.checked_channel(config.status_channel)
+            text = await asyncio.to_thread(__import__(
+                "jabazi.discord_sheets", fromlist=["scanner_status"]
+            ).scanner_status, store)
+            key = digest(["discord_status", config.guild, text])
+            if not await asyncio.to_thread(
+                store.append, "discord_status_claim", str(channel.id), {"text": text}, key
+            ):
+                return
+            from .discord_content import scanner_status_embed
+            await channel.send(
+                embed=discord.Embed.from_dict(scanner_status_embed(text)),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+
+        async def publish_best_two_once(self):
+            if not config.best_two_channel:
+                return
+            scans = await asyncio.to_thread(store.list_records, "scan_run", 5)
+            candidate = None
+            scan_id = None
+            for row in scans:
+                value = row["payload"].get("best_two_sheet_candidate")
+                if value and value.get("legs"):
+                    candidate = value
+                    scan_id = row["id"]
+                    break
+            if candidate is None:
+                return
+            from .discord_content import best_two_embed
+            payload = best_two_embed(candidate)
+            if payload is None:
+                return
+            key = digest(["discord_best_two", config.guild, scan_id, candidate])
+            if not await asyncio.to_thread(
+                store.append, "discord_best_two_claim", str(config.best_two_channel), {}, key
+            ):
+                return
+            channel = await self.checked_channel(config.best_two_channel)
+            await channel.send(
+                embed=discord.Embed.from_dict(payload),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+
+        async def publish_official_picks_once(self):
+            if not config.main_card_channel:
+                return
+            from .discord_content import official_pick_embed
+            rows = await asyncio.to_thread(store.list_records, "candidate", 100)
+            channel = await self.checked_channel(config.main_card_channel)
+            for row in reversed(rows):
+                payload = official_pick_embed(row["payload"])
+                if payload is None:
+                    continue
+                key = digest(["discord_official_pick", config.guild, row["id"]])
+                if not await asyncio.to_thread(
+                    store.append, "discord_official_pick_claim", str(channel.id), {}, key
+                ):
+                    continue
+                await channel.send(
+                    embed=discord.Embed.from_dict(payload),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+
         async def publish_once(self):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
@@ -383,8 +458,11 @@ def build_client(config, store):
             while not self.is_closed():
                 try:
                     await self.publish_once()
+                    await self.publish_status_once()
+                    await self.publish_best_two_once()
+                    await self.publish_official_picks_once()
                 except Exception:  # noqa: BLE001 -- isolate delivery from scanner, redact errors
-                    print("DISCORD_SHEET_UNAVAILABLE", flush=True)
+                    print("DISCORD_PUBLISH_UNAVAILABLE", flush=True)
                 await asyncio.sleep(60)
 
         async def close(self):
