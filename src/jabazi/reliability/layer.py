@@ -227,6 +227,12 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
         )
     )
     from .v5 import kill_switch
+    from .regime import opportunity_proxy
+    regime = opportunity_proxy(snapshot.get("features") or {}) if estimate else {
+        "detected": False,
+        "reason": "NO_MODEL_FEATURES",
+        "uncertainty_multiplier": 1.0,
+    }
     prospective_record = {}
     if model is not None and prospective:
         for row in prospective.get("buckets", []):
@@ -244,7 +250,7 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
         brier_delta = float(model_metrics["brier"]) - float(market_metrics["brier"])
     v5_guard = kill_switch(
         data_health=bool(audit["eligible"] and fresh),
-        drift=bool(health.get("feature_drift")),
+        drift=bool(health.get("feature_drift") or regime.get("detected")),
         calibration_ece=_ece_from_table(prospective_record.get("calibration"))
         if prospective_record
         else None,
@@ -324,4 +330,12 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
         if prospective_record
         else None,
         v5_sample_count=int(model_metrics.get("n", 0) or 0),
+        v5_regime=regime,
+        v5_edge_explanation=(
+            __import__("jabazi.models.explain", fromlist=["explanation"]).explanation(
+                getattr(model, "artifact", {}), snapshot.get("features") or {}
+            )
+            if estimate and model is not None
+            else None
+        ),
     )
