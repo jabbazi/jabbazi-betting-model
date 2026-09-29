@@ -65,7 +65,7 @@ def main():
             if access=="public":
                 everyone={"id":guild,"type":0,"allow":str(VIEW|READ_HISTORY),"deny":"0"}
                 return [everyone]
-            allowed=["VIP","FOUNDING VIP","TRIAL VIP"]
+            allowed=["VIP","JABBAZI VIP","FOUNDING VIP","TRIAL VIP"]
             if access=="staff":
                 allowed=["JABBAZI TEAM","MODERATOR"]
             rows=[everyone,{"id":owner,"type":1,"allow":str(VIEW|SEND|READ_HISTORY),"deny":"0"}]
