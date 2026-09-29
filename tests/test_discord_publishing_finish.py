@@ -62,3 +62,20 @@ def test_alert_delivery_cannot_ping_everyone_users_or_privileged_roles():
     assert result["content"] == "<@&10>"
     assert result["allowed_mentions"].to_dict() == {"roles": [10], "parse": []}
     db.close()
+
+
+def test_status_reads_scan_health_without_deserializing_full_slates():
+    from jabazi.persistence.store import Store
+    from jabazi.discord_sheets import scanner_status
+    from sqlalchemy import event
+    store = Store("sqlite:///:memory:", initialize=True)
+    store.append("research_sheet", "latest_scan", {"healthy": True, "completed_at": "2026-09-29T20:00:00+00:00", "rows": [{"large": "x" * 10000}]})
+    statements = []
+    event.listen(store.engine, "before_cursor_execute", lambda conn, cursor, statement, parameters, context, many: statements.append(statement))
+    result = scanner_status(store)
+    assert "Last healthy scan (UTC): 2026-09-29T20:00:00+00:00" in result
+    assert "Latest provider scan: HEALTHY" in result
+    health_queries = [sql for sql in statements if "JSON_EXTRACT" in sql]
+    assert len(health_queries) == 1
+    assert "SELECT platform_events.payload," not in health_queries[0]
+    store.close()

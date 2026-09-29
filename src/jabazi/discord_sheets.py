@@ -201,10 +201,19 @@ def scanner_status(store, *, now=None):
         stage = artifact.get("stage") or artifact.get("status") or "UNAVAILABLE"
         pstage = player_status(players, sport)["status"]
         lines.append(f"{label}: {stage} • Players: {pstage}")
-    sheets = store.list_records("research_sheet", 100, entity="latest_scan")
-    healthy = next((r["payload"].get("completed_at") for r in sheets if r["payload"].get("healthy")), None)
+    # Project two scalar fields in SQL. Loading 100 complete slates here can
+    # exhaust the small production worker while merely rendering a status panel.
+    from sqlalchemy import select
+    from .persistence.store import events
+    with store.engine.connect() as conn:
+        sheets = conn.execute(select(
+            events.c.payload["healthy"].as_boolean().label("healthy"),
+            events.c.payload["completed_at"].as_string().label("completed_at"),
+        ).where(events.c.kind == "research_sheet", events.c.entity == "latest_scan")
+          .order_by(events.c.occurred_at.desc(), events.c.id).limit(100)).mappings().all()
+    healthy = next((r["completed_at"] for r in sheets if r["healthy"]), None)
     lines.append(f"Last healthy scan (UTC): {healthy or 'UNAVAILABLE'}")
-    provider = "UNAVAILABLE" if not sheets else "HEALTHY" if sheets[0]["payload"].get("healthy") else "UNHEALTHY"
+    provider = "UNAVAILABLE" if not sheets else "HEALTHY" if sheets[0]["healthy"] else "UNHEALTHY"
     lines.append(f"Latest provider scan: {provider} • Model load failures: {len(errors) + len(player_errors)}")
     lines.append("Artifact states are research status, not blanket betting approval. /vip opens the member app.")
     return "\n".join(lines)
