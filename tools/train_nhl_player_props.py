@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 
 from jabazi.models.train_player_props import fit_prop_model
+from jabazi.models.train_opportunity import fit_opportunity_model
 from jabazi.providers.nhl import rows as schedule_rows
 from jabazi.research.nhl_player_experiment import INITIAL_MARKETS, build_dataset
 from jabazi.research.prop_data import inspect_prop_dataset
@@ -82,8 +83,10 @@ def run(schedule_dir, stats_dir, output, rights_reference):
         "train_before": TRAIN_BEFORE,
         "test_before": TEST_BEFORE,
         "markets": {},
+        "opportunity_models": {},
         "approved_for_betting": False,
     }
+    documents = {}
     for market in sorted(INITIAL_MARKETS):
         document = build_dataset(
             games=games,
@@ -93,6 +96,7 @@ def run(schedule_dir, stats_dir, output, rights_reference):
             source_checksum=source_checksum,
             research_rights_reference=rights_reference,
         )
+        documents[market] = document
         inspection = inspect_prop_dataset(
             document,
             train_before=TRAIN_BEFORE,
@@ -121,6 +125,25 @@ def run(schedule_dir, stats_dir, output, rights_reference):
                 "validation": artifact["validation"],
             }
         report["markets"][market] = market_report
+
+    for label, market in (
+        ("time_on_ice", "player_points"),
+        ("shots_faced", "player_total_saves"),
+    ):
+        artifact = fit_opportunity_model(
+            documents[market],
+            train_before=TRAIN_BEFORE,
+            test_before=TEST_BEFORE,
+            minimum_per_split=100,
+        )
+        (output / f"opportunity_{label}.json").write_text(
+            json.dumps(artifact, indent=2) + "\n"
+        )
+        report["opportunity_models"][label] = {
+            "model_version": artifact["model_version"],
+            "stage": artifact["stage"],
+            "validation": artifact["validation"],
+        }
 
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))

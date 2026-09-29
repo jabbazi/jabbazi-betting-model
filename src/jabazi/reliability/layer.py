@@ -226,6 +226,49 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
             critical_news_clear=bool(health.get("injuries")),
         )
     )
+    from .v5 import kill_switch
+    from .regime import opportunity_proxy
+    regime = opportunity_proxy(snapshot.get("features") or {}) if estimate else {
+        "detected": False,
+        "reason": "NO_MODEL_FEATURES",
+        "uncertainty_multiplier": 1.0,
+    }
+    prospective_record = {}
+    if model is not None and prospective:
+        for row in prospective.get("buckets", []):
+            if (
+                row.get("sport") == card.sport
+                and row.get("bucket") == market_bucket(card.market)
+                and row.get("model_version") == getattr(model, "artifact", {}).get("model_version")
+            ):
+                prospective_record = row
+                break
+    model_metrics = prospective_record.get("model", {}) if prospective_record else {}
+    market_metrics = prospective_record.get("market", {}) if prospective_record else {}
+    brier_delta = None
+    if model_metrics.get("brier") is not None and market_metrics.get("brier") is not None:
+        brier_delta = float(model_metrics["brier"]) - float(market_metrics["brier"])
+    v5_guard = (
+        kill_switch(
+            data_health=bool(audit["eligible"] and fresh),
+            drift=bool(health.get("feature_drift") or regime.get("detected")),
+            calibration_ece=_ece_from_table(prospective_record.get("calibration"))
+            if prospective_record
+            else None,
+            recent_brier_delta=brier_delta,
+            identity_failures=int(prospective_record.get("identity_failures", 0) or 0)
+            if prospective_record
+            else int(not bool(health.get("event_identity"))),
+            provider_failures=0,
+            sample_count=int(model_metrics.get("n", 0) or 0),
+        )
+        if estimate
+        else {
+            "state": "UNAVAILABLE",
+            "reasons": ["NO_INDEPENDENT_MODEL_PROBABILITY"],
+            "cash_influence": False,
+        }
+    )
     components = {
         "absolute_model_market_gap": abs(p - market) if p is not None else 0,
         "price_freshness": int(fresh),
@@ -287,4 +330,20 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
             "feature_snapshot_id": snapshot.get("snapshot_id"),
         },
         game_distribution=snapshot.get("game_distribution"),
+        v5_state=v5_guard["state"],
+        v5_reasons=v5_guard["reasons"],
+        v5_cash_influence=False,
+        v5_brier_delta=brier_delta,
+        v5_calibration_ece=_ece_from_table(prospective_record.get("calibration"))
+        if prospective_record
+        else None,
+        v5_sample_count=int(model_metrics.get("n", 0) or 0),
+        v5_regime=regime,
+        v5_edge_explanation=(
+            __import__("jabazi.models.explain", fromlist=["explanation"]).explanation(
+                getattr(model, "artifact", {}), snapshot.get("features") or {}
+            )
+            if estimate and model is not None
+            else None
+        ),
     )

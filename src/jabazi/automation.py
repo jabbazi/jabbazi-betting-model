@@ -144,6 +144,7 @@ class AutomaticScanner:
         all_cards = []
         new_actions = []
         errors = []
+        v5_errors = []
         quote_count = 0
         scanned = 0
         remaining = None
@@ -232,6 +233,14 @@ class AutomaticScanner:
                     if feature_cards:
                         player_features.sync(ledger, feature_cards)
                 for card in cards:
+                    if isinstance(ledger, Store):
+                        try:
+                            from .research.market_intelligence import archive_snapshot
+                            archive_snapshot(ledger, card)
+                        except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                            v5_errors.append(
+                                f"{card.sport}:{card.event_id}:market_snapshot_{type(exc).__name__}"
+                            )
                     model, inference_card = select_model(card, models, player_models)
                     # One bad game/model must not abort independent price research.
                     try:
@@ -245,6 +254,25 @@ class AutomaticScanner:
                         errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
                     from .reliability.layer import evaluate as reliability_evaluate
                     reliability = reliability_evaluate(card, estimate, model, prospective)
+                    if isinstance(ledger, Store):
+                        try:
+                            from .research.adversarial import latest_review
+                            review = latest_review(ledger, card)
+                        except (ValueError, KeyError, TypeError):
+                            review = None
+                        reliability["v5_adversarial_review"] = review
+                        reliability["v5_adversarial_status"] = (
+                            review.get("outcome") if review else "NOT_REVIEWED"
+                        )
+                        if review and review.get("outcome") in {"WATCH", "PASS", "QUARANTINED"}:
+                            reliability["v5_state"] = (
+                                "QUARANTINED"
+                                if review.get("outcome") == "QUARANTINED"
+                                else "WATCH"
+                            )
+                            reliability["v5_reasons"] = list(reliability.get("v5_reasons") or []) + [
+                                "ADVERSARIAL_" + review.get("outcome")
+                            ]
                     if estimate and isinstance(ledger, Store):
                         evidence = {
                             "event_id": card.event_id,
@@ -336,6 +364,15 @@ class AutomaticScanner:
                                 .astimezone(ZoneInfo(self.settings.timezone))
                                 .date()
                                 .isoformat(),
+                                correlation_keys=frozenset({
+                                    f"event:{card.event_id}",
+                                    f"selection:{card.selection}",
+                                    *(
+                                        {f"player:{card.participant}"}
+                                        if card.participant
+                                        else set()
+                                    ),
+                                }),
                             )
                             limits = self.settings.portfolio_limits()
                             reservation_id = digest(
@@ -408,6 +445,7 @@ class AutomaticScanner:
                     "feeds_scanned": scanned,
                     "quotes_archived": quote_count,
                     "errors": errors,
+                    "v5_research_errors": v5_errors,
                     "completed_at": datetime.now(UTC).isoformat(),
                     "healthy": not errors,
                     "models_loaded": {
@@ -426,6 +464,7 @@ class AutomaticScanner:
                 run_id,
             )
         if plan.coverage is not None:
+            plan.coverage["v5_research_errors"] = v5_errors[-50:]
             plan.coverage["player_feature_diagnostics"] = list(player_features.diagnostics)[-50:]
             plan.coverage["player_feature_provider_configured"] = bool(
                 self.settings.sportsdataio_api_key

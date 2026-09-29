@@ -15,6 +15,7 @@ class Position:
     parlay: bool = False
     origin: str = "scanner"
     betting_date: str = ""
+    correlation_keys: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class Limits:
     player: D = D(".03")
     kelly_fraction: D = D(".10")
     drawdown_stop: D = D(".20")
+    correlation: D = D(".04")
 
     def __post_init__(self):
         for key in self.__dataclass_fields__:
@@ -46,6 +48,7 @@ class Limits:
             "player",
             "kelly_fraction",
             "drawdown_stop",
+            "correlation",
         ):
             if not 0 < number(getattr(self, key)) <= 1:
                 raise ValueError("Risk fractions must be in (0,1]")
@@ -97,6 +100,10 @@ def allocate(p, price, proposal, positions, limits, *, tier="standard", drawdown
     for player in proposal.players:
         constraints["player:" + player] = limits.bankroll * limits.player - used(
             lambda x: player in x.players
+        )
+    for key in proposal.correlation_keys:
+        constraints["correlation:" + key] = limits.bankroll * limits.correlation - used(
+            lambda x: key in x.correlation_keys
         )
     if proposal.parlay:
         constraints["parlays"] = limits.bankroll * limits.parlays - used(lambda x: x.parlay)

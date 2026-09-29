@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from jabazi.models.train_player_props import fit_prop_model
+from jabazi.models.train_opportunity import fit_opportunity_model
 from jabazi.research.nba_player_experiment import MARKETS, build_datasets
 from jabazi.research.prop_data import inspect_prop_dataset
 
@@ -28,7 +29,7 @@ def run(source, output):
         raise ValueError("NBA normalized history rows are required")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    report = {"approved_for_betting": False, "markets": {}}
+    report = {"approved_for_betting": False, "markets": {}, "opportunity_models": {}}
     documents = build_datasets(
         rows=payload["rows"],
         markets=sorted(MARKETS),
@@ -36,6 +37,20 @@ def run(source, output):
         source_checksum=str(payload.get("source_checksum") or ""),
         research_rights_reference=str(payload.get("research_rights_reference") or ""),
     )
+    minutes_artifact = fit_opportunity_model(
+        documents["player_points"],
+        train_before=TRAIN_BEFORE,
+        test_before=TEST_BEFORE,
+        minimum_per_split=100,
+    )
+    (output / "opportunity_minutes.json").write_text(
+        json.dumps(minutes_artifact, indent=2) + "\n"
+    )
+    report["opportunity_models"]["minutes"] = {
+        "model_version": minutes_artifact["model_version"],
+        "stage": minutes_artifact["stage"],
+        "validation": minutes_artifact["validation"],
+    }
     for market in sorted(MARKETS):
         document = documents[market]
         inspection = inspect_prop_dataset(

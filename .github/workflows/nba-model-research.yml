@@ -4,11 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - audit/all-models-completion-20260928
+      - v5/granular-simulation-market-intelligence
     paths:
       - "src/jabazi/models/team_elo.py"
       - "src/jabazi/models/player_distribution.py"
       - "src/jabazi/models/train_player_props.py"
+      - "src/jabazi/models/train_opportunity.py"
+      - "src/jabazi/models/opportunity.py"
       - "src/jabazi/research/train_scores.py"
       - "src/jabazi/research/nba_player_experiment.py"
       - "tools/capture_nba_sportsdataverse.py"
@@ -52,20 +54,25 @@ jobs:
               artifact = row.get("artifact")
               if artifact:
                   assert artifact["stage"] in {"SHADOW_ONLY", "VALIDATING"}
+          for artifact in players.get("opportunity_models", {}).values():
+              assert artifact["stage"] == "VALIDATING"
           print(json.dumps({
               "team_model_version": team["model_version"],
               "player_markets": players["markets"],
+              "opportunity_models": players.get("opportunity_models", {}),
           }, indent=2))
           PY
       - name: Commit reproducible research artifacts to owner branch
-        if: github.event_name == 'push' && github.ref_name == 'audit/all-models-completion-20260928'
+        if: github.event_name == 'push' && github.ref_name == 'v5/granular-simulation-market-intelligence'
         run: |
           mkdir -p src/jabazi/models/artifacts models/player_props/basketball_nba
           cp "$RUNNER_TEMP/nba-team/artifact.json" src/jabazi/models/artifacts/nba_scores.json
           cp "$RUNNER_TEMP/nba-player"/player_*.json models/player_props/basketball_nba/
+          mkdir -p models/opportunity/basketball_nba
+          cp "$RUNNER_TEMP/nba-player"/opportunity_*.json models/opportunity/basketball_nba/
           git config user.name "jabbazi-research-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add src/jabazi/models/artifacts/nba_scores.json models/player_props/basketball_nba
+          git add src/jabazi/models/artifacts/nba_scores.json models/player_props/basketball_nba models/opportunity/basketball_nba
           if ! git diff --cached --quiet; then
             git commit -m "Add reproducible NBA research artifacts"
             git push origin "HEAD:${GITHUB_REF_NAME}"
