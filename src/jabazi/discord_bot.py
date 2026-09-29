@@ -165,6 +165,13 @@ def build_client(config, store):
                             check=False,
                         )
                         if result.returncode != 0:
+                            detail = (result.stderr or result.stdout or "unknown").strip()
+                            detail = detail.splitlines()[-1][:180] if detail else "unknown"
+                            detail = detail.replace(os.getenv("JABBAZI_DISCORD_BOT_TOKEN", ""), "[redacted]")
+                            print(
+                                "DISCORD_COMPACT_MIGRATION_FAILED: " + detail,
+                                flush=True,
+                            )
                             raise RuntimeError("Discord compact migration failed")
                         await asyncio.to_thread(
                             store.append,
