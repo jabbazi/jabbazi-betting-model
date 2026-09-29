@@ -254,6 +254,25 @@ class AutomaticScanner:
                         errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
                     from .reliability.layer import evaluate as reliability_evaluate
                     reliability = reliability_evaluate(card, estimate, model, prospective)
+                    if isinstance(ledger, Store):
+                        try:
+                            from .research.adversarial import latest_review
+                            review = latest_review(ledger, card)
+                        except (ValueError, KeyError, TypeError):
+                            review = None
+                        reliability["v5_adversarial_review"] = review
+                        reliability["v5_adversarial_status"] = (
+                            review.get("outcome") if review else "NOT_REVIEWED"
+                        )
+                        if review and review.get("outcome") in {"WATCH", "PASS", "QUARANTINED"}:
+                            reliability["v5_state"] = (
+                                "QUARANTINED"
+                                if review.get("outcome") == "QUARANTINED"
+                                else "WATCH"
+                            )
+                            reliability["v5_reasons"] = list(reliability.get("v5_reasons") or []) + [
+                                "ADVERSARIAL_" + review.get("outcome")
+                            ]
                     if estimate and isinstance(ledger, Store):
                         evidence = {
                             "event_id": card.event_id,
