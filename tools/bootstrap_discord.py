@@ -56,11 +56,23 @@ def resolve_role(roles, *, env_name, fallback_name):
     return matches[0]
 
 
+def checked(response, operation):
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        raise RuntimeError(f"DISCORD_OPERATION_{operation}_HTTP_{status}") from None
+    return response
+
+
 def put_overwrite(http, channel_id, target_id, target_type, allow, deny):
-    http.put(
-        f"/channels/{channel_id}/permissions/{target_id}",
-        json={"type": target_type, "allow": str(allow), "deny": str(deny)},
-    ).raise_for_status()
+    checked(
+        http.put(
+            f"/channels/{channel_id}/permissions/{target_id}",
+            json={"type": target_type, "allow": str(allow), "deny": str(deny)},
+        ),
+        "PUT_PERMISSION_OVERWRITE",
+    )
 
 
 def main():
@@ -112,16 +124,19 @@ def main():
             if spec["name"] not in roles:
                 plan["create_roles"].append(spec["name"])
                 if args.apply:
-                    roles[spec["name"]] = http.post(
-                        f"/guilds/{guild}/roles",
-                        json={
-                            "name": spec["name"],
-                            "color": spec["color"],
-                            "hoist": spec["hoist"],
-                            "mentionable": False,
-                            "permissions": "0",
-                        },
-                    ).raise_for_status().json()
+                    roles[spec["name"]] = checked(
+                        http.post(
+                            f"/guilds/{guild}/roles",
+                            json={
+                                "name": spec["name"],
+                                "color": spec["color"],
+                                "hoist": spec["hoist"],
+                                "mentionable": False,
+                                "permissions": "0",
+                            },
+                        ),
+                        "CREATE_ROLE",
+                    ).json()
 
         channels = http.get(f"/guilds/{guild}/channels").raise_for_status().json()
         by_key = {(c["name"], c["type"]): c for c in channels}
@@ -162,10 +177,13 @@ def main():
             if parent is None:
                 plan["create_categories"].append(category["name"])
                 if args.apply:
-                    parent = http.post(
-                        f"/guilds/{guild}/channels",
-                        json={"name": category["name"], "type": 4},
-                    ).raise_for_status().json()
+                    parent = checked(
+                        http.post(
+                            f"/guilds/{guild}/channels",
+                            json={"name": category["name"], "type": 4},
+                        ),
+                        "CREATE_CATEGORY",
+                    ).json()
                     by_key[(category["name"], 4)] = parent
             if parent is not None:
                 repair(parent, category["access"])
@@ -176,27 +194,33 @@ def main():
                 if channel is None:
                     plan["create_channels"].append(name)
                     if args.apply:
-                        channel = http.post(
-                            f"/guilds/{guild}/channels",
-                            json={
-                                "name": name,
-                                "type": 0,
-                                "parent_id": parent["id"],
-                                "rate_limit_per_user": 5
-                                if name in {"general", "sports-talk"}
-                                else 0,
-                            },
-                        ).raise_for_status().json()
+                        channel = checked(
+                            http.post(
+                                f"/guilds/{guild}/channels",
+                                json={
+                                    "name": name,
+                                    "type": 0,
+                                    "parent_id": parent["id"],
+                                    "rate_limit_per_user": 5
+                                    if name in {"general", "sports-talk"}
+                                    else 0,
+                                },
+                            ),
+                            "CREATE_CHANNEL",
+                        ).json()
                         by_key[(name, 0)] = channel
                 elif parent is not None and str(channel.get("parent_id")) != str(parent["id"]):
                     plan["move_channels"].append(
                         {"channel": name, "to_category": category["name"]}
                     )
                     if args.apply:
-                        channel = http.patch(
-                            f"/channels/{channel['id']}",
-                            json={"parent_id": parent["id"]},
-                        ).raise_for_status().json()
+                        channel = checked(
+                            http.patch(
+                                f"/channels/{channel['id']}",
+                                json={"parent_id": parent["id"]},
+                            ),
+                            "MOVE_CHANNEL",
+                        ).json()
                         by_key[(name, 0)] = channel
                 if channel is not None:
                     repair(channel, category["access"])
@@ -216,10 +240,13 @@ def main():
             if archive is None:
                 plan["create_categories"].append("━━ ARCHIVE ━━")
                 if args.apply:
-                    archive = http.post(
-                        f"/guilds/{guild}/channels",
-                        json={"name": "━━ ARCHIVE ━━", "type": 4},
-                    ).raise_for_status().json()
+                    archive = checked(
+                        http.post(
+                            f"/guilds/{guild}/channels",
+                            json={"name": "━━ ARCHIVE ━━", "type": 4},
+                        ),
+                        "CREATE_ARCHIVE_CATEGORY",
+                    ).json()
                     by_key[("━━ ARCHIVE ━━", 4)] = archive
             if archive is not None:
                 repair(archive, "staff")
@@ -237,10 +264,13 @@ def main():
                 ):
                     plan["archive_channels"].append(channel["name"])
                     if args.apply:
-                        http.patch(
-                            f"/channels/{channel['id']}",
-                            json={"parent_id": archive["id"]},
-                        ).raise_for_status()
+                        checked(
+                            http.patch(
+                                f"/channels/{channel['id']}",
+                                json={"parent_id": archive["id"]},
+                            ),
+                            "ARCHIVE_CHANNEL",
+                        )
                         repair(channel, "staff")
 
         # AutoMod is optional and must never block the core channel/role migration.
