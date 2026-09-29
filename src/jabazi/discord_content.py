@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import os
 
 STATUS_COLORS={
     "BET NOW":0x2ECC71,
@@ -27,7 +28,7 @@ def official_pick_embed(payload):
     model=payload.get("model_probability")
     market=price.get("consensus_probability")
     edge=payload.get("probability_edge")
-    unit=Decimal("30")
+    unit=Decimal(os.getenv("JABAZI_UNIT_SIZE", "30"))
     units=stake/unit
     fields=[
         {"name":"Selection","value":f"{price.get('selection')} {price.get('line') or ''}".strip(),"inline":True},
