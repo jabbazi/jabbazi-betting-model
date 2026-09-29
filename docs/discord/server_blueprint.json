@@ -78,7 +78,7 @@
   ],
   "categories": [
     {
-      "name": "\u2501\u2501 START HERE \u2501\u2501",
+      "name": "👋 START HERE",
       "access": "public",
       "channels": [
         "welcome",
@@ -88,25 +88,22 @@
       ]
     },
     {
-      "name": "\u2501\u2501 TODAY\u2019S JABBAZI \u2501\u2501",
+      "name": "🔥 TODAY’S JABBAZI",
       "access": "vip",
       "channels": [
         "jabbazi-main-card",
-        "best-two-parlay",
-        "parlays-sgps",
-        "promo-boosts",
         "live-watch"
       ]
     },
     {
-      "name": "\u2501\u2501 CHEAT SHEET \u2501\u2501",
+      "name": "📊 DAILY CHEAT SHEET",
       "access": "vip",
       "channels": [
         "daily-moneyline-cheat-sheet"
       ]
     },
     {
-      "name": "\u2501\u2501 VIP RESEARCH \u2501\u2501",
+      "name": "🧠 VIP RESEARCH",
       "access": "vip",
       "channels": [
         "vip-research",
@@ -115,7 +112,7 @@
       ]
     },
     {
-      "name": "\u2501\u2501 COMMUNITY \u2501\u2501",
+      "name": "💬 COMMUNITY",
       "access": "public",
       "channels": [
         "general",
@@ -124,7 +121,7 @@
       ]
     },
     {
-      "name": "\u2501\u2501 RESULTS & SUPPORT \u2501\u2501",
+      "name": "📈 RESULTS & SUPPORT",
       "access": "public",
       "channels": [
         "results",
@@ -132,7 +129,7 @@
       ]
     },
     {
-      "name": "\u2501\u2501 STAFF ONLY \u2501\u2501",
+      "name": "🔒 STAFF ONLY",
       "access": "staff",
       "channels": [
         "staff-chat",
@@ -142,6 +139,7 @@
   ],
   "deprecated_channels": [
     "announcements",
+    "best-two-parlay",
     "best-two-research",
     "bet-talk",
     "betting-basics",
@@ -185,6 +183,8 @@
     "open-a-ticket",
     "other-sports",
     "parlays-and-correlation",
+    "parlays-sgps",
+    "promo-boosts",
     "promo-tracker",
     "research-tools",
     "rules",
@@ -206,10 +206,6 @@
     "weekly-results"
   ],
   "channel_aliases": {
-    "parlays-sgps": [
-      "vip-parlays",
-      "vip-sgps"
-    ],
     "results": [
       "results-and-clv",
       "daily-results"
@@ -246,9 +242,6 @@
       "live-game-chat",
       "pick-updates"
     ],
-    "promo-boosts": [
-      "odds-and-promos"
-    ],
     "daily-moneyline-cheat-sheet": [
       "cheat-sheets"
     ],
@@ -261,14 +254,11 @@
     ]
   },
   "channel_topics": {
-    "welcome": "Start here: today\u2019s card, daily sheet, VIP research, community, results and help.",
+    "welcome": "Start here: today’s card, daily sheet, VIP research, community, results and help.",
     "how-to-use-jabbazi": "BET NOW / WATCH / PRICE CHECK / PASS / QUARANTINED. 1u = $30 unless officially changed.",
     "vip-access": "Approved VIP-family roles unlock premium sections immediately. /vip gives a private app link; !vip sends a DM.",
     "alerts-and-support": "Choose notifications with /alerts. Open a private support thread with /support.",
     "jabbazi-main-card": "Official JABBAZI recommendations only. Cash-authority gates required. No research-only candidates.",
-    "best-two-parlay": "Two-leg validation with current exact sportsbook pricing. Missing combined quote = PRICE CHECK.",
-    "parlays-sgps": "2-LEG \u2022 CROSS-GAME \u2022 SGP \u2022 TD PARLAY \u2022 PROMO BUILD \u2022 LONGSHOT. No forced action.",
-    "promo-boosts": "Current promotions and supported builds, with exact prices and terms.",
     "live-watch": "Important updates after publication. Frozen sheets and settled history remain unchanged.",
     "daily-moneyline-cheat-sheet": "One frozen daily moneyline research sheet at 9 AM America/Chicago. /cheatsheet retrieves it without scanning again.",
     "vip-research": "Consolidated NFL, CFB, MLB, NBA, NHL and supported tennis/soccer research. Research is not an official wager.",
@@ -281,5 +271,28 @@
     "support": "Use /support for a private VIP access, billing, technical or other support thread. Never post credentials.",
     "staff-chat": "Private staff coordination. Never post credentials or private member-app tokens.",
     "bot-log": "Private operational diagnostics only. No tokens, API keys or billing secrets."
+  },
+  "category_aliases": {
+    "👋 START HERE": [
+      "━━ START HERE ━━"
+    ],
+    "🔥 TODAY’S JABBAZI": [
+      "━━ TODAY’S JABBAZI ━━"
+    ],
+    "📊 DAILY CHEAT SHEET": [
+      "━━ CHEAT SHEET ━━"
+    ],
+    "🧠 VIP RESEARCH": [
+      "━━ VIP RESEARCH ━━"
+    ],
+    "💬 COMMUNITY": [
+      "━━ COMMUNITY ━━"
+    ],
+    "📈 RESULTS & SUPPORT": [
+      "━━ RESULTS & SUPPORT ━━"
+    ],
+    "🔒 STAFF ONLY": [
+      "━━ STAFF ONLY ━━"
+    ]
   }
 }

@@ -195,6 +195,10 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
             if req.method == "POST":
                 value = {"id": str(1000+len(channels)), **json.loads(req.content)}
                 channels.append(value)
+            elif req.method == "PATCH":
+                for row in json.loads(req.content):
+                    next(c for c in channels if c["id"] == row["id"]).update(row)
+                value = channels
             else: value = channels
         elif path.startswith("/channels/"):
             if path == "/channels/23" and archive_blocked:
@@ -208,9 +212,10 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     dry = migrate(archive_obsolete=True)
     assert not mutations and dry["mode"] == "DRY_RUN"
     result = migrate(apply=True, archive_obsolete=True)
-    assert result["channel_ids"]["parlays-sgps"] == "21"
+    assert "parlays-sgps" not in result["channel_ids"]
+    assert not effective_permissions("1", "vip", ["7"], roles, next(c for c in channels if c["id"] == "21"), "2") & VIEW
     assert result["channel_ids"]["support"] == "22"
-    assert len(result["channel_ids"]) == 20
+    assert len(result["channel_ids"]) == 17
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]
     archived = next(c for c in channels if c["id"] == "23")

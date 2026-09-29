@@ -12,11 +12,10 @@ def test_compact_discord_blueprint_is_small_and_keeps_core_surfaces():
     assert len(categories) <= 7
     assert len(channels) <= 20
     assert len(channels) == len(set(channels))
+    assert not {"best-two-parlay", "parlays-sgps", "promo-boosts"} & set(channels)
     for required in (
         "welcome",
         "jabbazi-main-card",
-        "best-two-parlay",
-        "parlays-sgps",
         "daily-moneyline-cheat-sheet",
         "vip-research",
         "scanner-status",

@@ -78,7 +78,10 @@ def worker(*, once=False):
     stop = threading.Event()
     if threading.current_thread() is threading.main_thread():
         for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, lambda *_: stop.set())
+            def handle_stop(signum, _frame):
+                print("WORKER_STOP_SIGNAL_" + str(signum), flush=True)
+                stop.set()
+            signal.signal(sig, handle_stop)
     interval = int(os.getenv("JABBAZI_SCAN_INTERVAL_SECONDS", "7200"))
     if interval < 300:
         raise ValueError("Scan interval must be at least 300 seconds")
@@ -127,9 +130,15 @@ def worker(*, once=False):
             daily_thread.start()
         while not stop.is_set():
             report = {"completed_at": datetime.now(UTC).isoformat(), "betting_enabled": False}
+            from pathlib import Path
+            try:
+                report["memory_bytes"] = int(Path("/sys/fs/cgroup/memory.current").read_text())
+                report["memory_events"] = dict(line.split() for line in Path("/sys/fs/cgroup/memory.events").read_text().splitlines())
+            except (OSError, ValueError):
+                pass
             if discord_process is not None:
                 if discord_process.poll() is not None:
-                    print("DISCORD_GATEWAY_RESTART", flush=True)
+                    print("DISCORD_GATEWAY_RESTART_EXIT_" + str(discord_process.returncode), flush=True)
                     discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
                 report["discord_process"] = (
                     "RUNNING" if discord_process.poll() is None else "STOPPED"
