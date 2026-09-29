@@ -95,7 +95,10 @@ def request(http, method, path, operation, **kwargs):
         if attempt < 2:
             time.sleep(max(0, delay))
     if response.status_code >= 400:
-        raise RuntimeError(f"DISCORD_OPERATION_{operation}_HTTP_{response.status_code}_PATH_{path}")
+        code = response.json().get("code") if response.headers.get("content-type", "").startswith("application/json") else None
+        detail = f"DISCORD_OPERATION_{operation}_HTTP_{response.status_code}_PATH_{path}_CODE_{code if isinstance(code, int) else 'UNKNOWN'}"
+        print(detail, flush=True)
+        raise RuntimeError(detail)
     return response.json() if response.content else None
 
 
@@ -245,13 +248,21 @@ def migrate(*, apply=False, archive_obsolete=False):
                 for channel in obsolete:
                     if preserve_hidden(channel):
                         continue
-                    archived = upsert(channel, {"parent_id": archive["id"], "permission_overwrites": desired("staff", archive=True)}, "ARCHIVE_CHANNEL")
+                    try:
+                        archived = upsert(channel, {"parent_id": archive["id"], "permission_overwrites": desired("staff", archive=True)}, "ARCHIVE_CHANNEL")
+                    except RuntimeError as exc:
+                        plan["warnings"].append(str(exc))
+                        continue
                     targets.append((archived, "staff"))
             for category in channels:
                 if category["type"] == 4 and str(category["id"]) not in used and str(category["id"]) in old_parents:
                     if preserve_hidden(category):
                         continue
-                    hidden = upsert(category, {"permission_overwrites": desired("staff", archive=True)}, "HIDE_OLD_CATEGORY")
+                    try:
+                        hidden = upsert(category, {"permission_overwrites": desired("staff", archive=True)}, "HIDE_OLD_CATEGORY")
+                    except RuntimeError as exc:
+                        plan["warnings"].append(str(exc))
+                        continue
                     targets.append((hidden, "staff"))
         # Create only missing opt-in alerts; no duplicate VIP-family roles.
         for spec in bp["roles"]:

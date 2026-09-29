@@ -150,7 +150,8 @@ def test_permission_simulation_checks_free_vip_staff_owner_bot():
             assert bool(effective_permissions("1", member, assigned, roles, channel, "2") & VIEW) == expected
 
 
-def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path, monkeypatch):
+@pytest.mark.parametrize("archive_blocked", [False, True])
+def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path, monkeypatch, archive_blocked):
     monkeypatch.setenv("JABBAZI_DISCORD_BOT_TOKEN", "NEVER_PRINT_ME")
     monkeypatch.setenv("JABBAZI_DISCORD_GUILD_ID", "1")
     monkeypatch.setenv("JABBAZI_DISCORD_OWNER_ID", "2")
@@ -195,6 +196,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
                 channels.append(value)
             else: value = channels
         elif path.startswith("/channels/"):
+            if path == "/channels/23" and archive_blocked:
+                return httpx.Response(403, json={"code": 50013, "message": "NEVER_PRINT_ME"})
             value = next(c for c in channels if c["id"] == path.split("/")[2])
             value.update(json.loads(req.content))
         else: raise AssertionError(path)
@@ -210,7 +213,9 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]
     archived = next(c for c in channels if c["id"] == "23")
-    assert not effective_permissions("1", "vip", ["7"], roles, archived, "2") & VIEW
+    assert bool(effective_permissions("1", "vip", ["7"], roles, archived, "2") & VIEW) == archive_blocked
+    assert any("ARCHIVE_CHANNEL_HTTP_403_PATH_/channels/23_CODE_50013" in warning for warning in result["warnings"]) == archive_blocked
+    assert all(row["status"] == "VERIFIED" for row in result["verification"])
     snapshot = backup.list_records("discord_server_backup", 1, entity="1")[0]["payload"]
     assert snapshot["channels"] == original
     assert "NEVER_PRINT_ME" not in json.dumps(result) + json.dumps(snapshot)

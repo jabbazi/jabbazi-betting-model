@@ -29,7 +29,11 @@ def main():
             raise SystemExit("Configured Discord owner mismatch")
         bot=http.get("/users/@me").raise_for_status().json()
         channels=http.get(f"/guilds/{guild}/channels").raise_for_status().json()
-        by_name={c["name"]:c for c in channels if c["type"]==0}
+        blueprint=json.loads(Path("docs/discord/server_blueprint.json").read_text())
+        parents={str(c["id"]):c["name"] for c in channels if c["type"]==4}
+        expected={name:category["name"] for category in blueprint["categories"] for name in category["channels"]}
+        by_name={c["name"]:c for c in channels if c["type"]==0
+                 and parents.get(str(c.get("parent_id")))==expected.get(c["name"])}
         plan=[]
         for name,message in content.items():
             channel=by_name.get(name)
