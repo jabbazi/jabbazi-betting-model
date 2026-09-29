@@ -484,6 +484,41 @@ from .member_api import router as member_router
 app.include_router(member_router)
 
 
+@app.post("/v1/research/adversarial-reviews")
+def adversarial_review(
+    body: dict,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    from .research.adversarial import freeze_review
+    store = platform_store()
+    try:
+        return {
+            "id": freeze_review(store, body),
+            "status": "RESEARCH_ONLY",
+            "cash_influence": False,
+        }
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid adversarial-review evidence") from exc
+    finally:
+        store.close()
+
+
+@app.get("/v1/research/adversarial-reviews")
+def adversarial_reviews(
+    limit: int = 100,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    if not 1 <= limit <= 1000:
+        raise HTTPException(422, "Limit must be 1–1000")
+    store = platform_store()
+    try:
+        return {"records": store.list_records("adversarial_review", limit)}
+    finally:
+        store.close()
+
+
 @app.post('/v1/research/source-picks')
 def source_pick(body: dict, authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)
