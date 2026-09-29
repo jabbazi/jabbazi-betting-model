@@ -76,6 +76,8 @@ services:
         value: "false"
       - key: JABBAZI_DISCORD_COMMANDS_ENABLED
         value: "false"
+      - key: JABBAZI_DISCORD_RECONCILE_ENABLED
+        value: "false"
       - key: JABBAZI_DISCORD_BOT_TOKEN
         sync: false
       - key: JABBAZI_DISCORD_GUILD_ID
