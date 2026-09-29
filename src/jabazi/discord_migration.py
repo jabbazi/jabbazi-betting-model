@@ -31,6 +31,8 @@ CHANNEL_ENV = {
     "best-two-parlay": "BEST_TWO_CHANNEL_ID",
     "results": "RESULTS_CHANNEL_ID",
     "support": "SUPPORT_CHANNEL_ID",
+    "vip-research": "VIP_RESEARCH_CHANNEL_ID",
+    "market-watch": "MARKET_WATCH_CHANNEL_ID",
 }
 
 

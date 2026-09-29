@@ -10,6 +10,8 @@ import os
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -34,6 +36,8 @@ class BotConfig:
     best_two_channel: int = 0
     results_channel: int = 0
     support_channel: int = 0
+    research_channel: int = 0
+    market_channel: int = 0
 
     @classmethod
     def from_env(cls):
@@ -71,6 +75,8 @@ class BotConfig:
             support_channel=int(
                 os.getenv("JABBAZI_DISCORD_SUPPORT_CHANNEL_ID", "0") or 0
             ),
+            research_channel=int(os.getenv("JABBAZI_DISCORD_VIP_RESEARCH_CHANNEL_ID", "0") or 0),
+            market_channel=int(os.getenv("JABBAZI_DISCORD_MARKET_WATCH_CHANNEL_ID", "0") or 0),
         )
         if result.status_channel == result.sheets_channel:
             raise ValueError("Use separate status and sheet channels")
@@ -242,7 +248,10 @@ def build_client(config, store):
                 original = getattr(error, "original", error)
                 print(f"DISCORD_SLASH_{type(original).__name__}_HTTP_{getattr(original, 'status', None)}", flush=True)
                 sender = interaction.followup.send if interaction.response.is_done() else interaction.response.send_message
-                await sender("This action could not be completed. Please use /support or contact staff.", ephemeral=True)
+                try:
+                    await sender("This action could not be completed. Please use /support or contact staff.", ephemeral=True)
+                except discord.HTTPException as response_error:
+                    print(f"DISCORD_SLASH_RESPONSE_HTTP_{response_error.status}_CODE_{response_error.code}", flush=True)
 
             @self.tree.command(name="cheatsheet", description="Show today's frozen 9 AM JABBAZI moneyline sheet")
             async def cheatsheet(interaction: discord.Interaction):
@@ -641,9 +650,16 @@ def build_client(config, store):
         async def publish_best_two_once(self):
             if not config.best_two_channel:
                 return
-            scans = await asyncio.to_thread(store.list_records, "scan_run", 5)
+            scans = await asyncio.to_thread(store.list_records, "scan_run", 1)
             candidate = None
             for row in scans:
+                payload = row["payload"]
+                try:
+                    at = datetime.fromisoformat(payload["completed_at"])
+                    if not payload.get("healthy") or not 0 <= (datetime.now(UTC)-at).total_seconds() <= 900:
+                        continue
+                except (KeyError, ValueError, TypeError):
+                    continue
                 value = row["payload"].get("best_two_sheet_candidate")
                 if value and value.get("legs"):
                     candidate = value
@@ -655,14 +671,15 @@ def build_client(config, store):
             if payload is None:
                 return
             channel = await self.checked_channel(config.best_two_channel)
-            key = digest(["discord_best_two", config.guild, candidate])
+            legs = [[leg.get(field) for field in ("event", "market", "selection", "participant", "line")] for leg in candidate["legs"]]
+            key = digest(["discord_best_two", config.guild, datetime.now(ZoneInfo("America/Chicago")).date().isoformat(), legs, candidate.get("status")])
             if not await asyncio.to_thread(
                 store.append, "discord_best_two_claim", str(config.best_two_channel), {}, key
             ):
                 return
             await channel.send(
                 embed=discord.Embed.from_dict(payload),
-                allowed_mentions=discord.AllowedMentions.none(),
+                **self.alert_delivery("Parlay Alerts"),
             )
 
         async def publish_official_picks_once(self):
@@ -688,8 +705,43 @@ def build_client(config, store):
                     continue
                 await channel.send(
                     embed=discord.Embed.from_dict(payload),
-                    allowed_mentions=discord.AllowedMentions.none(),
+                    **self.alert_delivery("Main Card Alerts", row["payload"].get("price", {}).get("sport")),
                 )
+
+        def alert_delivery(self, name, sport=None):
+            from .discord_daily import sport_label
+            names = {name}
+            label = sport_label(sport) if sport else None
+            if label in {"NFL", "CFB", "MLB", "NBA", "NHL"}:
+                names.add(label + " Alerts")
+            guild = self.get_guild(config.guild)
+            roles = [] if guild is None else [role for role in guild.roles
+                if role.name in names and role.permissions.value == 0 and not role.managed
+                and guild.me is not None and role.position < guild.me.top_role.position
+                and sum(other.name == role.name for other in guild.roles) == 1]
+            return {"content": " ".join(role.mention for role in roles) or None,
+                    "allowed_mentions": discord.AllowedMentions(everyone=False, users=False, roles=roles, replied_user=False)}
+
+        async def publish_research_once(self):
+            await self.publish_observations("research", config.research_channel)
+
+        async def publish_market_once(self):
+            await self.publish_observations("market", config.market_channel)
+
+        async def publish_observations(self, lane, channel_id):
+            if not channel_id:
+                return
+            from .discord_observations import observations
+            snapshots = await asyncio.to_thread(store.list_records, "research_sheet", 2, entity="latest_scan")
+            updates = observations(snapshots, lane=lane)
+            if not updates:
+                return
+            channel = await self.checked_channel(channel_id)
+            for update in updates:
+                key = digest(["discord_observation", config.guild, lane, update["identity"]])
+                if not await asyncio.to_thread(store.append, "discord_observation_claim", str(channel_id), {}, key):
+                    continue
+                await channel.send(embed=discord.Embed.from_dict(update["embed"]), allowed_mentions=discord.AllowedMentions.none())
 
         async def publish_results_once(self):
             if not config.results_channel:
@@ -741,15 +793,20 @@ def build_client(config, store):
             try:
                 text = render_daily_moneyline(record)
                 if len(text) <= 1900:
-                    message = await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+                    delivery = self.alert_delivery("Cheat Sheet Alerts")
+                    prefix = delivery.pop("content") or ""
+                    message = await channel.send((prefix+"\n"+text).strip(), **delivery)
                 else:
                     date = record["payload"]["date"]
+                    delivery = self.alert_delivery("Cheat Sheet Alerts")
+                    prefix = delivery.pop("content") or ""
                     message = await channel.send(
+                        (prefix+"\n" if prefix else "") +
                         f"🟣 **JABBAZI GURU DAILY MONEYLINE CHEAT SHEET • {date}**\n"
                         f"{record['payload']['row_count']} games • Frozen snapshot • Full slate attached.\n"
                         "Research leans are not automatically official wagers. Use /cheatsheet to retrieve this same sheet.",
                         file=discord.File(io.BytesIO(text.encode()), filename=f"jabbazi-{date}.txt"),
-                        allowed_mentions=discord.AllowedMentions.none(),
+                        **delivery,
                     )
                 result = {"status": "delivered", "message_ids": [str(message.id)]}
             except Exception:  # noqa: BLE001 -- uncertain delivery must be audited, not retried
@@ -761,7 +818,7 @@ def build_client(config, store):
         async def publish_loop(self):
             await self.wait_until_ready()
             while not self.is_closed():
-                for lane in ("daily", "status", "best_two", "official_picks", "results"):
+                for lane in ("daily", "status", "best_two", "official_picks", "results", "research", "market"):
                     try:
                         await getattr(self, f"publish_{lane}_once")()
                     except Exception as exc:

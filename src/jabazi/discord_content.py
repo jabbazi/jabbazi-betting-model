@@ -101,6 +101,17 @@ def scanner_status_embed(text):
 
 def performance_text(report):
     lines=["📊 **JABBAZI RESULTS / TRANSPARENCY**", report.get("provenance","OWNER_REPORTED_LEDGER")]
+    if report.get("official_periods"):
+        periods = report["official_periods"]
+        lines.append(f"Through {periods[0]['through']} • America/Chicago")
+        for period in periods:
+            lines.append(f"**{period['label']}**")
+            for group in period["groups"]:
+                roi = "—" if group["roi"] is None else f"{float(group['roi']):+.1%}"
+                lines.append(f"{group['kind']}: {group['wins']}-{group['losses']} ({group['pushes_or_voids']} push/void) • {float(group['profit_units']):+.2f}u • ROI {roi}")
+        lines.append("CLV: unavailable until exact official entries can be matched to comparable closing evidence.")
+        lines.append("Scanner-origin settled plays only, grouped by betting date. Owner-reported outcomes; ROI uses all settled stakes. User bets and sprinkles excluded. Corrections remain auditable.")
+        return "\n".join(lines)[:1900]
     groups=[g for g in report.get("groups", []) if g.get("origin") == "scanner"]
     if not groups:
         lines.append("No settled official ledger positions yet.")
