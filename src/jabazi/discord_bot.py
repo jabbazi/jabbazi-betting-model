@@ -377,12 +377,10 @@ def build_client(config, store):
                 return
             scans = await asyncio.to_thread(store.list_records, "scan_run", 5)
             candidate = None
-            scan_id = None
             for row in scans:
                 value = row["payload"].get("best_two_sheet_candidate")
                 if value and value.get("legs"):
                     candidate = value
-                    scan_id = row["id"]
                     break
             if candidate is None:
                 return
