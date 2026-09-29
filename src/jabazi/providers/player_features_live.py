@@ -147,6 +147,34 @@ def _nfl_features(values, opportunities, position, is_home):
     return result
 
 
+def _nfl_granular_context(rows):
+    """Research-only documented nflverse weekly metrics; never synthetic-zero missing fields."""
+    fields = (
+        "passing_air_yards", "passing_epa", "passing_cpoe",
+        "receiving_air_yards", "receiving_epa", "target_share",
+        "air_yards_share", "wopr", "racr", "rushing_epa",
+        "passing_first_downs", "receiving_first_downs", "rushing_first_downs",
+    )
+    output = {}
+    recent = list(rows)[-10:]
+    for field in fields:
+        values = []
+        for row in recent:
+            raw = row.get(field)
+            if raw in (None, "", "NA"):
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(value):
+                values.append(value)
+        if values:
+            output[f"mean10_{field}"] = sum(values) / len(values)
+            output[f"last1_{field}"] = values[-1]
+    return output
+
+
 def _float(row, key, default=0.0):
     value = row.get(key)
     if value in (None, "", "NA"):
@@ -702,6 +730,9 @@ class LivePlayerFeatureCollector:
             },
             "roster_version": str((projection or {}).get("Team") or team or ""),
             "injury_version": injury or (injury_evidence or {}).get("modified_at"),
+            "research_context": _nfl_granular_context(player_rows),
+            "research_context_provider": "nflverse weekly player stats",
+            "research_context_schema": "nfl-granular-weekly-v1",
         }
 
     def _mlb_projections(self, starts_at):
@@ -1113,6 +1144,20 @@ class LivePlayerFeatureCollector:
                         provider_data_verified=(self.production_verified if "SportsDataIO" in payload["provider"] else None),
                     )
                 )
+                if payload.get("research_context"):
+                    from jabazi.research.granular import archive_granular_snapshot
+                    archive_granular_snapshot(
+                        store,
+                        sport=card.sport,
+                        event_id=card.event_id,
+                        participant=card.participant,
+                        starts_at=card.starts_at.isoformat(),
+                        available_at=self.now.isoformat(),
+                        features=payload["research_context"],
+                        provider=payload.get("research_context_provider") or payload["provider"],
+                        source_checksum=payload["source_checksum"],
+                        schema_version=payload.get("research_context_schema") or "granular-v1",
+                    )
             except (ValueError, KeyError, TypeError, OSError, urllib.error.URLError) as exc:
                 self._diagnostics.append(
                     f"{card.sport}:{card.event_id}:{card.participant}:{card.market}:{type(exc).__name__}"
