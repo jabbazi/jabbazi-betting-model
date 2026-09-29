@@ -96,6 +96,8 @@ services:
         sync: false
       - key: JABBAZI_DISCORD_RESULTS_CHANNEL_ID
         sync: false
+      - key: JABBAZI_DISCORD_SUPPORT_CHANNEL_ID
+        sync: false
       - key: JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS
         value: "15"
 databases:
