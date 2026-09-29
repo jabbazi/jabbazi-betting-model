@@ -96,6 +96,13 @@ def worker(*, once=False):
         if not store.ready():
             raise RuntimeError("Database migration required")
         if not once and os.getenv("JABBAZI_DISCORD_COMMANDS_ENABLED", "false").lower() == "true":
+            if os.getenv("JABBAZI_DISCORD_RECONCILE_ENABLED", "false").lower() == "true":
+                try:
+                    from .discord_reconcile import reconcile
+                    result = reconcile()
+                    print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN"), flush=True)
+                except Exception:
+                    print("DISCORD_RECONCILE_UNAVAILABLE", flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         while not stop.is_set():
             report = {"completed_at": datetime.now(UTC).isoformat(), "betting_enabled": False}
