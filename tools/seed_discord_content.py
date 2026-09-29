@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -36,6 +37,7 @@ def main():
                  and parents.get(str(c.get("parent_id")))==expected.get(c["name"])}
         plan=[]
         for name,message in content.items():
+            message=re.sub(r"#([a-z][a-z0-9-]+)", lambda match: "<#"+str(by_name[match[1]]["id"])+">" if match[1] in by_name else match[0], message)
             channel=by_name.get(name)
             if channel is None:
                 plan.append({"channel":name,"status":"MISSING_CHANNEL"})
