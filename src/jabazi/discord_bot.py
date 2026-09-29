@@ -168,6 +168,57 @@ def build_client(config, store):
                     allowed_mentions=discord.AllowedMentions.none(),
                 )
 
+            alert_roles = (
+                "NFL Alerts", "CFB Alerts", "MLB Alerts", "NBA Alerts", "NHL Alerts",
+                "Parlay Alerts", "Main Card Alerts", "Promo Alerts", "Cheat Sheet Alerts",
+            )
+
+            class AlertSelect(discord.ui.Select):
+                def __init__(self):
+                    super().__init__(
+                        placeholder="Choose the alerts you want",
+                        min_values=0,
+                        max_values=len(alert_roles),
+                        options=[discord.SelectOption(label=name, value=name) for name in alert_roles],
+                    )
+
+                async def callback(self, interaction: discord.Interaction):
+                    if interaction.guild_id != config.guild:
+                        return await interaction.response.send_message(
+                            "Alert roles are only available in the JABBAZI server.",
+                            ephemeral=True,
+                        )
+                    guild = interaction.guild
+                    available = {role.name: role for role in guild.roles if role.name in alert_roles}
+                    selected = set(self.values)
+                    add = [available[name] for name in selected if name in available]
+                    remove = [
+                        role for role in interaction.user.roles
+                        if role.name in alert_roles and role.name not in selected
+                    ]
+                    if add:
+                        await interaction.user.add_roles(*add, reason="JABBAZI alert preference")
+                    if remove:
+                        await interaction.user.remove_roles(
+                            *remove, reason="JABBAZI alert preference"
+                        )
+                    await interaction.response.send_message(
+                        "Alert preferences updated.", ephemeral=True
+                    )
+
+            class AlertView(discord.ui.View):
+                def __init__(self):
+                    super().__init__(timeout=180)
+                    self.add_item(AlertSelect())
+
+            @self.tree.command(name="alerts", description="Choose your JABBAZI sport and pick alerts")
+            async def alerts(interaction: discord.Interaction):
+                await interaction.response.send_message(
+                    "Choose the alerts you want. You can change these anytime.",
+                    view=AlertView(),
+                    ephemeral=True,
+                )
+
             @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
             async def vip(interaction: discord.Interaction):
                 if interaction.guild_id != config.guild:
