@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from .config import Settings
 from .persistence.store import Store
@@ -89,6 +90,8 @@ def worker(*, once=False):
     next_scan = time.monotonic() + startup_delay
     discord_process = None
     initial_model_refresh = True
+    daily_sheet_date = None
+    next_entitlement_sync = time.monotonic()
     try:
         if not store.ready():
             raise RuntimeError("Database migration required")
@@ -104,6 +107,58 @@ def worker(*, once=False):
                 if not settings.api_key:
                     report["status"] = "WAITING_FOR_ODDS_CREDENTIAL"
                 else:
+                    local_now = datetime.now(UTC).astimezone(ZoneInfo(settings.timezone))
+                    if (
+                        not once
+                        and local_now.hour == 9
+                        and local_now.minute < 15
+                        and daily_sheet_date != local_now.date().isoformat()
+                    ):
+                        slot = local_now.minute // 5
+                        from .persistence.store import digest
+                        claim_key = digest([
+                            "discord_daily_moneyline_scan",
+                            local_now.date().isoformat(),
+                            slot,
+                        ])
+                        claimed = store.append(
+                            "discord_daily_scan_claim",
+                            local_now.date().isoformat(),
+                            {"slot": slot, "claimed_at": datetime.now(UTC).isoformat()},
+                            claim_key,
+                        )
+                        if claimed:
+                            daily_result = AutomaticScanner(
+                                settings,
+                                max_credits_per_run=int(
+                                    os.getenv("JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS", "15")
+                                ),
+                            ).run("moneyline")
+                            from .discord_sheets import archive_sheets, latest_sheet
+                            archive_sheets(store, daily_result)
+                            if not daily_result.errors:
+                                from .discord_daily import freeze_daily_moneyline
+                                sheet = latest_sheet(store, max_age_seconds=900)
+                                if sheet is not None:
+                                    _, created = freeze_daily_moneyline(
+                                        store,
+                                        sheet,
+                                        now=datetime.now(UTC),
+                                        timezone=settings.timezone,
+                                    )
+                                    if created:
+                                        daily_sheet_date = local_now.date().isoformat()
+                            report["discord_daily_sheet"] = {
+                                "date": local_now.date().isoformat(),
+                                "healthy": not daily_result.errors,
+                                "errors": daily_result.errors,
+                            }
+                    if time.monotonic() >= next_entitlement_sync:
+                        try:
+                            from .discord_roles import reconcile_known
+                            report["discord_entitlements"] = reconcile_known(store)
+                        finally:
+                            next_entitlement_sync = time.monotonic() + 300
                     report["closing"] = ClosingCollector(store, settings.api_key).run()
                     if initial_model_refresh:
                         from .models.refresh import refresh_models

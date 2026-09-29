@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .discord_sheets import SPORTS, latest_sheet, parse_command
+from .discord_daily import daily_moneyline, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
-from .sheet_images import render_card, page_count, SHEET_FORMAT_VERSION
+from .sheet_images import render_card, page_count
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,11 @@ class BotConfig:
     viewer_roles: frozenset[int]
     brand_channels: frozenset[int] = frozenset()
     brand_gif_url: str = ""
+    vip_role: int = 0
+    main_card_channel: int = 0
+    best_two_channel: int = 0
+    results_channel: int = 0
+    support_channel: int = 0
 
     @classmethod
     def from_env(cls):
@@ -37,17 +43,30 @@ class BotConfig:
         roles = os.getenv("JABBAZI_DISCORD_VIEWER_ROLE_IDS", "").split(",")
         roles = frozenset(int(r.strip()) for r in roles if r.strip())
         result = cls(
-            required("GUILD_ID"),
-            required("OWNER_ID"),
-            required("STATUS_CHANNEL_ID"),
-            required("SHEETS_CHANNEL_ID"),
-            roles,
-            frozenset(
-                int(c.strip())
-                for c in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
-                if c.strip()
+            guild=required("GUILD_ID"),
+            owner=required("OWNER_ID"),
+            status_channel=required("STATUS_CHANNEL_ID"),
+            sheets_channel=required("SHEETS_CHANNEL_ID"),
+            viewer_roles=roles,
+            brand_channels=frozenset(
+                int(channel.strip())
+                for channel in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
+                if channel.strip()
             ),
-            os.getenv("JABBAZI_DISCORD_BRAND_GIF_URL", ""),
+            brand_gif_url=os.getenv("JABBAZI_DISCORD_BRAND_GIF_URL", ""),
+            vip_role=int(os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "0") or 0),
+            main_card_channel=int(
+                os.getenv("JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID", "0") or 0
+            ),
+            best_two_channel=int(
+                os.getenv("JABBAZI_DISCORD_BEST_TWO_CHANNEL_ID", "0") or 0
+            ),
+            results_channel=int(
+                os.getenv("JABBAZI_DISCORD_RESULTS_CHANNEL_ID", "0") or 0
+            ),
+            support_channel=int(
+                os.getenv("JABBAZI_DISCORD_SUPPORT_CHANNEL_ID", "0") or 0
+            ),
         )
         if result.status_channel == result.sheets_channel:
             raise ValueError("Use separate status and sheet channels")
@@ -78,8 +97,12 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     """Fail closed on wrong guild, public target, or unreviewed explicit grants."""
     if int(document.get("guild_id", 0)) != config.guild or document.get("type") != 0:
         raise ValueError("Research target must be a text channel in the configured guild")
-    if int(document["id"]) not in (config.status_channel, config.sheets_channel):
-        raise ValueError("Target is not an approved research channel")
+    approved = {
+        config.status_channel, config.sheets_channel, config.main_card_channel,
+        config.best_two_channel, config.results_channel,
+    } - {0}
+    if int(document["id"]) not in approved:
+        raise ValueError("Target is not an approved JABBAZI channel")
     view = 1 << 10
     entries = document.get("permission_overwrites", [])
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
@@ -140,6 +163,124 @@ def build_client(config, store):
                 print("DISCORD_AVATAR_UNAVAILABLE", flush=True)
 
         async def setup_hook(self):
+            self.tree = discord.app_commands.CommandTree(self)
+
+            @self.tree.command(name="cheatsheet", description="Show today's frozen 9 AM JABBAZI moneyline sheet")
+            async def cheatsheet(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild:
+                    return await interaction.response.send_message(
+                        "This command is only available in the JABBAZI server.", ephemeral=True
+                    )
+                record = await asyncio.to_thread(daily_moneyline, store)
+                await interaction.response.send_message(
+                    render_daily_moneyline(record),
+                    ephemeral=False,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+
+            alert_roles = (
+                "NFL Alerts", "CFB Alerts", "MLB Alerts", "NBA Alerts", "NHL Alerts",
+                "Parlay Alerts", "Main Card Alerts", "Promo Alerts", "Cheat Sheet Alerts",
+            )
+
+            class AlertSelect(discord.ui.Select):
+                def __init__(self):
+                    super().__init__(
+                        placeholder="Choose the alerts you want",
+                        min_values=0,
+                        max_values=len(alert_roles),
+                        options=[discord.SelectOption(label=name, value=name) for name in alert_roles],
+                    )
+
+                async def callback(self, interaction: discord.Interaction):
+                    if interaction.guild_id != config.guild:
+                        return await interaction.response.send_message(
+                            "Alert roles are only available in the JABBAZI server.",
+                            ephemeral=True,
+                        )
+                    guild = interaction.guild
+                    available = {role.name: role for role in guild.roles if role.name in alert_roles}
+                    selected = set(self.values)
+                    add = [available[name] for name in selected if name in available]
+                    remove = [
+                        role for role in interaction.user.roles
+                        if role.name in alert_roles and role.name not in selected
+                    ]
+                    if add:
+                        await interaction.user.add_roles(*add, reason="JABBAZI alert preference")
+                    if remove:
+                        await interaction.user.remove_roles(
+                            *remove, reason="JABBAZI alert preference"
+                        )
+                    await interaction.response.send_message(
+                        "Alert preferences updated.", ephemeral=True
+                    )
+
+            class AlertView(discord.ui.View):
+                def __init__(self):
+                    super().__init__(timeout=180)
+                    self.add_item(AlertSelect())
+
+            @self.tree.command(name="alerts", description="Choose your JABBAZI sport and pick alerts")
+            async def alerts(interaction: discord.Interaction):
+                await interaction.response.send_message(
+                    "Choose the alerts you want. You can change these anytime.",
+                    view=AlertView(),
+                    ephemeral=True,
+                )
+
+            @self.tree.command(name="support", description="Open a private JABBAZI support thread")
+            async def support(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild or not config.support_channel:
+                    return await interaction.response.send_message(
+                        "Private support is not configured yet.", ephemeral=True
+                    )
+                channel = await self.fetch_channel(config.support_channel)
+                if getattr(channel, "guild", None) is None or channel.guild.id != config.guild:
+                    return await interaction.response.send_message(
+                        "Support configuration is unavailable.", ephemeral=True
+                    )
+                thread = await channel.create_thread(
+                    name=f"support-{interaction.user.id}",
+                    type=discord.ChannelType.private_thread,
+                    invitable=False,
+                    reason="JABBAZI member support request",
+                )
+                await thread.add_user(interaction.user)
+                await thread.send(
+                    "Tell us what you need help with. Never post passwords, sportsbook logins, "
+                    "payment card numbers, or other secrets here.",
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                await interaction.response.send_message(
+                    f"Private support opened: {thread.mention}", ephemeral=True
+                )
+
+            @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
+            async def vip(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild:
+                    return await interaction.response.send_message(
+                        "This command is only available in the JABBAZI server.", ephemeral=True
+                    )
+                member = interaction.user
+                role_ids = {role.id for role in getattr(member, "roles", [])}
+                allowed = member.id == config.owner or bool(role_ids & config.viewer_roles)
+                if not allowed:
+                    return await interaction.response.send_message(
+                        "VIP access is not active on your account. Use #upgrade-to-vip or contact support.",
+                        ephemeral=True,
+                    )
+                from .member_access import issue_ticket, portal_origin
+                ticket = await asyncio.to_thread(
+                    issue_ticket, store, guild=config.guild, member=member.id, authorized=True
+                )
+                link = portal_origin() + "/vip#access=" + ticket
+                await interaction.response.send_message(
+                    f"Your private JABBAZI member link (expires quickly): {link}",
+                    ephemeral=True,
+                )
+
+            await self.tree.sync(guild=discord.Object(id=config.guild))
             self.publisher = asyncio.create_task(self.publish_loop())
 
         async def checked_channel(self, channel_id):
@@ -166,6 +307,34 @@ def build_client(config, store):
                 )
             channel = await self.fetch_channel(channel_id)
             return channel
+
+        async def checked_public_channel(self, channel_id):
+            token = os.environ["JABBAZI_DISCORD_BOT_TOKEN"]
+            async with httpx.AsyncClient(
+                base_url="https://discord.com/api/v10",
+                headers={"Authorization": "Bot " + token},
+                timeout=15,
+            ) as http:
+                guild = (await http.get(f"/guilds/{config.guild}")).json()
+                if int(guild["owner_id"]) != config.owner:
+                    raise ValueError("Server owner mismatch")
+                response = await http.get(f"/channels/{channel_id}")
+                response.raise_for_status()
+                document = response.json()
+                if int(document.get("guild_id", 0)) != config.guild or document.get("type") != 0:
+                    raise ValueError("Public target must be configured guild text channel")
+                view = 1 << 10
+                everyone = [
+                    p for p in document.get("permission_overwrites", [])
+                    if int(p["id"]) == config.guild and p["type"] == 0
+                ]
+                if (
+                    len(everyone) != 1
+                    or int(everyone[0]["deny"]) & view
+                    or not int(everyone[0]["allow"]) & view
+                ):
+                    raise ValueError("Results channel must explicitly allow public visibility")
+            return await self.fetch_channel(channel_id)
 
         async def send_sheets(self, channel, record, sports, page=None):
             if record is None:
@@ -303,35 +472,154 @@ def build_client(config, store):
             except Exception:  # noqa: BLE001 -- do not expose credentials through SDK errors
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)
 
+        async def publish_status_once(self):
+            channel = await self.checked_channel(config.status_channel)
+            text = await asyncio.to_thread(__import__(
+                "jabazi.discord_sheets", fromlist=["scanner_status"]
+            ).scanner_status, store)
+            key = digest(["discord_status", config.guild, text])
+            if not await asyncio.to_thread(
+                store.append, "discord_status_claim", str(channel.id), {"text": text}, key
+            ):
+                return
+            from .discord_content import scanner_status_embed
+            await channel.send(
+                embed=discord.Embed.from_dict(scanner_status_embed(text)),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+
+        async def publish_best_two_once(self):
+            if not config.best_two_channel:
+                return
+            scans = await asyncio.to_thread(store.list_records, "scan_run", 5)
+            candidate = None
+            for row in scans:
+                value = row["payload"].get("best_two_sheet_candidate")
+                if value and value.get("legs"):
+                    candidate = value
+                    break
+            if candidate is None:
+                return
+            from .discord_content import best_two_embed
+            payload = best_two_embed(candidate)
+            if payload is None:
+                return
+            key = digest(["discord_best_two", config.guild, candidate])
+            if not await asyncio.to_thread(
+                store.append, "discord_best_two_claim", str(config.best_two_channel), {}, key
+            ):
+                return
+            channel = await self.checked_channel(config.best_two_channel)
+            await channel.send(
+                embed=discord.Embed.from_dict(payload),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+
+        async def publish_official_picks_once(self):
+            if not config.main_card_channel:
+                return
+            from .discord_content import official_pick_embed
+            rows = await asyncio.to_thread(store.list_records, "candidate", 100)
+            channel = await self.checked_channel(config.main_card_channel)
+            for row in reversed(rows):
+                payload = official_pick_embed(row["payload"])
+                if payload is None:
+                    continue
+                price = row["payload"].get("price") or {}
+                key = digest([
+                    "discord_official_pick", config.guild,
+                    price.get("event_id"), price.get("market"), price.get("participant"),
+                    price.get("selection"), price.get("line"),
+                    row["payload"].get("model_version"),
+                ])
+                if not await asyncio.to_thread(
+                    store.append, "discord_official_pick_claim", str(channel.id), {}, key
+                ):
+                    continue
+                await channel.send(
+                    embed=discord.Embed.from_dict(payload),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+
+        async def publish_results_once(self):
+            if not config.results_channel:
+                return
+            from .performance import report as performance_report
+            from .discord_content import performance_text
+            report = await asyncio.to_thread(performance_report, store)
+            text = performance_text(report)
+            key = digest(["discord_results", config.guild, text])
+            if not await asyncio.to_thread(
+                store.append, "discord_results_claim", str(config.results_channel), {}, key
+            ):
+                return
+            channel = await self.checked_public_channel(config.results_channel)
+            await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+
         async def publish_once(self):
+            """Legacy research-sheet publisher retained for explicit/manual use only."""
             record = await asyncio.to_thread(latest_sheet, store)
             if record is None:
                 return
             channel = await self.checked_channel(config.sheets_channel)
-            key = digest(
-                ["discord_sheet", config.guild, channel.id, record["id"], SHEET_FORMAT_VERSION]
-            )
+            key = digest(["discord_sheet", config.guild, channel.id, record["id"], "legacy-v2"])
             claim = {"sheet_id": record["id"], "channel": str(channel.id)}
-            if not await asyncio.to_thread(store.append, "sheet_delivery_claim", key, claim, key):
+            if not await asyncio.to_thread(
+                store.append, "sheet_delivery_claim", key, claim, key
+            ):
                 return
-            # Claim before sending: ambiguous network failures require manual review,
-            # never automatic duplicate publications.
             try:
                 message = await self.send_sheets(channel, record, tuple(SPORTS))
                 result = {"status": "delivered", "message_id": str(message.id)}
-            except Exception:  # noqa: BLE001 -- uncertain delivery must be audited, not retried
+            except Exception:
                 result = {"status": "needs_review"}
             await asyncio.to_thread(
                 store.append, "sheet_delivery_result", key, result, digest([key, "result"])
+            )
+
+        async def publish_daily_once(self):
+            record = await asyncio.to_thread(daily_moneyline, store)
+            if record is None:
+                return
+            channel = await self.checked_channel(config.sheets_channel)
+            key = digest(["discord_daily_moneyline", config.guild, channel.id, record["id"]])
+            claim = {"sheet_id": record["id"], "channel": str(channel.id)}
+            if not await asyncio.to_thread(
+                store.append, "daily_sheet_delivery_claim", key, claim, key
+            ):
+                return
+            try:
+                text = render_daily_moneyline(record)
+                messages = []
+                while text:
+                    split = min(len(text), 1900)
+                    if split < len(text):
+                        newline = text.rfind("\n", 0, split)
+                        if newline > 500:
+                            split = newline
+                    part, text = text[:split], text[split:].lstrip()
+                    message = await channel.send(
+                        part, allowed_mentions=discord.AllowedMentions.none()
+                    )
+                    messages.append(str(message.id))
+                result = {"status": "delivered", "message_ids": messages}
+            except Exception:  # noqa: BLE001 -- uncertain delivery must be audited, not retried
+                result = {"status": "needs_review"}
+            await asyncio.to_thread(
+                store.append, "daily_sheet_delivery_result", key, result, digest([key, "result"])
             )
 
         async def publish_loop(self):
             await self.wait_until_ready()
             while not self.is_closed():
                 try:
-                    await self.publish_once()
+                    await self.publish_daily_once()
+                    await self.publish_status_once()
+                    await self.publish_best_two_once()
+                    await self.publish_official_picks_once()
+                    await self.publish_results_once()
                 except Exception:  # noqa: BLE001 -- isolate delivery from scanner, redact errors
-                    print("DISCORD_SHEET_UNAVAILABLE", flush=True)
+                    print("DISCORD_PUBLISH_UNAVAILABLE", flush=True)
                 await asyncio.sleep(60)
 
         async def close(self):

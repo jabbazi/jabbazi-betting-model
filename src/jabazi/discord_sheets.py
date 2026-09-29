@@ -6,8 +6,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from .persistence.store import digest
+from .catalog import SPORTS as CATALOG_SPORTS
 
-SPORTS = {"mlb": "baseball_mlb", "nfl": "americanfootball_nfl", "cfb": "americanfootball_ncaaf"}
+SPORTS = {
+    "mlb": "baseball_mlb",
+    "nfl": "americanfootball_nfl",
+    "cfb": "americanfootball_ncaaf",
+}
 MAX_ROWS = 10000
 COLUMNS = (
     "sport",
@@ -40,7 +45,12 @@ def archive_sheets(store, result, *, now=None):
     rows = []
     for action in result.actions[:MAX_ROWS]:
         c = action.price
-        if c.sport not in SPORTS.values():
+        if not any(
+            c.sport == pattern
+            or (pattern.endswith("*") and c.sport.startswith(pattern[:-1]))
+            for patterns in CATALOG_SPORTS.values()
+            for pattern in patterns
+        ):
             continue
         # The LA-facing sheet never includes college player markets.
         if c.sport == SPORTS["cfb"] and (
@@ -68,7 +78,13 @@ def archive_sheets(store, result, *, now=None):
                         action.uncertainty,
                         action.probability_edge,
                         action.expected_roi,
-                        "DATA_UNHEALTHY" if result.errors else "RESEARCH / NOT AN OFFICIAL PICK",
+                        "DATA_UNHEALTHY"
+                        if result.errors
+                        else (
+                            str(action.decision.value).replace("_", " ")
+                            if getattr(action, "decision", None) is not None
+                            else "RESEARCH / NOT AN OFFICIAL PICK"
+                        ),
                         action.reason,
                     ),
                     strict=True,
@@ -81,6 +97,17 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["executable"] = c.executable
         rows[-1]["price_stale"] = c.stale
         rows[-1]["in_play"] = c.in_play
+        reliability = getattr(action, "reliability", None) or {}
+        health_value = (reliability.get("research_priority_components") or {}).get(
+            "data_health"
+        )
+        rows[-1]["data_health"] = (
+            "HEALTHY"
+            if health_value == 1 and not c.stale and not c.in_play
+            else "UNHEALTHY"
+            if health_value == 0
+            else "UNKNOWN"
+        )
     payload = {
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
@@ -90,7 +117,14 @@ def archive_sheets(store, result, *, now=None):
         "quotes": result.quotes_archived,
         "rows": rows,
         "slate_events": [
-            e for e in getattr(result, "slate_events", ()) if e["sport"] in SPORTS.values()
+            e
+            for e in getattr(result, "slate_events", ())
+            if any(
+                e["sport"] == pattern
+                or (pattern.endswith("*") and e["sport"].startswith(pattern[:-1]))
+                for patterns in CATALOG_SPORTS.values()
+                for pattern in patterns
+            )
         ],
         "coverage": "All events returned by scanned odds feeds; not an independently verified league schedule",
         "truncated": len(result.actions) > MAX_ROWS,

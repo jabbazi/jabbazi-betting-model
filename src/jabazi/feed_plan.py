@@ -74,9 +74,13 @@ PRIMARY = (*EVENT_MARKETS, "americanfootball_ncaaf")
 
 
 class FeedPlan:
-    def __init__(self, factory, store, budget, reserve, errors, renew, *, now=None, player_models=None):
+    def __init__(
+        self, factory, store, budget, reserve, errors, renew, *,
+        now=None, player_models=None, moneyline_only=False
+    ):
         self.factory, self.store = factory, store
         self.player_models = player_models or {}
+        self.moneyline_only = bool(moneyline_only)
         self.budget, self.reserve, self.errors, self.renew = budget, reserve, errors, renew
         self.now = now or datetime.now(UTC)
         self.spent, self.remaining, self.stopped = 0, None, False
@@ -137,7 +141,8 @@ class FeedPlan:
         primary = [s for s in selected if s["key"] in PRIMARY]
         other = [s for s in selected if s["key"] not in PRIMARY]
         for sport in primary:
-            batch = self.fetch(sport["key"], ("h2h", "spreads", "totals"))
+            base_markets = ("h2h",) if self.moneyline_only else ("h2h", "spreads", "totals")
+            batch = self.fetch(sport["key"], base_markets)
             if batch is None:
                 continue
             yield sport, batch
@@ -203,7 +208,7 @@ class FeedPlan:
                 "partial": bool(events),
             }
         requests = 0
-        if self.coverage["event_odds_enabled"]:
+        if self.coverage["event_odds_enabled"] and not self.moneyline_only:
             # Saturdays/Sundays prioritize NFL event props while MLB still receives
             # its base h2h/spread/total feed. Least-recently-requested NFL events
             # rotate first, so consecutive scans can cover the full Sunday slate.
@@ -268,7 +273,13 @@ class FeedPlan:
             report["partial"] = bool(report["eligible_events"])
         self.coverage["event_requests"] = requests
         for sport in other:
-            markets = ("outrights",) if sport.get("has_outrights") else ("h2h", "spreads", "totals")
+            markets = (
+                ("h2h",)
+                if self.moneyline_only
+                else ("outrights",)
+                if sport.get("has_outrights")
+                else ("h2h", "spreads", "totals")
+            )
             batch = self.fetch(sport["key"], markets)
             if batch is not None:
                 yield sport, batch

@@ -1,0 +1,218 @@
+{
+  "roles": [
+    {
+      "name": "JABBAZI TEAM",
+      "color": 9123304,
+      "hoist": true
+    },
+    {
+      "name": "MODERATOR",
+      "color": 5793266,
+      "hoist": true
+    },
+    {
+      "name": "VIP",
+      "color": 10181046,
+      "hoist": true
+    },
+    {
+      "name": "FREE MEMBER",
+      "color": 9807270,
+      "hoist": false
+    },
+    {
+      "name": "FOUNDING VIP",
+      "color": 12745742,
+      "hoist": true
+    },
+    {
+      "name": "TRIAL VIP",
+      "color": 7419530,
+      "hoist": false
+    },
+    {
+      "name": "NFL Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "CFB Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "MLB Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "NBA Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "NHL Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Parlay Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Main Card Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Promo Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Cheat Sheet Alerts",
+      "color": 0,
+      "hoist": false
+    }
+  ],
+  "categories": [
+    {
+      "name": "━━ START HERE ━━",
+      "access": "public",
+      "channels": [
+        "welcome",
+        "rules",
+        "how-jabbazi-works",
+        "how-units-work",
+        "how-to-use-the-picks",
+        "vip-benefits",
+        "upgrade-to-vip",
+        "choose-your-alerts",
+        "support"
+      ]
+    },
+    {
+      "name": "━━ ANNOUNCEMENTS ━━",
+      "access": "public",
+      "channels": [
+        "announcements",
+        "daily-schedule",
+        "model-updates",
+        "system-status"
+      ]
+    },
+    {
+      "name": "━━ DAILY JABBAZI ━━",
+      "access": "vip",
+      "channels": [
+        "jabbazi-main-card",
+        "jabbazi-sprinkles",
+        "best-two-parlay",
+        "promo-boosts",
+        "live-watch"
+      ]
+    },
+    {
+      "name": "━━ VIP PICKS ━━",
+      "access": "vip",
+      "channels": [
+        "vip-straights",
+        "vip-parlays",
+        "vip-sgps",
+        "vip-longshots"
+      ]
+    },
+    {
+      "name": "━━ SPORT RESEARCH ━━",
+      "access": "vip",
+      "channels": [
+        "nfl",
+        "college-football",
+        "mlb",
+        "nba",
+        "nhl",
+        "tennis",
+        "other-sports"
+      ]
+    },
+    {
+      "name": "━━ CHEAT SHEETS ━━",
+      "access": "vip",
+      "channels": [
+        "daily-moneyline-cheat-sheet",
+        "cheat-sheet-archive"
+      ]
+    },
+    {
+      "name": "━━ JABBAZI RESEARCH ━━",
+      "access": "vip",
+      "channels": [
+        "market-watch",
+        "model-edges",
+        "line-movement",
+        "injury-news",
+        "best-two-research",
+        "scanner-status"
+      ]
+    },
+    {
+      "name": "━━ LEARN HOW TO ━━",
+      "access": "public",
+      "channels": [
+        "betting-basics",
+        "understanding-odds",
+        "units-bankroll",
+        "ev-and-vig",
+        "line-shopping",
+        "parlays-and-correlation",
+        "how-to-read-cheat-sheets",
+        "jabbazi-models-explained"
+      ]
+    },
+    {
+      "name": "━━ COMMUNITY ━━",
+      "access": "public",
+      "channels": [
+        "general",
+        "sports-talk",
+        "bet-talk",
+        "winning-tickets",
+        "memes",
+        "suggestions"
+      ]
+    },
+    {
+      "name": "━━ RESULTS / TRANSPARENCY ━━",
+      "access": "public",
+      "channels": [
+        "daily-results",
+        "weekly-results",
+        "monthly-results",
+        "clv-tracking",
+        "model-performance"
+      ]
+    },
+    {
+      "name": "━━ MEMBER SUPPORT ━━",
+      "access": "public",
+      "channels": [
+        "open-a-ticket",
+        "billing-support",
+        "technical-support"
+      ]
+    },
+    {
+      "name": "━━ STAFF ONLY ━━",
+      "access": "staff",
+      "channels": [
+        "staff-chat",
+        "moderation-log",
+        "bot-log",
+        "billing-log",
+        "content-planning",
+        "scanner-errors"
+      ]
+    }
+  ]
+}

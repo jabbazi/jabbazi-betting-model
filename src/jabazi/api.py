@@ -22,6 +22,15 @@ from .automation import AutomaticScanner, ScannerBusy
 from .config import Settings
 
 
+class DiscordEntitlementRequest(BaseModel):
+    member_id: str
+    status: Literal["active", "trialing", "lifetime", "canceled", "expired", "past_due"]
+    plan: str
+    provider: str
+    provider_ref: str
+    expires_at: str | None = None
+
+
 class ScanRequest(BaseModel):
     mode: Literal["quick", "full"] = "quick"
     credit_reserve: int = Field(default=50, ge=0, le=100000)
@@ -139,6 +148,39 @@ def ready():
         "betting_enabled": False,
         "note": "Liveness and database readiness do not approve models",
     }
+
+
+@app.post("/v1/discord/entitlements")
+def discord_entitlement(
+    body: DiscordEntitlementRequest,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    from .discord_entitlements import set_entitlement
+    store = platform_store()
+    try:
+        record_id = set_entitlement(store, **body.model_dump())
+        from .discord_roles import sync_member_role
+        role_sync = sync_member_role(store, body.member_id)
+        return {"status": "RECORDED", "id": record_id, "role_sync": role_sync}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Invalid entitlement evidence") from exc
+    finally:
+        store.close()
+
+
+@app.get("/v1/discord/entitlements/{member_id}")
+def discord_entitlement_status(
+    member_id: str,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    from .discord_entitlements import latest_entitlement
+    store = platform_store()
+    try:
+        return {"entitlement": latest_entitlement(store, member_id)}
+    finally:
+        store.close()
 
 
 @app.get("/v1/research/prospective-validation")
