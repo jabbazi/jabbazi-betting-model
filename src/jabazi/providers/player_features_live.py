@@ -262,7 +262,7 @@ class LivePlayerFeatureCollector:
         result["nfl"]["fallback"] = {
             "history": "nflverse weekly player stats",
             "role": "nflverse depth charts",
-            "injuries": "nflverse weekly injury reports",
+            "injuries": "ESPN NFL current injury feed",
             "production_projection_required": False,
         }
         result["mlb"]["fallback"] = {
@@ -472,55 +472,55 @@ class LivePlayerFeatureCollector:
         return rows
 
     def _nfl_injury_evidence(self, card, participant, depth):
-        try:
-            context = self._nfl_card_context(card)
-            injury_rows = self._nfl_injuries()
-        except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
-            self._diagnostics.append(f"NFLVERSE_INJURY_PROVIDER_{type(exc).__name__}")
-            return None
-        if not context:
-            return None
+        """Verify current NFL availability from ESPN's live team injury feed."""
+        context = self._nfl_card_context(card)
         team = str((depth or {}).get("team") or "").upper()
-        if team not in {context["home_abbr"], context["away_abbr"]}:
+        if not context or team not in {context["home_abbr"], context["away_abbr"]}:
             return None
-        rows = [
-            row for row in injury_rows
-            if str(row.get("team") or "").upper() == team
-            and int(row.get("week") or -1) == context["week"]
+        try:
+            query = urllib.parse.urlencode({"team": team})
+            payload = _fetch_json(
+                "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries?" + query
+            )
+        except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            self._diagnostics.append(f"ESPN_NFL_INJURY_PROVIDER_{type(exc).__name__}")
+            return None
+        groups = payload.get("injuries", []) if isinstance(payload, dict) else None
+        if not isinstance(groups, list):
+            return None
+        team_groups = [
+            group for group in groups
+            if str((group.get("team") or {}).get("abbreviation") or "").upper() == team
         ]
-        if not rows:
+        if not groups:
+            rows = []
+        elif len(team_groups) == 1:
+            rows = team_groups[0].get("injuries", [])
+        else:
             return None
-
-        def modified(row):
-            try:
-                value = datetime.fromisoformat(str(row.get("date_modified")).replace("Z", "+00:00"))
-                if value.tzinfo is None:
-                    value = value.replace(tzinfo=UTC)
-                return value.astimezone(UTC)
-            except (TypeError, ValueError):
-                return datetime.min.replace(tzinfo=UTC)
-
-        latest_team = max(modified(row) for row in rows)
-        if latest_team > self.now or (self.now - latest_team).total_seconds() > 96 * 3600:
+        if not isinstance(rows, list):
             return None
-        gsis = str((depth or {}).get("gsis_id") or "")
         matches = [
             row for row in rows
-            if (gsis and str(row.get("gsis_id") or "") == gsis)
-            or _name(row.get("full_name")) == _name(participant)
+            if _name((row.get("athlete") or {}).get("displayName")) == _name(participant)
         ]
-        row = max(matches, key=modified) if matches else None
-        status = str((row or {}).get("report_status") or "").strip().lower()
+        if len(matches) > 1:
+            return None
+        status = str((matches[0] if matches else {}).get("status") or "").strip().lower()
         unavailable = status in {
-            "out", "doubtful", "questionable", "inactive", "injured reserve"
+            "out", "doubtful", "inactive", "injured reserve", "ir", "suspended"
         }
+        ambiguous = status in {"questionable", "game time decision", "game-time decision"}
         return {
-            "verified": True,
+            "verified": not ambiguous,
             "status": status or "not_listed",
-            "available_by_injury_report": not unavailable,
-            "modified_at": latest_team.isoformat(),
-            "source_checksum": rows[0]["_source_checksum"],
+            "available_by_injury_report": not unavailable and not ambiguous,
+            "modified_at": self.now.isoformat(),
+            "source_checksum": hashlib.sha256(
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest(),
             "week": context["week"],
+            "provider": "ESPN NFL current injury feed",
         }
 
     def _nfl_projections(self):
