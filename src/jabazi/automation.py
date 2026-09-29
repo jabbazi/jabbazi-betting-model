@@ -144,6 +144,7 @@ class AutomaticScanner:
         all_cards = []
         new_actions = []
         errors = []
+        v5_errors = []
         quote_count = 0
         scanned = 0
         remaining = None
@@ -232,6 +233,14 @@ class AutomaticScanner:
                     if feature_cards:
                         player_features.sync(ledger, feature_cards)
                 for card in cards:
+                    if isinstance(ledger, Store):
+                        try:
+                            from .research.market_intelligence import archive_snapshot
+                            archive_snapshot(ledger, card)
+                        except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                            v5_errors.append(
+                                f"{card.sport}:{card.event_id}:market_snapshot_{type(exc).__name__}"
+                            )
                     model, inference_card = select_model(card, models, player_models)
                     # One bad game/model must not abort independent price research.
                     try:
@@ -408,6 +417,7 @@ class AutomaticScanner:
                     "feeds_scanned": scanned,
                     "quotes_archived": quote_count,
                     "errors": errors,
+                    "v5_research_errors": v5_errors,
                     "completed_at": datetime.now(UTC).isoformat(),
                     "healthy": not errors,
                     "models_loaded": {
@@ -426,6 +436,7 @@ class AutomaticScanner:
                 run_id,
             )
         if plan.coverage is not None:
+            plan.coverage["v5_research_errors"] = v5_errors[-50:]
             plan.coverage["player_feature_diagnostics"] = list(player_features.diagnostics)[-50:]
             plan.coverage["player_feature_provider_configured"] = bool(
                 self.settings.sportsdataio_api_key
