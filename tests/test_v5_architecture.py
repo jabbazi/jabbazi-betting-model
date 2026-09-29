@@ -252,3 +252,45 @@ def test_opportunity_regime_proxy_flags_large_recent_shift():
     assert stable["detected"] is False
     assert shifted["detected"] is True
     assert shifted["uncertainty_multiplier"] > 1
+
+
+def test_adversarial_review_requires_sourced_pregame_evidence():
+    from jabazi.persistence.store import Store
+    from jabazi.research.adversarial import freeze_review, latest_review
+
+    store = Store("sqlite:///:memory:", initialize=True)
+    try:
+        payload = {
+            "sport": "americanfootball_nfl",
+            "event_id": "g1",
+            "starts_at": "2026-10-01T00:00:00+00:00",
+            "market": "h2h",
+            "selection": "Home",
+            "participant": None,
+            "line": None,
+            "reviewed_at": "2026-09-30T20:00:00+00:00",
+            "outcome": "SURVIVES_CHALLENGE",
+            "thesis": "Test-only thesis",
+            "sources": [{
+                "url": "https://example.com/official",
+                "tier": "OFFICIAL",
+                "observed_at": "2026-09-30T19:55:00+00:00",
+                "finding": "No material lineup change.",
+                "contrary": False,
+            }],
+        }
+        freeze_review(
+            store, payload,
+            now=datetime(2026, 9, 30, 20, 1, tzinfo=UTC),
+        )
+        c = card()
+        c.starts_at = datetime(2026, 10, 1, 0, tzinfo=UTC)
+        review = latest_review(
+            store, c,
+            now=datetime(2026, 9, 30, 20, 30, tzinfo=UTC),
+        )
+        assert review is not None
+        assert review["outcome"] == "SURVIVES_CHALLENGE"
+        assert review["cash_influence"] is False
+    finally:
+        store.close()
