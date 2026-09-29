@@ -120,8 +120,16 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
 
 def member_has_vip(config, member):
     """Manual VIP-family roles and configured viewer roles grant member-app access."""
-    role_ids = {int(role.id) for role in getattr(member, "roles", [])}
-    role_names = {str(role.name).strip().upper() for role in getattr(member, "roles", [])}
+    role_ids = {
+        int(role.id)
+        for role in getattr(member, "roles", [])
+        if getattr(role, "id", None) is not None
+    }
+    role_names = {
+        str(getattr(role, "name", "")).strip().upper()
+        for role in getattr(member, "roles", [])
+        if str(getattr(role, "name", "")).strip()
+    }
     configured = set(config.viewer_roles)
     if config.vip_role:
         configured.add(config.vip_role)
