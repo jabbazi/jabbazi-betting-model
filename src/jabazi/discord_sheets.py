@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from .persistence.store import digest
+from .catalog import SPORTS as CATALOG_SPORTS
 
 SPORTS = {
     "mlb": "baseball_mlb",
@@ -46,7 +47,12 @@ def archive_sheets(store, result, *, now=None):
     rows = []
     for action in result.actions[:MAX_ROWS]:
         c = action.price
-        if c.sport not in SPORTS.values():
+        if not any(
+            c.sport == pattern
+            or (pattern.endswith("*") and c.sport.startswith(pattern[:-1]))
+            for patterns in CATALOG_SPORTS.values()
+            for pattern in patterns
+        ):
             continue
         # The LA-facing sheet never includes college player markets.
         if c.sport == SPORTS["cfb"] and (
@@ -113,7 +119,14 @@ def archive_sheets(store, result, *, now=None):
         "quotes": result.quotes_archived,
         "rows": rows,
         "slate_events": [
-            e for e in getattr(result, "slate_events", ()) if e["sport"] in SPORTS.values()
+            e
+            for e in getattr(result, "slate_events", ())
+            if any(
+                e["sport"] == pattern
+                or (pattern.endswith("*") and e["sport"].startswith(pattern[:-1]))
+                for patterns in CATALOG_SPORTS.values()
+                for pattern in patterns
+            )
         ],
         "coverage": "All events returned by scanned odds feeds; not an independently verified league schedule",
         "truncated": len(result.actions) > MAX_ROWS,
