@@ -133,7 +133,7 @@ def worker(*, once=False):
                                 max_credits_per_run=int(
                                     os.getenv("JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS", "15")
                                 ),
-                            ).run("quick")
+                            ).run("moneyline")
                             from .discord_sheets import archive_sheets, latest_sheet
                             archive_sheets(store, daily_result)
                             if not daily_result.errors:
