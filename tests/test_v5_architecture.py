@@ -137,3 +137,40 @@ def test_granular_snapshot_is_research_only_and_immutable():
         assert row["features"]["mean10_target_share"] == pytest.approx(0.24)
     finally:
         store.close()
+
+
+def test_exact_clv_requires_matching_entry_and_close_snapshots():
+    from jabazi.persistence.store import Store
+    from jabazi.research.market_intelligence import (
+        archive_snapshot,
+        archive_closing_snapshot,
+        exact_clv_from_store,
+    )
+
+    store = Store("sqlite:///:memory:", initialize=True)
+    try:
+        entry_card = card()
+        archive_snapshot(
+            store,
+            entry_card,
+            observed_at=datetime(2026, 9, 28, 18, tzinfo=UTC),
+        )
+        close_card = card()
+        close_card.best_decimal = Decimal("1.80")
+        close_card.consensus_probability = Decimal("0.56")
+        close_card.observed_at = datetime(2026, 9, 28, 21, tzinfo=UTC)
+        close_card.source_timestamp = datetime(2026, 9, 28, 21, tzinfo=UTC)
+        archive_closing_snapshot(store, close_card)
+        result = exact_clv_from_store(
+            store,
+            event_id="g1",
+            market="h2h",
+            selection="Home",
+            line=None,
+            participant=None,
+            entry_observed_at="2026-09-28T18:00:00+00:00",
+        )
+        assert result["status"] == "EXACT_CLV"
+        assert result["clv_probability_points"] == pytest.approx(0.05)
+    finally:
+        store.close()
