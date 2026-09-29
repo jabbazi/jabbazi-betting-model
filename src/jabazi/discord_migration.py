@@ -286,6 +286,11 @@ def migrate(*, apply=False, archive_obsolete=False):
                 call("POST", f"/guilds/{guild}/roles", "CREATE_ALERT_ROLE", json={"name": spec["name"], "permissions": "0", "mentionable": False})
         if apply:
             live = call("GET", f"/guilds/{guild}/channels", "VERIFY_CHANNELS")
+            category_order = [c["name"] for c in sorted((c for c in live if c["type"] == 4), key=lambda c: c.get("position", 0))]
+            expected_order = [c["name"] for c in bp["categories"]]
+            if category_order[:len(expected_order)] != expected_order:
+                raise RuntimeError("Discord active category order verification failed")
+            print("DISCORD_CATEGORY_ORDER_VERIFIED " + json.dumps(category_order, ensure_ascii=False), flush=True)
             by_id = {str(c["id"]): c for c in live}
             for target, access in targets:
                 actual = by_id[str(target["id"])]
