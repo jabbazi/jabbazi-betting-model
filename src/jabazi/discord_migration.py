@@ -53,7 +53,10 @@ def overwrites(access, *, guild, owner, bot, vip, staff, read_only=False):
     for role in (set(vip) if access == "vip" else set()) | set(staff):
         rows.append({"id": str(role), "type": 0, "allow": str(VIEW | READ | THREAD_SEND | (0 if read_only else SEND)),
                      "deny": str(SEND) if read_only else "0"})
-    for member, permissions in ((owner, VIEW | SEND | READ | THREAD_SEND), (bot, BOT_CHANNEL)):
+    # Server ownership already bypasses channel restrictions. An explicit owner
+    # member allow also survives Discord's View Server As Role preview and masks
+    # the role's actual restrictions, so only the bot needs a member overwrite.
+    for member, permissions in ((bot, BOT_CHANNEL),):
         rows.append({"id": str(member), "type": 1, "allow": str(permissions), "deny": "0"})
     return rows
 
