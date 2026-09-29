@@ -89,6 +89,14 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["executable"] = c.executable
         rows[-1]["price_stale"] = c.stale
         rows[-1]["in_play"] = c.in_play
+        reliability = action.reliability or {}
+        rows[-1]["data_health"] = (
+            "HEALTHY"
+            if reliability.get("data_health") is True
+            else "UNHEALTHY"
+            if reliability.get("data_health") is False
+            else "UNKNOWN"
+        )
     payload = {
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
