@@ -100,3 +100,58 @@ def movement(snapshots):
         "first_at": first["observed_at"],
         "last_at": last["observed_at"],
     }
+
+
+def archive_closing_snapshot(store, card):
+    """Archive the freshest exact-market pre-start card as closing evidence."""
+    if card.starts_at is None or card.observed_at >= card.starts_at:
+        raise ValueError("Closing market snapshot must be pre-start")
+    payload = snapshot_payload(card, observed_at=card.observed_at)
+    payload["closing_evidence"] = True
+    key = digest([
+        "closing_market_snapshot_v1",
+        payload["event_id"],
+        payload["market"],
+        payload["selection"],
+        payload["participant"],
+        payload["line"],
+        payload["source_timestamp"],
+        payload["quote_ids"],
+    ])
+    with store.transaction() as conn:
+        return store._append(
+            conn, "closing_market_snapshot", card.event_id, payload, key
+        )
+
+
+def exact_clv_from_store(
+    store, *, event_id, market, selection, line, participant, entry_observed_at
+):
+    """Compare an exact archived entry snapshot with the exact archived close."""
+    def matches(row):
+        p = row["payload"]
+        return (
+            p.get("event_id") == event_id
+            and p.get("market") == market
+            and p.get("selection") == selection
+            and p.get("participant") == participant
+            and p.get("line") == (None if line is None else str(line))
+        )
+
+    entries = [
+        row["payload"]
+        for row in store.list_records("market_snapshot", 1000, entity=event_id)
+        if matches(row) and row["payload"].get("observed_at") == entry_observed_at
+    ]
+    closes = [
+        row["payload"]
+        for row in store.list_records("closing_market_snapshot", 1000, entity=event_id)
+        if matches(row)
+    ]
+    if len(entries) != 1 or not closes:
+        return {
+            "status": "UNAVAILABLE",
+            "reason": "Exact entry and closing snapshots are required",
+        }
+    close = max(closes, key=lambda row: row["observed_at"])
+    return {"status": "EXACT_CLV", **clv(entries[0], close)}
