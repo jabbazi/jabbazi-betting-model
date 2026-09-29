@@ -16,6 +16,55 @@ SESSION_SECONDS = 900
 TICKET_SECONDS = 300
 
 
+class MembershipUnavailable(RuntimeError):
+    """Membership could not be verified; never serve protected data."""
+
+
+def check_live_membership(principal, *, transport=None):
+    """Recheck Discord on every protected request, including ticket exchange.
+
+    No cached grant survives a removed role. Network/rate-limit failures fail
+    closed. The bot credential is never sent to the browser or written to logs.
+    """
+    import httpx
+
+    guild = os.getenv("JABBAZI_DISCORD_GUILD_ID", "")
+    owner = os.getenv("JABBAZI_DISCORD_OWNER_ID", "")
+    token = os.getenv("JABBAZI_DISCORD_BOT_TOKEN", "")
+    roles = {
+        r.strip() for r in os.getenv("JABBAZI_DISCORD_VIEWER_ROLE_IDS", "").split(",") if r.strip()
+    }
+    member = str(principal.get("member", ""))
+    if (
+        not guild.isdigit()
+        or not owner.isdigit()
+        or not token
+        or any(not r.isdigit() or r == guild for r in roles)
+    ):
+        raise MembershipUnavailable("Membership verification is not configured")
+    if str(principal.get("guild")) != guild or not member.isdigit():
+        raise PermissionError("Member access denied")
+    try:
+        with httpx.Client(
+            base_url="https://discord.com/api/v10", timeout=8, transport=transport
+        ) as client:
+            response = client.get(
+                f"/guilds/{guild}/members/{member}", headers={"Authorization": "Bot " + token}
+            )
+        if response.status_code == 404:
+            raise PermissionError("Member access removed")
+        response.raise_for_status()
+        current = response.json()
+        if str(current.get("user", {}).get("id")) != member or current.get("pending", False):
+            raise PermissionError("Member access denied")
+        if member != owner and not roles.intersection(str(r) for r in current.get("roles", [])):
+            raise PermissionError("VIP role required")
+    except PermissionError:
+        raise
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+        raise MembershipUnavailable("Membership verification is temporarily unavailable") from None
+
+
 def portal_origin():
     value = os.getenv("JABBAZI_MEMBER_ORIGIN", "https://jabbazi-research-api.onrender.com").rstrip(
         "/"
@@ -83,6 +132,7 @@ def exchange_ticket(store, token, *, now=None):
     records = store.list_records("member_ticket", 1, entity=key)
     if not records or not valid_principal(records[0]["payload"], now):
         raise PermissionError("Member link expired")
+    check_live_membership(records[0]["payload"])
     if not store.append("member_ticket_used", key, {}, hashed("member_ticket_used:" + key)):
         raise PermissionError("Member link already used")
     session = secrets.token_urlsafe(32)
@@ -106,4 +156,5 @@ def validate_session(store, token, *, now=None):
         or store.list_records("member_session_revoked", 1, entity=key)
     ):
         raise PermissionError("Member session expired")
+    check_live_membership(records[0]["payload"])
     return records[0]["payload"]

@@ -33,6 +33,9 @@ app = FastAPI(title="Jabbazi Model API", version="0.1.0")
 from .ledger_api import router as ledger_router
 
 app.include_router(ledger_router)
+from .official_api import router as official_router
+
+app.include_router(official_router)
 _scan_lock = threading.Lock()
 
 

@@ -4,6 +4,7 @@ import io
 import math
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -12,7 +13,7 @@ from .discord_sheets import SPORTS
 PAGE_SIZE = 24
 FEATURED_LIMIT = 12
 PRICE_MAX_AGE_SECONDS = 120
-SHEET_FORMAT_VERSION = 3
+SHEET_FORMAT_VERSION = 4
 GROUPS = {
     "nfl": ("Game shortlist", "Player props", "Anytime touchdowns"),
     "mlb": ("Game shortlist", "Pitcher props", "Batter props"),
@@ -234,12 +235,21 @@ def shortlist_rows(record, sport, group, *, now=None):
 def featured_rows(record, sport, group, *, limit=FEATURED_LIMIT, now=None):
     """Return only positive, supported research edges for the member portal.
 
-    Full-slate rows remain available to the owner/Discord sheet pipeline. The
+    Full-slate rows remain available to the owner. The
     member app deliberately surfaces a short, ranked card and never promotes
     an unrated or negative-edge row into a pick-like view.
     """
     if type(limit) is not int or not 1 <= limit <= FEATURED_LIMIT:
         raise ValueError("Invalid featured limit")
+    return supported_rows(record, sport, group, now=now)[:limit]
+
+
+def supported_rows(record, sport, group, *, now=None):
+    """All fresh positive research edges, one per event/player, without a top-N cap.
+
+    Used by Discord's paginated lists. No neutral reference, negative edge or
+    unavailable model is rendered as a selection. Owner archives are unchanged.
+    """
     if not record or not record["payload"].get("healthy"):
         return []
     now = now or datetime.now(UTC)
@@ -263,11 +273,11 @@ def featured_rows(record, sport, group, *, limit=FEATURED_LIMIT, now=None):
             continue
         ranked.append((conservative_roi, edge_value, int(best.get("book_count", 0) or 0), block))
     ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
-    return [item[3] for item in ranked[:limit]]
+    return [item[3] for item in ranked]
 
 
-def page_count(record, sport, group, *, rows=None):
-    selected = shortlist_rows(record, sport, group) if rows is None else rows
+def page_count(record, sport, group, *, rows=None, now=None):
+    selected = supported_rows(record, sport, group, now=now) if rows is None else rows
     return max(1, math.ceil(len(selected) / PAGE_SIZE))
 
 
@@ -343,139 +353,159 @@ def selection_label(row, *, reference=False):
     return f"{side} {line} · {market}".strip()
 
 
-def render_card(record, sport, group, *, page=1, rows=None, featured=False):
+def compact_selection(row):
+    """A complete betting contract in plain language, not an internal market key."""
+    market = row["market"]
+    side = str(row["selection"])
+    line = "" if row.get("line") is None else f"{float(row['line']):g}"
+    period = next(
+        (
+            label
+            for suffix, label in (
+                ("_h1", "1st half"),
+                ("_h2", "2nd half"),
+                ("_q1", "1st quarter"),
+                ("_q2", "2nd quarter"),
+                ("_q3", "3rd quarter"),
+                ("_q4", "4th quarter"),
+            )
+            if market.endswith(suffix)
+        ),
+        "",
+    )
+    base = market.rsplit("_", 1)[0] if period else market
+    participant = str(row.get("participant") or "")
+    if base == "h2h":
+        label = f"{side} ML"
+    elif base in {"spreads", "alternate_spreads"}:
+        signed = f"{float(row['line']):+g}" if row.get("line") is not None else "line unavailable"
+        label = f"{side} {signed}" + (" · alt spread" if base.startswith("alternate") else "")
+    elif base in {"totals", "alternate_totals", "team_totals", "alternate_team_totals"}:
+        team = f"{participant} " if "team_totals" in base and participant else ""
+        kind = "team total" if "team_totals" in base else "total"
+        kind = "alt " + kind if base.startswith("alternate") else kind
+        label = f"{team}{side} {line} · {kind}"
+    elif "anytime" in base and ("td" in base or "touchdown" in base):
+        player = participant or side
+        label = f"{player} · anytime TD" + (" · No" if side.lower() == "no" else "")
+    else:
+        kind = MARKET_LABELS.get(base, base.replace("_", " "))
+        label = f"{participant} · {side} {line} {kind}" if participant else f"{side} {line} {kind}"
+    return label.strip() + (f" · {period}" if period else "")
+
+
+def wrapped(draw, text, face, width):
+    """Wrap rather than truncate selection, player or matchup names."""
+    lines, current = [], ""
+    for word in str(text).split():
+        candidate = f"{current}{word}".strip()
+        if current and draw.textlength(candidate, font=face) > width:
+            lines.append(current)
+            current = ""
+        # Provider labels can contain long unbroken words. Preserve every character.
+        for char in word:
+            candidate = current + char
+            if draw.textlength(candidate, font=face) > width and current:
+                lines.append(current.rstrip())
+                current = char
+            else:
+                current = candidate
+        current += " "
+    if current.strip():
+        lines.append(current.strip())
+    return lines or ["—"]
+
+
+def render_card(record, sport, group, *, page=1, rows=None, featured=False, now=None):
+    """Mobile list image. Probabilities and detailed research stay in the app.
+
+    Revalidate at render time, including rows supplied by the member endpoint.
+    An archived research image never becomes an official card or a parlay.
+    """
     if page < 1 or page > 1000 or group not in (0, 1, 2):
         raise ValueError("Invalid page or group")
-    rows = shortlist_rows(record, sport, group) if rows is None else list(rows)
-    pages = max(1, math.ceil(len(rows) / PAGE_SIZE))
-    selected = rows[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
-    healthy = record["payload"]["healthy"]
-    if not healthy:
-        selected = []
-    height = 336 + max(2, len(selected)) * 64
-    image = Image.new("RGB", (1400, height), "#100c1b")
+    now = now or datetime.now(UTC)
+    valid = supported_rows(record, sport, group, now=now)
+    if rows is not None:
+        # Intersect with current supported rows so an old app selection cannot
+        # survive quote expiry while the image is being requested.
+        valid = [item for item in rows if item in valid]
+    pages = max(1, math.ceil(len(valid) / PAGE_SIZE))
+    selected = valid[(page - 1) * PAGE_SIZE : page * PAGE_SIZE]
+    width, margin = 1080, 52
+    image = Image.new("RGB", (width, 1), "#111113")
     draw = ImageDraw.Draw(image)
-    title, heading, body, small = font(35, True), font(23, True), font(20), font(17)
-    draw.rectangle((0, 0, 1400, 8), fill="#ad68ff")
-    draw.text((28, 22), "JABBAZI GURU", font=title, fill="#f9f5ff")
-    draw.text((28, 70), f"{sport.upper()} / {GROUPS[sport][group]}", font=heading, fill="#c7a1ff")
-    at = record["payload"]["completed_at"][:19].replace("T", " ")
-    label = "games" if group == 0 or sport == "cfb" else "players"
-    draw.text(
-        (28, 110),
-        f"{len(rows)} {label} · page {page}/{pages} · Snapshot {at} UTC",
-        font=small,
-        fill="#beb4cc",
+    brand, title, body, small = font(27, True), font(38, True), font(36), font(22)
+    layout = []
+    for item in selected:
+        chosen = item["best"]
+        lines = wrapped(draw, compact_selection(chosen), body, width - 2 * margin - 30)
+        # Context distinguishes doubleheaders and identifies game totals unambiguously.
+        context = item["event"]
+        try:
+            start = datetime.fromisoformat(chosen["starts_at_utc"].replace("Z", "+00:00"))
+            context += " · " + start.astimezone(ZoneInfo("America/Chicago")).strftime(
+                "%-I:%M %p %Z"
+            )
+        except (ValueError, KeyError, TypeError):
+            pass
+        sublines = wrapped(draw, context, small, width - 2 * margin - 30)
+        layout.append((lines, sublines, 46 * len(lines) + 29 * len(sublines) + 24))
+    height = 325 + sum(item[2] for item in layout) if layout else 480
+    image = Image.new("RGB", (width, height), "#111113")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((margin, 38, margin + 5, 66), fill="#b78aff")
+    draw.text((margin + 20, 35), "JABBAZI GURU", font=brand, fill="#c4a1ff")
+    title_text = (
+        f"{sport.upper()} CHEAT SHEET"
+        if group == 0
+        else f"{sport.upper()} {GROUPS[sport][group].upper()}"
     )
-    notice = (
-        "PARTIAL SOURCE EXPORT" if record["payload"].get("truncated") else "EXPERIMENTAL RESEARCH"
-    )
-    draw.text(
-        (28, 140),
-        f"{notice} · One selection per game/player when supported. No official picks.",
-        font=small,
-        fill="#f4c674",
-    )
-    draw.rectangle((20, 181, 1380, 218), fill="#322046")
-    for x, text in [
-        (30, "MATCHUP / PLAYER"),
-        (493, "SELECTION / PRICE"),
-        (966, "MODEL"),
-        (1102, "MARKET"),
-        (1235, "EDGE"),
-    ]:
-        draw.text((x, 187), text, font=small, fill="#d6b9ff")
-    for index, item in enumerate(selected):
-        y = 222 + index * 64
-        if index % 2 == 0:
-            draw.rectangle((20, y, 1380, y + 62), fill="#20162e")
-        name = item.get("participant") if group != 0 and sport != "cfb" else item["event"]
-        sub = (
-            item["event"]
-            if group != 0 and sport != "cfb"
-            else str(item.get("starts_at_utc") or "")[:16].replace("T", " ") + " UTC"
+    draw.text((margin, 88), title_text, font=title, fill="#f5f5f6")
+    try:
+        at = datetime.fromisoformat(record["payload"]["completed_at"].replace("Z", "+00:00"))
+        date = at.astimezone(ZoneInfo("America/Chicago")).strftime("%A · %b %-d · %-I:%M %p %Z")
+    except (ValueError, KeyError, TypeError):
+        date = "Snapshot time unavailable"
+    draw.text((margin, 145), date, font=small, fill="#a3a3ad")
+    notice = "RESEARCH ONLY · NOT OFFICIAL PICKS"
+    if record["payload"].get("truncated"):
+        notice += " · PARTIAL SLATE"
+    draw.text((margin, 180), notice, font=font(19, True), fill="#d7bd88")
+    y = 242
+    for lines, sublines, row_height in layout:
+        draw.ellipse((margin, y + 18, margin + 9, y + 27), fill="#e9e9ed")
+        for i, line in enumerate(lines):
+            draw.text((margin + 29, y + i * 46), line, font=body, fill="#f5f5f6")
+        for i, line in enumerate(sublines):
+            draw.text((margin + 29, y + len(lines) * 46 + i * 29), line, font=small, fill="#9e9ea8")
+        y += row_height
+    if not layout:
+        message = (
+            "Data unavailable"
+            if not record["payload"]["healthy"]
+            else "No qualifying fresh research selections"
         )
-        # Two lines preserve both full team names at phone-readable type sizes.
-        if group == 0 and " @ " in name:
-            away, home = name.split(" @ ", 1)
-            draw.text((30, y + 5), short(draw, away, body, 445), font=body, fill="white")
-            draw.text((30, y + 31), short(draw, "@ " + home, body, 445), font=body, fill="#c4b8d0")
-        else:
-            draw.text((30, y + 5), short(draw, name, body, 445), font=body, fill="white")
-            draw.text((30, y + 33), short(draw, sub, small, 445), font=small, fill="#b8aac8")
-        chosen, reference = item["best"], item["reference"]
-        if chosen:
-            draw.text(
-                (493, y + 5),
-                short(draw, selection_label(chosen), body, 452),
-                font=body,
-                fill="#f9f5ff",
-            )
-            stamp = "PASS · " if item["status"] == "PASS" else ""
-            detail = f"{stamp}{odds(chosen['decimal_odds'])} · {chosen['book']}"
-            draw.text((493, y + 33), short(draw, detail, small, 452), font=small, fill="#b8aac8")
-            model = percentage(chosen["research_probability"])
-            market = percentage(chosen["market_no_vig_probability"])
-            edge = f"{item['edge'] * 100:+.1f} pp"
-        elif reference:
-            draw.text(
-                (493, y + 5),
-                short(draw, selection_label(reference, reference=True), body, 452),
-                font=body,
-                fill="#c4b8d0",
-            )
-            draw.text(
-                (493, y + 33), "No player model; market reference only", font=small, fill="#b8aac8"
-            )
-            model, market, edge = "—", percentage(reference["market_no_vig_probability"]), "—"
-            market = ("O " if reference["selection"].lower() == "over" else "Y ") + market
-        else:
-            draw.text((493, y + 5), "NO SUPPORTED SELECTION", font=body, fill="#c4b8d0")
-            draw.text(
-                (493, y + 33),
-                "Model or fresh comparable prices unavailable",
-                font=small,
-                fill="#b8aac8",
-            )
-            model = market = edge = "—"
-        for x, value in ((966, model), (1102, market), (1235, edge)):
-            draw.text((x, y + 15), value, font=body, fill="#ddd0f0")
-    if not selected:
-        text = (
-            "DATA UNHEALTHY"
-            if not healthy
-            else "No qualifying fresh research edges"
-            if featured
-            else "No supported player markets in this scan"
-            if group
-            else "No games returned in this scan"
-        )
-        draw.text((30, 250), text, font=heading, fill="#f4c674")
+        draw.text((margin, 253), message, font=font(30, True), fill="#e9e9ed")
         draw.text(
-            (30, 290),
-            "Missing data never becomes a model percentage or a pick.",
-            font=body,
-            fill="#b8aac8",
+            (margin, 310),
+            "Updated selections appear when supported data is available.",
+            font=small,
+            fill="#a3a3ad",
         )
+    draw.line((margin, height - 66, width - margin, height - 66), fill="#35353b")
     draw.text(
-        (28, height - 83),
-        "Market = no-vig consensus. Edge = Model − Market in percentage points; not expected ROI.",
+        (margin, height - 48),
+        "Snapshot only · Recheck prices in the app",
         font=small,
-        fill="#beb4cc",
+        fill="#a3a3ad",
     )
+    page_label = f"{page}/{pages}"
     draw.text(
-        (28, height - 56),
-        "Compared by price value after uncertainty. Snapshots can move; recheck prices. Never a guarantee.",
+        (width - margin - draw.textlength(page_label, font=small), height - 48),
+        page_label,
         font=small,
-        fill="#beb4cc",
-    )
-    draw.text(
-        (28, height - 29),
-        "Research shortlist only. Prices expire; refresh and recheck before acting."
-        if featured
-        else "No model = no model edge. Every feed matchup is kept, even when no selection is supported.",
-        font=small,
-        fill="#beb4cc",
+        fill="#a3a3ad",
     )
     output = io.BytesIO()
     image.save(output, format="PNG", optimize=True)

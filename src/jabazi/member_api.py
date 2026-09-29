@@ -11,7 +11,14 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from .discord_sheets import latest_sheet
-from .member_access import exchange_ticket, hashed, portal_origin, validate_session, SESSION_SECONDS
+from .member_access import (
+    exchange_ticket,
+    hashed,
+    portal_origin,
+    validate_session,
+    SESSION_SECONDS,
+    MembershipUnavailable,
+)
 from .sheet_images import (
     grouped_rows,
     featured_rows,
@@ -45,6 +52,10 @@ def require_member(request, store):
         return validate_session(store, request.cookies.get(COOKIE))
     except PermissionError:
         raise HTTPException(401, "Open a fresh private access link from !vip in Discord") from None
+    except MembershipUnavailable:
+        raise HTTPException(
+            503, "Membership verification is unavailable. Please retry shortly."
+        ) from None
 
 
 def same_origin(request):
@@ -96,6 +107,10 @@ def sign_in(body: AccessRequest, request: Request):
             raise HTTPException(
                 401, "This access link expired or was already used; type !vip again"
             ) from None
+        except MembershipUnavailable:
+            raise HTTPException(
+                503, "Membership verification is unavailable. Please retry shortly."
+            ) from None
         response = JSONResponse({"signed_in": True, "expires_in": SESSION_SECONDS}, headers=HEADERS)
         response.set_cookie(
             COOKIE,
@@ -111,14 +126,39 @@ def sign_in(body: AccessRequest, request: Request):
         store.close()
 
 
+@router.get("/v1/member/me", include_in_schema=False)
+def member_status(request: Request):
+    store = store_for_request()
+    try:
+        principal = require_member(request, store)
+        return JSONResponse(
+            {
+                "authorized": True,
+                "session_expires_at": principal["expires_at"],
+                "server_time": datetime.now(UTC).isoformat(),
+            },
+            headers=HEADERS,
+        )
+    finally:
+        store.close()
+
+
 @router.post("/v1/member/logout", include_in_schema=False)
 def sign_out(request: Request):
     same_origin(request)
     store = store_for_request()
     try:
-        require_member(request, store)
-        key = hashed(request.cookies[COOKIE])
-        store.append("member_session_revoked", key, {}, hashed("member_session_revoked:" + key))
+        # Logging out must still work when Discord is unavailable or a VIP role
+        # has been removed. This same-origin operation only revokes the cookie.
+        from .member_access import TOKEN_RE
+
+        token = request.cookies.get(COOKIE, "")
+        if TOKEN_RE.fullmatch(token):
+            key = hashed(token)
+            if store.list_records("member_session", 1, entity=key):
+                store.append(
+                    "member_session_revoked", key, {}, hashed("member_session_revoked:" + key)
+                )
         response = JSONResponse({"signed_out": True}, headers=HEADERS)
         response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="strict")
         return response
@@ -257,7 +297,7 @@ def image(
         if not record or not record["payload"]["healthy"] or group not in (0, 1, 2) or page < 1:
             raise HTTPException(404, "Sheet unavailable")
         # The member endpoint always uses the short card, even for older links
-        # with featured=false. Discord archives retain their full-slate renderer.
+        # with featured=false. Owner data archives retain the full slate.
         selected = featured_rows(record, sport, group)
         if page > page_count(record, sport, group, rows=selected):
             raise HTTPException(404, "Sheet unavailable")

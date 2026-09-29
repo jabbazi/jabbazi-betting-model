@@ -8,9 +8,9 @@ const script = fs.readFileSync(path.join(__dirname, '../src/jabazi/static/vip.js
 
 async function setup() {
   const at = Date.parse('2026-09-23T12:00:00Z');
-  const state = {elapsed: 0, fail: false, calls: [], timer: null};
+  const state = {elapsed: 0, fail: false, calls: [], timer: null, accessTimer: null, rejectAccess: false};
   class Element {
-    constructor() { this.children = []; this.value = ''; this.hidden = false; this.textContent = ''; }
+    constructor() { this.dataset = {}; this.children = []; this.value = ''; this.hidden = false; this.textContent = ''; }
     append(...nodes) { this.children.push(...nodes); }
     replaceChildren(...nodes) { this.children = [...nodes]; }
     addEventListener() {}
@@ -27,17 +27,20 @@ async function setup() {
     image_pages: [1, 1, 1], server_time: new Date(at).toISOString(),
     session_expires_at: new Date(at + 900000).toISOString(), completed_at: new Date(at).toISOString()};
   const document = {getElementById: get, createElement: () => new Element(),
-    querySelectorAll: () => [], addEventListener() {}, head: new Element(), hidden: false};
+    querySelectorAll: () => [], querySelector: () => get('sport-switch'), addEventListener() {}, head: new Element(), hidden: false};
   class TestDate extends Date { static now() { return at + state.elapsed; } }
   const context = vm.createContext({document, Date: TestDate, URLSearchParams, console,
     performance: {now: () => state.elapsed}, location: {hash: ''}, history: {replaceState() {}},
-    setInterval: fn => { state.timer = fn; },
+    setInterval: (fn, ms) => { if(ms===1000) state.timer = fn; else state.accessTimer=fn; },
     fetch: async url => {
       state.calls.push(url);
       if (state.fail) throw Error('TEST network failure');
-      return {ok: true, json: async () => url === '/vip/info' ? {} : structuredClone(payload)};
+      if(state.rejectAccess) return {ok:false,status:401,json:async()=>({detail:'Access removed'})};
+      return {ok: true, json: async () => url === '/vip/info' ? {} : url.startsWith('/v1/member/cards') ? {...structuredClone(payload),cards:[],performance:{},has_more:false} : structuredClone(payload)};
     }});
-  await vm.runInContext(script, context);
+  vm.runInContext(script, context);
+  await vm.runInContext("startup",context);
+  await vm.runInContext("tab='sheets';load()",context);
   return {state, context, get};
 }
 
@@ -83,3 +86,10 @@ test('latest request wins when responses return out of order', async () => {
   assert.equal(get('workspace').hidden, true);
   assert.equal(get('rows').children.length, 0);
 });
+
+ test('removing access clears official records, lessons and research on membership poll',async()=>{
+ const {state,get}=await setup();
+ get('official-cards').append({textContent:'OLD CARD'});get('lessons').append({textContent:'OLD LESSON'});
+ state.rejectAccess=true;await state.accessTimer();
+ assert.equal(get('workspace').hidden,true);assert.equal(get('official-cards').children.length,0);assert.equal(get('lessons').children.length,0);assert.equal(get('rows').children.length,0);
+ });
