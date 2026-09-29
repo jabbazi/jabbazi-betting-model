@@ -55,3 +55,30 @@ def combine_regimes(series_by_name):
             [row["uncertainty_multiplier"] for row in diagnostics.values()] or [1.0]
         ),
     }
+
+
+def opportunity_proxy(features, threshold=0.25):
+    """Low-cost live proxy when only rolling pregame features are available."""
+    pairs=(
+        ("mean3_opportunities","mean10_opportunities"),
+        ("mean3_minutes","mean10_minutes"),
+    )
+    for short,long in pairs:
+        if short in features and long in features:
+            recent=float(features[short]); base=float(features[long])
+            if not all(math.isfinite(v) for v in (recent,base)):
+                continue
+            relative=abs(recent-base)/max(abs(base),1.0)
+            return {
+                "detected":relative>=threshold,
+                "recent":recent,
+                "baseline":base,
+                "relative_shift":relative,
+                "reason":"ROLLING_OPPORTUNITY_SHIFT" if relative>=threshold else "STABLE",
+                "uncertainty_multiplier":1.0+min(0.5,relative/2) if relative>=threshold else 1.0,
+            }
+    return {
+        "detected":False,
+        "reason":"OPPORTUNITY_PROXY_UNAVAILABLE",
+        "uncertainty_multiplier":1.0,
+    }
