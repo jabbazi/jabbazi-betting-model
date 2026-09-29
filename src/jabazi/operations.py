@@ -77,6 +77,13 @@ def finalize_closing(store, event_id, starts_at, *, now=None):
         )
         if result["status"] != "CLOSING_PROXY":
             continue
+        try:
+            from .research.market_intelligence import archive_closing_snapshot
+            archive_closing_snapshot(store, card)
+        except (ValueError, TypeError, KeyError, ArithmeticError):
+            # V5 closing evidence is research-only; legacy closing proxy remains
+            # the operational fallback and is not silently replaced.
+            pass
         payload = {
             **result,
             "sport": card.sport,
