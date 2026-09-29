@@ -83,91 +83,36 @@
       "channels": [
         "welcome",
         "rules",
-        "how-jabbazi-works",
-        "how-units-work",
-        "how-to-use-the-picks",
-        "vip-benefits",
-        "upgrade-to-vip",
-        "choose-your-alerts",
-        "support"
+        "how-to-use-jabbazi",
+        "vip-access",
+        "alerts-and-support"
       ]
     },
     {
-      "name": "━━ ANNOUNCEMENTS ━━",
-      "access": "public",
-      "channels": [
-        "announcements",
-        "daily-schedule",
-        "model-updates",
-        "system-status"
-      ]
-    },
-    {
-      "name": "━━ DAILY JABBAZI ━━",
+      "name": "━━ TODAY'S JABBAZI ━━",
       "access": "vip",
       "channels": [
         "jabbazi-main-card",
-        "jabbazi-sprinkles",
         "best-two-parlay",
+        "parlays-sgps",
         "promo-boosts",
         "live-watch"
       ]
     },
     {
-      "name": "━━ VIP PICKS ━━",
+      "name": "━━ CHEAT SHEET ━━",
       "access": "vip",
       "channels": [
-        "vip-straights",
-        "vip-parlays",
-        "vip-sgps",
-        "vip-longshots"
+        "daily-moneyline-cheat-sheet"
       ]
     },
     {
-      "name": "━━ SPORT RESEARCH ━━",
+      "name": "━━ VIP RESEARCH ━━",
       "access": "vip",
       "channels": [
-        "nfl",
-        "college-football",
-        "mlb",
-        "nba",
-        "nhl",
-        "tennis",
-        "other-sports"
-      ]
-    },
-    {
-      "name": "━━ CHEAT SHEETS ━━",
-      "access": "vip",
-      "channels": [
-        "daily-moneyline-cheat-sheet",
-        "cheat-sheet-archive"
-      ]
-    },
-    {
-      "name": "━━ JABBAZI RESEARCH ━━",
-      "access": "vip",
-      "channels": [
+        "sport-research",
         "market-watch",
-        "model-edges",
-        "line-movement",
-        "injury-news",
-        "best-two-research",
         "scanner-status"
-      ]
-    },
-    {
-      "name": "━━ LEARN HOW TO ━━",
-      "access": "public",
-      "channels": [
-        "betting-basics",
-        "understanding-odds",
-        "units-bankroll",
-        "ev-and-vig",
-        "line-shopping",
-        "parlays-and-correlation",
-        "how-to-read-cheat-sheets",
-        "jabbazi-models-explained"
       ]
     },
     {
@@ -176,30 +121,15 @@
       "channels": [
         "general",
         "sports-talk",
-        "bet-talk",
-        "winning-tickets",
-        "memes",
-        "suggestions"
+        "winning-tickets"
       ]
     },
     {
-      "name": "━━ RESULTS / TRANSPARENCY ━━",
+      "name": "━━ RESULTS & SUPPORT ━━",
       "access": "public",
       "channels": [
-        "daily-results",
-        "weekly-results",
-        "monthly-results",
-        "clv-tracking",
-        "model-performance"
-      ]
-    },
-    {
-      "name": "━━ MEMBER SUPPORT ━━",
-      "access": "public",
-      "channels": [
-        "open-a-ticket",
-        "billing-support",
-        "technical-support"
+        "results",
+        "support"
       ]
     },
     {
@@ -207,12 +137,64 @@
       "access": "staff",
       "channels": [
         "staff-chat",
-        "moderation-log",
-        "bot-log",
-        "billing-log",
-        "content-planning",
-        "scanner-errors"
+        "bot-log"
       ]
     }
+  ],
+  "deprecated_channels": [
+    "how-jabbazi-works",
+    "how-units-work",
+    "how-to-use-the-picks",
+    "vip-benefits",
+    "upgrade-to-vip",
+    "choose-your-alerts",
+    "announcements",
+    "daily-schedule",
+    "model-updates",
+    "system-status",
+    "jabbazi-sprinkles",
+    "vip-straights",
+    "vip-parlays",
+    "vip-sgps",
+    "vip-longshots",
+    "nfl",
+    "college-football",
+    "mlb",
+    "nba",
+    "nhl",
+    "tennis",
+    "other-sports",
+    "cheat-sheet-archive",
+    "model-edges",
+    "line-movement",
+    "injury-news",
+    "best-two-research",
+    "research-tools",
+    "bookie-sheet-research",
+    "odds-shopping",
+    "promo-tracker",
+    "betting-basics",
+    "understanding-odds",
+    "units-bankroll",
+    "ev-and-vig",
+    "line-shopping",
+    "parlays-and-correlation",
+    "how-to-read-cheat-sheets",
+    "jabbazi-models-explained",
+    "bet-talk",
+    "memes",
+    "suggestions",
+    "daily-results",
+    "weekly-results",
+    "monthly-results",
+    "clv-tracking",
+    "model-performance",
+    "open-a-ticket",
+    "billing-support",
+    "technical-support",
+    "moderation-log",
+    "billing-log",
+    "content-planning",
+    "scanner-errors"
   ]
 }
