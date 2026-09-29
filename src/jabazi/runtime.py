@@ -106,8 +106,20 @@ def worker(*, once=False):
                     print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN") + " BACKUP=" + result.get("backup_id", "") + " CHANNELS=" + str(result["channel_ids"]), flush=True)
                     seed = subprocess.run([sys.executable, "tools/seed_discord_content.py", "--apply"], capture_output=True, timeout=120)
                     print("DISCORD_ONBOARDING_" + ("SEEDED" if seed.returncode == 0 else "UNAVAILABLE"), flush=True)
-                except Exception:
-                    print("DISCORD_RECONCILE_UNAVAILABLE", flush=True)
+                except Exception as exc:
+                    # Never dump SDK response bodies, URLs, environment values or
+                    # exceptions that could contain credentials.
+                    detail = ""
+                    import re
+                    match = re.fullmatch(r"Configured channel ID missing for ([a-z-]+); review before migration", str(exc))
+                    if match:
+                        detail = "_MISSING_CHANNEL_" + match[1]
+                    elif str(exc) in {"Configured Discord owner mismatch", "No approved VIP-family role exists",
+                                      "Bot requires Manage Channels and Manage Roles before permission repair",
+                                      "Durable database backup is required before migration", "Backup database is not ready",
+                                      "Discord backup readback failed"}:
+                        detail = "_" + str(exc).replace(" ", "_")
+                    print("DISCORD_RECONCILE_UNAVAILABLE_" + type(exc).__name__ + detail, flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         if not once:
             from .discord_schedule import daily_loop
