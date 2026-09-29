@@ -54,6 +54,7 @@ Optional publication targets:
 - `JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID`
 - `JABBAZI_DISCORD_BEST_TWO_CHANNEL_ID`
 - `JABBAZI_DISCORD_RESULTS_CHANNEL_ID`
+- `JABBAZI_DISCORD_SUPPORT_CHANNEL_ID`
 
 Enable the gateway only after IDs and permissions are reviewed:
 
