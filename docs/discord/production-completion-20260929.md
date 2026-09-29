@@ -40,3 +40,14 @@
 Give a test account JABBAZI VIP; confirm premium sections appear; run `!vip`, `/vip`, `/cheatsheet`, `/alerts`, `/support`; confirm a free account cannot see premium sections and neither account can see staff/archive.
 
 The server is not yet certified complete. Local simulated tests are not a substitute for this live verification.
+
+## Live verification at 22:24 UTC
+
+- Owner completed Discord sign-in. Inspected role hierarchy, bot membership/permissions, installed apps, command integration, legacy channel inventory and category/channel overrides. Jabbazi GURU is above the four VIP-family roles; Administrator is off. The bot role has excess nonessential permissions to remove after the configuration backup.
+- Existing VIP Picks only allowed the older diamond JABBAZI VIP role. Existing cheat-sheets had no VIP role access and was not synced to its category. Its bot member overwrite now explicitly allows the already-granted Manage Channel/Manage Permissions rights; saved UI state verified.
+- Competitor structure review: legitimate BOOKIE BANDIT access exists, with concise access instructions, a single sheet feed, VIP picks/chat and winning slips. No private picks or member information copied.
+- Render workspace was confirmed. Both API and worker have auto-deploy OFF, overriding the earlier blueprint assumption. PR #38 merged at 7a08490 and both deployments were triggered explicitly. Worker deployment dep-dau3i660tbcc73fr4oa0 is live; API deployment dep-dau3i6m0tbcc73fr4qg0 verification continues.
+- Live gateway registered vip, cheatsheet, alerts, support. Backup-first migration progressed through Start Here and Today's JABBAZI, then failed at PATCH /channels/1552129051789885553 (cheat-sheets), HTTP 403. Completion is not claimed.
+- Recurring worker ValueError isolated in code: entitlement reconciliation default 5000 exceeds Store.list_records cap 1000. Follow-up fixes the limit and skips billing work when unconfigured.
+- Follow-up adds an independent America/Chicago daily scheduler with durable five-minute retry slots between 09:00 and 09:14, reserves that interval from regular scans, and supervises gateway exits. Next real 9 AM delivery still requires observation; no backdated sheet is created.
+- Render dashboard is at login. Connector can deploy/read logs but cannot read service environment values or run a shell. Database remains private; no allowlist weakening was performed.
