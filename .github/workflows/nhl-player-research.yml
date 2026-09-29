@@ -4,12 +4,14 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - audit/all-models-completion-20260928
+      - v5/granular-simulation-market-intelligence
     paths:
       - "src/jabazi/providers/nhl_player_features.py"
       - "src/jabazi/research/nhl_player_experiment.py"
       - "src/jabazi/models/player_distribution.py"
       - "src/jabazi/models/train_player_props.py"
+      - "src/jabazi/models/train_opportunity.py"
+      - "src/jabazi/models/opportunity.py"
       - "tools/capture_nhl_history.py"
       - "tools/capture_nhl_player_history.py"
       - "tools/train_nhl_player_props.py"
@@ -53,6 +55,8 @@ jobs:
               artifact = row.get("artifact")
               if artifact:
                   assert artifact["stage"] in {"SHADOW_ONLY", "VALIDATING"}
+          for artifact in report.get("opportunity_models", {}).values():
+              assert artifact["stage"] == "VALIDATING"
           print(json.dumps(report, indent=2))
           PY
       - uses: actions/upload-artifact@v4
