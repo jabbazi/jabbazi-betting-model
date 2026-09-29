@@ -145,6 +145,7 @@ def test_permission_simulation_checks_free_vip_staff_owner_bot():
              {"id": "8", "permissions": "0"}, {"id": "10", "permissions": "0"}]
     for access in ("public", "vip", "staff"):
         channel = {"permission_overwrites": overwrites(access, guild="1", owner="2", bot="9", vip={"7", "8"}, staff={"10"})}
+        assert not any(row["id"] == "2" for row in channel["permission_overwrites"])
         for member, assigned, expected in (("free", [], access == "public"), ("vip", ["7"], access != "staff"),
                                            ("vip2", ["8"], access != "staff"), ("mod", ["10"], True), ("2", [], True), ("9", [], True)):
             assert bool(effective_permissions("1", member, assigned, roles, channel, "2") & VIEW) == expected
