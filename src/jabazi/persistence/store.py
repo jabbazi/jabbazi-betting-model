@@ -289,6 +289,7 @@ class Store:
             p["parlay"],
             p["origin"],
             p["betting_date"],
+            frozenset(p.get("correlation_keys", [])),
         )
 
     def open_exposure(self):
@@ -326,6 +327,7 @@ class Store:
                         **asdict(proposal),
                         "players": sorted(proposal.players),
                         "theses": sorted(proposal.theses),
+                        "correlation_keys": sorted(proposal.correlation_keys),
                     }
                 ),
                 str(p),
@@ -361,6 +363,7 @@ class Store:
                     "tier": tier,
                     "players": sorted(proposal.players),
                     "theses": sorted(proposal.theses),
+                    "correlation_keys": sorted(proposal.correlation_keys),
                 }
             )
             conn.execute(
