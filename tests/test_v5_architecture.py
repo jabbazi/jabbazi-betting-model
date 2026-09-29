@@ -93,3 +93,47 @@ def test_segmented_calibration_keeps_market_and_edge_bands_separate():
     groups=segmented_calibration(rows)
     assert len(groups)==2
     assert sum(g["n"] for g in groups)==3
+
+
+def test_postmortem_classifies_verified_systematic_causes_before_variance():
+    from jabazi.research.postmortem import classify, summarize
+
+    assert classify(
+        prediction={"probability": 0.7},
+        result={"outcome": 0},
+        context={"stale_data": True},
+    )["classification"] == "STALE_DATA"
+    rows = [
+        {"classification": "NORMAL_VARIANCE"},
+        {"classification": "BAD_PROBABILITY"},
+    ] * 10
+    report = summarize(rows)
+    assert report["n"] == 20
+    assert report["enough_for_pattern_review"] is True
+
+
+def test_granular_snapshot_is_research_only_and_immutable():
+    from jabazi.persistence.store import Store
+    from jabazi.research.granular import archive_granular_snapshot
+
+    store = Store("sqlite:///:memory:", initialize=True)
+    try:
+        archived = archive_granular_snapshot(
+            store,
+            sport="americanfootball_nfl",
+            event_id="g1",
+            participant="Receiver One",
+            starts_at="2026-10-01T00:00:00+00:00",
+            available_at="2026-09-30T18:00:00+00:00",
+            features={"mean10_target_share": 0.24, "mean10_receiving_epa": 3.1},
+            provider="nflverse weekly player stats",
+            source_checksum="abc",
+            schema_version="nfl-granular-weekly-v1",
+        )
+        assert archived is True
+        row = store.list_records("granular_feature_snapshot", 1)[0]["payload"]
+        assert row["research_only"] is True
+        assert row["cash_influence"] is False
+        assert row["features"]["mean10_target_share"] == pytest.approx(0.24)
+    finally:
+        store.close()
