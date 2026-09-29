@@ -29,8 +29,10 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
     sheet = next((row for row in store.list_records("research_sheet", 20, entity="latest_scan") if row["id"] == sheet_id), None)
     if sheet is None:
         return "SOURCE_UNAVAILABLE"
-    freeze_daily_moneyline(store, sheet, now=datetime.now(UTC), timezone="America/Chicago")
-    return "FROZEN"
+    frozen_id, created = freeze_daily_moneyline(store, sheet, now=datetime.now(UTC), timezone="America/Chicago")
+    if created:
+        print(f"DISCORD_DAILY_FROZEN DATE={date} SHEET={frozen_id} SOURCE={sheet_id} SCAN_COMPLETED={sheet['payload']['completed_at']}", flush=True)
+    return "FROZEN" if created else "ALREADY_FROZEN"
 
 
 def daily_loop(settings, url, stop):

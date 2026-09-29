@@ -814,6 +814,7 @@ def build_client(config, store):
             await asyncio.to_thread(
                 store.append, "daily_sheet_delivery_result", key, result, digest([key, "result"])
             )
+            print(f"DISCORD_DAILY_DELIVERY_{result['status'].upper()} DATE={record['payload']['date']} SHEET={record['id']} CHANNEL={channel.id} MESSAGE_IDS={result.get('message_ids', [])}", flush=True)
 
         async def publish_loop(self):
             await self.wait_until_ready()
