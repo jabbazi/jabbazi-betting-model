@@ -90,7 +90,7 @@ def worker(*, once=False):
     next_scan = time.monotonic() + startup_delay
     discord_process = None
     initial_model_refresh = True
-    daily_sheet_date = None
+    daily_thread = None
     next_entitlement_sync = time.monotonic()
     try:
         if not store.ready():
@@ -104,12 +104,21 @@ def worker(*, once=False):
                     for name, suffix in CHANNEL_ENV.items():
                         os.environ["JABBAZI_DISCORD_" + suffix] = result["channel_ids"][name]
                     print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN") + " BACKUP=" + result.get("backup_id", "") + " CHANNELS=" + str(result["channel_ids"]), flush=True)
+                    seed = subprocess.run([sys.executable, "tools/seed_discord_content.py", "--apply"], capture_output=True, timeout=120)
+                    print("DISCORD_ONBOARDING_" + ("SEEDED" if seed.returncode == 0 else "UNAVAILABLE"), flush=True)
                 except Exception:
                     print("DISCORD_RECONCILE_UNAVAILABLE", flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
+        if not once:
+            from .discord_schedule import daily_loop
+            daily_thread = threading.Thread(target=daily_loop, args=(settings, url, stop), daemon=True)
+            daily_thread.start()
         while not stop.is_set():
             report = {"completed_at": datetime.now(UTC).isoformat(), "betting_enabled": False}
             if discord_process is not None:
+                if discord_process.poll() is not None:
+                    print("DISCORD_GATEWAY_RESTART", flush=True)
+                    discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
                 report["discord_process"] = (
                     "RUNNING" if discord_process.poll() is None else "STOPPED"
                 )
@@ -117,57 +126,6 @@ def worker(*, once=False):
                 if not settings.api_key:
                     report["status"] = "WAITING_FOR_ODDS_CREDENTIAL"
                 else:
-                    local_now = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago"))
-                    if daily_sheet_date != local_now.date().isoformat():
-                        from .discord_daily import daily_moneyline
-                        if daily_moneyline(store) is not None:
-                            daily_sheet_date = local_now.date().isoformat()
-                    if (
-                        not once
-                        and local_now.hour == 9
-                        and local_now.minute < 15
-                        and daily_sheet_date != local_now.date().isoformat()
-                    ):
-                        slot = local_now.minute // 5
-                        from .persistence.store import digest
-                        claim_key = digest([
-                            "discord_daily_moneyline_scan",
-                            local_now.date().isoformat(),
-                            slot,
-                        ])
-                        claimed = store.append(
-                            "discord_daily_scan_claim",
-                            local_now.date().isoformat(),
-                            {"slot": slot, "claimed_at": datetime.now(UTC).isoformat()},
-                            claim_key,
-                        )
-                        if claimed:
-                            daily_result = AutomaticScanner(
-                                settings,
-                                max_credits_per_run=int(
-                                    os.getenv("JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS", "15")
-                                ),
-                            ).run("moneyline")
-                            from .discord_sheets import archive_sheets
-                            sheet_id = archive_sheets(store, daily_result)
-                            if not daily_result.errors:
-                                from .discord_daily import freeze_daily_moneyline
-                                sheets = store.list_records("research_sheet", 20, entity="latest_scan")
-                                sheet = next((row for row in sheets if row["id"] == sheet_id), None)
-                                if sheet is not None:
-                                    _, created = freeze_daily_moneyline(
-                                        store,
-                                        sheet,
-                                        now=datetime.now(UTC),
-                                        timezone="America/Chicago",
-                                    )
-                                    if created or daily_moneyline(store) is not None:
-                                        daily_sheet_date = local_now.date().isoformat()
-                            report["discord_daily_sheet"] = {
-                                "date": local_now.date().isoformat(),
-                                "healthy": not daily_result.errors,
-                                "errors": daily_result.errors,
-                            }
                     if time.monotonic() >= next_entitlement_sync:
                         try:
                             from .discord_roles import reconcile_known
@@ -179,7 +137,9 @@ def worker(*, once=False):
                         from .models.refresh import refresh_models
                         report["model_refresh"] = refresh_models(store)
                         initial_model_refresh = False
-                    if time.monotonic() >= next_scan:
+                    local_clock = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago"))
+                    daily_window = (local_clock.hour == 8 and local_clock.minute >= 57) or (local_clock.hour == 9 and local_clock.minute < 15)
+                    if time.monotonic() >= next_scan and not daily_window:
                         # Schedule from completion; no concurrent jobs or catch-up storms.
                         try:
                             from .models.refresh import refresh_models
@@ -245,6 +205,8 @@ def worker(*, once=False):
             except subprocess.TimeoutExpired:
                 discord_process.kill()
                 discord_process.wait()
+        if daily_thread is not None:
+            daily_thread.join(timeout=10)
         store.close()
 
 

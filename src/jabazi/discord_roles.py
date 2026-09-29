@@ -44,7 +44,9 @@ def sync_member_role(store, member_id):
     return {"status":"VIP_GRANTED" if active else "VIP_REMOVED","member_id":member}
 
 
-def reconcile_known(store, limit=5000):
+def reconcile_known(store, limit=1000):
+    if not configured():
+        return {"status": "UNCONFIGURED", "granted": 0, "removed": 0, "errors": 0}
     rows=store.list_records("discord_entitlement",limit)
     members=[]
     seen=set()

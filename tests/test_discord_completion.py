@@ -279,3 +279,24 @@ def test_closed_dm_vip_fallback_is_private(store):
         assert all("access=" not in str(call) for call in public.send.call_args_list)
         await client.close()
     asyncio.run(exercise())
+
+
+def test_unconfigured_billing_does_not_query_or_revoke_manual_members(store, monkeypatch):
+    from jabazi.discord_roles import reconcile_known
+    monkeypatch.delenv("JABBAZI_DISCORD_BILLING_ROLE_ID", raising=False)
+    assert reconcile_known(store)["status"] == "UNCONFIGURED"
+
+
+@pytest.mark.parametrize("day,hour", [("2026-09-30", 14), ("2026-12-01", 15)])
+def test_daily_scheduler_uses_chicago_dst_and_durable_slot(store, day, hour):
+    from jabazi.discord_schedule import run_due
+    at = datetime.fromisoformat(f"{day}T{hour:02}:00:00+00:00")
+    factory = NS()
+    with patch("jabazi.automation.AutomaticScanner") as scanner:
+        scanner.return_value.run.return_value = NS(errors=["provider unavailable"])
+        with patch("jabazi.discord_sheets.archive_sheets", return_value="research-id"):
+            assert run_due(factory, store, now=at-timedelta(seconds=1)) == "NOT_DUE"
+            assert run_due(factory, store, now=at) == "DATA_UNHEALTHY"
+            assert run_due(factory, store, now=at+timedelta(seconds=10)) == "ALREADY_CLAIMED"
+            assert run_due(factory, store, now=at+timedelta(minutes=15)) == "NOT_DUE"
+            scanner.return_value.run.assert_called_once_with("moneyline")

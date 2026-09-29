@@ -159,6 +159,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                 if not saved or saved[0]["id"] != key:
                     raise RuntimeError("Discord backup readback failed")
                 plan["backup_id"] = key
+                print(f"DISCORD_BACKUP_VERIFIED {key} CHANNELS={len(channels)} ROLES={len(roles)} BOT={bot}", flush=True)
             finally:
                 store.close()
 
@@ -172,7 +173,12 @@ def migrate(*, apply=False, archive_obsolete=False):
                                     "id": existing.get("id") if existing else None})
             if apply:
                 if existing:
-                    result = call("PATCH", f"/channels/{existing['id']}", operation, json=payload)
+                    try:
+                        result = call("PATCH", f"/channels/{existing['id']}", operation, json=payload)
+                    except RuntimeError:
+                        current = effective_permissions(guild, bot, membership["roles"], roles, existing, owner)
+                        print(f"DISCORD_CHANNEL_FAILURE ID={existing['id']} BOT={bot} VIEW={bool(current & VIEW)} MANAGE_CHANNELS={bool(current & MANAGE_CHANNELS)} MANAGE_ROLES={bool(current & MANAGE_ROLES)}", flush=True)
+                        raise
                 else:
                     result = call("POST", f"/guilds/{guild}/channels", operation, json=payload)
                 return result
