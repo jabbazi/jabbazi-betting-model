@@ -118,8 +118,8 @@ class AutomaticScanner:
                 ledger.close()
 
     def _run(self, mode, ledger, owner):
-        if mode not in {"quick", "full"}:
-            raise ValueError("mode must be quick or full")
+        if mode not in {"quick", "full", "moneyline"}:
+            raise ValueError("mode must be quick, full or moneyline")
         active = self._active_supported()
         selected = (
             [sport for sport in active if sport["key"] in QUICK_SPORTS]
@@ -183,6 +183,7 @@ class AutomaticScanner:
                 "scanner", owner, self.lease_ttl
             ),
             player_models=player_models,
+            moneyline_only=(mode == "moneyline"),
         )
         for sport, batch in plan.batches(selected):
             try:
