@@ -156,6 +156,8 @@ def test_exact_clv_requires_matching_entry_and_close_snapshots():
             observed_at=datetime(2026, 9, 28, 18, tzinfo=UTC),
         )
         close_card = card()
+        close_card.book_prices = {"A": Decimal("1.80"), "B": Decimal("1.78")}
+        close_card.best_book = "A"
         close_card.best_decimal = Decimal("1.80")
         close_card.consensus_probability = Decimal("0.56")
         close_card.observed_at = datetime(2026, 9, 28, 21, tzinfo=UTC)
