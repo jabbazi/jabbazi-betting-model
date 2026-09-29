@@ -74,7 +74,9 @@ def archive_sheets(store, result, *, now=None):
                         action.uncertainty,
                         action.probability_edge,
                         action.expected_roi,
-                        "DATA_UNHEALTHY" if result.errors else "RESEARCH / NOT AN OFFICIAL PICK",
+                        "DATA_UNHEALTHY"
+                        if result.errors
+                        else str(action.decision.value).replace("_", " "),
                         action.reason,
                     ),
                     strict=True,
