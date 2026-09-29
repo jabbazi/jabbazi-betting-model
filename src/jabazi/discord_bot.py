@@ -24,6 +24,7 @@ class BotConfig:
     status_channel: int
     sheets_channel: int
     viewer_roles: frozenset[int]
+    vip_role: int = 0
     brand_channels: frozenset[int] = frozenset()
     brand_gif_url: str = ""
 
@@ -43,6 +44,7 @@ class BotConfig:
             required("STATUS_CHANNEL_ID"),
             required("SHEETS_CHANNEL_ID"),
             roles,
+            int(os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "0") or 0),
             frozenset(
                 int(c.strip())
                 for c in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
@@ -182,6 +184,7 @@ def build_client(config, store):
 
             await self.tree.sync(guild=discord.Object(id=config.guild))
             self.publisher = asyncio.create_task(self.publish_loop())
+            self.entitlement_sync = asyncio.create_task(self.entitlement_loop())
 
         async def checked_channel(self, channel_id):
             # Fetch current permissions rather than trusting an old gateway cache.
@@ -344,6 +347,34 @@ def build_client(config, store):
             except Exception:  # noqa: BLE001 -- do not expose credentials through SDK errors
                 print("DISCORD_COMMAND_UNAVAILABLE", flush=True)
 
+        async def reconcile_entitlements(self):
+            if not config.vip_role:
+                return
+            from .discord_entitlements import active_members
+            active = await asyncio.to_thread(active_members, store)
+            guild = self.get_guild(config.guild) or await self.fetch_guild(config.guild)
+            role = guild.get_role(config.vip_role)
+            if role is None:
+                raise ValueError("Configured VIP role is unavailable")
+            async for member in guild.fetch_members(limit=None):
+                if member.bot:
+                    continue
+                has = role in member.roles
+                should = member.id in active or member.id == config.owner
+                if should and not has:
+                    await member.add_roles(role, reason="JABBAZI billing entitlement active")
+                elif has and not should and member.id != config.owner:
+                    await member.remove_roles(role, reason="JABBAZI billing entitlement inactive")
+
+        async def entitlement_loop(self):
+            await self.wait_until_ready()
+            while not self.is_closed():
+                try:
+                    await self.reconcile_entitlements()
+                except Exception:  # noqa: BLE001 -- redact Discord/provider details
+                    print("DISCORD_ENTITLEMENT_SYNC_UNAVAILABLE", flush=True)
+                await asyncio.sleep(300)
+
         async def publish_once(self):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
@@ -386,9 +417,10 @@ def build_client(config, store):
                 await asyncio.sleep(60)
 
         async def close(self):
-            task = getattr(self, "publisher", None)
-            if task:
-                task.cancel()
+            for name in ("publisher", "entitlement_sync"):
+                task = getattr(self, name, None)
+                if task:
+                    task.cancel()
             await super().close()
 
     return ResearchClient(
