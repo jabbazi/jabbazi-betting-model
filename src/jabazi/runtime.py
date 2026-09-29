@@ -101,8 +101,11 @@ def worker(*, once=False):
                     from .discord_reconcile import reconcile
                     result = reconcile()
                     print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN"), flush=True)
-                except Exception:
-                    print("DISCORD_RECONCILE_UNAVAILABLE", flush=True)
+                except Exception as exc:
+                    status = getattr(getattr(exc, "response", None), "status_code", None)
+                    code = type(exc).__name__
+                    suffix = f"_HTTP_{status}" if status is not None else ""
+                    print(f"DISCORD_RECONCILE_UNAVAILABLE_{code}{suffix}", flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         while not stop.is_set():
             report = {"completed_at": datetime.now(UTC).isoformat(), "betting_enabled": False}
