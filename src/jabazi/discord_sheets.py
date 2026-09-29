@@ -12,8 +12,6 @@ SPORTS = {
     "mlb": "baseball_mlb",
     "nfl": "americanfootball_nfl",
     "cfb": "americanfootball_ncaaf",
-    "nba": "basketball_nba",
-    "nhl": "icehockey_nhl",
 }
 MAX_ROWS = 10000
 COLUMNS = (
