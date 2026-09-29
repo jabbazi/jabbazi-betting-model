@@ -222,3 +222,33 @@ def test_opportunity_model_trains_chronologically_and_stays_validating():
     assert estimate.unit == "minutes"
     assert estimate.low <= estimate.mean <= estimate.high
     assert estimate.approved_for_betting is False
+
+
+def test_linear_edge_explanation_is_explicitly_noncausal():
+    from jabazi.models.explain import explanation
+
+    artifact = {
+        "feature_names": ["a", "b"],
+        "scaler": {"mean": [0, 10], "scale": [1, 2]},
+        "parameters": {"coef": [2, -1], "intercept": 0},
+    }
+    result = explanation(artifact, {"a": 2, "b": 8})
+    assert result["causal"] is False
+    assert result["drivers"][0]["feature"] == "a"
+    assert result["drivers"][0]["direction"] == "higher"
+
+
+def test_opportunity_regime_proxy_flags_large_recent_shift():
+    from jabazi.reliability.regime import opportunity_proxy
+
+    stable = opportunity_proxy({
+        "mean3_opportunities": 10,
+        "mean10_opportunities": 9.5,
+    })
+    shifted = opportunity_proxy({
+        "mean3_opportunities": 16,
+        "mean10_opportunities": 10,
+    })
+    assert stable["detected"] is False
+    assert shifted["detected"] is True
+    assert shifted["uncertainty_multiplier"] > 1
