@@ -116,8 +116,8 @@ def estimate_opportunity(artifact, features):
     lo_resid,hi_resid=map(float,artifact["residual_interval_90"])
     return OpportunityEstimate(
         mean=mean,
-        low=max(0.0,mean+lo_resid),
-        high=max(0.0,mean+hi_resid),
+        low=max(0.0,min(mean,mean+lo_resid)),
+        high=max(mean,mean+hi_resid),
         unit=artifact["unit"],
         model_version=artifact["model_version"],
         inputs_verified=False,
