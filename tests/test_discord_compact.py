@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from tools.bootstrap_discord import resolve_role
+from jabazi.discord_bot import BotConfig, validate_target
 
 
 def test_compact_discord_blueprint_is_small_and_keeps_core_surfaces():
@@ -49,3 +50,24 @@ def test_vip_role_resolution_rejects_duplicate_names_without_id(monkeypatch):
         resolve_role(
             roles, env_name="JABBAZI_DISCORD_VIP_ROLE_ID", fallback_name="VIP"
         )
+
+
+def test_configured_vip_role_is_allowed_on_private_target():
+    config = BotConfig(
+        guild=1,
+        owner=2,
+        status_channel=3,
+        sheets_channel=4,
+        viewer_roles=frozenset(),
+        vip_role=55,
+    )
+    document = {
+        "guild_id": "1",
+        "id": "4",
+        "type": 0,
+        "permission_overwrites": [
+            {"id": "1", "type": 0, "allow": "0", "deny": str(1 << 10)},
+            {"id": "55", "type": 0, "allow": str((1 << 10) | (1 << 11) | (1 << 16)), "deny": "0"},
+        ],
+    }
+    validate_target(document, config, bot_id=99)
