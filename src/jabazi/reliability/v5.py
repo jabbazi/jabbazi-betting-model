@@ -1,8 +1,6 @@
 """V5 calibration segmentation and automatic evidence kill switches."""
 from __future__ import annotations
 
-import math
-
 from jabazi.research.prospective import calibration_table
 
 
