@@ -248,18 +248,26 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
     brier_delta = None
     if model_metrics.get("brier") is not None and market_metrics.get("brier") is not None:
         brier_delta = float(model_metrics["brier"]) - float(market_metrics["brier"])
-    v5_guard = kill_switch(
-        data_health=bool(audit["eligible"] and fresh),
-        drift=bool(health.get("feature_drift") or regime.get("detected")),
-        calibration_ece=_ece_from_table(prospective_record.get("calibration"))
-        if prospective_record
-        else None,
-        recent_brier_delta=brier_delta,
-        identity_failures=int(prospective_record.get("identity_failures", 0) or 0)
-        if prospective_record
-        else int(not bool(health.get("event_identity"))) if estimate else 0,
-        provider_failures=0,
-        sample_count=int(model_metrics.get("n", 0) or 0),
+    v5_guard = (
+        kill_switch(
+            data_health=bool(audit["eligible"] and fresh),
+            drift=bool(health.get("feature_drift") or regime.get("detected")),
+            calibration_ece=_ece_from_table(prospective_record.get("calibration"))
+            if prospective_record
+            else None,
+            recent_brier_delta=brier_delta,
+            identity_failures=int(prospective_record.get("identity_failures", 0) or 0)
+            if prospective_record
+            else int(not bool(health.get("event_identity"))),
+            provider_failures=0,
+            sample_count=int(model_metrics.get("n", 0) or 0),
+        )
+        if estimate
+        else {
+            "state": "UNAVAILABLE",
+            "reasons": ["NO_INDEPENDENT_MODEL_PROBABILITY"],
+            "cash_influence": False,
+        }
     )
     components = {
         "absolute_model_market_gap": abs(p - market) if p is not None else 0,
