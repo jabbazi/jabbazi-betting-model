@@ -271,7 +271,9 @@ def present_action(value, now):
              "calibration_sample_size", "uncertainty_low", "uncertainty_high", "uncertainty_kind",
              "break_even_probability", "period", "second_best_decimal", "price_fragility",
              "research_priority_score", "research_priority_components", "source_provenance",
-             "game_distribution", "fair_price", "play_to_price")
+             "game_distribution", "fair_price", "play_to_price",
+             "v5_state", "v5_reasons", "v5_cash_influence", "v5_brier_delta",
+             "v5_calibration_ece", "v5_sample_count")
     row = {key: value.get(key) for key in keys}
     if not row["model_version"]:
         row.update(model_probability=None, probability_edge=None, expected_roi=None)
