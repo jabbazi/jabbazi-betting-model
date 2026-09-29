@@ -321,3 +321,81 @@ def test_portfolio_correlation_key_can_bind_before_new_exposure():
     )
     assert result.dollars == 0
     assert "correlation:event:g1" in result.reasons
+
+
+def test_best_two_sheet_lane_uses_independent_model_support_not_claimed_units():
+    from jabazi.research.best_two import build, price
+
+    actions = [
+        {
+            "event_id": "a", "sport": "americanfootball_nfl", "event": "A @ B",
+            "market": "h2h", "selection": "B", "line": None,
+            "model_probability": 0.64, "market_no_vig_probability": 0.55,
+            "uncertainty": 0.02, "uncertainty_low": 0.62, "uncertainty_high": 0.66,
+            "reliability": {"model_lane_decision": "WATCH", "v5_state": "NORMAL"},
+        },
+        {
+            "event_id": "b", "sport": "baseball_mlb", "event": "C @ D",
+            "market": "h2h", "selection": "D", "line": None,
+            "model_probability": 0.63, "market_no_vig_probability": 0.55,
+            "uncertainty": 0.02, "uncertainty_low": 0.61, "uncertainty_high": 0.65,
+            "reliability": {"model_lane_decision": "WATCH", "v5_state": "NORMAL"},
+        },
+    ]
+    sources = [
+        {"payload": {
+            "source": "GG Squad", "sport": "americanfootball_nfl", "event_id": "a",
+            "market": "h2h", "selection": "B", "line": None, "claimed_units": "5",
+            "independently_agreed": True,
+        }},
+        {"payload": {
+            "source": "Bookie Bandit", "sport": "baseball_mlb", "event_id": "b",
+            "market": "h2h", "selection": "D", "line": None, "claimed_units": "1",
+            "independently_agreed": True,
+        }},
+    ]
+    candidate = build(actions, sources)
+    assert candidate.status == "PRICE_CHECK"
+    assert candidate.requested_stake_units == Decimal("2")
+    assert {leg["event_id"] for leg in candidate.legs} == {"a", "b"}
+    assert candidate.cash_influence is False
+
+    # +100 combined price is not enough for this conservative joint probability.
+    rejected = price(
+        candidate, decimal_odds=2.0,
+        current_exposure_known=True, exposure_capacity_units=2,
+    )
+    assert rejected.status == "PASS"
+
+
+def test_best_two_two_unit_size_requires_exceptional_verified_margin_and_capacity():
+    from jabazi.research.best_two import build, price
+
+    actions = [
+        {
+            "event_id": "a", "sport": "americanfootball_nfl", "market": "h2h",
+            "selection": "A", "line": None, "model_probability": 0.78,
+            "market_no_vig_probability": 0.60, "uncertainty": 0.01,
+            "uncertainty_low": 0.77, "uncertainty_high": 0.79,
+            "reliability": {"model_lane_decision": "WATCH", "v5_state": "NORMAL"},
+        },
+        {
+            "event_id": "b", "sport": "americanfootball_nfl", "market": "h2h",
+            "selection": "B", "line": None, "model_probability": 0.76,
+            "market_no_vig_probability": 0.59, "uncertainty": 0.01,
+            "uncertainty_low": 0.75, "uncertainty_high": 0.77,
+            "reliability": {"model_lane_decision": "WATCH", "v5_state": "NORMAL"},
+        },
+    ]
+    sources = [
+        {"payload": {"source": "Bookie Bandit", "sport": "americanfootball_nfl", "event_id": "a", "market": "h2h", "selection": "A", "line": None}},
+        {"payload": {"source": "GG Squad", "sport": "americanfootball_nfl", "event_id": "b", "market": "h2h", "selection": "B", "line": None}},
+    ]
+    candidate = build(actions, sources)
+    sized = price(
+        candidate, decimal_odds=2.15,
+        current_exposure_known=True, exposure_capacity_units=2,
+    )
+    assert sized.status == "BET_CANDIDATE"
+    assert sized.recommended_stake_units == Decimal("2")
+    assert sized.cash_influence is False

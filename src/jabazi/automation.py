@@ -432,6 +432,65 @@ class AutomaticScanner:
 
             actions = [suppress(a) for a in actions]
             arbitrages = []
+        best_two = None
+        if isinstance(ledger, Store):
+            try:
+                from .research.best_two import build as build_best_two
+                source_rows = ledger.list_records("source_pick", 500)
+                action_rows = []
+                for action in actions:
+                    price = action.price
+                    rel = action.reliability or {}
+                    action_rows.append({
+                        "event_id": price.event_id,
+                        "sport": price.sport,
+                        "event": price.event,
+                        "market": price.market,
+                        "participant": price.participant,
+                        "selection": price.selection,
+                        "line": price.line,
+                        "model_probability": action.model_probability,
+                        "market_no_vig_probability": price.consensus_probability,
+                        "uncertainty": action.uncertainty,
+                        "uncertainty_low": rel.get("uncertainty_low"),
+                        "uncertainty_high": rel.get("uncertainty_high"),
+                        "reliability": rel,
+                    })
+                candidate = build_best_two(action_rows, source_rows)
+                best_two = {
+                    "status": candidate.status,
+                    "method": candidate.method,
+                    "joint_probability": candidate.joint_probability,
+                    "uncertainty_low": candidate.uncertainty_low,
+                    "uncertainty_high": candidate.uncertainty_high,
+                    "requested_stake_units": str(candidate.requested_stake_units),
+                    "recommended_stake_units": (
+                        str(candidate.recommended_stake_units)
+                        if candidate.recommended_stake_units is not None
+                        else None
+                    ),
+                    "cash_influence": candidate.cash_influence,
+                    "reasons": list(candidate.reasons),
+                    "legs": [
+                        {
+                            "event_id": leg.get("event_id"),
+                            "sport": leg.get("sport"),
+                            "event": leg.get("event"),
+                            "market": leg.get("market"),
+                            "participant": leg.get("participant"),
+                            "selection": leg.get("selection"),
+                            "line": leg.get("line"),
+                            "model_probability": leg.get("model_probability"),
+                            "market_no_vig_probability": leg.get("market_no_vig_probability"),
+                            "best_two_score": leg.get("best_two_score"),
+                            "sheet_sources": leg.get("sheet_sources"),
+                            "sheet_claimed_units": leg.get("sheet_claimed_units"),
+                        }
+                        for leg in candidate.legs
+                    ],
+                }
+            except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                v5_errors.append(f"best_two_{type(exc).__name__}")
         # Persist only final decisions after the entire pass has cleared health checks.
         for action in actions:
             if ledger.record_action_card(action):
@@ -446,6 +505,7 @@ class AutomaticScanner:
                     "quotes_archived": quote_count,
                     "errors": errors,
                     "v5_research_errors": v5_errors,
+                    "best_two_sheet_candidate": best_two,
                     "completed_at": datetime.now(UTC).isoformat(),
                     "healthy": not errors,
                     "models_loaded": {
@@ -465,6 +525,7 @@ class AutomaticScanner:
             )
         if plan.coverage is not None:
             plan.coverage["v5_research_errors"] = v5_errors[-50:]
+            plan.coverage["best_two_sheet_candidate"] = best_two
             plan.coverage["player_feature_diagnostics"] = list(player_features.diagnostics)[-50:]
             plan.coverage["player_feature_provider_configured"] = bool(
                 self.settings.sportsdataio_api_key
