@@ -243,35 +243,27 @@ def main():
                         ).raise_for_status()
                         repair(channel, "staff")
 
+        # AutoMod is optional and must never block the core channel/role migration.
+        # Discord requires additional moderation permissions for these endpoints.
+        plan["automod"] = []
         try:
-            automod = http.get(
-                f"/guilds/{guild}/auto-moderation/rules"
-            ).raise_for_status().json()
-        except httpx.HTTPStatusError:
-            automod = []
-        if not any(rule.get("name") == "JABBAZI Mention Spam" for rule in automod):
-            plan["automod"] = ["JABBAZI Mention Spam"]
-            if args.apply:
-                http.post(
-                    f"/guilds/{guild}/auto-moderation/rules",
-                    json={
-                        "name": "JABBAZI Mention Spam",
-                        "event_type": 1,
-                        "trigger_type": 5,
-                        "trigger_metadata": {
-                            "mention_total_limit": 5,
-                            "mention_raid_protection_enabled": True,
-                        },
-                        "actions": [
-                            {"type": 1, "metadata": {"custom_message": "Please avoid mass mentions."}}
-                        ],
-                        "enabled": True,
-                        "exempt_roles": [],
-                        "exempt_channels": [],
-                    },
-                ).raise_for_status()
-        else:
-            plan["automod"] = []
+            automod_response = http.get(f"/guilds/{guild}/auto-moderation/rules")
+            if automod_response.status_code == 200:
+                automod = automod_response.json()
+                if not any(rule.get("name") == "JABBAZI Mention Spam" for rule in automod):
+                    plan["warnings"].append(
+                        "AutoMod rule not installed by compact migration; configure separately if desired"
+                    )
+            elif automod_response.status_code in {401, 403}:
+                plan["warnings"].append(
+                    "AutoMod unavailable with current bot permissions; core migration continues"
+                )
+            else:
+                automod_response.raise_for_status()
+        except httpx.HTTPError:
+            plan["warnings"].append(
+                "AutoMod check unavailable; core migration continues"
+            )
 
         print(
             json.dumps(
