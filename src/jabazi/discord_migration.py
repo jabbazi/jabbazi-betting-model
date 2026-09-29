@@ -23,12 +23,11 @@ THREAD_SEND = 1 << 38
 THREAD_CREATE = 1 << 36
 BOT_CHANNEL = VIEW | SEND | READ | (1 << 13) | (1 << 14) | (1 << 15) | THREAD_SEND | THREAD_CREATE
 STAFF_NAMES = {"JABBAZI TEAM", "MODERATOR"}
-ARCHIVE = "━━ ARCHIVE ━━"
+ARCHIVE = "🗄️ ARCHIVE"
 CHANNEL_ENV = {
     "scanner-status": "STATUS_CHANNEL_ID",
     "daily-moneyline-cheat-sheet": "SHEETS_CHANNEL_ID",
     "jabbazi-main-card": "MAIN_CARD_CHANNEL_ID",
-    "best-two-parlay": "BEST_TWO_CHANNEL_ID",
     "results": "RESULTS_CHANNEL_ID",
     "support": "SUPPORT_CHANNEL_ID",
     "vip-research": "VIP_RESEARCH_CHANNEL_ID",
@@ -203,7 +202,7 @@ def migrate(*, apply=False, archive_obsolete=False):
         targets = []
         aliases = bp.get("channel_aliases", {})
         for position, category in enumerate(bp["categories"]):
-            existing = next((c for c in channels if c["type"] == 4 and c["name"] == category["name"]), None)
+            existing = next((c for c in channels if c["type"] == 4 and c["name"] in [category["name"], *bp.get("category_aliases", {}).get(category["name"], [])]), None)
             parent = upsert(existing, {"name": category["name"], "type": 4, "position": position,
                                       "permission_overwrites": desired(category["access"])}, "UPSERT_CATEGORY")
             used.add(str(parent["id"]))
@@ -247,7 +246,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                         and channel_name(c["name"]) != "owner-archive"
                         and (channel_name(c["name"]) in legacy_names or str(c.get("parent_id")) in old_parents)]
             if obsolete:
-                archive = next((c for c in channels if c["type"] == 4 and c["name"] == ARCHIVE), None)
+                archive = next((c for c in channels if c["type"] == 4 and c["name"] in {ARCHIVE, "━━ ARCHIVE ━━"}), None)
                 archive = upsert(archive, {"name": ARCHIVE, "type": 4, "position": 99,
                                           "permission_overwrites": desired("staff", archive=True)}, "UPSERT_ARCHIVE")
                 for channel in obsolete:
@@ -269,6 +268,15 @@ def migrate(*, apply=False, archive_obsolete=False):
                         plan["warnings"].append(str(exc))
                         continue
                     targets.append((hidden, "staff"))
+        # Discord category positions share one global list. Place every active
+        # category first in a single reorder, with preserved legacy categories
+        # after them, instead of interleaving old categories during upserts.
+        if apply:
+            ordered = call("GET", f"/guilds/{guild}/channels", "READ_CATEGORY_ORDER")
+            active_names = [category["name"] for category in bp["categories"]]
+            active = [next(c for c in ordered if c["type"] == 4 and c["name"] == name) for name in active_names]
+            legacy = sorted([c for c in ordered if c["type"] == 4 and c["name"] not in active_names], key=lambda c: c.get("position", 0))
+            call("PATCH", f"/guilds/{guild}/channels", "ORDER_CATEGORIES", json=[{"id": c["id"], "position": position} for position, c in enumerate(active + legacy)])
         # Create only missing opt-in alerts; no duplicate VIP-family roles.
         for spec in bp["roles"]:
             if not spec["name"].endswith(" Alerts") or any(r["name"] == spec["name"] for r in roles):

@@ -122,7 +122,7 @@ def test_discord_blueprint_has_unique_channels_and_required_sections():
     channels=[name for category in blueprint["categories"] for name in category["channels"]]
     assert len(channels)==len(set(channels))
     for required in (
-        "daily-moneyline-cheat-sheet","jabbazi-main-card","best-two-parlay",
+        "daily-moneyline-cheat-sheet","jabbazi-main-card","vip-research",
         "vip-access","scanner-status","support","staff-chat",
     ):
         assert required in channels
@@ -165,7 +165,7 @@ def test_simplified_blueprint_is_compact():
     assert len(channels) <= 20
     vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
     assert {c["name"] for c in vip_categories} == {
-        "━━ TODAY’S JABBAZI ━━", "━━ CHEAT SHEET ━━", "━━ VIP RESEARCH ━━"
+        "🔥 TODAY’S JABBAZI", "📊 DAILY CHEAT SHEET", "🧠 VIP RESEARCH"
     }
 
 

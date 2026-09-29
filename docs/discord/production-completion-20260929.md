@@ -1,53 +1,23 @@
-# Production cleanup checkpoint — 2026-09-29
+# Production cleanup — 2026-09-29
 
-## Verified baseline
+## Verified live work
+- Render workspace My Workspace: worker srv-dapfub1srm7s73fbo7cg and API srv-dapfgeff3r2c73citeog. Production branch build/production-foundations; both auto-deploy OFF. Merge only green, deploy explicitly.
+- Backup-first migration succeeded at 23:03:51 UTC. Backup: 291a5190cd7fe82c7db01b34a67e32f1209ca543d0677a7a5cb9a90aea29f967. Old history was hidden, not deleted by the migration.
+- Discord View Server As Role verified free/public visibility and VIP premium visibility; neither sees staff/archive. All four VIP-family roles are simulated during reconciliation. Manual VIP access does not require billing.
+- Live owner tests: !vip DM acknowledgement, /vip private response, /alerts exact nine-role selection and acknowledgement, /support private non-invitable thread (test thread closed), /cheatsheet private no-sheet response without a scan.
+- Bot displays JABBAZI GURU, above VIP/alert roles, Administrator OFF. Moderator rights limited. Mention-spam and suspected-spam protection enabled, alerts routed to bot-log.
+- Short onboarding published. Authentic period results published, no settled official positions; no invented wins or CLV.
 
-- Repository: `jabbazi/jabbazi-betting-model`.
-- Deployment branch in the current Render blueprint: `build/production-foundations`.
-- Inspected head: `ec47445c71cd3017f454ff061f81a518f656063a` (PR #37). PRs #32, #36, and #37 are merged.
-- Live public `/healthz` and `/readyz` both returned HTTP 200. Readiness reported `database=ready`, `betting_enabled=false`. These endpoints do not establish Discord, worker, provider, or model health.
-- Discord browser access reached a sign-in page; no server inventory or competitor community was accessible.
-- Render connector returned `no workspace selected`; its available workspace is named `My Workspace`. Connector requires owner confirmation of workspace before service inspection. No workspace was selected automatically.
-- No live channel, role, permission, deployment, environment variable, billing setting, or message was changed in this run.
+## Latest owner correction and organization
+At 18:29 Chicago the owner confirmed intentionally deleting best-two-parlay, parlays-sgps and promo-boosts. Do not recreate these. The active blueprint now has 17 text channels in seven emoji categories. Best-2 research can share vip-research. Active categories are ordered together before preserved legacy categories. Channel IDs and history are retained.
 
-## Prepared repair
+## Remaining verification
+- Worker restarted repeatedly after 23:16 UTC. Cause not established. Add safe cgroup memory counters and termination/child exit diagnostics; do not claim stability from deployment success alone.
+- Reconciliation missing-channel error was isolated to the owner-deleted Best-2 destination. Remove obsolete target dependency and update destination configuration.
+- No healthy September 29 frozen 9 AM sheet exists. Do not backdate or generate a replacement. Independent Central-time scheduler is configured; September 30 09:20 verification is scheduled to check freeze and single-delivery receipts.
+- All models remain research-only. NFL/MLB SportsDataIO projection calls returned 401; no paid upgrade or model promotion performed. Official cash-authority gates remain enforced.
+- Billing auto-provisioning is unconfigured; manual VIP remains valid. Member-app token redemption by a non-owner test account is not yet verified.
+- Full secret-value environment inspection is unavailable through current connector. No secrets printed, database isolation unchanged.
 
-- Twenty active text channels in the owner's seven requested categories. Preserve IDs when renaming `vip-parlays`, `daily-results`, and `open-a-ticket`; archive legacy channels without deleting messages.
-- A shared migration path reads inventory and commands, verifies the owner, persists a database backup and reads it back before any mutations, and simulates free/VIP/owner/bot access after applying changes. Both duplicate canonical VIP roles are retained. New private categories are created with privacy overwrites in the same request.
-- Explicit approved VIP names and configured IDs replace substring matching. Expired/waitlist/"not VIP" names do not confer access.
-- Slash commands actually populate the guild command tree before sync. `/vip` and `/cheatsheet` fetch current membership and respond privately. `!vip` uses DM, then a private non-invitable thread. No billing record is required for a manual VIP role.
-- Alert assignment only accepts unique, unprivileged, manageable alert roles. Support uses a private thread with a category selection.
-- The immutable daily sheet keeps the full slate, uses a single delivery with a complete attachment for long sheets, selects one lean per event, and retains unavailable events. `/cheatsheet` only retrieves the stored snapshot. A worker restart recognizes an existing freeze before spending scan credits; the freeze references the exact dedicated moneyline scan.
-- Official Main Card rejects stale/in-play quotes, unsupported stages, and quarantined anomalies, while retaining the existing cash-authority requirement. Play-to and Central-time posting are displayed.
-- Results exclude user-origin bets and sprinkles. Best-2 remains research and normalizes PRICE CHECK; the renderer no longer implies a default 2u recommendation.
-- Scanner status uses an editable panel rather than a new message every heartbeat. Publishing lanes fail independently. HTTP failures log lane/operation/status without response bodies or credentials.
-
-## Deployment prerequisites and remaining live verification
-
-1. Confirm the Render workspace, inspect both deployed services, deployed commits, environment variable names/IDs (never print secret values), worker logs and gateway errors.
-2. Authenticate Discord and inspect the actual guild, integrations, role hierarchy, overrides, existing content and other legitimate community access before approving the migration inventory.
-3. Review the backup and migration dry run. Ensure the bot has Manage Channels, Manage Roles, View/Send/Read, Manage Messages, Embed Links, Attach Files, private-thread creation and thread sending as required. Do not add Administrator. Move its role above roles it needs to assign through owner-authorized controls.
-4. Confirm CI against the final PR head; merge only after the live inspection is complete. Existing Render configuration uses `checksPass` auto-deploy, so do not trigger a duplicate deploy after merge.
-5. Apply the reviewed migration, synchronize channel IDs for any newly created destinations, and seed reviewed onboarding using `tools/seed_discord_content.py --apply`. The seed tool updates only this bot's own marked onboarding messages; it does not edit picks or results.
-6. Billing must use a distinct configured `JABBAZI_DISCORD_BILLING_ROLE_ID` before automatic grant/revoke can operate. The manual VIP role is intentionally never a billing-reconciliation target. Inspect existing billing provenance and migrate it deliberately; do not revoke legitimate manual access.
-7. Verify Message Content intent for `!vip`, slash-command registration, gateway startup, bot/application branding, permission simulations, private support visibility, alerts, and destination IDs. Existing startup migration receipts may suppress a previous v1 migration; run the reviewed migration explicitly instead of assuming a restart applies it.
-8. Verify the next 9 AM America/Chicago dedicated scan, freeze record and single delivery. The worker currently checks a 09:00–09:14 window with five-minute retry slots; long earlier jobs or downtime can delay/miss that window. Exact 9 AM scheduling still needs live timing verification and potentially an independently scheduled worker path. Do not fabricate today's sheet after the fact.
-9. Confirm durable delivery outcomes, no repeated 401/403/429 failures, no duplicate posts and no false official recommendations. Status updates edit only status, never frozen research or settled history.
-10. Complete live results-period/CLV reporting and gateway crash supervision assessment. This change does not claim new daily/weekly/monthly settlement summaries, verified closing lines, billing activation, moderation rules, or live source-sheet ingestion.
-
-## Owner smoke test after deployment
-
-Give a test account JABBAZI VIP; confirm premium sections appear; run `!vip`, `/vip`, `/cheatsheet`, `/alerts`, `/support`; confirm a free account cannot see premium sections and neither account can see staff/archive.
-
-The server is not yet certified complete. Local simulated tests are not a substitute for this live verification.
-
-## Live verification at 22:24 UTC
-
-- Owner completed Discord sign-in. Inspected role hierarchy, bot membership/permissions, installed apps, command integration, legacy channel inventory and category/channel overrides. Jabbazi GURU is above the four VIP-family roles; Administrator is off. The bot role has excess nonessential permissions to remove after the configuration backup.
-- Existing VIP Picks only allowed the older diamond JABBAZI VIP role. Existing cheat-sheets had no VIP role access and was not synced to its category. Its bot member overwrite now explicitly allows the already-granted Manage Channel/Manage Permissions rights; saved UI state verified.
-- Competitor structure review: legitimate BOOKIE BANDIT access exists, with concise access instructions, a single sheet feed, VIP picks/chat and winning slips. No private picks or member information copied.
-- Render workspace was confirmed. Both API and worker have auto-deploy OFF, overriding the earlier blueprint assumption. PR #38 merged at 7a08490 and both deployments were triggered explicitly. Worker deployment dep-dau3i660tbcc73fr4oa0 is live; API deployment dep-dau3i6m0tbcc73fr4qg0 verification continues.
-- Live gateway registered vip, cheatsheet, alerts, support. Backup-first migration progressed through Start Here and Today's JABBAZI, then failed at PATCH /channels/1552129051789885553 (cheat-sheets), HTTP 403. Completion is not claimed.
-- Recurring worker ValueError isolated in code: entitlement reconciliation default 5000 exceeds Store.list_records cap 1000. Follow-up fixes the limit and skips billing work when unconfigured.
-- Follow-up adds an independent America/Chicago daily scheduler with durable five-minute retry slots between 09:00 and 09:14, reserves that interval from regular scans, and supervises gateway exits. Next real 9 AM delivery still requires observation; no backdated sheet is created.
-- Render dashboard is at login. Connector can deploy/read logs but cannot read service environment values or run a shell. Database remains private; no allowlist weakening was performed.
+## Final member test
+Give a test account JABBAZI VIP; confirm premium sections appear; type !vip, /vip and /cheatsheet; confirm a free account cannot see premium sections. Verify /alerts and /support as that member if needed.
