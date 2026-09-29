@@ -91,6 +91,7 @@ def worker(*, once=False):
     discord_process = None
     initial_model_refresh = True
     daily_sheet_date = None
+    next_entitlement_sync = time.monotonic()
     try:
         if not store.ready():
             raise RuntimeError("Database migration required")
@@ -152,6 +153,12 @@ def worker(*, once=False):
                                 "healthy": not daily_result.errors,
                                 "errors": daily_result.errors,
                             }
+                    if time.monotonic() >= next_entitlement_sync:
+                        try:
+                            from .discord_roles import reconcile_known
+                            report["discord_entitlements"] = reconcile_known(store)
+                        finally:
+                            next_entitlement_sync = time.monotonic() + 300
                     report["closing"] = ClosingCollector(store, settings.api_key).run()
                     if initial_model_refresh:
                         from .models.refresh import refresh_models
