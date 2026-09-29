@@ -26,26 +26,36 @@ def test_nfl_current_injury_report_allows_clear_player_but_not_questionable(monk
         "_nfl_card_context",
         lambda card: {"home_abbr": "CHI", "away_abbr": "PHI", "week": 4},
     )
-    base = {
-        "season": "2026",
-        "team": "PHI",
-        "week": "4",
-        "gsis_id": "00-1",
-        "full_name": "Test Runner",
-        "date_modified": NOW.isoformat(),
-        "_source_checksum": "injury-checksum",
-    }
     depth = {"team": "PHI", "gsis_id": "00-1"}
 
-    monkeypatch.setattr(collector, "_nfl_injuries", lambda: [base | {"report_status": ""}])
+    def injury_payload(status):
+        return {
+            "injuries": [{
+                "team": {"abbreviation": "PHI"},
+                "injuries": (
+                    [] if status == ""
+                    else [{
+                        "athlete": {"displayName": "Test Runner"},
+                        "status": status,
+                    }]
+                ),
+            }]
+        }
+
+    monkeypatch.setattr(
+        "jabazi.providers.player_features_live._fetch_json",
+        lambda url, timeout=20, headers=None: injury_payload(""),
+    )
     clear = collector._nfl_injury_evidence(nfl_card(), "Test Runner", depth)
     assert clear["verified"] is True
     assert clear["available_by_injury_report"] is True
 
     monkeypatch.setattr(
-        collector, "_nfl_injuries", lambda: [base | {"report_status": "Questionable"}]
+        "jabazi.providers.player_features_live._fetch_json",
+        lambda url, timeout=20, headers=None: injury_payload("Questionable"),
     )
     questionable = collector._nfl_injury_evidence(nfl_card(), "Test Runner", depth)
+    assert questionable["verified"] is False
     assert questionable["available_by_injury_report"] is False
 
 
