@@ -77,3 +77,24 @@ def scanner_status_embed(text):
         "description":text[:3900],
         "color":0x2ECC71 if healthy else 0xE67E22,
     }
+
+
+def performance_text(report):
+    lines=["📊 **JABBAZI RESULTS / TRANSPARENCY**", report.get("provenance","OWNER_REPORTED_LEDGER")]
+    groups=report.get("groups") or []
+    if not groups:
+        lines.append("No settled official ledger positions yet.")
+    for group in groups[:25]:
+        settled=group.get("settled",0)
+        if not settled:
+            continue
+        roi=group.get("roi")
+        roi_text="—" if roi is None else f"{float(roi):+.1%}"
+        lines.append(
+            f"**{group.get('sport')} • {group.get('market')} • {group.get('origin')}** "
+            f"{group.get('wins',0)}-{group.get('losses',0)} "
+            f"({group.get('pushes_or_voids',0)} push/void) • "
+            f"{float(group.get('profit_units',0)):+.2f}u • ROI {roi_text}"
+        )
+    lines.append("Results come from the owner-reported ledger; corrections remain auditable.")
+    return "\n".join(lines)[:3900]
