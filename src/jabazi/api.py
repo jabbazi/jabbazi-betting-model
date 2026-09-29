@@ -287,6 +287,36 @@ def operations(authorization: Annotated[str | None, Header()] = None):
         store.close()
 
 
+@app.get("/v1/research/market-snapshots")
+def market_snapshots(
+    limit: int = 100,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    if not 1 <= limit <= 1000:
+        raise HTTPException(status_code=422, detail="Limit must be 1–1000")
+    store = platform_store()
+    try:
+        return {"records": store.list_records("market_snapshot", limit)}
+    finally:
+        store.close()
+
+
+@app.get("/v1/research/granular-features")
+def granular_features(
+    limit: int = 100,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    if not 1 <= limit <= 1000:
+        raise HTTPException(status_code=422, detail="Limit must be 1–1000")
+    store = platform_store()
+    try:
+        return {"records": store.list_records("granular_feature_snapshot", limit)}
+    finally:
+        store.close()
+
+
 @app.get("/v1/closing-lines")
 def closing_lines(authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)
