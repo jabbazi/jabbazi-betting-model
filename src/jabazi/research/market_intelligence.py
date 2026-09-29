@@ -18,6 +18,11 @@ def snapshot_payload(card, *, observed_at=None):
     }
     if not books:
         raise ValueError("No executable market prices")
+    if card.best_book not in books or str(card.best_decimal) != books[card.best_book]:
+        raise ValueError("Best price does not match archived book map")
+    consensus = float(card.consensus_probability)
+    if not math.isfinite(consensus) or not 0 < consensus < 1:
+        raise ValueError("Invalid consensus probability")
     return {
         "sport": card.sport,
         "event_id": card.event_id,
@@ -31,7 +36,7 @@ def snapshot_payload(card, *, observed_at=None):
         "book_prices": books,
         "best_book": card.best_book,
         "best_decimal": str(card.best_decimal),
-        "consensus_no_vig_probability": float(card.consensus_probability),
+        "consensus_no_vig_probability": consensus,
         "quote_ids": list(card.quote_ids),
     }
 
