@@ -155,6 +155,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     monkeypatch.setenv("JABBAZI_DISCORD_GUILD_ID", "1")
     monkeypatch.setenv("JABBAZI_DISCORD_OWNER_ID", "2")
     monkeypatch.setenv("JABBAZI_DISCORD_SUPPORT_CHANNEL_ID", "22")
+    monkeypatch.setenv("JABBAZI_DISCORD_STATUS_CHANNEL_ID", "25")
     url = "sqlite:///" + str(tmp_path / "migration.db")
     monkeypatch.setenv("JABBAZI_PLATFORM_DATABASE_URL", url)
     backup = Store(url, initialize=True)
@@ -169,6 +170,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
                 {"id": "23", "name": "🎾│tennis-chat", "type": 0, "parent_id": "20", "permission_overwrites": [
                     {"id": "7", "type": 0, "allow": str(VIEW), "deny": "0"}]},
                 {"id": "24", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []}]
+    original = copy.deepcopy(channels)
+    channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "20", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
     original = copy.deepcopy(channels)
     mutations = []
     def handler(req):
@@ -204,6 +207,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert result["channel_ids"]["parlays-sgps"] == "21"
     assert result["channel_ids"]["support"] == "22"
     assert len(result["channel_ids"]) == 20
+    assert result["channel_ids"]["scanner-status"] != "25"
+    assert next(c for c in channels if c["id"] == "25") == original[-1]
     archived = next(c for c in channels if c["id"] == "23")
     assert not effective_permissions("1", "vip", ["7"], roles, archived, "2") & VIEW
     snapshot = backup.list_records("discord_server_backup", 1, entity="1")[0]["payload"]

@@ -195,6 +195,11 @@ def migrate(*, apply=False, archive_obsolete=False):
             targets.append((parent, category["access"]))
             for order, name in enumerate(category["channels"]):
                 configured = os.getenv("JABBAZI_DISCORD_" + CHANNEL_ENV[name], "") if name in CHANNEL_ENV else ""
+                # The production status ID points at an intentionally owner-only
+                # legacy archive. Never republish that private history to VIPs.
+                if name == "scanner-status" and any(str(c["id"]) == configured and channel_name(c["name"]) == "owner-archive" for c in channels):
+                    plan["warnings"].append("STALE_STATUS_ID_OWNER_ARCHIVE_PRESERVED")
+                    configured = ""
                 exact = [c for c in channels if c["type"] == 0 and str(c["id"]) not in used]
                 existing = next((c for c in exact if str(c["id"]) == configured), None) if configured else None
                 if configured and existing is None:
@@ -205,6 +210,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                     existing = next((c for c in exact if channel_name(c["name"]) in aliases.get(name, [])), None)
                 channel = upsert(existing, {"name": name, "type": 0, "parent_id": parent["id"], "position": order,
                     "permission_overwrites": desired(category["access"], name == "jabbazi-main-card"),
+                    "topic": bp.get("channel_topics", {}).get(name, ""),
                     "rate_limit_per_user": 5 if name in {"general", "sports-talk"} else 0}, "UPSERT_CHANNEL")
                 used.add(str(channel["id"]))
                 plan["channel_ids"][name] = str(channel["id"])
@@ -214,6 +220,7 @@ def migrate(*, apply=False, archive_obsolete=False):
             old_parents = {str(c["id"]) for c in channels if c["type"] == 4 and c["name"].startswith(("━━", "╰➤"))}
             legacy_names = set(bp.get("deprecated_channels", [])) | set(plan["channel_ids"])
             obsolete = [c for c in channels if c["type"] != 4 and str(c["id"]) not in used
+                        and channel_name(c["name"]) != "owner-archive"
                         and (channel_name(c["name"]) in legacy_names or str(c.get("parent_id")) in old_parents)]
             if obsolete:
                 archive = next((c for c in channels if c["type"] == 4 and c["name"] == ARCHIVE), None)

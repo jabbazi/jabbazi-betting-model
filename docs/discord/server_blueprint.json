@@ -259,5 +259,27 @@
       "bot-log",
       "scanner-errors"
     ]
+  },
+  "channel_topics": {
+    "welcome": "Start here: today\u2019s card, daily sheet, VIP research, community, results and help.",
+    "how-to-use-jabbazi": "BET NOW / WATCH / PRICE CHECK / PASS / QUARANTINED. 1u = $30 unless officially changed.",
+    "vip-access": "Approved VIP-family roles unlock premium sections immediately. /vip gives a private app link; !vip sends a DM.",
+    "alerts-and-support": "Choose notifications with /alerts. Open a private support thread with /support.",
+    "jabbazi-main-card": "Official JABBAZI recommendations only. Cash-authority gates required. No research-only candidates.",
+    "best-two-parlay": "Two-leg validation with current exact sportsbook pricing. Missing combined quote = PRICE CHECK.",
+    "parlays-sgps": "2-LEG \u2022 CROSS-GAME \u2022 SGP \u2022 TD PARLAY \u2022 PROMO BUILD \u2022 LONGSHOT. No forced action.",
+    "promo-boosts": "Current promotions and supported builds, with exact prices and terms.",
+    "live-watch": "Important updates after publication. Frozen sheets and settled history remain unchanged.",
+    "daily-moneyline-cheat-sheet": "One frozen daily moneyline research sheet at 9 AM America/Chicago. /cheatsheet retrieves it without scanning again.",
+    "vip-research": "Consolidated NFL, CFB, MLB, NBA, NHL and supported tennis/soccer research. Research is not an official wager.",
+    "market-watch": "Meaningful line movement, best prices, deterioration, CLV and verified market opportunities.",
+    "scanner-status": "Compact model stage, provider health and last successful scan. Developer errors belong in bot-log.",
+    "general": "Community conversation. Respect members; no scams or referral spam.",
+    "sports-talk": "All sports in one conversation. Use threads for individual games.",
+    "winning-tickets": "Community tickets. These are separate from official JABBAZI performance.",
+    "results": "Authentic official JABBAZI results. Losses stay recorded; user sprinkles and hypothetical slips are excluded.",
+    "support": "Use /support for a private VIP access, billing, technical or other support thread. Never post credentials.",
+    "staff-chat": "Private staff coordination. Never post credentials or private member-app tokens.",
+    "bot-log": "Private operational diagnostics only. No tokens, API keys or billing secrets."
   }
 }
