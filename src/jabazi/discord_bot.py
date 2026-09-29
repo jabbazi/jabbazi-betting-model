@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .discord_sheets import SPORTS, latest_sheet, parse_command
+from .discord_sheets import latest_sheet, parse_command
 from .discord_daily import daily_moneyline, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
 from .sheet_images import render_card, page_count
