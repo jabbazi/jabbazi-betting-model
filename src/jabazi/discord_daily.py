@@ -49,6 +49,7 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
             "uncertainty":row.get("uncertainty"),
             "edge":row.get("probability_edge"),
             "status":row.get("status"),
+            "data_health":row.get("data_health","UNKNOWN"),
             "reason":row.get("reason"),
             "price_stale":row.get("price_stale"),
             "executable":row.get("executable"),
@@ -105,7 +106,8 @@ def render_text(record):
         lines.extend([
             f"**{row['sport_label']} • {row.get('event') or row.get('event_id')}**",
             f"{row.get('selection')} • {price}",
-            f"Model {pct(model)} | Market {pct(market)} | Edge {pct(edge)} | {status}",
+            f"Model {pct(model)} | Market {pct(market)} | Edge {pct(edge)} | "
+            f"Data {row.get('data_health','UNKNOWN')} | {status}",
             "",
         ])
     lines.append(p["notice"])
