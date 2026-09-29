@@ -20,7 +20,7 @@ def distribution():
 
 def test_same_event_joint_uses_shared_scenarios_not_marginal_product():
     legs=(
-        {"event_id":"g1","market":"h2h","selection":"Home","line":None},
+        {"event_id":"g1","market":"spreads","selection":"Home","line":-0.5},
         {"event_id":"g1","market":"totals","selection":"Over","line":42.5},
     )
     ticket=same_event_ticket(distribution(),legs,home="Home",away="Away",event_id="g1")
@@ -72,7 +72,11 @@ def card():
 
 def test_market_snapshot_and_clv_are_exact_identity():
     entry=snapshot_payload(card(),observed_at=datetime(2026,9,28,18,tzinfo=UTC))
-    c=card(); c.best_decimal=Decimal("1.80"); c.consensus_probability=Decimal("0.56")
+    c=card()
+    c.book_prices={"A":Decimal("1.80"),"B":Decimal("1.78")}
+    c.best_book="A"
+    c.best_decimal=Decimal("1.80")
+    c.consensus_probability=Decimal("0.56")
     close=snapshot_payload(c,observed_at=datetime(2026,9,28,21,tzinfo=UTC))
     result=clv(entry,close)
     assert result["clv_probability_points"]==pytest.approx(.05)
@@ -91,7 +95,7 @@ def test_segmented_calibration_keeps_market_and_edge_bands_separate():
         {"sport":"nfl","bucket":"moneyline","probability":.48,"market_probability":.47,"outcome":1},
     ]
     groups=segmented_calibration(rows)
-    assert len(groups)==2
+    assert len(groups)==3
     assert sum(g["n"] for g in groups)==3
 
 
