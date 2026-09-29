@@ -89,47 +89,35 @@
       ]
     },
     {
-      "name": "━━ TODAY'S JABBAZI ━━",
+      "name": "━━ JABBAZI VIP ━━",
       "access": "vip",
       "channels": [
         "jabbazi-main-card",
+        "jabbazi-sprinkles",
         "best-two-parlay",
-        "parlays-sgps",
+        "vip-parlays",
         "promo-boosts",
         "live-watch"
-      ]
-    },
-    {
-      "name": "━━ CHEAT SHEET ━━",
-      "access": "vip",
-      "channels": [
-        "daily-moneyline-cheat-sheet"
       ]
     },
     {
       "name": "━━ VIP RESEARCH ━━",
       "access": "vip",
       "channels": [
-        "sport-research",
-        "market-watch",
+        "daily-moneyline-cheat-sheet",
+        "vip-research",
         "scanner-status"
       ]
     },
     {
-      "name": "━━ COMMUNITY ━━",
+      "name": "━━ COMMUNITY & RESULTS ━━",
       "access": "public",
       "channels": [
         "general",
         "sports-talk",
-        "winning-tickets"
-      ]
-    },
-    {
-      "name": "━━ RESULTS & SUPPORT ━━",
-      "access": "public",
-      "channels": [
-        "results",
-        "support"
+        "winning-tickets",
+        "daily-results",
+        "open-a-ticket"
       ]
     },
     {
