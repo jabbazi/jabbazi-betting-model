@@ -108,13 +108,28 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
     if len(public) != 1 or not int(public[0]["deny"]) & view or int(public[0]["allow"]) & view:
         raise ValueError("Research channels must explicitly deny public visibility")
-    allowed = {(1, config.owner), (1, bot_id)} | {
-        (0, r) for r in config.viewer_roles | frozenset(bot_role_ids)
-    }
+    access_roles = set(config.viewer_roles) | set(bot_role_ids)
+    if config.vip_role:
+        access_roles.add(config.vip_role)
+    allowed = {(1, config.owner), (1, bot_id)} | {(0, r) for r in access_roles}
     for p in entries:
         if int(p["allow"]) & view and (p["type"], int(p["id"])) not in allowed:
             raise ValueError("Unreviewed research channel access")
 
+
+
+def member_has_vip(config, member):
+    """Manual VIP-family roles and configured viewer roles grant member-app access."""
+    role_ids = {int(role.id) for role in getattr(member, "roles", [])}
+    role_names = {str(role.name).strip().upper() for role in getattr(member, "roles", [])}
+    configured = set(config.viewer_roles)
+    if config.vip_role:
+        configured.add(config.vip_role)
+    return bool(
+        int(getattr(member, "id", 0)) == config.owner
+        or role_ids & configured
+        or role_names & {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+    )
 
 def command_allowed(config, *, guild, channel, bot_author, content):
     if bot_author or guild != config.guild:
@@ -263,8 +278,7 @@ def build_client(config, store):
                         "This command is only available in the JABBAZI server.", ephemeral=True
                     )
                 member = interaction.user
-                role_ids = {role.id for role in getattr(member, "roles", [])}
-                allowed = member.id == config.owner or bool(role_ids & config.viewer_roles)
+                allowed = member_has_vip(config, member)
                 if not allowed:
                     return await interaction.response.send_message(
                         "VIP access is not active on your account. Use #upgrade-to-vip or contact support.",
@@ -402,12 +416,10 @@ def build_client(config, store):
                 return
             try:
                 if command[0] == "portal":
-                    await self.checked_channel(config.sheets_channel)
-                    # Check current membership over REST, not just a cached message role.
+                    # App access is based on the member's current VIP-family role.
+                    # It must not depend on cheat-sheet channel permissions.
                     member = await message.guild.fetch_member(message.author.id)
-                    allowed = member.id == config.owner or bool(
-                        {r.id for r in member.roles} & config.viewer_roles
-                    )
+                    allowed = member_has_vip(config, member)
                     if not allowed:
                         await message.channel.send(
                             "The JABBAZI member app requires an approved VIP role.",
