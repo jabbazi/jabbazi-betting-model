@@ -307,8 +307,17 @@ def build_client(config, store):
                         "This command is only available in the JABBAZI server.", ephemeral=True
                     )
                 member = interaction.user
-                role_ids = {role.id for role in getattr(member, "roles", [])}
-                allowed = member.id == config.owner or bool(role_ids & config.viewer_roles)
+                member_roles = tuple(getattr(member, "roles", []))
+                role_ids = {role.id for role in member_roles}
+                premium_named = any(
+                    role.name in {"VIP", "FOUNDING VIP", "TRIAL VIP"}
+                    for role in member_roles
+                )
+                allowed = (
+                    member.id == config.owner
+                    or bool(role_ids & config.viewer_roles)
+                    or premium_named
+                )
                 if not allowed:
                     return await interaction.response.send_message(
                         "VIP access is not active on your account. Use #upgrade-to-vip or contact support.",
@@ -345,9 +354,18 @@ def build_client(config, store):
                 if int(guild["owner_id"]) != config.owner:
                     raise ValueError("Server owner mismatch")
                 member = await get(f"/guilds/{config.guild}/members/{self.user.id}")
+                guild_roles = await get(f"/guilds/{config.guild}/roles")
+                premium_role_ids = {
+                    int(role["id"])
+                    for role in guild_roles
+                    if role.get("name") in {"VIP", "FOUNDING VIP", "TRIAL VIP"}
+                }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(
-                    document, config, self.user.id, (int(r) for r in member.get("roles", []))
+                    document,
+                    config,
+                    self.user.id,
+                    tuple(int(r) for r in member.get("roles", [])) + tuple(premium_role_ids),
                 )
             channel = await self.fetch_channel(channel_id)
             return channel

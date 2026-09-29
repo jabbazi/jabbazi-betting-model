@@ -48,10 +48,8 @@ def resolve_role(roles, *, env_name, fallback_name):
             raise SystemExit(f"{env_name} does not match a role in this guild")
         return matches[0]
     matches = [r for r in roles if r["name"] == fallback_name]
-    if len(matches) != 1:
-        raise SystemExit(
-            f"Expected exactly one {fallback_name!r} role; set {env_name} to the intended role ID"
-        )
+    if not matches:
+        raise SystemExit(f"No {fallback_name!r} role exists in this guild")
     return matches[0]
 
 
@@ -86,8 +84,14 @@ def main():
         vip = resolve_role(
             roles_list, env_name="JABBAZI_DISCORD_VIP_ROLE_ID", fallback_name="VIP"
         )
+        configured_vip = os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "").strip()
+        vip_roles = (
+            [vip]
+            if configured_vip
+            else [role for role in roles_list if role["name"] == "VIP"]
+        )
         plan = {
-            "vip_role_id": str(vip["id"]),
+            "vip_role_ids": [str(role["id"]) for role in vip_roles],
             "create_roles": [],
             "create_categories": [],
             "create_channels": [],
@@ -121,7 +125,10 @@ def main():
             if access == "vip":
                 return [
                     (guild, 0, 0, VIEW),
-                    (str(vip["id"]), 0, VIEW | SEND | READ_HISTORY, 0),
+                    *[
+                        (str(role["id"]), 0, VIEW | SEND | READ_HISTORY, 0)
+                        for role in vip_roles
+                    ],
                     (owner, 1, VIEW | SEND | READ_HISTORY, 0),
                 ]
             result = [(guild, 0, 0, VIEW), (owner, 1, VIEW | SEND | READ_HISTORY, 0)]
