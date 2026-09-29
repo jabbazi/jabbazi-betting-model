@@ -95,7 +95,10 @@ def test_official_pick_renderer_fails_closed_without_cash_authority(monkeypatch)
         },
     }
     assert official_pick_embed(payload) is None
-    payload["reliability"]["model_can_influence_cash"]=True
+    payload["reliability"].update(model_can_influence_cash=True, model_stage="PRODUCTION_APPROVED")
+    now = datetime.now(UTC)
+    payload["price"].update(executable=True, source_timestamp=now.isoformat(), observed_at=now.isoformat(), starts_at=(now+timedelta(hours=1)).isoformat())
+    payload["maximum_playable_decimal"] = "1.90"
     assert official_pick_embed(payload)["title"].startswith("🟢 JABBAZI MAIN CARD")
 
 
@@ -120,7 +123,7 @@ def test_discord_blueprint_has_unique_channels_and_required_sections():
     assert len(channels)==len(set(channels))
     for required in (
         "daily-moneyline-cheat-sheet","jabbazi-main-card","best-two-parlay",
-        "vip-access","scanner-status","open-a-ticket","staff-chat",
+        "vip-access","scanner-status","support","staff-chat",
     ):
         assert required in channels
     assert any(role["name"]=="VIP" for role in blueprint["roles"])
@@ -158,11 +161,11 @@ def test_named_jabbazi_vip_role_is_backward_compatible():
 def test_simplified_blueprint_is_compact():
     blueprint=json.loads(Path("docs/discord/server_blueprint.json").read_text())
     channels=[name for category in blueprint["categories"] for name in category["channels"]]
-    assert len(blueprint["categories"]) <= 5
-    assert len(channels) <= 22
+    assert len(blueprint["categories"]) <= 7
+    assert len(channels) <= 20
     vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
     assert {c["name"] for c in vip_categories} == {
-        "━━ JABBAZI VIP ━━", "━━ VIP RESEARCH ━━"
+        "━━ TODAY’S JABBAZI ━━", "━━ CHEAT SHEET ━━", "━━ VIP RESEARCH ━━"
     }
 
 

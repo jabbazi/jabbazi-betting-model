@@ -82,42 +82,53 @@
       "access": "public",
       "channels": [
         "welcome",
-        "rules",
         "how-to-use-jabbazi",
         "vip-access",
         "alerts-and-support"
       ]
     },
     {
-      "name": "━━ JABBAZI VIP ━━",
+      "name": "━━ TODAY’S JABBAZI ━━",
       "access": "vip",
       "channels": [
         "jabbazi-main-card",
-        "jabbazi-sprinkles",
         "best-two-parlay",
-        "vip-parlays",
+        "parlays-sgps",
         "promo-boosts",
         "live-watch"
+      ]
+    },
+    {
+      "name": "━━ CHEAT SHEET ━━",
+      "access": "vip",
+      "channels": [
+        "daily-moneyline-cheat-sheet"
       ]
     },
     {
       "name": "━━ VIP RESEARCH ━━",
       "access": "vip",
       "channels": [
-        "daily-moneyline-cheat-sheet",
         "vip-research",
+        "market-watch",
         "scanner-status"
       ]
     },
     {
-      "name": "━━ COMMUNITY & RESULTS ━━",
+      "name": "━━ COMMUNITY ━━",
       "access": "public",
       "channels": [
         "general",
         "sports-talk",
-        "winning-tickets",
-        "daily-results",
-        "open-a-ticket"
+        "winning-tickets"
+      ]
+    },
+    {
+      "name": "━━ RESULTS & SUPPORT ━━",
+      "access": "public",
+      "channels": [
+        "results",
+        "support"
       ]
     },
     {
@@ -130,59 +141,84 @@
     }
   ],
   "deprecated_channels": [
-    "how-jabbazi-works",
-    "how-units-work",
-    "how-to-use-the-picks",
-    "vip-benefits",
-    "upgrade-to-vip",
-    "choose-your-alerts",
     "announcements",
-    "daily-schedule",
-    "model-updates",
-    "system-status",
-    "jabbazi-sprinkles",
-    "vip-straights",
-    "vip-parlays",
-    "vip-sgps",
-    "vip-longshots",
-    "nfl",
-    "college-football",
-    "mlb",
-    "nba",
-    "nhl",
-    "tennis",
-    "other-sports",
-    "cheat-sheet-archive",
-    "model-edges",
-    "line-movement",
-    "injury-news",
     "best-two-research",
-    "research-tools",
-    "bookie-sheet-research",
-    "odds-shopping",
-    "promo-tracker",
+    "bet-talk",
     "betting-basics",
+    "billing-log",
+    "billing-support",
+    "bookie-sheet-research",
+    "cfb-research",
+    "cheat-sheet-archive",
+    "choose-your-alerts",
+    "clv-tracking",
+    "college-football",
+    "content-planning",
+    "daily-results",
+    "daily-schedule",
+    "ev-and-vig",
+    "football-talk",
+    "how-jabbazi-works",
+    "how-to-read-cheat-sheets",
+    "how-to-use-the-picks",
+    "how-units-work",
+    "injury-news",
+    "jabbazi-models-explained",
+    "jabbazi-sprinkles",
+    "line-movement",
+    "line-shopping",
+    "memes",
+    "mlb",
+    "mlb-research",
+    "model-edges",
+    "model-performance",
+    "model-updates",
+    "moderation-log",
+    "monthly-results",
+    "nba",
+    "nba-research",
+    "nfl",
+    "nfl-research",
+    "nhl",
+    "nhl-research",
+    "odds-shopping",
+    "open-a-ticket",
+    "other-sports",
+    "parlays-and-correlation",
+    "promo-tracker",
+    "research-tools",
+    "rules",
+    "scanner-errors",
+    "soccer",
+    "suggestions",
+    "system-status",
+    "technical-support",
+    "tennis",
+    "tennis-talk",
     "understanding-odds",
     "units-bankroll",
-    "ev-and-vig",
-    "line-shopping",
-    "parlays-and-correlation",
-    "how-to-read-cheat-sheets",
-    "jabbazi-models-explained",
-    "bet-talk",
-    "memes",
-    "suggestions",
-    "daily-results",
-    "weekly-results",
-    "monthly-results",
-    "clv-tracking",
-    "model-performance",
-    "open-a-ticket",
-    "billing-support",
-    "technical-support",
-    "moderation-log",
-    "billing-log",
-    "content-planning",
-    "scanner-errors"
-  ]
+    "upgrade-to-vip",
+    "vip-benefits",
+    "vip-longshots",
+    "vip-parlays",
+    "vip-sgps",
+    "vip-straights",
+    "weekly-results"
+  ],
+  "channel_aliases": {
+    "parlays-sgps": [
+      "vip-parlays",
+      "vip-sgps"
+    ],
+    "results": [
+      "daily-results"
+    ],
+    "support": [
+      "open-a-ticket"
+    ],
+    "market-watch": [
+      "line-movement",
+      "odds-shopping"
+    ]
+  }
 }

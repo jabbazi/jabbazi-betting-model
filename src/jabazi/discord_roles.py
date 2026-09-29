@@ -12,8 +12,10 @@ API="https://discord.com/api/v10"
 def configured():
     token=os.getenv("JABBAZI_DISCORD_BOT_TOKEN","")
     guild=os.getenv("JABBAZI_DISCORD_GUILD_ID","")
-    role=os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID","")
-    return bool(token and guild.isdigit() and role.isdigit())
+    role=os.getenv("JABBAZI_DISCORD_BILLING_ROLE_ID","")
+    manual_roles = {os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "")}
+    manual_roles.update(os.getenv("JABBAZI_DISCORD_VIEWER_ROLE_IDS", "").split(","))
+    return bool(token and guild.isdigit() and role.isdigit() and role not in manual_roles)
 
 
 def sync_member_role(store, member_id):
@@ -24,9 +26,11 @@ def sync_member_role(store, member_id):
         raise ValueError("Valid Discord member ID required")
     token=os.environ["JABBAZI_DISCORD_BOT_TOKEN"]
     guild=os.environ["JABBAZI_DISCORD_GUILD_ID"]
-    role=os.environ["JABBAZI_DISCORD_VIP_ROLE_ID"]
+    role=os.environ["JABBAZI_DISCORD_BILLING_ROLE_ID"]
     entitlement=latest_entitlement(store,member)
-    active=bool(entitlement and entitlement["active"])
+    if entitlement is None:
+        return {"status": "NO_BILLING_RECORD", "member_id": member}
+    active=bool(entitlement["active"])
     method="PUT" if active else "DELETE"
     with httpx.Client(
         base_url=API,
@@ -34,8 +38,9 @@ def sync_member_role(store, member_id):
         timeout=15,
     ) as http:
         response=http.request(method,f"/guilds/{guild}/members/{member}/roles/{role}")
-        if response.status_code not in {204,404}:
-            response.raise_for_status()
+        if response.status_code == 404:
+            return {"status": "MEMBER_OR_ROLE_UNAVAILABLE", "member_id": member}
+        response.raise_for_status()
     return {"status":"VIP_GRANTED" if active else "VIP_REMOVED","member_id":member}
 
 

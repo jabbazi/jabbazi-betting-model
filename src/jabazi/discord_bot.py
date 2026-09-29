@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from .discord_access import is_vip_name
 from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .discord_daily import daily_moneyline, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
@@ -43,6 +44,7 @@ class BotConfig:
             return int(value)
 
         roles = os.getenv("JABBAZI_DISCORD_VIEWER_ROLE_IDS", "").split(",")
+        roles.append(os.getenv("JABBAZI_DISCORD_BILLING_ROLE_ID", ""))
         roles = frozenset(int(r.strip()) for r in roles if r.strip())
         result = cls(
             guild=required("GUILD_ID"),
@@ -140,7 +142,7 @@ def member_has_vip(config, member):
     return bool(
         int(getattr(member, "id", 0)) == config.owner
         or role_ids & configured
-        or any("VIP" in name for name in role_names)
+        or any(is_vip_name(name) for name in role_names)
     )
 
 def command_allowed(config, *, guild, channel, bot_author, content):
@@ -183,7 +185,7 @@ def build_client(config, store):
                             ],
                             capture_output=True,
                             text=True,
-                            timeout=90,
+                            timeout=300,
                             check=False,
                         )
                         if result.returncode != 0:
@@ -209,7 +211,11 @@ def build_client(config, store):
             # Owner-requested branding: only the configured server's displayed icon.
             try:
                 guild = await self.fetch_guild(config.guild)
-                if guild.owner_id != config.owner or not guild.icon:
+                if guild.owner_id != config.owner:
+                    return
+                if getattr(self.user, "name", "JABBAZI GURU") != "JABBAZI GURU":
+                    await self.user.edit(username="JABBAZI GURU")
+                if not guild.icon:
                     return
                 await asyncio.to_thread(
                     store.append,
@@ -231,18 +237,38 @@ def build_client(config, store):
         async def setup_hook(self):
             self.tree = discord.app_commands.CommandTree(self)
 
+            @self.tree.error
+            async def command_error(interaction, error):
+                original = getattr(error, "original", error)
+                print(f"DISCORD_SLASH_{type(original).__name__}_HTTP_{getattr(original, 'status', None)}", flush=True)
+                sender = interaction.followup.send if interaction.response.is_done() else interaction.response.send_message
+                await sender("This action could not be completed. Please use /support or contact staff.", ephemeral=True)
+
             @self.tree.command(name="cheatsheet", description="Show today's frozen 9 AM JABBAZI moneyline sheet")
             async def cheatsheet(interaction: discord.Interaction):
                 if interaction.guild_id != config.guild:
                     return await interaction.response.send_message(
                         "This command is only available in the JABBAZI server.", ephemeral=True
                     )
+                await interaction.response.defer(ephemeral=True)
+                member = await interaction.guild.fetch_member(interaction.user.id)
+                if not member_has_vip(config, member):
+                    return await interaction.followup.send(
+                        "The daily sheet requires an approved VIP role. See #vip-access.",
+                        ephemeral=True,
+                    )
                 record = await asyncio.to_thread(daily_moneyline, store)
-                await interaction.response.send_message(
-                    render_daily_moneyline(record),
-                    ephemeral=False,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
+                text = render_daily_moneyline(record)
+                # Return exactly the stored snapshot; never scan or flood a public channel.
+                if len(text) <= 1900:
+                    await interaction.followup.send(text, ephemeral=True)
+                else:
+                    date = record["payload"]["date"]
+                    await interaction.followup.send(
+                        f"Today's frozen JABBAZI moneyline sheet • {date}",
+                        file=discord.File(io.BytesIO(text.encode()), filename=f"jabbazi-{date}.txt"),
+                        ephemeral=True,
+                    )
 
             alert_roles = (
                 "NFL Alerts", "CFB Alerts", "MLB Alerts", "NBA Alerts", "NHL Alerts",
@@ -264,21 +290,33 @@ def build_client(config, store):
                             "Alert roles are only available in the JABBAZI server.",
                             ephemeral=True,
                         )
+                    await interaction.response.defer(ephemeral=True)
                     guild = interaction.guild
-                    available = {role.name: role for role in guild.roles if role.name in alert_roles}
+                    member = await guild.fetch_member(interaction.user.id)
+                    available = {
+                        role.name: role for role in guild.roles
+                        if role.name in alert_roles and role.permissions.value == 0
+                        and not role.managed and guild.me is not None
+                        and role.position < guild.me.top_role.position
+                        and sum(r.name == role.name for r in guild.roles) == 1
+                    }
+                    if set(self.values) - set(available):
+                        return await interaction.followup.send(
+                            "An alert role is missing or cannot safely be assigned. Please contact staff.", ephemeral=True
+                        )
                     selected = set(self.values)
                     add = [available[name] for name in selected if name in available]
                     remove = [
-                        role for role in interaction.user.roles
-                        if role.name in alert_roles and role.name not in selected
+                        role for role in member.roles
+                        if role.name in available and role.name not in selected
                     ]
                     if add:
-                        await interaction.user.add_roles(*add, reason="JABBAZI alert preference")
+                        await member.add_roles(*add, reason="JABBAZI alert preference")
                     if remove:
-                        await interaction.user.remove_roles(
+                        await member.remove_roles(
                             *remove, reason="JABBAZI alert preference"
                         )
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         "Alert preferences updated.", ephemeral=True
                     )
 
@@ -296,18 +334,23 @@ def build_client(config, store):
                 )
 
             @self.tree.command(name="support", description="Open a private JABBAZI support thread")
-            async def support(interaction: discord.Interaction):
+            @discord.app_commands.choices(category=[
+                discord.app_commands.Choice(name=name, value=name)
+                for name in ("VIP access", "Billing", "Technical issue", "Other")
+            ])
+            async def support(interaction: discord.Interaction, category: str = "Other"):
                 if interaction.guild_id != config.guild or not config.support_channel:
                     return await interaction.response.send_message(
                         "Private support is not configured yet.", ephemeral=True
                     )
+                await interaction.response.defer(ephemeral=True)
                 channel = await self.fetch_channel(config.support_channel)
                 if getattr(channel, "guild", None) is None or channel.guild.id != config.guild:
-                    return await interaction.response.send_message(
+                    return await interaction.followup.send(
                         "Support configuration is unavailable.", ephemeral=True
                     )
                 thread = await channel.create_thread(
-                    name=f"support-{interaction.user.id}",
+                    name=f"support-{category.lower().replace(' ', '-')}-{interaction.user.id}",
                     type=discord.ChannelType.private_thread,
                     invitable=False,
                     reason="JABBAZI member support request",
@@ -318,7 +361,7 @@ def build_client(config, store):
                     "payment card numbers, or other secrets here.",
                     allowed_mentions=discord.AllowedMentions.none(),
                 )
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"Private support opened: {thread.mention}", ephemeral=True
                 )
 
@@ -328,11 +371,12 @@ def build_client(config, store):
                     return await interaction.response.send_message(
                         "This command is only available in the JABBAZI server.", ephemeral=True
                     )
-                member = interaction.user
+                await interaction.response.defer(ephemeral=True)
+                member = await interaction.guild.fetch_member(interaction.user.id)
                 allowed = member_has_vip(config, member)
                 if not allowed:
-                    return await interaction.response.send_message(
-                        "VIP access is not active on your account. Use #upgrade-to-vip or contact support.",
+                    return await interaction.followup.send(
+                        "VIP access requires an approved role. See #vip-access or use /support.",
                         ephemeral=True,
                     )
                 from .member_access import issue_ticket, portal_origin
@@ -340,12 +384,17 @@ def build_client(config, store):
                     issue_ticket, store, guild=config.guild, member=member.id, authorized=True
                 )
                 link = portal_origin() + "/vip#access=" + ticket
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"Your private JABBAZI member link (expires quickly): {link}",
                     ephemeral=True,
                 )
 
-            await self.tree.sync(guild=discord.Object(id=config.guild))
+            self.tree.copy_global_to(guild=discord.Object(id=config.guild))
+            synced = await self.tree.sync(guild=discord.Object(id=config.guild))
+            expected = {"vip", "cheatsheet", "alerts", "support"}
+            if {command.name for command in synced} != expected:
+                raise RuntimeError("Discord command registration mismatch")
+            print("DISCORD_COMMANDS_REGISTERED: vip,cheatsheet,alerts,support", flush=True)
             self.publisher = asyncio.create_task(self.publish_loop())
 
         async def checked_channel(self, channel_id):
@@ -370,7 +419,7 @@ def build_client(config, store):
                 vip_alias_ids = {
                     int(role["id"])
                     for role in guild_roles
-                    if "VIP" in str(role.get("name") or "").strip().upper()
+                    if is_vip_name(role.get("name"))
                 }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(
@@ -512,13 +561,11 @@ def build_client(config, store):
                         await member.send(
                             embed=embed, allowed_mentions=discord.AllowedMentions.none()
                         )
-                        await message.channel.send(
-                            "Your private JABBAZI app link is in your DMs.",
-                            allowed_mentions=discord.AllowedMentions.none(),
-                        )
                     except discord.Forbidden:
                         if config.support_channel:
                             support = await self.fetch_channel(config.support_channel)
+                            if getattr(support, "guild", None) is None or support.guild.id != config.guild:
+                                raise ValueError("Support channel guild mismatch")
                             thread = await support.create_thread(
                                 name=f"vip-access-{member.id}",
                                 type=discord.ChannelType.private_thread,
@@ -538,6 +585,11 @@ def build_client(config, store):
                                 "Your DMs are closed. Use /vip for a private in-app link.",
                                 allowed_mentions=discord.AllowedMentions.none(),
                             )
+                    else:
+                        await message.channel.send(
+                            "Your private JABBAZI app link is in your DMs.",
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
                     return
                 channel = await self.checked_channel(message.channel.id)
                 # One command response per channel per 30 seconds, across replicas.
@@ -565,16 +617,26 @@ def build_client(config, store):
             text = await asyncio.to_thread(__import__(
                 "jabazi.discord_sheets", fromlist=["scanner_status"]
             ).scanner_status, store)
-            key = digest(["discord_status", config.guild, text])
-            if not await asyncio.to_thread(
-                store.append, "discord_status_claim", str(channel.id), {"text": text}, key
-            ):
-                return
             from .discord_content import scanner_status_embed
-            await channel.send(
-                embed=discord.Embed.from_dict(scanner_status_embed(text)),
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
+            previous = await asyncio.to_thread(store.list_records, "discord_status_message", 1, entity=str(channel.id))
+            prior = previous[0]["payload"] if previous else {}
+            if prior.get("status") == "needs_review" or prior.get("text") == text:
+                return
+            embed = discord.Embed.from_dict(scanner_status_embed(text))
+            if prior.get("message_id"):
+                message = await channel.fetch_message(int(prior["message_id"]))
+                await message.edit(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+            else:
+                key = digest(["discord_status_panel", config.guild, channel.id])
+                if not await asyncio.to_thread(store.append, "discord_status_claim", str(channel.id), {}, key):
+                    return
+                try:
+                    message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+                except Exception:
+                    await asyncio.to_thread(store.append, "discord_status_message", str(channel.id), {"status": "needs_review"})
+                    raise
+            await asyncio.to_thread(store.append, "discord_status_message", str(channel.id),
+                                    {"message_id": str(message.id), "text": text, "status": "delivered"})
 
         async def publish_best_two_once(self):
             if not config.best_two_channel:
@@ -592,12 +654,12 @@ def build_client(config, store):
             payload = best_two_embed(candidate)
             if payload is None:
                 return
+            channel = await self.checked_channel(config.best_two_channel)
             key = digest(["discord_best_two", config.guild, candidate])
             if not await asyncio.to_thread(
                 store.append, "discord_best_two_claim", str(config.best_two_channel), {}, key
             ):
                 return
-            channel = await self.checked_channel(config.best_two_channel)
             await channel.send(
                 embed=discord.Embed.from_dict(payload),
                 allowed_mentions=discord.AllowedMentions.none(),
@@ -636,12 +698,12 @@ def build_client(config, store):
             from .discord_content import performance_text
             report = await asyncio.to_thread(performance_report, store)
             text = performance_text(report)
+            channel = await self.checked_public_channel(config.results_channel)
             key = digest(["discord_results", config.guild, text])
             if not await asyncio.to_thread(
                 store.append, "discord_results_claim", str(config.results_channel), {}, key
             ):
                 return
-            channel = await self.checked_public_channel(config.results_channel)
             await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
 
         async def publish_once(self):
@@ -678,19 +740,18 @@ def build_client(config, store):
                 return
             try:
                 text = render_daily_moneyline(record)
-                messages = []
-                while text:
-                    split = min(len(text), 1900)
-                    if split < len(text):
-                        newline = text.rfind("\n", 0, split)
-                        if newline > 500:
-                            split = newline
-                    part, text = text[:split], text[split:].lstrip()
+                if len(text) <= 1900:
+                    message = await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+                else:
+                    date = record["payload"]["date"]
                     message = await channel.send(
-                        part, allowed_mentions=discord.AllowedMentions.none()
+                        f"🟣 **JABBAZI GURU DAILY MONEYLINE CHEAT SHEET • {date}**\n"
+                        f"{record['payload']['row_count']} games • Frozen snapshot • Full slate attached.\n"
+                        "Research leans are not automatically official wagers. Use /cheatsheet to retrieve this same sheet.",
+                        file=discord.File(io.BytesIO(text.encode()), filename=f"jabbazi-{date}.txt"),
+                        allowed_mentions=discord.AllowedMentions.none(),
                     )
-                    messages.append(str(message.id))
-                result = {"status": "delivered", "message_ids": messages}
+                result = {"status": "delivered", "message_ids": [str(message.id)]}
             except Exception:  # noqa: BLE001 -- uncertain delivery must be audited, not retried
                 result = {"status": "needs_review"}
             await asyncio.to_thread(
@@ -700,14 +761,14 @@ def build_client(config, store):
         async def publish_loop(self):
             await self.wait_until_ready()
             while not self.is_closed():
-                try:
-                    await self.publish_daily_once()
-                    await self.publish_status_once()
-                    await self.publish_best_two_once()
-                    await self.publish_official_picks_once()
-                    await self.publish_results_once()
-                except Exception:  # noqa: BLE001 -- isolate delivery from scanner, redact errors
-                    print("DISCORD_PUBLISH_UNAVAILABLE", flush=True)
+                for lane in ("daily", "status", "best_two", "official_picks", "results"):
+                    try:
+                        await getattr(self, f"publish_{lane}_once")()
+                    except Exception as exc:
+                        status = getattr(exc, "status", None)
+                        response = getattr(exc, "response", None)
+                        status = status or getattr(response, "status_code", None)
+                        print(f"DISCORD_PUBLISH_{lane.upper()}_{type(exc).__name__}_HTTP_{status}", flush=True)
                 await asyncio.sleep(60)
 
         async def close(self):

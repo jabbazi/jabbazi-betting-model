@@ -114,7 +114,11 @@ def worker(*, once=False):
                 if not settings.api_key:
                     report["status"] = "WAITING_FOR_ODDS_CREDENTIAL"
                 else:
-                    local_now = datetime.now(UTC).astimezone(ZoneInfo(settings.timezone))
+                    local_now = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago"))
+                    if daily_sheet_date != local_now.date().isoformat():
+                        from .discord_daily import daily_moneyline
+                        if daily_moneyline(store) is not None:
+                            daily_sheet_date = local_now.date().isoformat()
                     if (
                         not once
                         and local_now.hour == 9
@@ -141,19 +145,20 @@ def worker(*, once=False):
                                     os.getenv("JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS", "15")
                                 ),
                             ).run("moneyline")
-                            from .discord_sheets import archive_sheets, latest_sheet
-                            archive_sheets(store, daily_result)
+                            from .discord_sheets import archive_sheets
+                            sheet_id = archive_sheets(store, daily_result)
                             if not daily_result.errors:
                                 from .discord_daily import freeze_daily_moneyline
-                                sheet = latest_sheet(store, max_age_seconds=900)
+                                sheets = store.list_records("research_sheet", 20, entity="latest_scan")
+                                sheet = next((row for row in sheets if row["id"] == sheet_id), None)
                                 if sheet is not None:
                                     _, created = freeze_daily_moneyline(
                                         store,
                                         sheet,
                                         now=datetime.now(UTC),
-                                        timezone=settings.timezone,
+                                        timezone="America/Chicago",
                                     )
-                                    if created:
+                                    if created or daily_moneyline(store) is not None:
                                         daily_sheet_date = local_now.date().isoformat()
                             report["discord_daily_sheet"] = {
                                 "date": local_now.date().isoformat(),

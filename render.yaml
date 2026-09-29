@@ -90,6 +90,8 @@ services:
         sync: false
       - key: JABBAZI_DISCORD_VIP_ROLE_ID
         sync: false
+      - key: JABBAZI_DISCORD_BILLING_ROLE_ID
+        sync: false
       - key: JABBAZI_DISCORD_VIEWER_ROLE_IDS
         sync: false
       - key: JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID

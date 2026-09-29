@@ -9,20 +9,19 @@ def test_compact_discord_blueprint_is_small_and_keeps_core_surfaces():
     blueprint = json.loads(Path("docs/discord/server_blueprint.json").read_text())
     categories = blueprint["categories"]
     channels = [name for category in categories for name in category["channels"]]
-    assert len(categories) <= 5
-    assert len(channels) <= 22
+    assert len(categories) <= 7
+    assert len(channels) <= 20
     assert len(channels) == len(set(channels))
     for required in (
         "welcome",
         "jabbazi-main-card",
-        "jabbazi-sprinkles",
         "best-two-parlay",
-        "vip-parlays",
+        "parlays-sgps",
         "daily-moneyline-cheat-sheet",
         "vip-research",
         "scanner-status",
-        "daily-results",
-        "open-a-ticket",
+        "results",
+        "support",
     ):
         assert required in channels
 
