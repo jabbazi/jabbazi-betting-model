@@ -1,6 +1,7 @@
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline, render_text
 from jabazi.discord_entitlements import set_entitlement, latest_entitlement, active_members
@@ -119,7 +120,47 @@ def test_discord_blueprint_has_unique_channels_and_required_sections():
     assert len(channels)==len(set(channels))
     for required in (
         "daily-moneyline-cheat-sheet","jabbazi-main-card","best-two-parlay",
-        "upgrade-to-vip","scanner-status","billing-support","moderation-log",
+        "vip-access","scanner-status","open-a-ticket","staff-chat",
     ):
         assert required in channels
     assert any(role["name"]=="VIP" for role in blueprint["roles"])
+
+
+
+def test_manual_vip_role_grants_member_app_access_without_billing_record():
+    from jabazi.discord_bot import BotConfig, member_has_vip
+
+    config = BotConfig(
+        guild=1, owner=99, status_channel=2, sheets_channel=3,
+        viewer_roles=frozenset(), vip_role=555,
+    )
+    member = SimpleNamespace(
+        id=123,
+        roles=[SimpleNamespace(id=555, name="VIP")],
+    )
+    assert member_has_vip(config, member) is True
+
+
+def test_named_jabbazi_vip_role_is_backward_compatible():
+    from jabazi.discord_bot import BotConfig, member_has_vip
+
+    config = BotConfig(
+        guild=1, owner=99, status_channel=2, sheets_channel=3,
+        viewer_roles=frozenset(),
+    )
+    member = SimpleNamespace(
+        id=123,
+        roles=[SimpleNamespace(id=777, name="JABBAZI VIP")],
+    )
+    assert member_has_vip(config, member) is True
+
+
+def test_simplified_blueprint_is_compact():
+    blueprint=json.loads(Path("docs/discord/server_blueprint.json").read_text())
+    channels=[name for category in blueprint["categories"] for name in category["channels"]]
+    assert len(blueprint["categories"]) <= 5
+    assert len(channels) <= 22
+    vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
+    assert {c["name"] for c in vip_categories} == {
+        "━━ JABBAZI VIP ━━", "━━ VIP RESEARCH ━━"
+    }
