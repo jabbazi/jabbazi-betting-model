@@ -48,10 +48,11 @@ def resolve_role(roles, *, env_name, fallback_name):
             raise SystemExit(f"{env_name} does not match a role in this guild")
         return matches[0]
     matches = [r for r in roles if r["name"] == fallback_name]
-    if len(matches) != 1:
+    if not matches:
         raise SystemExit(
-            f"Expected exactly one {fallback_name!r} role; set {env_name} to the intended role ID"
+            f"No {fallback_name!r} role exists; set {env_name} to the intended role ID"
         )
+    # Duplicate legacy names are tolerated; configured ID remains authoritative.
     return matches[0]
 
 
