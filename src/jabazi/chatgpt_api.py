@@ -274,7 +274,8 @@ def present_action(value, now):
              "game_distribution", "fair_price", "play_to_price",
              "v5_state", "v5_reasons", "v5_cash_influence", "v5_brier_delta",
              "v5_calibration_ece", "v5_sample_count", "v5_regime",
-             "v5_edge_explanation")
+             "v5_edge_explanation", "v5_adversarial_status",
+             "v5_adversarial_review")
     row = {key: value.get(key) for key in keys}
     if not row["model_version"]:
         row.update(model_probability=None, probability_edge=None, expected_roi=None)
