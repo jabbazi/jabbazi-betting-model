@@ -24,6 +24,9 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
         raise ValueError("Aware freeze time required")
     local=now.astimezone(ZoneInfo(timezone))
     date=local.date().isoformat()
+    existing=store.list_records("daily_moneyline_sheet",1,entity=date)
+    if existing:
+        return existing[0]["id"],False
     payload=research_sheet["payload"]
     if not payload.get("healthy"):
         raise ValueError("Cannot freeze an unhealthy research sheet")
