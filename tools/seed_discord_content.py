@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 
 API="https://discord.com/api/v10"
-MARKER="JABBAZI_SETUP_V1"
+MARKER="JABBAZI_SETUP_V2"
 
 
 def main():
