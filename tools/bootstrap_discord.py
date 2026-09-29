@@ -97,6 +97,28 @@ def main():
                         "permission_overwrites":overwrites(category["access"]),
                         "rate_limit_per_user":5 if name in {"general","sports-talk","bet-talk"} else 0,
                     }).raise_for_status().json()
+        try:
+            automod=http.get(f"/guilds/{guild}/auto-moderation/rules").raise_for_status().json()
+        except httpx.HTTPStatusError:
+            automod=[]
+        if not any(rule.get("name")=="JABBAZI Mention Spam" for rule in automod):
+            plan["automod"]=["JABBAZI Mention Spam"]
+            if args.apply:
+                http.post(f"/guilds/{guild}/auto-moderation/rules",json={
+                    "name":"JABBAZI Mention Spam",
+                    "event_type":1,
+                    "trigger_type":5,
+                    "trigger_metadata":{
+                        "mention_total_limit":5,
+                        "mention_raid_protection_enabled":True,
+                    },
+                    "actions":[{"type":1,"metadata":{"custom_message":"Please avoid mass mentions."}}],
+                    "enabled":True,
+                    "exempt_roles":[],
+                    "exempt_channels":[],
+                }).raise_for_status()
+        else:
+            plan["automod"]=[]
         print(json.dumps({
             "mode":"APPLIED" if args.apply else "DRY_RUN",
             "guild_id":guild,
