@@ -364,6 +364,15 @@ class AutomaticScanner:
                                 .astimezone(ZoneInfo(self.settings.timezone))
                                 .date()
                                 .isoformat(),
+                                correlation_keys=frozenset({
+                                    f"event:{card.event_id}",
+                                    f"selection:{card.selection}",
+                                    *(
+                                        {f"player:{card.participant}"}
+                                        if card.participant
+                                        else set()
+                                    ),
+                                }),
                             )
                             limits = self.settings.portfolio_limits()
                             reservation_id = digest(
