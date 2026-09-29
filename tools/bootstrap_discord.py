@@ -49,7 +49,10 @@ def resolve_role(roles, *, env_name, fallback_name):
         return matches[0]
     matches = [r for r in roles if r["name"] == fallback_name]
     if not matches:
-        raise SystemExit(f"No {fallback_name!r} role exists in this guild")
+        raise SystemExit(
+            f"No {fallback_name!r} role exists; set {env_name} to the intended role ID"
+        )
+    # Duplicate legacy names are tolerated; configured ID remains authoritative.
     return matches[0]
 
 
@@ -81,17 +84,21 @@ def main():
 
         roles_list = http.get(f"/guilds/{guild}/roles").raise_for_status().json()
         roles = {r["name"]: r for r in roles_list}
-        vip = resolve_role(
-            roles_list, env_name="JABBAZI_DISCORD_VIP_ROLE_ID", fallback_name="VIP"
-        )
         configured_vip = os.getenv("JABBAZI_DISCORD_VIP_ROLE_ID", "").strip()
-        vip_roles = (
-            [vip]
-            if configured_vip
-            else [role for role in roles_list if role["name"] == "VIP"]
-        )
+        if configured_vip:
+            vip = resolve_role(
+                roles_list, env_name="JABBAZI_DISCORD_VIP_ROLE_ID", fallback_name="VIP"
+            )
+        else:
+            vip_candidates = [
+                r for r in roles_list
+                if r["name"] in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+            ]
+            if not vip_candidates:
+                raise SystemExit("No VIP-family role exists in this guild")
+            vip = next((r for r in vip_candidates if r["name"] == "VIP"), vip_candidates[0])
         plan = {
-            "vip_role_ids": [str(role["id"]) for role in vip_roles],
+            "vip_role_id": str(vip["id"]),
             "create_roles": [],
             "create_categories": [],
             "create_channels": [],
@@ -123,14 +130,16 @@ def main():
             if access == "public":
                 return [(guild, 0, VIEW | READ_HISTORY, 0)]
             if access == "vip":
-                return [
+                result = [
                     (guild, 0, 0, VIEW),
-                    *[
-                        (str(role["id"]), 0, VIEW | SEND | READ_HISTORY, 0)
-                        for role in vip_roles
-                    ],
                     (owner, 1, VIEW | SEND | READ_HISTORY, 0),
                 ]
+                for role in roles.values():
+                    if role["name"] in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}:
+                        result.append(
+                            (str(role["id"]), 0, VIEW | SEND | READ_HISTORY, 0)
+                        )
+                return result
             result = [(guild, 0, 0, VIEW), (owner, 1, VIEW | SEND | READ_HISTORY, 0)]
             for name in ("JABBAZI TEAM", "MODERATOR"):
                 if name in roles:
