@@ -189,11 +189,26 @@ def scanner_status(store, *, now=None):
             state = p.get("status", "UNAVAILABLE") if 0 <= age <= 180 else "STALE"
         except (ValueError, TypeError):
             state = "UNAVAILABLE"
-    return (
-        f"JABBAZI Research — {state}\nLast worker heartbeat (UTC): {at}\n"
-        "Research mode. Automated official picks are not enabled. "
-        "!vip opens the read-only member app; it never triggers a paid scan."
-    )
+    lines = [f"JABBAZI GURU — {state}", f"Worker heartbeat (UTC): {at}"]
+    from .models.registry import load_models
+    from .models.player_registry import load_player_models, player_status
+    models, errors = load_models(store)
+    players, player_errors = load_player_models(store)
+    for label, sport in (("NFL", "americanfootball_nfl"), ("MLB", "baseball_mlb"),
+                        ("CFB", "americanfootball_ncaaf"), ("NBA", "basketball_nba"), ("NHL", "icehockey_nhl")):
+        model = models.get(sport)
+        artifact = model.artifact if model else {}
+        stage = artifact.get("stage") or artifact.get("status") or "UNAVAILABLE"
+        pstage = player_status(players, sport)["status"]
+        lines.append(f"{label}: {stage} • Players: {pstage}")
+    sheets = store.list_records("research_sheet", 100, entity="latest_scan")
+    healthy = next((r["payload"].get("completed_at") for r in sheets if r["payload"].get("healthy")), None)
+    lines.append(f"Last healthy scan (UTC): {healthy or 'UNAVAILABLE'}")
+    provider = "UNAVAILABLE" if not sheets else "HEALTHY" if sheets[0]["payload"].get("healthy") else "UNHEALTHY"
+    lines.append(f"Latest provider scan: {provider} • Model load failures: {len(errors) + len(player_errors)}")
+    lines.append("Artifact states are research status, not blanket betting approval. /vip opens the member app.")
+    return "\n".join(lines)
+
 
 
 def parse_command(content):

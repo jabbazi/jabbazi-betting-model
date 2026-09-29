@@ -30,8 +30,11 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
     if existing:
         return existing[0]["id"],False
     payload=research_sheet["payload"]
-    if not payload.get("healthy"):
+    if not payload.get("healthy") or payload.get("truncated"):
         raise ValueError("Cannot freeze an unhealthy research sheet")
+    completed = datetime.fromisoformat(payload["completed_at"])
+    if completed.tzinfo is None or not 0 <= (now - completed).total_seconds() <= 900:
+        raise ValueError("A fresh dedicated scan is required for the daily freeze")
     rows=[]
     for row in payload.get("rows",[]):
         if row.get("market")!=MONEYLINE_MARKET:
@@ -39,6 +42,11 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
         label=sport_label(row.get("sport"))
         if label is None:
             continue
+        status = str(row.get("status") or "WATCH").replace("_", " ")
+        if status not in {"BET NOW", "WATCH", "PASS", "PRICE CHECK", "UNAVAILABLE", "QUARANTINED"}:
+            status = "WATCH"
+        if row.get("price_stale") or not row.get("executable"):
+            status = "PRICE CHECK" if status != "QUARANTINED" else status
         rows.append({
             "sport":row["sport"],
             "sport_label":label,
@@ -54,12 +62,29 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
             "model_version":row.get("model_version"),
             "uncertainty":row.get("uncertainty"),
             "edge":row.get("probability_edge"),
-            "status":row.get("status"),
+            "status":status,
             "data_health":row.get("data_health","UNKNOWN"),
             "reason":row.get("reason"),
             "price_stale":row.get("price_stale"),
             "executable":row.get("executable"),
         })
+    # One lean per event. Missing independent estimates remain explicitly market-only.
+    grouped = {}
+    for row in rows:
+        key = (row["sport"], row.get("event_id") or row.get("event"))
+        def rank(value):
+            probability = value.get("model_probability")
+            return (probability is not None, float(probability or value.get("market_no_vig_probability") or 0))
+        if key not in grouped or rank(row) > rank(grouped[key]):
+            grouped[key] = row
+    rows = list(grouped.values())
+    for event in payload.get("slate_events", []):
+        key = (event["sport"], event.get("event_id"))
+        label = sport_label(event["sport"])
+        if label and key not in grouped:
+            rows.append({"sport": event["sport"], "sport_label": label, "event_id": event.get("event_id"),
+                         "event": event.get("event") or event.get("event_id"), "selection": "No supported lean",
+                         "status": "UNAVAILABLE", "data_health": "UNAVAILABLE"})
     frozen={
         "date":date,
         "timezone":timezone,
@@ -91,7 +116,7 @@ def render_text(record):
     p=record["payload"]
     lines=[
         "🟣 **JABBAZI GURU — DAILY MONEYLINE CHEAT SHEET**",
-        f"**{p['date']} • Generated {p['generated_at']}**",
+        f"**{p['date']} • Frozen {datetime.fromisoformat(p['generated_at']).astimezone(ZoneInfo(p['timezone'])).strftime('%I:%M %p %Z')}**",
         f"Data: {p['data_freshness']} • {p['unit_reference']}",
         "",
     ]
@@ -117,4 +142,4 @@ def render_text(record):
             "",
         ])
     lines.append(p["notice"])
-    return "\n".join(lines)[:3900]
+    return "\n".join(lines)

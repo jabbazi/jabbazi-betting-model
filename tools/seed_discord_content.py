@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 
 API="https://discord.com/api/v10"
-MARKER="JABBAZI_SETUP_V2"
+MARKER="JABBAZI_SETUP_V3"
 
 
 def main():
@@ -27,6 +27,7 @@ def main():
         info=http.get(f"/guilds/{guild}").raise_for_status().json()
         if str(info["owner_id"])!=owner:
             raise SystemExit("Configured Discord owner mismatch")
+        bot=http.get("/users/@me").raise_for_status().json()
         channels=http.get(f"/guilds/{guild}/channels").raise_for_status().json()
         by_name={c["name"]:c for c in channels if c["type"]==0}
         plan=[]
@@ -36,15 +37,19 @@ def main():
                 plan.append({"channel":name,"status":"MISSING_CHANNEL"})
                 continue
             recent=http.get(f"/channels/{channel['id']}/messages?limit=50").raise_for_status().json()
-            if any(MARKER in str(row.get("content") or "") for row in recent):
+            previous = next((row for row in recent if str(row.get("author", {}).get("id")) == str(bot["id"])
+                             and "JABBAZI_SETUP_V" in str(row.get("content") or "")), None)
+            if previous and previous.get("content") == message:
                 plan.append({"channel":name,"status":"ALREADY_SEEDED"})
                 continue
-            plan.append({"channel":name,"status":"POST" if args.apply else "WOULD_POST"})
+            plan.append({"channel":name,"status":("UPDATE" if previous else "POST") if args.apply else "WOULD_UPDATE"})
             if args.apply:
-                http.post(
-                    f"/channels/{channel['id']}/messages",
-                    json={"content":message,"allowed_mentions":{"parse":[]}},
-                ).raise_for_status()
+                payload={"content":message,"allowed_mentions":{"parse":[]}}
+                if previous:
+                    response=http.patch(f"/channels/{channel['id']}/messages/{previous['id']}",json=payload)
+                else:
+                    response=http.post(f"/channels/{channel['id']}/messages",json=payload)
+                response.raise_for_status()
         print(json.dumps({"mode":"APPLIED" if args.apply else "DRY_RUN","plan":plan},indent=2))
 
 
