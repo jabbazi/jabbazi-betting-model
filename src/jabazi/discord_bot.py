@@ -7,8 +7,6 @@ No token, user message content, or provider exception text is logged.
 import asyncio
 import io
 import os
-import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -110,16 +108,36 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
     if len(public) != 1 or not int(public[0]["deny"]) & view or int(public[0]["allow"]) & view:
         raise ValueError("Research channels must explicitly deny public visibility")
-    approved_roles = config.viewer_roles | frozenset(bot_role_ids)
+    access_roles = set(config.viewer_roles) | set(bot_role_ids)
     if config.vip_role:
-        approved_roles = approved_roles | frozenset({config.vip_role})
-    allowed = {(1, config.owner), (1, bot_id)} | {
-        (0, role_id) for role_id in approved_roles
-    }
+        access_roles.add(config.vip_role)
+    allowed = {(1, config.owner), (1, bot_id)} | {(0, r) for r in access_roles}
     for p in entries:
         if int(p["allow"]) & view and (p["type"], int(p["id"])) not in allowed:
             raise ValueError("Unreviewed research channel access")
 
+
+
+def member_has_vip(config, member):
+    """Manual VIP-family roles and configured viewer roles grant member-app access."""
+    role_ids = {
+        int(role.id)
+        for role in getattr(member, "roles", [])
+        if getattr(role, "id", None) is not None
+    }
+    role_names = {
+        str(getattr(role, "name", "")).strip().upper()
+        for role in getattr(member, "roles", [])
+        if str(getattr(role, "name", "")).strip()
+    }
+    configured = set(config.viewer_roles)
+    if config.vip_role:
+        configured.add(config.vip_role)
+    return bool(
+        int(getattr(member, "id", 0)) == config.owner
+        or role_ids & configured
+        or role_names & {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+    )
 
 def command_allowed(config, *, guild, channel, bot_author, content):
     if bot_author or guild != config.guild:
@@ -145,38 +163,6 @@ def build_client(config, store):
 
     class ResearchClient(discord.Client):
         async def on_ready(self):
-            if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":
-                try:
-                    done = await asyncio.to_thread(
-                        store.list_records, "discord_compact_migration", 1, entity="v1"
-                    )
-                    if not done:
-                        result = await asyncio.to_thread(
-                            subprocess.run,
-                            [
-                                sys.executable,
-                                "tools/bootstrap_discord.py",
-                                "--apply",
-                                "--archive-obsolete",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=90,
-                            check=False,
-                        )
-                        if result.returncode != 0:
-                            raise RuntimeError("Discord compact migration failed")
-                        await asyncio.to_thread(
-                            store.append,
-                            "discord_compact_migration",
-                            "v1",
-                            {"status": "APPLIED"},
-                            digest(["discord_compact_migration", "v1"]),
-                        )
-                        print("DISCORD_COMPACT_MIGRATION_APPLIED", flush=True)
-                except Exception:  # noqa: BLE001 -- never expose Discord credentials
-                    print("DISCORD_COMPACT_MIGRATION_UNAVAILABLE", flush=True)
-
             # Owner-requested branding: only the configured server's displayed icon.
             try:
                 guild = await self.fetch_guild(config.guild)
@@ -300,8 +286,7 @@ def build_client(config, store):
                         "This command is only available in the JABBAZI server.", ephemeral=True
                     )
                 member = interaction.user
-                role_ids = {role.id for role in getattr(member, "roles", [])}
-                allowed = member.id == config.owner or bool(role_ids & config.viewer_roles)
+                allowed = member_has_vip(config, member)
                 if not allowed:
                     return await interaction.response.send_message(
                         "VIP access is not active on your account. Use #upgrade-to-vip or contact support.",
@@ -338,9 +323,19 @@ def build_client(config, store):
                 if int(guild["owner_id"]) != config.owner:
                     raise ValueError("Server owner mismatch")
                 member = await get(f"/guilds/{config.guild}/members/{self.user.id}")
+                guild_roles = await get(f"/guilds/{config.guild}/roles")
+                vip_alias_ids = {
+                    int(role["id"])
+                    for role in guild_roles
+                    if str(role.get("name") or "").strip().upper()
+                    in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+                }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(
-                    document, config, self.user.id, (int(r) for r in member.get("roles", []))
+                    document,
+                    config,
+                    self.user.id,
+                    tuple(int(r) for r in member.get("roles", [])) + tuple(vip_alias_ids),
                 )
             channel = await self.fetch_channel(channel_id)
             return channel
@@ -439,12 +434,10 @@ def build_client(config, store):
                 return
             try:
                 if command[0] == "portal":
-                    await self.checked_channel(config.sheets_channel)
-                    # Check current membership over REST, not just a cached message role.
+                    # App access is based on the member's current VIP-family role.
+                    # It must not depend on cheat-sheet channel permissions.
                     member = await message.guild.fetch_member(message.author.id)
-                    allowed = member.id == config.owner or bool(
-                        {r.id for r in member.roles} & config.viewer_roles
-                    )
+                    allowed = member_has_vip(config, member)
                     if not allowed:
                         await message.channel.send(
                             "The JABBAZI member app requires an approved VIP role.",
@@ -483,10 +476,27 @@ def build_client(config, store):
                             allowed_mentions=discord.AllowedMentions.none(),
                         )
                     except discord.Forbidden:
-                        await message.channel.send(
-                            "Enable direct messages from this server, then type !vip again for your private app link.",
-                            allowed_mentions=discord.AllowedMentions.none(),
-                        )
+                        if config.support_channel:
+                            support = await self.fetch_channel(config.support_channel)
+                            thread = await support.create_thread(
+                                name=f"vip-access-{member.id}",
+                                type=discord.ChannelType.private_thread,
+                                invitable=False,
+                                reason="Private JABBAZI VIP app-link fallback",
+                            )
+                            await thread.add_user(member)
+                            await thread.send(
+                                embed=embed, allowed_mentions=discord.AllowedMentions.none()
+                            )
+                            await message.channel.send(
+                                f"Your private VIP access thread is ready: {thread.mention}",
+                                allowed_mentions=discord.AllowedMentions.none(),
+                            )
+                        else:
+                            await message.channel.send(
+                                "Your DMs are closed. Use /vip for a private in-app link.",
+                                allowed_mentions=discord.AllowedMentions.none(),
+                            )
                     return
                 channel = await self.checked_channel(message.channel.id)
                 # One command response per channel per 30 seconds, across replicas.
