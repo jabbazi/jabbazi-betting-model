@@ -7,15 +7,17 @@ from zoneinfo import ZoneInfo
 from .persistence.store import digest
 
 MONEYLINE_MARKET="h2h"
-SPORT_LABELS={
-    "americanfootball_nfl":"NFL",
-    "americanfootball_ncaaf":"CFB",
-    "baseball_mlb":"MLB",
-    "basketball_nba":"NBA",
-    "icehockey_nhl":"NHL",
-    "tennis_atp":"TENNIS",
-    "tennis_wta":"TENNIS",
-}
+def sport_label(sport):
+    from .catalog import SPORTS
+    for label, patterns in SPORTS.items():
+        if any(
+            sport == pattern
+            or (pattern.endswith("*") and sport.startswith(pattern[:-1]))
+            for pattern in patterns
+        ):
+            return "CFB" if label == "NCAAF" else label
+    return None
+
 
 
 def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America/Chicago"):
@@ -34,11 +36,12 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
     for row in payload.get("rows",[]):
         if row.get("market")!=MONEYLINE_MARKET:
             continue
-        if row.get("sport") not in SPORT_LABELS:
+        label=sport_label(row.get("sport"))
+        if label is None:
             continue
         rows.append({
             "sport":row["sport"],
-            "sport_label":SPORT_LABELS[row["sport"]],
+            "sport_label":label,
             "event_id":row.get("event_id"),
             "event":row.get("event"),
             "selection":row.get("selection"),
