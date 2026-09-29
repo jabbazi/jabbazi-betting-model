@@ -1,6 +1,5 @@
 import json
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 
 from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline, render_text
