@@ -28,6 +28,7 @@ class BotConfig:
     main_card_channel: int = 0
     best_two_channel: int = 0
     results_channel: int = 0
+    support_channel: int = 0
     brand_channels: frozenset[int] = frozenset()
     brand_gif_url: str = ""
 
@@ -51,6 +52,7 @@ class BotConfig:
             int(os.getenv("JABBAZI_DISCORD_MAIN_CARD_CHANNEL_ID", "0") or 0),
             int(os.getenv("JABBAZI_DISCORD_BEST_TWO_CHANNEL_ID", "0") or 0),
             int(os.getenv("JABBAZI_DISCORD_RESULTS_CHANNEL_ID", "0") or 0),
+            int(os.getenv("JABBAZI_DISCORD_SUPPORT_CHANNEL_ID", "0") or 0),
             frozenset(
                 int(c.strip())
                 for c in os.getenv("JABBAZI_DISCORD_BRAND_CHANNEL_IDS", "").split(",")
@@ -217,6 +219,33 @@ def build_client(config, store):
                     "Choose the alerts you want. You can change these anytime.",
                     view=AlertView(),
                     ephemeral=True,
+                )
+
+            @self.tree.command(name="support", description="Open a private JABBAZI support thread")
+            async def support(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild or not config.support_channel:
+                    return await interaction.response.send_message(
+                        "Private support is not configured yet.", ephemeral=True
+                    )
+                channel = await self.fetch_channel(config.support_channel)
+                if getattr(channel, "guild", None) is None or channel.guild.id != config.guild:
+                    return await interaction.response.send_message(
+                        "Support configuration is unavailable.", ephemeral=True
+                    )
+                thread = await channel.create_thread(
+                    name=f"support-{interaction.user.id}",
+                    type=discord.ChannelType.private_thread,
+                    invitable=False,
+                    reason="JABBAZI member support request",
+                )
+                await thread.add_user(interaction.user)
+                await thread.send(
+                    "Tell us what you need help with. Never post passwords, sportsbook logins, "
+                    "payment card numbers, or other secrets here.",
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                await interaction.response.send_message(
+                    f"Private support opened: {thread.mention}", ephemeral=True
                 )
 
             @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
