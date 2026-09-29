@@ -169,6 +169,8 @@ def build_datasets(
                 "result_available_at": current["result_available_at"].isoformat(),
                 "result_status": "final" if current["minutes"] > 0 else "dnp",
                 "expected_opportunities": _mean([row["minutes"] for row in history], 5),
+                "observed_opportunity": current["minutes"],
+                "opportunity_unit": "minutes",
                 "features": features,
                 "market_line": None,
                 "market_side": None,
