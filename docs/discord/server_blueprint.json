@@ -21,16 +21,6 @@
       "hoist": false
     },
     {
-      "name": "FOUNDING VIP",
-      "color": 12745742,
-      "hoist": true
-    },
-    {
-      "name": "TRIAL VIP",
-      "color": 7419530,
-      "hoist": false
-    },
-    {
       "name": "NFL Alerts",
       "color": 0,
       "hoist": false
@@ -56,12 +46,12 @@
       "hoist": false
     },
     {
-      "name": "Parlay Alerts",
+      "name": "Main Card Alerts",
       "color": 0,
       "hoist": false
     },
     {
-      "name": "Main Card Alerts",
+      "name": "Parlay Alerts",
       "color": 0,
       "hoist": false
     },
@@ -84,90 +74,22 @@
         "welcome",
         "rules",
         "how-jabbazi-works",
-        "how-units-work",
-        "how-to-use-the-picks",
-        "vip-benefits",
-        "upgrade-to-vip",
         "choose-your-alerts",
-        "support"
+        "upgrade-to-vip"
       ]
     },
     {
-      "name": "━━ ANNOUNCEMENTS ━━",
-      "access": "public",
-      "channels": [
-        "announcements",
-        "daily-schedule",
-        "model-updates",
-        "system-status"
-      ]
-    },
-    {
-      "name": "━━ DAILY JABBAZI ━━",
+      "name": "━━ JABBAZI VIP ━━",
       "access": "vip",
       "channels": [
         "jabbazi-main-card",
         "jabbazi-sprinkles",
         "best-two-parlay",
-        "promo-boosts",
-        "live-watch"
-      ]
-    },
-    {
-      "name": "━━ VIP PICKS ━━",
-      "access": "vip",
-      "channels": [
-        "vip-straights",
         "vip-parlays",
-        "vip-sgps",
-        "vip-longshots"
-      ]
-    },
-    {
-      "name": "━━ SPORT RESEARCH ━━",
-      "access": "vip",
-      "channels": [
-        "nfl",
-        "college-football",
-        "mlb",
-        "nba",
-        "nhl",
-        "tennis",
-        "other-sports"
-      ]
-    },
-    {
-      "name": "━━ CHEAT SHEETS ━━",
-      "access": "vip",
-      "channels": [
+        "promo-boosts",
         "daily-moneyline-cheat-sheet",
-        "cheat-sheet-archive"
-      ]
-    },
-    {
-      "name": "━━ JABBAZI RESEARCH ━━",
-      "access": "vip",
-      "channels": [
-        "market-watch",
-        "model-edges",
-        "line-movement",
-        "injury-news",
-        "best-two-research",
+        "vip-research",
         "scanner-status"
-      ]
-    },
-    {
-      "name": "━━ LEARN HOW TO ━━",
-      "access": "public",
-      "channels": [
-        "betting-basics",
-        "understanding-odds",
-        "units-bankroll",
-        "ev-and-vig",
-        "line-shopping",
-        "parlays-and-correlation",
-        "how-to-read-cheat-sheets",
-        "jabbazi-models-explained"
       ]
     },
     {
@@ -176,30 +98,15 @@
       "channels": [
         "general",
         "sports-talk",
-        "bet-talk",
         "winning-tickets",
-        "memes",
-        "suggestions"
+        "daily-results"
       ]
     },
     {
-      "name": "━━ RESULTS / TRANSPARENCY ━━",
+      "name": "━━ SUPPORT ━━",
       "access": "public",
       "channels": [
-        "daily-results",
-        "weekly-results",
-        "monthly-results",
-        "clv-tracking",
-        "model-performance"
-      ]
-    },
-    {
-      "name": "━━ MEMBER SUPPORT ━━",
-      "access": "public",
-      "channels": [
-        "open-a-ticket",
-        "billing-support",
-        "technical-support"
+        "open-a-ticket"
       ]
     },
     {
@@ -208,9 +115,6 @@
       "channels": [
         "staff-chat",
         "moderation-log",
-        "bot-log",
-        "billing-log",
-        "content-planning",
         "scanner-errors"
       ]
     }
