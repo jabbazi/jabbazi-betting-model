@@ -110,8 +110,11 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
     public = [p for p in entries if int(p["id"]) == config.guild and p["type"] == 0]
     if len(public) != 1 or not int(public[0]["deny"]) & view or int(public[0]["allow"]) & view:
         raise ValueError("Research channels must explicitly deny public visibility")
+    approved_roles = config.viewer_roles | frozenset(bot_role_ids)
+    if config.vip_role:
+        approved_roles = approved_roles | frozenset({config.vip_role})
     allowed = {(1, config.owner), (1, bot_id)} | {
-        (0, r) for r in config.viewer_roles | frozenset(bot_role_ids)
+        (0, role_id) for role_id in approved_roles
     }
     for p in entries:
         if int(p["allow"]) & view and (p["type"], int(p["id"])) not in allowed:
