@@ -92,7 +92,7 @@ def main():
         else:
             vip_candidates = [
                 r for r in roles_list
-                if r["name"] in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+                if "VIP" in str(r.get("name") or "").strip().upper()
             ]
             if not vip_candidates:
                 raise SystemExit("No VIP-family role exists in this guild")
@@ -135,7 +135,7 @@ def main():
                     (owner, 1, VIEW | SEND | READ_HISTORY, 0),
                 ]
                 for role in roles.values():
-                    if role["name"] in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}:
+                    if "VIP" in str(role.get("name") or "").strip().upper():
                         result.append(
                             (str(role["id"]), 0, VIEW | SEND | READ_HISTORY, 0)
                         )

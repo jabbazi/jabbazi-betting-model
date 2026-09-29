@@ -164,3 +164,18 @@ def test_simplified_blueprint_is_compact():
     assert {c["name"] for c in vip_categories} == {
         "━━ JABBAZI VIP ━━", "━━ VIP RESEARCH ━━"
     }
+
+
+
+def test_custom_vip_named_role_grants_member_app_access():
+    from jabazi.discord_bot import BotConfig, member_has_vip
+
+    config = BotConfig(
+        guild=1, owner=99, status_channel=2, sheets_channel=3,
+        viewer_roles=frozenset(),
+    )
+    member = SimpleNamespace(
+        id=123,
+        roles=[SimpleNamespace(id=888, name="💎 JABBAZI GURU VIP ACCESS")],
+    )
+    assert member_has_vip(config, member) is True

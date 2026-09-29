@@ -12,6 +12,10 @@ SEND=1<<11
 READ_HISTORY=1<<16
 API="https://discord.com/api/v10"
 VIP_NAMES={"VIP","JABBAZI VIP","FOUNDING VIP","TRIAL VIP"}
+
+
+def is_vip_name(name):
+    return "VIP" in str(name or "").strip().upper()
 STAFF_NAMES={"JABBAZI TEAM","MODERATOR"}
 
 
@@ -30,14 +34,11 @@ def reconcile():
             raise ValueError("Discord owner mismatch")
         roles_list=http.get(f"/guilds/{guild}/roles").raise_for_status().json()
         roles={str(r["name"]).strip().upper():r for r in roles_list}
-        # Ensure canonical VIP exists, but preserve legacy JABBAZI VIP if already used.
-        if "VIP" not in roles:
-            created=http.post(f"/guilds/{guild}/roles",json={
-                "name":"VIP","color":10181046,"hoist":True,
-                "mentionable":False,"permissions":"0",
-            }).raise_for_status().json()
-            roles["VIP"]=created
-            summary["created"]+=1
+        # Preserve and use the guild's existing VIP-named roles; do not require
+        # permission to create/rename roles merely to repair channel access.
+        vip_roles=[role for role in roles_list if is_vip_name(role.get("name"))]
+        if not vip_roles:
+            return {"status":"NO_VIP_ROLE","created":0,"repaired":0,"hidden":0}
         channels=http.get(f"/guilds/{guild}/channels").raise_for_status().json()
         by_name={(c["name"],c["type"]):c for c in channels}
 
@@ -49,13 +50,16 @@ def reconcile():
                 {"id":guild,"type":0,"allow":"0","deny":str(VIEW)},
                 {"id":owner,"type":1,"allow":str(VIEW|SEND|READ_HISTORY),"deny":"0"},
             ]
-            for name in allowed:
-                role=roles.get(name)
-                if role:
-                    rows.append({
-                        "id":role["id"],"type":0,
-                        "allow":str(VIEW|SEND|READ_HISTORY),"deny":"0",
-                    })
+            selected_roles = (
+                vip_roles
+                if access == "vip"
+                else [roles[name] for name in allowed if name in roles]
+            )
+            for role in selected_roles:
+                rows.append({
+                    "id":role["id"],"type":0,
+                    "allow":str(VIEW|SEND|READ_HISTORY),"deny":"0",
+                })
             return rows
 
         for category in blueprint["categories"]:

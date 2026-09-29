@@ -140,7 +140,7 @@ def member_has_vip(config, member):
     return bool(
         int(getattr(member, "id", 0)) == config.owner
         or role_ids & configured
-        or role_names & {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+        or any("VIP" in name for name in role_names)
     )
 
 def command_allowed(config, *, guild, channel, bot_author, content):
@@ -370,8 +370,7 @@ def build_client(config, store):
                 vip_alias_ids = {
                     int(role["id"])
                     for role in guild_roles
-                    if str(role.get("name") or "").strip().upper()
-                    in {"VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP"}
+                    if "VIP" in str(role.get("name") or "").strip().upper()
                 }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(
