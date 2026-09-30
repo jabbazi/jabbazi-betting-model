@@ -152,7 +152,8 @@ def test_permission_simulation_checks_free_vip_staff_owner_bot():
 
 
 @pytest.mark.parametrize("archive_blocked", [False, True])
-def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path, monkeypatch, archive_blocked):
+@pytest.mark.parametrize("admin_staff", [False, True])
+def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path, monkeypatch, archive_blocked, admin_staff):
     monkeypatch.setenv("JABBAZI_DISCORD_BOT_TOKEN", "NEVER_PRINT_ME")
     monkeypatch.setenv("JABBAZI_DISCORD_GUILD_ID", "1")
     monkeypatch.setenv("JABBAZI_DISCORD_OWNER_ID", "2")
@@ -166,6 +167,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
              {"id": "8", "name": "VIP", "permissions": "0", "position": 2},
              {"id": "10", "name": "MODERATOR", "permissions": "0", "position": 3},
              {"id": "11", "name": "BOT", "permissions": str(MANAGE_CHANNELS | MANAGE_ROLES), "position": 10}]
+    if admin_staff:
+        roles.append({"id": "12", "name": "JABBAZI TEAM", "permissions": str(1 << 3), "position": 2})
     channels = [{"id": "20", "name": "╰➤ 🏆 VIP PICKS", "type": 4, "permission_overwrites": []},
                 {"id": "21", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []},
                 {"id": "22", "name": "open-a-ticket", "type": 0, "parent_id": "20", "permission_overwrites": []},
@@ -174,9 +177,11 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
                 {"id": "24", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []}]
     channels.append({"id": "26", "name": "💎│vip-chat", "type": 0, "parent_id": "20", "permission_overwrites": []})
     original = copy.deepcopy(channels)
-    channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "20", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
+    channels.append({"id": "27", "name": "╰➤ 🔒 OWNER HISTORY", "type": 4, "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
+    channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "27", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
     original = copy.deepcopy(channels)
     mutations = []
+    deleted_categories = []
     def handler(req):
         path = req.url.path.removeprefix("/api/v10")
         if req.method != "GET":
@@ -207,6 +212,12 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
             if path == "/channels/23" and archive_blocked:
                 return httpx.Response(403, json={"code": 50013, "message": "NEVER_PRINT_ME"})
             value = next(c for c in channels if c["id"] == path.split("/")[2])
+            if req.method == "DELETE":
+                assert value["type"] == 4
+                assert not any(str(c.get("parent_id")) == str(value["id"]) for c in channels)
+                deleted_categories.append(value["id"])
+                channels.remove(value)
+                return httpx.Response(204)
             value.update(json.loads(req.content))
         else: raise AssertionError(path)
         return httpx.Response(200, json=copy.deepcopy(value))
@@ -222,6 +233,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert result["channel_ids"]["vip-lounge"] == "26"
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]
+    assert next(c for c in channels if c["id"] == "27")["name"].startswith("🗄️ ARCHIVE ·")
     archived = next(c for c in channels if c["id"] == "23")
     assert bool(effective_permissions("1", "vip", ["7"], roles, archived, "2") & VIEW) == archive_blocked
     assert any("ARCHIVE_CHANNEL_HTTP_403_PATH_/channels/23_CODE_50013" in warning for warning in result["warnings"]) == archive_blocked
@@ -229,7 +241,10 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     snapshot = backup.list_records("discord_server_backup", 1, entity="1")[0]["payload"]
     assert snapshot["channels"] == original
     assert "NEVER_PRINT_ME" not in json.dumps(result) + json.dumps(snapshot)
-    assert "DELETE" not in mutations
+    assert deleted_categories == ([] if archive_blocked else ["20"])
+    assert all(any(c["id"] == old["id"] for c in channels) for old in original if old["type"] != 4)
+    again = migrate(apply=True, archive_obsolete=True)
+    assert again["channel_ids"] == result["channel_ids"]
     backup.close()
 
 

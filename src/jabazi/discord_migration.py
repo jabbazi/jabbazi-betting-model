@@ -309,7 +309,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                         call("DELETE", f"/channels/{old['id']}", "REMOVE_EMPTY_LEGACY_CATEGORY")
                         ordered.remove(old)
                         targets = [(c, a) for c, a in targets if str(c["id"]) != str(old["id"])]
-                    elif not old["name"].startswith("🗄️ ARCHIVE ·") and effective_permissions(guild, bot, membership["roles"], roles, old, owner) & VIEW:
+                    elif not old["name"].startswith("🗄️ ARCHIVE ·"):
                         renamed = call("PATCH", f"/channels/{old['id']}", "LABEL_LEGACY_ARCHIVE", json={"name": "🗄️ ARCHIVE · " + old["name"].strip("━╰➤ ")[:75]})
                         old.update(renamed)
                         targets = [(old if str(c["id"]) == str(old["id"]) else c, a) for c, a in targets]
@@ -336,24 +336,37 @@ def migrate(*, apply=False, archive_obsolete=False):
             for target, access in targets:
                 actual = by_id[str(target["id"])]
                 if actual.get("parent_id") != target.get("parent_id") or actual["name"] != target["name"] or actual.get("topic") != target.get("topic"):
+                    print("DISCORD_VERIFY_CHANNEL_MISMATCH " + json.dumps({"id": actual["id"], "actual_name": actual["name"], "expected_name": target["name"], "parent_matches": actual.get("parent_id") == target.get("parent_id"), "topic_matches": actual.get("topic") == target.get("topic")}, ensure_ascii=False), flush=True)
                     raise RuntimeError("Discord channel readback mismatch")
                 free = bool(effective_permissions(guild, "free-simulation", [], roles, actual, owner) & VIEW)
                 if free != (access == "public"):
+                    print(f"DISCORD_VERIFY_FREE_FAILED CHANNEL={actual['id']} EXPECTED_ACCESS={access}", flush=True)
                     raise RuntimeError("Discord free-member permission verification failed")
                 for role in vip:
                     visible = bool(effective_permissions(guild, "vip-simulation", [role], roles, actual, owner) & VIEW)
                     if visible != (access != "staff"):
+                        print(f"DISCORD_VERIFY_VIP_FAILED CHANNEL={actual['id']} ROLE={role} EXPECTED_ACCESS={access}", flush=True)
                         raise RuntimeError("Discord VIP permission verification failed")
                 canonical = channel_name(actual["name"])
                 if canonical in bp.get("read_only_channels", []):
-                    for assigned in ([], *[[r] for r in vip], list(vip), *[[r] for r in staff]):
+                    for assigned in ([], *[[r] for r in vip], list(vip)):
                         member_permissions = effective_permissions(guild, "readonly-simulation", assigned, roles, actual, owner)
                         if member_permissions & POSTING:
+                            print(f"DISCORD_VERIFY_READ_ONLY_FAILED CHANNEL={actual['id']} ROLES={assigned} POSTING_BITS={member_permissions & POSTING}", flush=True)
                             raise RuntimeError("Discord read-only thread permission verification failed")
+                    for role in staff:
+                        staff_permissions = effective_permissions(guild, "staff-readonly-simulation", [role], roles, actual, owner)
+                        # Administrators inherently bypass channel restrictions;
+                        # ordinary moderators must still respect publishing rules.
+                        if not staff_permissions & ADMIN and staff_permissions & POSTING:
+                            print(f"DISCORD_VERIFY_STAFF_READ_ONLY_FAILED CHANNEL={actual['id']} ROLE={role}", flush=True)
+                            raise RuntimeError("Discord moderator read-only verification failed")
                 for role in staff:
                     if not effective_permissions(guild, "mod-simulation", [role], roles, actual, owner) & VIEW:
+                        print(f"DISCORD_VERIFY_MODERATOR_FAILED CHANNEL={actual['id']} ROLE={role}", flush=True)
                         raise RuntimeError("Discord moderator visibility verification failed")
                 if not effective_permissions(guild, bot, membership["roles"], roles, actual, owner) & VIEW:
+                    print(f"DISCORD_VERIFY_BOT_FAILED CHANNEL={actual['id']}", flush=True)
                     raise RuntimeError("Discord bot access verification failed")
                 plan["verification"].append({"id": str(actual["id"]), "access": access, "status": "VERIFIED"})
             for original in channels:
@@ -361,7 +374,9 @@ def migrate(*, apply=False, archive_obsolete=False):
                     if by_id[str(original["id"])].get("permission_overwrites") != original.get("permission_overwrites"):
                         raise RuntimeError("Owner-only archive permission preservation failed")
                     for role in staff | vip:
-                        if effective_permissions(guild, "owner-archive-simulation", [role], roles, by_id[str(original["id"])], owner) & VIEW:
+                        role_permissions = effective_permissions(guild, "owner-archive-simulation", [role], roles, by_id[str(original["id"])], owner)
+                        if not role_permissions & ADMIN and role_permissions & VIEW:
+                            print(f"DISCORD_VERIFY_OWNER_ARCHIVE_FAILED CHANNEL={original['id']} ROLE={role}", flush=True)
                             raise RuntimeError("Owner-only archive exposed to member/staff role")
             print(f"DISCORD_ROLE_HIERARCHY_VERIFIED={not bool(high)} BOT_TOP_POSITION={top}", flush=True)
             print(f"DISCORD_PERMISSIONS_VERIFIED ACTIVE={len(plan['channel_ids'])} VIP_ROLES={len(vip)} READ_ONLY_THREADS_BLOCKED=TRUE BOT_ADMIN={bool(permissions & ADMIN)} BOT_PIN={bool(permissions & PIN_MESSAGES)}", flush=True)
