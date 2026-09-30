@@ -38,6 +38,12 @@ class BotConfig:
     support_channel: int = 0
     research_channel: int = 0
     market_channel: int = 0
+    welcome_channel: int = 0
+    guide_channel: int = 0
+    access_channel: int = 0
+    general_channel: int = 0
+    bot_log_channel: int = 0
+    members_enabled: bool = False
 
     @classmethod
     def from_env(cls):
@@ -77,10 +83,19 @@ class BotConfig:
             ),
             research_channel=int(os.getenv("JABBAZI_DISCORD_VIP_RESEARCH_CHANNEL_ID", "0") or 0),
             market_channel=int(os.getenv("JABBAZI_DISCORD_MARKET_WATCH_CHANNEL_ID", "0") or 0),
+            welcome_channel=int(os.getenv("JABBAZI_DISCORD_WELCOME_CHANNEL_ID", "0") or 0),
+            guide_channel=int(os.getenv("JABBAZI_DISCORD_GUIDE_CHANNEL_ID", "0") or 0),
+            access_channel=int(os.getenv("JABBAZI_DISCORD_ACCESS_CHANNEL_ID", "0") or 0),
+            general_channel=int(os.getenv("JABBAZI_DISCORD_GENERAL_CHANNEL_ID", "0") or 0),
+            bot_log_channel=int(os.getenv("JABBAZI_DISCORD_BOT_LOG_CHANNEL_ID", "0") or 0),
         )
         if result.status_channel == result.sheets_channel:
             raise ValueError("Use separate status and sheet channels")
         return result
+
+
+def access_destination(config):
+    return f"<#{config.access_channel}>" if config.access_channel else "Get Access"
 
 
 def brand_trigger(config, *, guild, channel, author, bot_author, content, mentioned_ids, bot_id):
@@ -109,7 +124,7 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
         raise ValueError("Research target must be a text channel in the configured guild")
     approved = {
         config.status_channel, config.sheets_channel, config.main_card_channel,
-        config.best_two_channel, config.results_channel,
+        config.best_two_channel, config.results_channel, config.research_channel, config.market_channel,
     } - {0}
     if int(document["id"]) not in approved:
         raise ValueError("Target is not an approved JABBAZI channel")
@@ -172,9 +187,18 @@ def build_client(config, store):
     intents.guilds = True
     intents.guild_messages = True
     intents.message_content = True
+    intents.members = config.members_enabled
 
     class ResearchClient(discord.Client):
+        async def on_member_join(self, member):
+            from .discord_welcome import welcome_member
+            try:
+                await welcome_member(self, store, config, member)
+            except Exception as exc:
+                print(f"DISCORD_MEMBER_WELCOME_UNAVAILABLE_{type(exc).__name__}", flush=True)
+
         async def on_ready(self):
+            print(f"DISCORD_GATEWAY_READY MEMBERS_INTENT={config.members_enabled} WELCOME_CHANNEL={config.welcome_channel}", flush=True)
             if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":
                 try:
                     done = await asyncio.to_thread(
@@ -263,7 +287,7 @@ def build_client(config, store):
                 member = await interaction.guild.fetch_member(interaction.user.id)
                 if not member_has_vip(config, member):
                     return await interaction.followup.send(
-                        "The daily sheet requires an approved VIP role. See #vip-access.",
+                        f"The daily sheet requires an approved VIP role. See {access_destination(config)}.",
                         ephemeral=True,
                     )
                 record = await asyncio.to_thread(daily_moneyline, store)
@@ -385,7 +409,7 @@ def build_client(config, store):
                 allowed = member_has_vip(config, member)
                 if not allowed:
                     return await interaction.followup.send(
-                        "VIP access requires an approved role. See #vip-access or use /support.",
+                        f"VIP access requires an approved role. See {access_destination(config)} or use /support.",
                         ephemeral=True,
                     )
                 from .member_access import issue_ticket, portal_origin
@@ -836,7 +860,8 @@ def build_client(config, store):
             await super().close()
 
     return ResearchClient(
-        intents=intents, allowed_mentions=discord.AllowedMentions.none(), max_messages=None
+        intents=intents, allowed_mentions=discord.AllowedMentions.none(), max_messages=None,
+        chunk_guilds_at_startup=False, member_cache_flags=discord.MemberCacheFlags.none(),
     )
 
 
@@ -852,6 +877,9 @@ def main():
     try:
         if not store.ready():
             raise SystemExit("Database migration required")
+        from dataclasses import replace
+        from .discord_welcome import enable_member_intent
+        config = replace(config, members_enabled=enable_member_intent(token, store))
         build_client(config, store).run(token, log_handler=None)
     finally:
         store.close()

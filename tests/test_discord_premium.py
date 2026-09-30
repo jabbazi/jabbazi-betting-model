@@ -123,7 +123,7 @@ def test_discord_blueprint_has_unique_channels_and_required_sections():
     assert len(channels)==len(set(channels))
     for required in (
         "daily-moneyline-cheat-sheet","jabbazi-main-card","vip-research",
-        "vip-access","scanner-status","support","staff-chat",
+        "get-access","scanner-status","support","staff-chat",
     ):
         assert required in channels
     assert any(role["name"]=="VIP" for role in blueprint["roles"])
@@ -161,11 +161,11 @@ def test_named_jabbazi_vip_role_is_backward_compatible():
 def test_simplified_blueprint_is_compact():
     blueprint=json.loads(Path("docs/discord/server_blueprint.json").read_text())
     channels=[name for category in blueprint["categories"] for name in category["channels"]]
-    assert len(blueprint["categories"]) <= 7
+    assert len(blueprint["categories"]) <= 8
     assert len(channels) <= 20
     vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
     assert {c["name"] for c in vip_categories} == {
-        "🔥 TODAY’S JABBAZI", "📊 DAILY CHEAT SHEET", "🧠 VIP RESEARCH"
+        "🔥 TODAY’S JABBAZI", "📊 DAILY CHEAT SHEET", "💎 VIP LOUNGE & RESEARCH"
     }
 
 
