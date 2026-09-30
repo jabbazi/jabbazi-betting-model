@@ -177,7 +177,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
                 {"id": "24", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []}]
     channels.append({"id": "26", "name": "💎│vip-chat", "type": 0, "parent_id": "20", "permission_overwrites": []})
     original = copy.deepcopy(channels)
-    channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "20", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
+    channels.append({"id": "27", "name": "╰➤ 🔒 OWNER HISTORY", "type": 4, "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
+    channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "27", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
     original = copy.deepcopy(channels)
     mutations = []
     def handler(req):
@@ -225,6 +226,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert result["channel_ids"]["vip-lounge"] == "26"
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]
+    assert next(c for c in channels if c["id"] == "27")["name"].startswith("🗄️ ARCHIVE ·")
     archived = next(c for c in channels if c["id"] == "23")
     assert bool(effective_permissions("1", "vip", ["7"], roles, archived, "2") & VIEW) == archive_blocked
     assert any("ARCHIVE_CHANNEL_HTTP_403_PATH_/channels/23_CODE_50013" in warning for warning in result["warnings"]) == archive_blocked

@@ -309,7 +309,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                         call("DELETE", f"/channels/{old['id']}", "REMOVE_EMPTY_LEGACY_CATEGORY")
                         ordered.remove(old)
                         targets = [(c, a) for c, a in targets if str(c["id"]) != str(old["id"])]
-                    elif not old["name"].startswith("🗄️ ARCHIVE ·") and effective_permissions(guild, bot, membership["roles"], roles, old, owner) & VIEW:
+                    elif not old["name"].startswith("🗄️ ARCHIVE ·"):
                         renamed = call("PATCH", f"/channels/{old['id']}", "LABEL_LEGACY_ARCHIVE", json={"name": "🗄️ ARCHIVE · " + old["name"].strip("━╰➤ ")[:75]})
                         old.update(renamed)
                         targets = [(old if str(c["id"]) == str(old["id"]) else c, a) for c, a in targets]
