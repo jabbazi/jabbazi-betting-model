@@ -20,6 +20,7 @@ class ModelStage(str, Enum):
     VALIDATING = "VALIDATING"
     LIMITED_LIVE = "LIMITED_LIVE"
     PRODUCTION_APPROVED = "PRODUCTION_APPROVED"
+    QUARANTINED = "QUARANTINED"
 
 
 class Decision(str, Enum):
