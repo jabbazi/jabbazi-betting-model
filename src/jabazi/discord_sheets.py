@@ -98,6 +98,12 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["price_stale"] = c.stale
         rows[-1]["in_play"] = c.in_play
         reliability = getattr(action, "reliability", None) or {}
+        rows[-1]["model_stage"] = reliability.get("model_stage", "UNAVAILABLE")
+        rows[-1]["model_can_influence_cash"] = bool(reliability.get("model_can_influence_cash"))
+        rows[-1]["maximum_playable_decimal"] = getattr(action, "maximum_playable_decimal", None)
+        rows[-1]["book_prices"] = getattr(c, "book_prices", {})
+        rows[-1]["anomaly_state"] = reliability.get("anomaly_state")
+        rows[-1]["calibrated_model_probability"] = reliability.get("calibrated_model_probability")
         health_value = (reliability.get("research_priority_components") or {}).get(
             "data_health"
         )

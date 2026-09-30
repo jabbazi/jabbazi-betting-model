@@ -93,7 +93,9 @@ def worker(*, once=False):
     next_scan = time.monotonic() + startup_delay
     discord_process = None
     initial_model_refresh = True
+    vip_acceptance_due = True
     daily_thread = None
+    next_vip_watch = time.monotonic()
     next_entitlement_sync = time.monotonic()
     try:
         if not store.ready():
@@ -132,6 +134,25 @@ def worker(*, once=False):
             daily_thread = threading.Thread(target=daily_loop, args=(settings, url, stop), daemon=True)
             daily_thread.start()
         while not stop.is_set():
+            if vip_acceptance_due:
+                vip_acceptance_due = False
+                if os.getenv("JABBAZI_DISCORD_COMMANDS_ENABLED", "false").lower() == "true":
+                    try:
+                        checked = store.list_records("vip_acceptance", 1, entity="terminal-v1")
+                        if not checked or checked[0]["payload"].get("status") != "VERIFIED":
+                            check = subprocess.run([sys.executable, "tools/verify_vip_production.py"], capture_output=True, text=True, timeout=300)
+                            for line in check.stdout.splitlines():
+                                if line.startswith("VIP_ACCEPTANCE_VERIFICATION "):
+                                    print(line, flush=True)
+                    except Exception as exc:
+                        print("VIP_ACCEPTANCE_FAILED_" + type(exc).__name__, flush=True)
+            if time.monotonic() >= next_vip_watch:
+                try:
+                    from .vip.state import poll_watchlists
+                    poll_watchlists(store)
+                except Exception as exc:
+                    print("VIP_WATCH_JOB_FAILED_" + type(exc).__name__, flush=True)
+                next_vip_watch = time.monotonic() + 60
             report = {"completed_at": datetime.now(UTC).isoformat(), "betting_enabled": False}
             from pathlib import Path
             try:

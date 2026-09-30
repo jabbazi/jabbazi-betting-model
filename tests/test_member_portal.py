@@ -25,6 +25,7 @@ def portal(tmp_path, monkeypatch):
     monkeypatch.setenv("JABBAZI_PLATFORM_DATABASE_URL", url)
     monkeypatch.setenv("JABBAZI_MODEL_TOKEN", "synthetic-owner-" + "x" * 40)
     monkeypatch.setenv("JABBAZI_DISCORD_GUILD_ID", "1")
+    monkeypatch.setattr("jabazi.vip.auth.current_access", lambda *_: {"tier": "VIP", "vip": True, "admin": False})
     monkeypatch.setattr("jabazi.member_api.store_for_request", lambda: Store(url))
     with TestClient(app, base_url=portal_origin()) as client:
         yield store, client

@@ -62,3 +62,30 @@ jobs:
           JABBAZI_STACK_EXPECT_OUTAGE: "1"
       - if: always()
         run: docker compose -f docker-compose.ci.yml down -v
+
+  vip-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install '.[dev,discord,research]'
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - name: Start isolated HTTPS fixture
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/vip-staging.key -out /tmp/vip-staging.crt -days 1 -subj '/CN=localhost'
+          PYTHONPATH=src python tests/vip_staging_server.py > /tmp/vip-staging.log 2>&1 &
+          for attempt in $(seq 1 30); do curl -kfsS https://127.0.0.1:8765/vip > /dev/null && break; sleep 1; done
+      - run: node tests/vip_ui_test.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vip-browser-evidence
+          path: |
+            /tmp/jabbazi-vip-*.png
+            /tmp/vip-staging.log
