@@ -11,15 +11,15 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from .discord_sheets import latest_sheet
-from .member_access import exchange_ticket, hashed, portal_origin, validate_session, SESSION_SECONDS
+from .member_access import SESSION_SECONDS, exchange_ticket, hashed, portal_origin, validate_session
 from .sheet_images import (
-    grouped_rows,
     featured_rows,
-    selection_label,
-    page_count,
-    render_card,
+    grouped_rows,
     odds,
+    page_count,
     price_valid_until,
+    render_card,
+    selection_label,
 )
 
 router = APIRouter()
@@ -31,7 +31,7 @@ HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
 }
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://cdn.discordapp.com; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://cdn.discordapp.com; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'"
 
 
 def store_for_request():
@@ -42,7 +42,12 @@ def store_for_request():
 
 def require_member(request, store):
     try:
-        return validate_session(store, request.cookies.get(COOKIE))
+        principal = validate_session(store, request.cookies.get(COOKIE))
+        from .vip.auth import current_access
+        access = current_access(principal["guild"], principal["member"])
+        if not access["vip"]:
+            raise HTTPException(403, "VIP access was removed. Contact support in Discord.")
+        return {**principal, **access}
     except PermissionError:
         raise HTTPException(401, "Open a fresh private access link from !vip in Discord") from None
 
@@ -54,7 +59,7 @@ def same_origin(request):
 
 @router.get("/vip", include_in_schema=False)
 def portal():
-    return FileResponse(STATIC / "vip.html", headers={**HEADERS, "Content-Security-Policy": CSP})
+    return FileResponse(STATIC / "terminal.html", headers={**HEADERS, "Content-Security-Policy": CSP})
 
 
 @router.get("/vip/app.js", include_in_schema=False)
@@ -96,6 +101,12 @@ def sign_in(body: AccessRequest, request: Request):
             raise HTTPException(
                 401, "This access link expired or was already used; type !vip again"
             ) from None
+        from .vip.auth import current_access
+        principal = validate_session(store, session)
+        if not current_access(principal["guild"], principal["member"])["vip"]:
+            key = hashed(session)
+            store.append("member_session_revoked", key, {}, hashed("member_session_revoked:" + key))
+            raise HTTPException(403, "VIP access is no longer available.")
         response = JSONResponse({"signed_in": True, "expires_in": SESSION_SECONDS}, headers=HEADERS)
         response.set_cookie(
             COOKIE,
@@ -116,7 +127,11 @@ def sign_out(request: Request):
     same_origin(request)
     store = store_for_request()
     try:
-        require_member(request, store)
+        # Revoked VIPs must still be able to terminate their existing session.
+        try:
+            validate_session(store, request.cookies.get(COOKIE))
+        except PermissionError:
+            raise HTTPException(401, "Session expired") from None
         key = hashed(request.cookies[COOKIE])
         store.append("member_session_revoked", key, {}, hashed("member_session_revoked:" + key))
         response = JSONResponse({"signed_out": True}, headers=HEADERS)
@@ -282,3 +297,23 @@ def learn(request: Request):
         return JSONResponse(json.loads(path.read_text()), headers=HEADERS)
     finally:
         store.close()
+
+@router.get("/vip/terminal.js", include_in_schema=False)
+def terminal_script():
+    return FileResponse(STATIC / "terminal.js", media_type="application/javascript", headers=HEADERS)
+
+@router.get("/vip/terminal.css", include_in_schema=False)
+def terminal_style():
+    return FileResponse(STATIC / "terminal.css", media_type="text/css", headers=HEADERS)
+
+@router.get("/vip/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    return JSONResponse({"id": "/vip", "name": "JABBAZI GURU", "short_name": "JABBAZI", "start_url": "/vip", "scope": "/vip", "display": "standalone", "background_color": "#0c0b13", "theme_color": "#0c0b13", "icons": [{"src": "/vip/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}, media_type="application/manifest+json", headers=HEADERS)
+
+@router.get("/vip/icon.svg", include_in_schema=False)
+def app_icon():
+    return FileResponse(STATIC / "icon.svg", media_type="image/svg+xml", headers=HEADERS)
+
+@router.get("/vip/sw.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(STATIC / "sw.js", media_type="application/javascript", headers={**HEADERS, "Service-Worker-Allowed": "/vip"})

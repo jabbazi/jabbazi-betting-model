@@ -590,3 +590,8 @@ def model_diagnostics(event_id: str, authorization: Annotated[str | None, Header
         return {'event_id':event_id,'predictions':store.list_records('model_prediction',100,entity=event_id),
                 'note':'Owner-only frozen inference evidence; never backfill missing inputs'}
     finally:store.close()
+
+from .vip.api import router as vip_router
+from .vip.security import guard as vip_guard
+app.include_router(vip_router)
+app.middleware("http")(vip_guard)

@@ -755,9 +755,15 @@ def build_client(config, store):
             rows = await asyncio.to_thread(store.list_records, "candidate", 100)
             channel = await self.checked_channel(config.main_card_channel)
             for row in reversed(rows):
+                from .vip.data import paused
+                from .discord_daily import sport_label
+                if await asyncio.to_thread(paused, store, sport_label(row["payload"].get("price", {}).get("sport", ""))):
+                    continue
                 payload = official_pick_embed(row["payload"])
                 if payload is None:
                     continue
+                from .member_access import portal_origin
+                payload["url"] = portal_origin() + "/vip#detail=" + row["id"]
                 price = row["payload"].get("price") or {}
                 key = digest([
                     "discord_official_pick", config.guild,
