@@ -10,11 +10,24 @@ from .persistence.store import digest
 
 MARKER = 'JABBAZI_SETUP_V'
 SIGNATURE = '*JABBAZI GURU · Channel guide*'
+EMBED_FOOTER = 'JABBAZI GURU · Channel guide'
+
+def guide_payload(message):
+    title, body = message.split('\n', 1)
+    return {'content': '', 'embeds': [{'title': title.replace('**', ''),
+            'description': body.replace(SIGNATURE, '').strip(), 'color': 0x8B35E8,
+            'footer': {'text': EMBED_FOOTER}}], 'allowed_mentions': {'parse': []}}
+
+def matches_guide(row, payload):
+    embeds = row.get('embeds', [])
+    return row.get('content', '') == '' and len(embeds) == 1 and all(
+        embeds[0].get(k) == v for k, v in payload['embeds'][0].items())
+
 
 
 def is_introduction(message):
     content = message.get('content', '').rstrip()
-    return MARKER in content or content.endswith(SIGNATURE)
+    return MARKER in content or content.endswith(SIGNATURE) or any(e.get('footer', {}).get('text') == EMBED_FOOTER for e in message.get('embeds', []))
 
 
 def read_pins(http, channel):
@@ -36,7 +49,7 @@ def introduction_snapshot(http, channel, bot):
     # not copied into backups. Pin metadata is enough to restore pin choices.
     guides = {str(m['id']): m for m in pins + recent if str(m.get('author', {}).get('id')) == str(bot) and is_introduction(m)}
     return {'channel_id': str(channel), 'pins': [{'id': str(m['id']), 'author_id': str(m.get('author', {}).get('id', ''))} for m in pins],
-            'introductions': [{'id': str(m['id']), 'content': re.sub(r'(?:https?://\S+)?(?:#access=|[?&]token=)\S+', '[private link redacted]', m.get('content', '')), 'pinned': bool(m.get('pinned'))} for m in guides.values()]}
+            'introductions': [{'id': str(m['id']), 'content': re.sub(r'(?:https?://\S+)?(?:#access=|[?&]token=)\S+', '[private link redacted]', m.get('content', '')), 'embeds': json.loads(re.sub(r'(?:https?://[^\s\"]+)?(?:#access=|[?&]token=)[^\s\"]+', '[private link redacted]', json.dumps(m.get('embeds', [])))), 'pinned': bool(m.get('pinned'))} for m in guides.values()]}
 
 
 def seed(http, store, *, guild, owner, apply=False):
@@ -83,14 +96,16 @@ def seed(http, store, *, guild, owner, apply=False):
             if not apply:
                 plan.append({'channel': name, 'status': 'WOULD_UPDATE' if previous else 'WOULD_POST'})
                 continue
+            if previous and not any(str(m['id']) == str(previous['id']) for m in snapshot['introductions']):
+                snapshot['introductions'].append({'id': str(previous['id']), 'content': previous.get('content', ''), 'embeds': previous.get('embeds', []), 'pinned': bool(previous.get('pinned'))})
             key = digest(['discord_intro_backup', cid, snapshot])
             store.append('discord_intro_backup', cid, snapshot, key)
             if not any(r['id'] == key for r in store.list_records('discord_intro_backup', 100, entity=cid)):
                 raise RuntimeError('Introduction backup readback failed')
-            payload = {'content': message, 'allowed_mentions': {'parse': []}}
+            payload = guide_payload(message)
             if previous:
                 mid = str(previous['id'])
-                if previous.get('content') != message:
+                if not matches_guide(previous, payload):
                     request(http, 'PATCH', f'/channels/{cid}/messages/{mid}', 'UPDATE_INTRODUCTION', json=payload)
             else:
                 claim = digest(['discord_intro_post', cid, 'v4'])
@@ -100,7 +115,7 @@ def seed(http, store, *, guild, owner, apply=False):
                 mid = str(posted['id'])
             store.append('discord_intro_receipt', cid, {'message_id': mid}, digest(['discord_intro_receipt', cid, mid]))
             row = request(http, 'GET', f'/channels/{cid}/messages/{mid}', 'VERIFY_INTRODUCTION')
-            if row.get('content') != message:
+            if not matches_guide(row, payload):
                 raise RuntimeError('Introduction content verification failed')
             if not effective_permissions(guild, bot, membership.get('roles', []), roles, channel, owner) & PIN_MESSAGES:
                 plan.append({'channel': name, 'channel_id': cid, 'message_id': mid, 'status': 'INTRO_VERIFIED_PIN_PERMISSION_REQUIRED'})

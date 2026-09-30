@@ -882,10 +882,14 @@ def build_client(config, store):
             )
             print(f"DISCORD_DAILY_DELIVERY_{result['status'].upper()} DATE={record['payload']['date']} SHEET={record['id']} CHANNEL={channel.id} MESSAGE_IDS={result.get('message_ids', [])}", flush=True)
 
+        async def publish_public_preview_once(self):
+            from .discord_community import publish_public_preview
+            return await publish_public_preview(self, store, config)
+
         async def publish_loop(self):
             await self.wait_until_ready()
             while not self.is_closed():
-                for lane in ("daily", "status", "best_two", "official_picks", "results", "research", "market"):
+                for lane in ("daily", "status", "best_two", "official_picks", "results", "research", "market", "public_preview"):
                     try:
                         await getattr(self, f"publish_{lane}_once")()
                     except Exception as exc:
