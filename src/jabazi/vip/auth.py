@@ -1,4 +1,5 @@
 """Live Discord authorization, bounded cache, and fail-closed membership checks."""
+import logging
 import os
 import threading
 import time
@@ -25,6 +26,7 @@ def current_access(guild, member):
             return dict(saved[1])
     token = os.getenv('JABBAZI_DISCORD_BOT_TOKEN', '')
     if not token:
+        logging.getLogger(__name__).warning('VIP_AUTH_UNAVAILABLE reason=MISSING_BOT_TOKEN')
         raise HTTPException(503, 'Discord access verification is temporarily unavailable.')
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + token}, timeout=8) as http:
@@ -42,7 +44,9 @@ def current_access(guild, member):
                 developer = bool(actual & configured('JABBAZI_APP_DEVELOPER_ROLE_IDS'))
                 vip = admin or developer or bool(actual & approved)
                 result = {'tier': 'ADMIN' if admin else 'DEVELOPER' if developer else 'VIP' if vip else 'FREE', 'vip': vip, 'admin': admin}
-    except httpx.HTTPError:
+    except httpx.HTTPError as exc:
+        code = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else type(exc).__name__
+        logging.getLogger(__name__).warning("VIP_AUTH_UNAVAILABLE reason=DISCORD_REQUEST code=%s", code)
         # Never reuse an expired success when Discord cannot verify current roles.
         raise HTTPException(503, 'Discord access verification is temporarily unavailable.') from None
     with _lock:

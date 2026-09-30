@@ -20,6 +20,13 @@ services:
           property: connectionString
       - key: JABBAZI_MODEL_TOKEN
         generateValue: true
+      - key: JABBAZI_DISCORD_BOT_TOKEN
+        # Use the existing bot credential; keep it in Render secrets only.
+        sync: false
+      - key: JABBAZI_DISCORD_GUILD_ID
+        sync: false
+      - key: JABBAZI_DISCORD_OWNER_ID
+        sync: false
       - key: JABAZI_BANKROLL
         sync: false
       - key: JABAZI_UNIT_SIZE
