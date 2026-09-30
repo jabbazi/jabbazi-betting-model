@@ -196,6 +196,27 @@ def build_client(config, store):
                 await welcome_member(self, store, config, member)
             except Exception as exc:
                 print(f"DISCORD_MEMBER_WELCOME_UNAVAILABLE_{type(exc).__name__}", flush=True)
+                await self.log_operational_failure("member-welcome", exc)
+
+        async def log_operational_failure(self, lane, exc):
+            if not config.bot_log_channel:
+                return
+            try:
+                channel = await self.fetch_channel(config.bot_log_channel)
+                if channel.guild.id != config.guild or channel.permissions_for(channel.guild.default_role).view_channel:
+                    return
+                for role in channel.guild.roles:
+                    if (is_vip_name(role.name) or role.id in config.viewer_roles or role.id == config.vip_role) and channel.permissions_for(role).view_channel:
+                        return
+                status = getattr(exc, "status", None)
+                status = status if isinstance(status, int) else "unavailable"
+                error = type(exc).__name__
+                key = digest(["discord_ops_notice", lane, error, status, datetime.now(UTC).strftime("%Y-%m-%dT%H")])
+                if not await asyncio.to_thread(store.append, "discord_ops_notice", lane, {"error": error, "http_status": status}, key):
+                    return
+                await channel.send(f"⚠️ **JABBAZI GURU · {lane}**\n{error} · HTTP {status}. Check the worker diagnostics for this operation.", allowed_mentions=discord.AllowedMentions.none())
+            except Exception:
+                print("DISCORD_PRIVATE_DIAGNOSTIC_UNAVAILABLE", flush=True)
 
         async def on_ready(self):
             print(f"DISCORD_GATEWAY_READY MEMBERS_INTENT={config.members_enabled} WELCOME_CHANNEL={config.welcome_channel}", flush=True)
@@ -851,6 +872,7 @@ def build_client(config, store):
                         response = getattr(exc, "response", None)
                         status = status or getattr(response, "status_code", None)
                         print(f"DISCORD_PUBLISH_{lane.upper()}_{type(exc).__name__}_HTTP_{status}", flush=True)
+                        await self.log_operational_failure(lane, exc)
                 await asyncio.sleep(60)
 
         async def close(self):

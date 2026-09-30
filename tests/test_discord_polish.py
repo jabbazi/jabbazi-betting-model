@@ -89,6 +89,8 @@ def test_welcome_exactly_once_across_restart_rejoin_allowed_bots_skipped(store):
         assert await welcome_member(client, store, config, member) == 'DUPLICATE'
         member.joined_at += timedelta(hours=1)
         assert await welcome_member(client, store, config, member) == 'DELIVERED'
+        member.joined_at = datetime.now(UTC) - timedelta(days=1)
+        assert await welcome_member(client, store, config, member) == 'STALE_MEMBER_EVENT'
         member.bot = True
         assert await welcome_member(client, store, config, member) == 'SKIPPED'
         assert channel.send.await_count == 2
@@ -165,3 +167,22 @@ def test_intro_backup_idempotency_pin_reuse_and_unpin_preserves_history(store, p
     assert messages[welcome]['11']['pinned'] is pin_blocked
     assert 'Old guide' not in messages[welcome]['10']['content']
     assert store.list_records('discord_intro_backup', 100, entity=welcome)
+
+
+def test_private_operational_notices_deduplicate_and_reject_public_channel(store):
+    from jabazi.discord_bot import build_client
+    async def run():
+        config = BotConfig(1, 2, 3, 4, frozenset({7}), bot_log_channel=8)
+        client = build_client(config, store)
+        role = NS(id=7, name='APPROVED CUSTOM ROLE')
+        channel = NS(guild=NS(id=1, default_role=object(), roles=[role]), send=AsyncMock(), permissions_for=lambda _: NS(view_channel=True))
+        client.fetch_channel = AsyncMock(return_value=channel)
+        await client.log_operational_failure('research', RuntimeError('NEVER_EXPOSE'))
+        channel.send.assert_not_awaited()
+        channel.permissions_for = lambda _: NS(view_channel=False)
+        await client.log_operational_failure('research', RuntimeError('NEVER_EXPOSE'))
+        await client.log_operational_failure('research', RuntimeError('NEVER_EXPOSE'))
+        channel.send.assert_awaited_once()
+        assert 'NEVER_EXPOSE' not in channel.send.call_args.args[0]
+        await client.close()
+    asyncio.run(run())

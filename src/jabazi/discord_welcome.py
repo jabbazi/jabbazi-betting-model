@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -41,6 +42,10 @@ async def welcome_member(client, store, config, member):
     joined = member.joined_at
     if joined is None or joined.tzinfo is None:
         return 'MISSING_JOIN_TIMESTAMP'
+    # Discord can deliver GUILD_MEMBER_ADD for an already-present member.
+    # Never turn such a refresh into a welcome for an old member.
+    if datetime.now(UTC) - joined > timedelta(minutes=15):
+        return 'STALE_MEMBER_EVENT'
     ids = [config.welcome_channel, config.guide_channel, config.access_channel, config.general_channel]
     if not all(ids) or len(set(ids)) != 4:
         raise ValueError('Welcome navigation is not configured')
