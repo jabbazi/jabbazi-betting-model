@@ -87,11 +87,23 @@ class ScannerModelState(BaseModel):
         return self
 
 
+class ScanHealthSummary(BaseModel):
+    scan_id: str
+    completed_at: str
+    healthy: bool
+    feeds_scanned: int
+    quotes_archived: int
+    error_count: int
+    errors: list[str]
+    stop_reason: str | None = None
+
+
 class ScannerModelStatus(BaseModel):
     # GPT Actions requires explicit object properties in response schemas.
     models: list[ScannerModelState]
     errors: list[str]
     player_feature_provider: dict[str, Any] = Field(default_factory=dict)
+    recent_scan_health: list[ScanHealthSummary] = Field(default_factory=list)
 
 
 class ScanPage(BaseModel):
