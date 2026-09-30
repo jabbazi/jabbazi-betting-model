@@ -5,10 +5,16 @@ import json
 import re
 from pathlib import Path
 
-from .discord_migration import channel_name, request
+from .discord_migration import PIN_MESSAGES, channel_name, effective_permissions, request
 from .persistence.store import digest
 
 MARKER = 'JABBAZI_SETUP_V'
+SIGNATURE = '*JABBAZI GURU · Channel guide*'
+
+
+def is_introduction(message):
+    content = message.get('content', '').rstrip()
+    return MARKER in content or content.endswith(SIGNATURE)
 
 
 def read_pins(http, channel):
@@ -28,7 +34,7 @@ def introduction_snapshot(http, channel, bot):
     recent = request(http, 'GET', f'/channels/{channel}/messages?limit=50', 'READ_INTRODUCTIONS')
     # Preserve only onboarding text; ordinary member messages/private links are
     # not copied into backups. Pin metadata is enough to restore pin choices.
-    guides = {str(m['id']): m for m in pins + recent if str(m.get('author', {}).get('id')) == str(bot) and MARKER in m.get('content', '')}
+    guides = {str(m['id']): m for m in pins + recent if str(m.get('author', {}).get('id')) == str(bot) and is_introduction(m)}
     return {'channel_id': str(channel), 'pins': [{'id': str(m['id']), 'author_id': str(m.get('author', {}).get('id', ''))} for m in pins],
             'introductions': [{'id': str(m['id']), 'content': re.sub(r'(?:https?://\S+)?(?:#access=|[?&]token=)\S+', '[private link redacted]', m.get('content', '')), 'pinned': bool(m.get('pinned'))} for m in guides.values()]}
 
@@ -39,6 +45,8 @@ def seed(http, store, *, guild, owner, apply=False):
         raise ValueError('Configured Discord owner mismatch')
     bot = request(http, 'GET', '/users/@me', 'READ_BOT')['id']
     channels = request(http, 'GET', f'/guilds/{guild}/channels', 'READ_CHANNELS')
+    roles = request(http, 'GET', f'/guilds/{guild}/roles', 'READ_PIN_PERMISSIONS')
+    membership = request(http, 'GET', f'/guilds/{guild}/members/{bot}', 'READ_PIN_MEMBERSHIP')
     bp = json.loads(Path('docs/discord/server_blueprint.json').read_text())
     content = json.loads(Path('docs/discord/seed_content.json').read_text())
     parents = {str(c['id']): c['name'] for c in channels if c['type'] == 4}
@@ -65,7 +73,7 @@ def seed(http, store, *, guild, owner, apply=False):
                 response = http.get(f'/channels/{cid}/messages/{mid}')
                 if response.status_code == 200:
                     row = response.json()
-                    if str(row.get('author', {}).get('id')) != str(bot) or MARKER not in row.get('content', ''):
+                    if str(row.get('author', {}).get('id')) != str(bot) or not is_introduction(row):
                         raise ValueError('Saved introduction ownership mismatch')
                     previous = row
                 elif response.status_code != 404:
@@ -94,6 +102,9 @@ def seed(http, store, *, guild, owner, apply=False):
             row = request(http, 'GET', f'/channels/{cid}/messages/{mid}', 'VERIFY_INTRODUCTION')
             if row.get('content') != message:
                 raise RuntimeError('Introduction content verification failed')
+            if not effective_permissions(guild, bot, membership.get('roles', []), roles, channel, owner) & PIN_MESSAGES:
+                plan.append({'channel': name, 'channel_id': cid, 'message_id': mid, 'status': 'INTRO_VERIFIED_PIN_PERMISSION_REQUIRED'})
+                continue
             status = 'PINNED'
             try:
                 if not row.get('pinned'):
@@ -103,7 +114,7 @@ def seed(http, store, *, guild, owner, apply=False):
                     raise RuntimeError('Pin readback failed')
                 # Retain history and unrelated pins; remove only obsolete bot guides.
                 for old in verified_pins:
-                    if str(old['id']) != mid and str(old.get('author', {}).get('id')) == str(bot) and MARKER in old.get('content', ''):
+                    if str(old['id']) != mid and str(old.get('author', {}).get('id')) == str(bot) and is_introduction(old):
                         request(http, 'DELETE', f'/channels/{cid}/messages/pins/{old["id"]}', 'UNPIN_OBSOLETE_INTRODUCTION')
             except RuntimeError:
                 status = 'INTRO_VERIFIED_PIN_UNAVAILABLE'
