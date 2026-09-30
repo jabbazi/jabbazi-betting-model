@@ -218,6 +218,27 @@ def build_client(config, store):
             except Exception:
                 print("DISCORD_PRIVATE_DIAGNOSTIC_UNAVAILABLE", flush=True)
 
+        async def on_guild_role_update(self, before, after):
+            from .discord_migration import PIN_MESSAGES
+            if after.guild.id != config.guild or before.permissions.value & PIN_MESSAGES or not after.permissions.value & PIN_MESSAGES:
+                return
+            if getattr(self, "_pin_refresh_running", False):
+                return
+            self._pin_refresh_running = True
+            try:
+                member = await after.guild.fetch_member(self.user.id)
+                if after.id not in {role.id for role in member.roles}:
+                    return
+                result = await asyncio.to_thread(subprocess.run, [sys.executable, "tools/seed_discord_content.py", "--apply"], capture_output=True, text=True, timeout=300)
+                for line in result.stdout.splitlines():
+                    if line.startswith(("DISCORD_ONBOARDING_VERIFICATION ", "DISCORD_OPERATION_")):
+                        print(line, flush=True)
+                print("DISCORD_PIN_PERMISSION_REFRESH_" + ("VERIFIED" if result.returncode == 0 else "INCOMPLETE"), flush=True)
+            except Exception as exc:
+                print(f"DISCORD_PIN_PERMISSION_REFRESH_UNAVAILABLE_{type(exc).__name__}", flush=True)
+            finally:
+                self._pin_refresh_running = False
+
         async def on_ready(self):
             print(f"DISCORD_GATEWAY_READY MEMBERS_INTENT={config.members_enabled} WELCOME_CHANNEL={config.welcome_channel}", flush=True)
             if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":

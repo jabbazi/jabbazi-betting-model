@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from .discord_migration import channel_name, request
+from .discord_migration import PIN_MESSAGES, channel_name, effective_permissions, request
 from .persistence.store import digest
 
 MARKER = 'JABBAZI_SETUP_V'
@@ -45,6 +45,8 @@ def seed(http, store, *, guild, owner, apply=False):
         raise ValueError('Configured Discord owner mismatch')
     bot = request(http, 'GET', '/users/@me', 'READ_BOT')['id']
     channels = request(http, 'GET', f'/guilds/{guild}/channels', 'READ_CHANNELS')
+    roles = request(http, 'GET', f'/guilds/{guild}/roles', 'READ_PIN_PERMISSIONS')
+    membership = request(http, 'GET', f'/guilds/{guild}/members/{bot}', 'READ_PIN_MEMBERSHIP')
     bp = json.loads(Path('docs/discord/server_blueprint.json').read_text())
     content = json.loads(Path('docs/discord/seed_content.json').read_text())
     parents = {str(c['id']): c['name'] for c in channels if c['type'] == 4}
@@ -100,6 +102,9 @@ def seed(http, store, *, guild, owner, apply=False):
             row = request(http, 'GET', f'/channels/{cid}/messages/{mid}', 'VERIFY_INTRODUCTION')
             if row.get('content') != message:
                 raise RuntimeError('Introduction content verification failed')
+            if not effective_permissions(guild, bot, membership.get('roles', []), roles, channel, owner) & PIN_MESSAGES:
+                plan.append({'channel': name, 'channel_id': cid, 'message_id': mid, 'status': 'INTRO_VERIFIED_PIN_PERMISSION_REQUIRED'})
+                continue
             status = 'PINNED'
             try:
                 if not row.get('pinned'):

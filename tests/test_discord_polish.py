@@ -133,6 +133,8 @@ def test_intro_backup_idempotency_pin_reuse_and_unpin_preserves_history(store, p
         if path == '/guilds/1': value = {'owner_id': '2'}
         elif path == '/users/@me': value = {'id': '9'}
         elif path == '/guilds/1/channels': value = channels
+        elif path == '/guilds/1/roles': value = [{'id': '1', 'permissions': str(VIEW | READ)}, {'id': '15', 'permissions': '0' if pin_blocked else str(1 << 51)}]
+        elif path == '/guilds/1/members/9': value = {'roles': ['15']}
         else:
             parts = path.split('/')
             cid = parts[2]
@@ -162,7 +164,7 @@ def test_intro_backup_idempotency_pin_reuse_and_unpin_preserves_history(store, p
         second = seed(http, store, guild='1', owner='2', apply=True)
     assert len(posts) == 17  # Reuses the existing welcome and creates only missing guides.
     assert [p['message_id'] for p in first['plan']] == [p['message_id'] for p in second['plan']]
-    assert all(p['status'] == ('INTRO_VERIFIED_PIN_UNAVAILABLE' if pin_blocked else 'PINNED') for p in second['plan'])
+    assert all(p['status'] == ('INTRO_VERIFIED_PIN_PERMISSION_REQUIRED' if pin_blocked else 'PINNED') for p in second['plan'])
     assert messages[welcome]['12']['pinned']
     assert messages[welcome]['11']['pinned'] is pin_blocked
     assert 'Old guide' not in messages[welcome]['10']['content']
@@ -184,5 +186,26 @@ def test_private_operational_notices_deduplicate_and_reject_public_channel(store
         await client.log_operational_failure('research', RuntimeError('NEVER_EXPOSE'))
         channel.send.assert_awaited_once()
         assert 'NEVER_EXPOSE' not in channel.send.call_args.args[0]
+        await client.close()
+    asyncio.run(run())
+
+
+def test_bot_role_pin_grant_triggers_safe_idempotent_guide_refresh(store):
+    from unittest.mock import patch
+    from jabazi.discord_bot import build_client
+    async def run():
+        client = build_client(BotConfig(1, 2, 3, 4, frozenset()), store)
+        client._connection.user = NS(id=9)
+        guild = NS(id=1, fetch_member=AsyncMock(return_value=NS(roles=[NS(id=15)])))
+        before = NS(id=15, guild=guild, permissions=NS(value=0))
+        after = NS(id=15, guild=guild, permissions=NS(value=1 << 51))
+        with patch('jabazi.discord_bot.subprocess.run', return_value=NS(returncode=0, stdout='DISCORD_ONBOARDING_VERIFICATION {}')) as run_seed:
+            await client.on_guild_role_update(before, after)
+            run_seed.assert_called_once()
+            assert run_seed.call_args.args[0][-2:] == ['tools/seed_discord_content.py', '--apply']
+            await client.on_guild_role_update(after, after)
+            after.id = 16
+            await client.on_guild_role_update(before, after)
+            assert run_seed.call_count == 1
         await client.close()
     asyncio.run(run())
