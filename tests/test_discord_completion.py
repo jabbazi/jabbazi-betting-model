@@ -172,6 +172,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
                 {"id": "23", "name": "🎾│tennis-chat", "type": 0, "parent_id": "20", "permission_overwrites": [
                     {"id": "7", "type": 0, "allow": str(VIEW), "deny": "0"}]},
                 {"id": "24", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []}]
+    channels.append({"id": "26", "name": "💎│vip-chat", "type": 0, "parent_id": "20", "permission_overwrites": []})
     original = copy.deepcopy(channels)
     channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "20", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
     original = copy.deepcopy(channels)
@@ -200,6 +201,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
                     next(c for c in channels if c["id"] == row["id"]).update(row)
                 value = channels
             else: value = channels
+        elif path.endswith("/messages/pins"): value = {"items": [], "has_more": False}
+        elif path.endswith("/messages"): value = []
         elif path.startswith("/channels/"):
             if path == "/channels/23" and archive_blocked:
                 return httpx.Response(403, json={"code": 50013, "message": "NEVER_PRINT_ME"})
@@ -215,7 +218,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert "parlays-sgps" not in result["channel_ids"]
     assert not effective_permissions("1", "vip", ["7"], roles, next(c for c in channels if c["id"] == "21"), "2") & VIEW
     assert result["channel_ids"]["support"] == "22"
-    assert len(result["channel_ids"]) == 17
+    assert len(result["channel_ids"]) == 18
+    assert result["channel_ids"]["vip-lounge"] == "26"
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]
     archived = next(c for c in channels if c["id"] == "23")

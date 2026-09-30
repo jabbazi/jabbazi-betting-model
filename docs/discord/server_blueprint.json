@@ -82,8 +82,14 @@
       "access": "public",
       "channels": [
         "welcome",
-        "how-to-use-jabbazi",
-        "vip-access",
+        "how-to-use-jabbazi"
+      ]
+    },
+    {
+      "name": "🔑 GET ACCESS",
+      "access": "public",
+      "channels": [
+        "get-access",
         "alerts-and-support"
       ]
     },
@@ -103,9 +109,10 @@
       ]
     },
     {
-      "name": "🧠 VIP RESEARCH",
+      "name": "💎 VIP LOUNGE & RESEARCH",
       "access": "vip",
       "channels": [
+        "vip-lounge",
         "vip-research",
         "market-watch",
         "scanner-status"
@@ -224,10 +231,6 @@
       "vip-guide",
       "learn-how-to"
     ],
-    "vip-access": [
-      "vip-membership",
-      "upgrade-to-vip"
-    ],
     "alerts-and-support": [
       "choose-your-roles",
       "choose-your-alerts"
@@ -251,26 +254,35 @@
     "bot-log": [
       "bot-log",
       "scanner-errors"
+    ],
+    "get-access": [
+      "vip-access",
+      "vip-membership",
+      "upgrade-to-vip"
+    ],
+    "vip-lounge": [
+      "vip-chat"
     ]
   },
   "channel_topics": {
-    "welcome": "Start here: today’s card, daily sheet, VIP research, community, results and help.",
+    "welcome": "Welcome to JABBAZI GURU. Read the pinned guide, get access and join General. Member conversation stays in General.",
     "how-to-use-jabbazi": "BET NOW / WATCH / PRICE CHECK / PASS / QUARANTINED. 1u = $30 unless officially changed.",
-    "vip-access": "Approved VIP-family roles unlock premium sections immediately. /vip gives a private app link; !vip sends a DM.",
     "alerts-and-support": "Choose notifications with /alerts. Open a private support thread with /support.",
     "jabbazi-main-card": "Official JABBAZI recommendations only. Cash-authority gates required. No research-only candidates.",
     "live-watch": "Important updates after publication. Frozen sheets and settled history remain unchanged.",
     "daily-moneyline-cheat-sheet": "One frozen daily moneyline research sheet at 9 AM America/Chicago. /cheatsheet retrieves it without scanning again.",
-    "vip-research": "Consolidated NFL, CFB, MLB, NBA, NHL and supported tennis/soccer research. Research is not an official wager.",
+    "vip-research": "One consolidated sports research feed, including Best-2. Research is not an official wager; exact parlay quotes are required.",
     "market-watch": "Meaningful line movement, best prices, deterioration, CLV and verified market opportunities.",
     "scanner-status": "Compact model stage, provider health and last successful scan. Developer errors belong in bot-log.",
     "general": "Community conversation. Respect members; no scams or referral spam.",
     "sports-talk": "All sports in one conversation. Use threads for individual games.",
     "winning-tickets": "Community tickets. These are separate from official JABBAZI performance.",
     "results": "Authentic official JABBAZI results. Losses stay recorded; user sprinkles and hypothetical slips are excluded.",
-    "support": "Use /support for a private VIP access, billing, technical or other support thread. Never post credentials.",
+    "support": "Use /support for a private member/staff thread: VIP access, billing, technical or other. Do not post private details publicly.",
     "staff-chat": "Private staff coordination. Never post credentials or private member-app tokens.",
-    "bot-log": "Private operational diagnostics only. No tokens, API keys or billing secrets."
+    "bot-log": "Private operational diagnostics only. No tokens, API keys or billing secrets.",
+    "get-access": "Approved VIP-family roles unlock premium sections immediately. /vip gives a private app link; !vip sends a DM.",
+    "vip-lounge": "Private VIP conversation. Discuss research, share questions and use !vip or /vip for your private app link."
   },
   "category_aliases": {
     "👋 START HERE": [
@@ -282,9 +294,6 @@
     "📊 DAILY CHEAT SHEET": [
       "━━ CHEAT SHEET ━━"
     ],
-    "🧠 VIP RESEARCH": [
-      "━━ VIP RESEARCH ━━"
-    ],
     "💬 COMMUNITY": [
       "━━ COMMUNITY ━━"
     ],
@@ -293,6 +302,43 @@
     ],
     "🔒 STAFF ONLY": [
       "━━ STAFF ONLY ━━"
+    ],
+    "💎 VIP LOUNGE & RESEARCH": [
+      "🧠 VIP RESEARCH",
+      "━━ VIP RESEARCH ━━"
     ]
-  }
+  },
+  "channel_display_names": {
+    "welcome": "👋│welcome",
+    "how-to-use-jabbazi": "📖│how-to-use-jabbazi",
+    "get-access": "🔑│get-access",
+    "alerts-and-support": "🔔│alerts-and-support",
+    "jabbazi-main-card": "🎯│jabbazi-main-card",
+    "live-watch": "👀│live-watch",
+    "daily-moneyline-cheat-sheet": "📋│daily-moneyline-cheat-sheet",
+    "vip-lounge": "💎│vip-lounge",
+    "vip-research": "🧠│vip-research",
+    "market-watch": "📉│market-watch",
+    "scanner-status": "🛰️│scanner-status",
+    "general": "💬│general",
+    "sports-talk": "🏟️│sports-talk",
+    "winning-tickets": "🏆│winning-tickets",
+    "results": "📈│results",
+    "support": "🛟│support",
+    "staff-chat": "🛡️│staff-chat",
+    "bot-log": "🤖│bot-log"
+  },
+  "read_only_channels": [
+    "welcome",
+    "how-to-use-jabbazi",
+    "get-access",
+    "alerts-and-support",
+    "jabbazi-main-card",
+    "daily-moneyline-cheat-sheet",
+    "vip-research",
+    "market-watch",
+    "scanner-status",
+    "results",
+    "bot-log"
+  ]
 }

@@ -9,7 +9,7 @@ def test_compact_discord_blueprint_is_small_and_keeps_core_surfaces():
     blueprint = json.loads(Path("docs/discord/server_blueprint.json").read_text())
     categories = blueprint["categories"]
     channels = [name for category in categories for name in category["channels"]]
-    assert len(categories) <= 7
+    assert len(categories) <= 8
     assert len(channels) <= 20
     assert len(channels) == len(set(channels))
     assert not {"best-two-parlay", "parlays-sgps", "promo-boosts"} & set(channels)

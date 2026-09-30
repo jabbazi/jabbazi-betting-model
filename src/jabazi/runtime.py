@@ -107,7 +107,10 @@ def worker(*, once=False):
                     for name, suffix in CHANNEL_ENV.items():
                         os.environ["JABBAZI_DISCORD_" + suffix] = result["channel_ids"][name]
                     print("DISCORD_RECONCILE_" + result.get("status", "UNKNOWN") + " BACKUP=" + result.get("backup_id", "") + " CHANNELS=" + str(result["channel_ids"]), flush=True)
-                    seed = subprocess.run([sys.executable, "tools/seed_discord_content.py", "--apply"], capture_output=True, timeout=120)
+                    seed = subprocess.run([sys.executable, "tools/seed_discord_content.py", "--apply"], capture_output=True, text=True, timeout=300)
+                    for line in seed.stdout.splitlines():
+                        if line.startswith(("DISCORD_ONBOARDING_VERIFICATION ", "DISCORD_OPERATION_")):
+                            print(line, flush=True)
                     print("DISCORD_ONBOARDING_" + ("SEEDED" if seed.returncode == 0 else "UNAVAILABLE"), flush=True)
                 except Exception as exc:
                     # Never dump SDK response bodies, URLs, environment values or
