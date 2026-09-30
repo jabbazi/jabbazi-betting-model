@@ -4,9 +4,10 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
+from test_member_portal import portal as _portal_fixture
 from test_member_portal import sign_in
 
-pytest_plugins = ["test_member_portal"]
+portal = _portal_fixture
 from jabazi.vip import data
 from jabazi.vip.auth import _cache, current_access
 from jabazi.vip.state import change_watch, check_watches
