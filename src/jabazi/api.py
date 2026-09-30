@@ -205,6 +205,7 @@ def model_status_data():
     from .models.player_registry import load_player_models, player_status
     from .models.team_elo import SPORTS
     from .reliability.layer import status_buckets
+    from .scan_health import recent_scan_health
 
     store = platform_store()
     try:
@@ -212,6 +213,7 @@ def model_status_data():
         player_models, player_errors = load_player_models(store)
         from .research.prospective import validation_report
         prospective = validation_report(store)
+        scan_health = recent_scan_health(store)
 
         rows = []
         for sport in SPORTS.values():
@@ -258,6 +260,7 @@ def model_status_data():
         "models": rows,
         "errors": errors + player_errors,
         "player_feature_provider": provider,
+        "recent_scan_health": scan_health,
     }
 
 
