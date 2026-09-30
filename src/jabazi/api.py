@@ -194,6 +194,19 @@ def prospective_validation(authorization: Annotated[str | None, Header()] = None
         store.close()
 
 
+@app.get("/v1/research/model-evidence")
+def model_evidence(authorization: Annotated[str | None, Header()] = None):
+    """Owner-only evidence cards and promotion blockers; never auto-promotes."""
+    require_auth(authorization)
+    from .research.prospective import validation_report
+    from .research.governance import governance_report
+    store = platform_store()
+    try:
+        return governance_report(validation_report(store))
+    finally:
+        store.close()
+
+
 @app.get("/v1/model-status")
 def model_status(authorization: Annotated[str | None, Header()] = None):
     require_auth(authorization)

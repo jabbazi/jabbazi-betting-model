@@ -7,8 +7,8 @@ from .v42 import ModelStage
 
 @dataclass(frozen=True)
 class AnomalyPolicy:
-    large_gap: float = 0.08
-    extreme_gap: float = 0.20
+    large_gap: float = 0.05
+    extreme_gap: float = 0.10
     drift_z: float = 6.0
 
     def __post_init__(self):
@@ -22,7 +22,7 @@ def anomaly(probability, market, checks, policy=AnomalyPolicy()):
     gap = abs(probability - market)
     state = (
         "EXTREME_DISAGREEMENT"
-        if gap >= policy.extreme_gap
+        if gap > policy.extreme_gap
         else "LARGE_DISAGREEMENT"
         if gap >= policy.large_gap
         else "NORMAL"

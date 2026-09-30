@@ -241,9 +241,17 @@ def validation_report(store):
                 "pairs": [],
                 "market_pairs": [],
                 "input_verified": 0,
+                "first_predicted_at": None,
+                "last_predicted_at": None,
             },
         )
         g["frozen"] += 1
+        predicted_at = f.get("predicted_at")
+        if predicted_at:
+            if g["first_predicted_at"] is None or predicted_at < g["first_predicted_at"]:
+                g["first_predicted_at"] = predicted_at
+            if g["last_predicted_at"] is None or predicted_at > g["last_predicted_at"]:
+                g["last_predicted_at"] = predicted_at
         r = results.get((f["sport"], str(f["schedule_game_id"])))
         if r is None:
             g["pending"] += 1
