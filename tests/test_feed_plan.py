@@ -244,3 +244,37 @@ def test_nba_base_and_player_market_feeds_are_bounded_and_model_independent():
     coverage = plan.coverage["sports"]["basketball_nba"]
     assert coverage["player_model_status"] == "UNAVAILABLE"
     assert coverage["player_model_markets"] == {}
+
+
+def test_moneyline_scan_excludes_outright_only_feeds_before_spending_quota():
+    from urllib.error import HTTPError
+
+    calls, errors = [], []
+    base = factory(calls)
+
+    class Provider(base):
+        def fetch(self):
+            if self.sport.startswith("golf_") and self.markets != ("outrights",):
+                calls.append((self.sport, None, self.markets))
+                raise HTTPError("https://provider.test", 422, "Unsupported market", {}, None)
+            return super().fetch()
+
+    selected = [
+        {"key": "golf_masters_tournament_winner", "has_outrights": True},
+        {"key": "soccer_epl", "has_outrights": False},
+        {"key": "tennis_atp_example", "has_outrights": False},
+    ]
+    plan = FeedPlan(Provider, None, 2, 50, errors, lambda: True, now=NOW,
+                    moneyline_only=True)
+    batches = list(plan.batches(selected))
+    assert not errors
+    assert len(batches) == 2
+    assert calls == [("soccer_epl", None, ("h2h",)),
+                     ("tennis_atp_example", None, ("h2h",))]
+    assert plan.spent == 2
+
+    # General research retains legitimate outright support.
+    calls.clear()
+    plan = FeedPlan(Provider, None, 1, 50, errors, lambda: True, now=NOW)
+    assert len(list(plan.batches(selected[:1]))) == 1
+    assert calls == [("golf_masters_tournament_winner", None, ("outrights",))]

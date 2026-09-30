@@ -137,6 +137,11 @@ class FeedPlan:
             return None
 
     def batches(self, selected):
+        if self.moneyline_only:
+            # Tournament-winner feeds have no head-to-head slate. Exclude them
+            # before quota reservation; a moneyline scan must never request h2h
+            # from an outright-only provider feed.
+            selected = [sport for sport in selected if not sport.get("has_outrights")]
         candidates = {sport: [] for sport in EVENT_MARKETS if any(s["key"] == sport for s in selected)}
         primary = [s for s in selected if s["key"] in PRIMARY]
         other = [s for s in selected if s["key"] not in PRIMARY]
