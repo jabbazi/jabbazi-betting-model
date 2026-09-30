@@ -309,7 +309,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                         call("DELETE", f"/channels/{old['id']}", "REMOVE_EMPTY_LEGACY_CATEGORY")
                         ordered.remove(old)
                         targets = [(c, a) for c, a in targets if str(c["id"]) != str(old["id"])]
-                    elif not old["name"].startswith("🗄️ ARCHIVE ·"):
+                    elif not old["name"].startswith("🗄️ ARCHIVE ·") and effective_permissions(guild, bot, membership["roles"], roles, old, owner) & VIEW:
                         renamed = call("PATCH", f"/channels/{old['id']}", "LABEL_LEGACY_ARCHIVE", json={"name": "🗄️ ARCHIVE · " + old["name"].strip("━╰➤ ")[:75]})
                         old.update(renamed)
                         targets = [(old if str(c["id"]) == str(old["id"]) else c, a) for c, a in targets]
@@ -348,7 +348,7 @@ def migrate(*, apply=False, archive_obsolete=False):
                         print(f"DISCORD_VERIFY_VIP_FAILED CHANNEL={actual['id']} ROLE={role} EXPECTED_ACCESS={access}", flush=True)
                         raise RuntimeError("Discord VIP permission verification failed")
                 canonical = channel_name(actual["name"])
-                if canonical in bp.get("read_only_channels", []):
+                if str(actual["id"]) in set(plan["channel_ids"].values()) and canonical in bp.get("read_only_channels", []):
                     for assigned in ([], *[[r] for r in vip], list(vip)):
                         member_permissions = effective_permissions(guild, "readonly-simulation", assigned, roles, actual, owner)
                         if member_permissions & POSTING:
