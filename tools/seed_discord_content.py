@@ -7,6 +7,7 @@ import httpx
 
 from jabazi.discord_onboarding import seed
 from jabazi.discord_community import ensure_review_thread
+from jabazi.discord_announcement import announce
 from jabazi.persistence.store import Store
 
 
@@ -31,6 +32,10 @@ def main():
                     result['member_reviews'] = ensure_review_thread(http, store, guild=guild, owner=owner)
                 except Exception as exc:
                     result['member_reviews'] = {'status': 'UNAVAILABLE', 'error': type(exc).__name__}
+                try:
+                    result['membership_banner'] = announce(http, store, guild=guild, owner=owner)
+                except Exception as exc:
+                    result['membership_banner'] = {'status': 'UNAVAILABLE', 'error': type(exc).__name__}
         print('DISCORD_ONBOARDING_VERIFICATION ' + json.dumps(result, ensure_ascii=False), flush=True)
         if args.apply and any(r['status'] != 'PINNED' for r in result['plan']):
             raise SystemExit(1)
