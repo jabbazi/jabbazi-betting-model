@@ -152,7 +152,8 @@ def test_permission_simulation_checks_free_vip_staff_owner_bot():
 
 
 @pytest.mark.parametrize("archive_blocked", [False, True])
-def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path, monkeypatch, archive_blocked):
+@pytest.mark.parametrize("admin_staff", [False, True])
+def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path, monkeypatch, archive_blocked, admin_staff):
     monkeypatch.setenv("JABBAZI_DISCORD_BOT_TOKEN", "NEVER_PRINT_ME")
     monkeypatch.setenv("JABBAZI_DISCORD_GUILD_ID", "1")
     monkeypatch.setenv("JABBAZI_DISCORD_OWNER_ID", "2")
@@ -166,6 +167,8 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
              {"id": "8", "name": "VIP", "permissions": "0", "position": 2},
              {"id": "10", "name": "MODERATOR", "permissions": "0", "position": 3},
              {"id": "11", "name": "BOT", "permissions": str(MANAGE_CHANNELS | MANAGE_ROLES), "position": 10}]
+    if admin_staff:
+        roles.append({"id": "12", "name": "JABBAZI TEAM", "permissions": str(1 << 3), "position": 2})
     channels = [{"id": "20", "name": "╰➤ 🏆 VIP PICKS", "type": 4, "permission_overwrites": []},
                 {"id": "21", "name": "🧩│vip-parlays", "type": 0, "parent_id": "20", "permission_overwrites": []},
                 {"id": "22", "name": "open-a-ticket", "type": 0, "parent_id": "20", "permission_overwrites": []},
