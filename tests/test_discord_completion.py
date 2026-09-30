@@ -181,6 +181,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     channels.append({"id": "25", "name": "🔒│owner-archive", "type": 0, "parent_id": "27", "permission_overwrites": [{"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)}]})
     original = copy.deepcopy(channels)
     mutations = []
+    deleted_categories = []
     def handler(req):
         path = req.url.path.removeprefix("/api/v10")
         if req.method != "GET":
@@ -211,6 +212,12 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
             if path == "/channels/23" and archive_blocked:
                 return httpx.Response(403, json={"code": 50013, "message": "NEVER_PRINT_ME"})
             value = next(c for c in channels if c["id"] == path.split("/")[2])
+            if req.method == "DELETE":
+                assert value["type"] == 4
+                assert not any(str(c.get("parent_id")) == str(value["id"]) for c in channels)
+                deleted_categories.append(value["id"])
+                channels.remove(value)
+                return httpx.Response(204)
             value.update(json.loads(req.content))
         else: raise AssertionError(path)
         return httpx.Response(200, json=copy.deepcopy(value))
@@ -234,7 +241,10 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     snapshot = backup.list_records("discord_server_backup", 1, entity="1")[0]["payload"]
     assert snapshot["channels"] == original
     assert "NEVER_PRINT_ME" not in json.dumps(result) + json.dumps(snapshot)
-    assert "DELETE" not in mutations
+    assert deleted_categories == ([] if archive_blocked else ["20"])
+    assert all(any(c["id"] == old["id"] for c in channels) for old in original if old["type"] != 4)
+    again = migrate(apply=True, archive_obsolete=True)
+    assert again["channel_ids"] == result["channel_ids"]
     backup.close()
 
 
