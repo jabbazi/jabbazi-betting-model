@@ -34,3 +34,9 @@ def test_terminal_detail_surfaces_source_freshness_without_fabrication():
     assert "Lineup / starter" in js
     assert "Not sourced" in js
     assert "slate?sport=" in js
+
+
+def test_terminal_includes_evidence_grounded_ask_jabbazi():
+    js = (STATIC / "terminal.js").read_text()
+    assert "Ask JABBAZI" in js
+    assert "ask?" in js
