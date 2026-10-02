@@ -136,9 +136,15 @@ def top10(kind: Literal['hr', 'td', 'nba_props', 'nhl_goals'] = 'hr', ctx=Depend
             and r['fresh'] and r['data_health'] == 'HEALTHY' and r['model_stage'] == 'PRODUCTION_APPROVED' and r['model_probability'] is not None
             and r['status'] not in {'QUARANTINED', 'PASS'}]
     unique = {}
-    for r in sorted(rows, key=lambda r: -r['model_probability']):
+    def ranking_value(r):
+        # Price-aware ranking: prefer expected value when both a calibrated/model
+        # probability and executable price exist. Probability is only a fallback.
+        p = r.get('calibrated_probability') or r.get('model_probability')
+        ev = (p * r['decimal'] - 1) if p is not None and r.get('decimal') else None
+        return (ev if ev is not None else -1.0, p if p is not None else -1.0)
+    for r in sorted(rows, key=ranking_value, reverse=True):
         unique.setdefault((r['event_id'], r['player'] or r['selection']), r)
-    return response({'rows': list(unique.values())[:10], 'kind': kind, 'observed_at': b.get('snapshot_at'), 'notice': 'Up to ten fresh candidates from production-approved player models. Ranked by modeled hit probability; this is not an official bet ranking.'})
+    return response({'rows': list(unique.values())[:10], 'kind': kind, 'observed_at': b.get('snapshot_at'), 'notice': 'Up to ten fresh candidates from production-approved player models. Ranked by price-aware expected value when available, then calibrated/model probability. This is research, not an automatic wager ranking.'})
 
 
 class Preferences(BaseModel):
