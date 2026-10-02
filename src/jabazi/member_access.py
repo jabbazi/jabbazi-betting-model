@@ -61,6 +61,7 @@ def issue_ticket(store, *, guild, member, authorized, now=None):
     now = now or datetime.now(UTC)
     token = secrets.token_urlsafe(32)
     key = hashed(token)
+    owner = str(member) == os.getenv("JABBAZI_DISCORD_OWNER_ID", "")
     store.append(
         "member_ticket",
         key,
@@ -69,6 +70,12 @@ def issue_ticket(store, *, guild, member, authorized, now=None):
             "member": str(member),
             "expires_at": (now + timedelta(seconds=TICKET_SECONDS)).isoformat(),
             "scope": "sheets:read",
+            # Authorization was freshly verified by the Discord bot before
+            # ticket issuance. The API trusts this short-lived server-side
+            # attestation instead of requiring the bot secret itself.
+            "tier": "ADMIN" if owner else "VIP",
+            "admin": owner,
+            "authorized_at": now.isoformat(),
         },
         key,
     )
