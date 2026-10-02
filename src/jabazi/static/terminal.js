@@ -23,9 +23,57 @@ function gridLinks(root,items){const g=node('div',undefined,'grid');for(const [t
 function field(label,type,value){const l=node('label',label);const i=node('input');i.type=type;i.value=value??'';l.append(i);return[l,i];}
 function select(label,values,value=''){const l=node('label',label),i=node('select');for(const [v,t]of values){const o=node('option',t);o.value=v;i.append(o);}i.value=value;l.append(i);return[l,i];}
 function page(title){$('title').textContent=title;$('content').replaceChildren();say('');}
-async function render(){if(!me)return;if(!navigator.onLine){$('content').replaceChildren();$('offline').hidden=false;return;}$('offline').hidden=true;const n=++serial;const raw=location.hash.slice(1)||'home';const parts=raw.split('&'),first=parts.shift(),params=new URLSearchParams(parts.join('&'));const [route,arg]=first.split('=');for(const a of $('navigation').querySelectorAll('a'))a.setAttribute('aria-current',a.hash==='#'+route?'page':'false');page(({home:'Today’s board',sports:'Sports',board:'Research board',sheets:'Daily cheat sheets',top10:'Top 10',search:'Find your research',detail:'Research detail',watchlist:'Your watchlist',performance:'The honest record',models:'Model center',changes:'What changed since 9 AM?',more:'Your terminal',settings:'My board & preferences',admin:'Operations',promo:'Boost research',academy:'JABBAZI Academy',picks:'Official JABBAZI picks',archive:'Historical sheets'})[route]||'Research');$('content').append(node('div',undefined,'loading'));$('refresh').disabled=true;
+function sportConfig(sport){
+  return {
+    MLB:{label:'MLB',subtitle:'Game lines, pitcher markets, batter markets and home-run research.',topKind:'hr',topLabel:'MLB Home Run Top 10',markets:[['Board',''],['Moneylines','h2h'],['Run lines','spreads'],['Totals','totals'],['F5','first_5_innings'],['Team totals','team_totals'],['Pitcher Ks','pitcher_strikeouts'],['Pitcher outs','pitcher_outs'],['Home runs','batter_home_runs']]},
+    NFL:{label:'NFL',subtitle:'Game lines, player props, alternates and anytime-touchdown research.',topKind:'td',topLabel:'NFL Anytime TD Top 10',markets:[['Board',''],['Moneylines','h2h'],['Spreads','spreads'],['Totals','totals'],['Team totals','team_totals'],['Anytime TD','player_anytime_td'],['Pass yards','player_pass_yards'],['Rush yards','player_rush_yards'],['Receiving','player_receiving_yards'],['Receptions','player_receptions']]},
+    CFB:{label:'CFB',subtitle:'Louisiana-safe game markets: moneylines, spreads, totals and team derivatives.',topKind:null,topLabel:null,markets:[['Board',''],['Moneylines','h2h'],['Spreads','spreads'],['Totals','totals'],['Team totals','team_totals'],['Alternate spreads','alternate_spreads'],['Alternate totals','alternate_totals']]},
+    NBA:{label:'NBA',subtitle:'Game markets and validated player-prop research, separated by market family.',topKind:'nba_props',topLabel:'NBA Props Top 10',markets:[['Board',''],['Moneylines','h2h'],['Spreads','spreads'],['Totals','totals'],['Team totals','team_totals'],['Points','player_points'],['Rebounds','player_rebounds'],['Assists','player_assists'],['Threes','player_threes'],['PRA','player_points_rebounds_assists']]},
+    NHL:{label:'NHL',subtitle:'Game lines, goalie context, shots and validated goal-scorer research.',topKind:'nhl_goals',topLabel:'NHL Goal Scorer Top 10',markets:[['Board',''],['Moneylines','h2h'],['Puck lines','spreads'],['Totals','totals'],['Team totals','team_totals'],['Shots','player_shots_on_goal'],['Goal scorer','player_goal_scorer_anytime']]}
+  }[sport]||null;
+}
+function setSportbar(route,arg){
+  for(const a of $('sportbar').querySelectorAll('a')){
+    const active=(route==='home'&&a.dataset.sport==='HOME')||(route==='sport'&&a.dataset.sport===arg);
+    a.setAttribute('aria-current',active?'page':'false');
+  }
+}
+async function render(){if(!me)return;if(!navigator.onLine){$('content').replaceChildren();$('offline').hidden=false;return;}$('offline').hidden=true;const n=++serial;const raw=location.hash.slice(1)||'home';const parts=raw.split('&'),first=parts.shift(),params=new URLSearchParams(parts.join('&'));const [route,arg]=first.split('=');for(const a of $('navigation').querySelectorAll('a'))a.setAttribute('aria-current',a.hash==='#'+route?'page':'false');setSportbar(route,arg);page(({home:'Today’s board',sport:(arg||'Sport')+' research',sports:'Sports',board:'Research board',sheets:'Daily cheat sheets',top10:'Top 10',search:'Find your research',detail:'Research detail',watchlist:'Your watchlist',performance:'The honest record',models:'Model center',changes:'What changed since 9 AM?',more:'Your terminal',settings:'My board & preferences',admin:'Operations',promo:'Boost research',academy:'JABBAZI Academy',picks:'Official JABBAZI picks',archive:'Historical sheets'})[route]||'Research');$('content').append(node('div',undefined,'loading'));$('refresh').disabled=true;
 try{let build;
 if(route==='home'||route==='sports'){const d=await get('home');build=root=>{if(route==='home'){const hero=node('article',undefined,'panel hero');hero.append(node('span','TODAY’S JABBAZI BOARD','eyebrow'),node('h2',d.top_play?'Today’s top play':'No top play yet'),node('p',d.notice,'muted'),badge(d.state));root.append(hero);gridLinks(root,[['Daily cheat sheet',d.frozen_available?'Your frozen morning baseline is ready.':'Healthy morning sheets publish around 9 AM CT.','#sheets'],['What changed?','Compare the morning baseline with the latest observed market.','#changes'],['Top 10','Qualified player-model lists, when validated.','#top10']]);root.append(section('Official Main Card','#picks'));cards(d.official,root,'No current official recommendations.');root.append(section('Research to explore','#board'));cards(d.research,root,'No fresh research available.');}else{const items=d.sports.map(s=>[s.sport,s.status+' · '+s.events+' observed events · '+s.fresh_rows+' fresh rows','#board&sport='+s.sport]);gridLinks(root,items);root.append(node('p','Active means an observed upcoming slate with fresh research. It does not mean the model is production-approved.','muted'));}root.append(node('p','Latest snapshot: '+when(d.snapshot_at),'muted'));};}
+else if(route==='sport'){
+  const cfg=sportConfig((arg||'').toUpperCase());
+  if(!cfg){build=root=>root.append(empty('Sport unavailable','This sport workspace is not configured.'));}else{
+    const [boardData,topData,modelData]=await Promise.all([
+      get('board?'+new URLSearchParams({sport:cfg.label,sort:'edge',offset:'0'})),
+      cfg.topKind?get('top10?kind='+cfg.topKind):Promise.resolve({rows:[],notice:''}),
+      get('models')
+    ]);
+    build=root=>{
+      const model=modelData.models.find(m=>m.sport===cfg.label)||{};
+      const hero=node('article',undefined,'panel workspace-hero');
+      hero.append(node('span','JABBAZI · '+cfg.label+' MODEL WORKSPACE','eyebrow'),node('h2',cfg.label+' Research Terminal','workspace-title'),node('p',cfg.subtitle,'muted'));
+      const k=node('div',undefined,'workspace-kpis');
+      const fresh=boardData.rows.filter(r=>r.fresh).length;
+      const prod=(model.market_buckets?Object.values(model.market_buckets).filter(x=>x.stage==='PRODUCTION_APPROVED').length:0)+(model.player_market_buckets?Object.values(model.player_market_buckets).filter(x=>x.stage==='PRODUCTION_APPROVED').length:0);
+      for(const [a,b]of[['Fresh rows',String(fresh)],['Model status',model.status||'UNAVAILABLE'],['Approved families',String(prod)]]){const d=node('div');d.append(node('small',a),node('strong',b));k.append(d);}
+      hero.append(k);root.append(hero);
+      const strip=node('div',undefined,'market-strip');
+      for(const [label,market]of cfg.markets)strip.append(link(label,'#board&sport='+cfg.label+(market?'&market='+encodeURIComponent(market):''),''));
+      strip.append(link('Cheat sheet','#sheets&sport='+cfg.label,''));
+      root.append(strip);
+      if(cfg.topKind){
+        root.append(section(cfg.topLabel,'#top10&kind='+cfg.topKind));
+        cards(topData.rows,root,'No qualified '+cfg.topLabel.replace(' Top 10','')+' candidates yet.');
+        root.append(node('p',topData.notice||'Only validated, fresh candidates appear here.','compact-note'));
+      }
+      root.append(section(cfg.label+' model board','#board&sport='+cfg.label,'Open full board →'));
+      cards(boardData.rows.slice(0,8),root,'No fresh '+cfg.label+' research is available.');
+      root.append(section('Model evidence','#models','Open Model Center →'));
+      root.append(node('p','Workspace outputs come from the same canonical backend used by the scanner and Discord. Model stage controls whether research can become actionable.','muted'));
+    };
+  }
+}
 else if(route==='board'||route==='search'){const sport=params.get('sport')||'',q=params.get('q')||'',market=params.get('market')||'',status=params.get('status')||'',sort=params.get('sort')||'edge';const d=await get((route==='search'?'search?':'board?')+new URLSearchParams({sport,q,market,status,sort,offset:params.get('offset')||'0'}));build=root=>{const f=node('form',undefined,'filters');const[l,input]=field('Search team, player, market or book','search',q);l.className='wide';input.placeholder='Judge HR, KC, NFL totals…';const[sl,si]=select('Sport',[['','All sports'],...['MLB','NFL','CFB','NBA','NHL','WNBA','TENNIS','SOCCER'].map(x=>[x,x])],sport);const[st,sti]=select('State',[['','All states'],['WATCH','Watch'],['PASS','Pass'],['PRICE CHECK','Price check'],['QUARANTINED','Quarantined']],status);const[so,soi]=select('Sort',[['edge','Model / market edge'],['time','Game time'],['model','Model probability']],sort);f.append(l,sl,st,so);let timer;input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(apply,400);});function apply(){location.hash=route+'&'+new URLSearchParams({q:input.value,sport:si.value,status:sti.value,sort:soi.value});}for(const e of[si,sti,soi])e.addEventListener('change',apply);f.addEventListener('submit',e=>{e.preventDefault();apply();});root.append(f);if(d.navigation){const nav=node('div',undefined,'pills');for(const item of d.navigation)nav.append(link(item.label,item.href,''));root.append(nav);}if(sport){const pills=node('div',undefined,'pills');for(const[label,href]of[['Morning sheet','#sheets&sport='+sport],['Moneylines','#board&sport='+sport+'&market=h2h'],['All markets','#board&sport='+sport]])pills.append(link(label,href,''));root.append(pills);}root.append(node('p',`${d.total} matching research rows · ${d.state} · ${when(d.snapshot_at)}`,'muted'));cards(d.rows,root,'No research matches this search.');if(d.next!==null&&d.next!==undefined)root.append(link('Next 50 →','#'+route+'&'+new URLSearchParams({sport,q,market,status,sort,offset:d.next})));};}
 else if(route==='sheets'){const d=await get('sheets?'+params);build=root=>{const filters=node('div',undefined,'filters');const[l,i]=field('Archive date','date',d.date);i.addEventListener('change',()=>{location.hash='sheets&day='+i.value;});filters.append(l,link('Browse archive','#archive'));root.append(filters,node('p',d.state==='FROZEN'?`9 AM INITIAL · frozen ${when(d.generated_at)} · original prices retained`:d.notice,'muted'));if(d.rows.length){for(const r of d.rows){const c=card(r);c.href='#board&sport='+r.sport+'&q='+encodeURIComponent(r.event);root.append(c);}}else root.append(empty('Morning sheet not available',d.notice));};}
 else if(route==='archive'){const d=await get('archive');build=root=>{if(!d.sheets.length)root.append(empty('No published sheets yet','Healthy frozen sheets will appear here automatically.'));for(const s of d.sheets)root.append(link(s.entity+' · Frozen original','#sheets&day='+s.entity,'linkrow'));};}
