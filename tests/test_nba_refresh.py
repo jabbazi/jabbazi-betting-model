@@ -206,7 +206,7 @@ def test_nba_october_preseason_schedule_is_clean_research_state(monkeypatch):
     raw = (
         "game_id,season,season_type,game_date_time,neutral_site,status_type_completed,"
         "home_display_name,away_display_name,home_score,away_score\n"
-        "2,2027,2,2026-10-20T23:30:00+00:00,false,false,Boston Celtics,New York Knicks,,\n"
+        "2,2027,2,2026-10-08T23:30:00+00:00,false,false,Boston Celtics,New York Knicks,,\n"
     ).encode()
 
     class Response:
