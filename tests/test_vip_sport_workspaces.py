@@ -26,3 +26,11 @@ def test_cfb_workspace_does_not_advertise_player_props():
     js = (STATIC / "terminal.js").read_text()
     cfb = js.split("CFB:{label:'CFB'", 1)[1].split("NBA:{label:'NBA'", 1)[0]
     assert "player_" not in cfb
+
+
+def test_terminal_detail_surfaces_source_freshness_without_fabrication():
+    js = (STATIC / "terminal.js").read_text()
+    assert "Injury source" in js
+    assert "Lineup / starter" in js
+    assert "Not sourced" in js
+    assert "slate?sport=" in js
