@@ -180,6 +180,48 @@ def nba_offseason_state(artifact, *, now, response_checksum):
     return value
 
 
+def nba_preseason_state(artifact, events, *, now, response_checksum):
+    """Preserve verified bundled state and publish only schedule identity pre-season.
+
+    Before the first completed game of a new NBA season there is no current-season
+    team form to refresh. Treat this as a normal research-only state, not a provider
+    failure. ScoreDistributionModel still fails closed because the preserved team
+    state is older than its freshness gate and production_context remains false.
+    """
+    if artifact.get("sport") != SPORTS["nba"]:
+        raise ValueError("NBA preseason state requires NBA artifact")
+    state = artifact.get("team_state")
+    if not isinstance(state, dict) or not state:
+        raise ValueError("NBA bundled preseason team state unavailable")
+    latest = []
+    for games in state.values():
+        if not isinstance(games, list):
+            raise ValueError("Malformed NBA bundled team state")
+        for game in games:
+            if not isinstance(game, list) or len(game) < 4:
+                raise ValueError("Malformed NBA bundled team game")
+            latest.append(timestamp(game[2]))
+    if not latest:
+        raise ValueError("NBA bundled preseason history unavailable")
+    value = artifact | {
+        "team_state": state,
+        "events": events,
+        "state_refreshed_at": now.isoformat(),
+        "state_source_checksum": response_checksum,
+        "state_latest_game_at": max(latest).isoformat(),
+        "preseason_context": True,
+        "production_context": {
+            **artifact.get("production_context", {}),
+            "starter_verified": False,
+            "roster_verified": False,
+            "injuries_verified": False,
+            "calibration_verified": False,
+        },
+    }
+    ScoreDistributionModel(value)
+    return value
+
+
 def update_state(artifact, games, events, *, now, response_checksum, allow_stale_state=False):
     short = next(k for k, v in SPORTS.items() if v == artifact["sport"])
     games = validate_history({"sport": artifact["sport"], "games": games}, short)
@@ -293,12 +335,20 @@ def fetch_update(artifact, *, now, result_store=None):
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
     checksum = hashlib.sha256(raw).hexdigest()
-    if artifact["sport"] == SPORTS["nba"] and now.month < 10 and not games:
-        updated = nba_offseason_state(
-            artifact,
-            now=now,
-            response_checksum=checksum,
-        )
+    if artifact["sport"] == SPORTS["nba"] and not games:
+        if events:
+            updated = nba_preseason_state(
+                artifact,
+                events,
+                now=now,
+                response_checksum=checksum,
+            )
+        else:
+            updated = nba_offseason_state(
+                artifact,
+                now=now,
+                response_checksum=checksum,
+            )
     else:
         allow_stale_state = (
             artifact["sport"] == SPORTS["nba"]
