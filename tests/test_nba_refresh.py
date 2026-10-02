@@ -196,3 +196,41 @@ def test_nba_offseason_empty_results_do_not_call_prospective_archiver(monkeypatc
     archive.assert_not_called()
     assert updated["events"] == []
     assert updated["offseason_context"] is True
+
+
+def test_nba_october_preseason_schedule_is_clean_research_state(monkeypatch):
+    import json
+    from jabazi.models.refresh import BUNDLE_DIR, fetch_update
+    from jabazi.models.score_distribution import ScoreDistributionModel
+
+    raw = (
+        "game_id,season,season_type,game_date_time,neutral_site,status_type_completed,"
+        "home_display_name,away_display_name,home_score,away_score\n"
+        "2,2027,2,2026-10-08T23:30:00+00:00,false,false,Boston Celtics,New York Knicks,,\n"
+    ).encode()
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, limit):
+            return raw
+
+    monkeypatch.setattr(
+        "jabazi.models.refresh.urllib.request.urlopen",
+        lambda url, timeout=45: Response(),
+    )
+    artifact = json.loads((BUNDLE_DIR / "nba_scores.json").read_text())
+    now = datetime(2026, 10, 2, 18, tzinfo=UTC)
+    updated = fetch_update(artifact, now=now)
+    assert updated["preseason_context"] is True
+    assert len(updated["events"]) == 1
+    assert updated["events"][0]["home_team"] == "Boston Celtics"
+    assert updated["production_context"] == {
+        "starter_verified": False,
+        "roster_verified": False,
+        "injuries_verified": False,
+        "calibration_verified": False,
+    }
+    ScoreDistributionModel(updated)
