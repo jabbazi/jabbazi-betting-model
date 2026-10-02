@@ -44,10 +44,11 @@ if(route==='home'||route==='sports'){const d=await get('home');build=root=>{if(r
 else if(route==='sport'){
   const cfg=sportConfig((arg||'').toUpperCase());
   if(!cfg){build=root=>root.append(empty('Sport unavailable','This sport workspace is not configured.'));}else{
-    const [boardData,topData,modelData]=await Promise.all([
+    const [boardData,topData,modelData,slateData]=await Promise.all([
       get('board?'+new URLSearchParams({sport:cfg.label,sort:'edge',offset:'0'})),
       cfg.topKind?get('top10?kind='+cfg.topKind):Promise.resolve({rows:[],notice:''}),
-      get('models')
+      get('models'),
+      get('slate?sport='+cfg.label)
     ]);
     build=root=>{
       const model=modelData.models.find(m=>m.sport===cfg.label)||{};
@@ -58,6 +59,7 @@ else if(route==='sport'){
       const prod=(model.market_buckets?Object.values(model.market_buckets).filter(x=>x.stage==='PRODUCTION_APPROVED').length:0)+(model.player_market_buckets?Object.values(model.player_market_buckets).filter(x=>x.stage==='PRODUCTION_APPROVED').length:0);
       for(const [a,b]of[['Fresh rows',String(fresh)],['Model status',model.status||'UNAVAILABLE'],['Approved families',String(prod)]]){const d=node('div');d.append(node('small',a),node('strong',b));k.append(d);}
       hero.append(k);root.append(hero);
+      const games=node('div',undefined,'market-strip');games.append(link('ALL GAMES','#board&sport='+cfg.label,''));for(const game of slateData.games.slice(0,20))games.append(link(game.event,'#board&sport='+cfg.label+'&q='+encodeURIComponent(game.event),''));root.append(games);
       const strip=node('div',undefined,'market-strip');
       for(const [label,market]of cfg.markets)strip.append(link(label,'#board&sport='+cfg.label+(market?'&market='+encodeURIComponent(market):''),''));
       strip.append(link('Cheat sheet','#sheets&sport='+cfg.label,''));
