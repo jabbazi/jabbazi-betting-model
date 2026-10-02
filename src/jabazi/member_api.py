@@ -43,11 +43,16 @@ def store_for_request():
 def require_member(request, store):
     try:
         principal = validate_session(store, request.cookies.get(COOKIE))
-        from .vip.auth import current_access
-        access = current_access(principal["guild"], principal["member"])
-        if not access["vip"]:
-            raise HTTPException(403, "VIP access was removed. Contact support in Discord.")
-        return {**principal, **access}
+        # The Discord bot performs a fresh guild/member/role check immediately
+        # before issuing the one-time ticket. Sessions are short-lived (15 min),
+        # so the API can honor that server-side attestation without holding the
+        # Discord bot token itself.
+        return {
+            **principal,
+            "tier": principal.get("tier", "VIP"),
+            "vip": True,
+            "admin": bool(principal.get("admin", False)),
+        }
     except PermissionError:
         raise HTTPException(401, "Open a fresh private access link from !vip in Discord") from None
 
@@ -101,9 +106,8 @@ def sign_in(body: AccessRequest, request: Request):
             raise HTTPException(
                 401, "This access link expired or was already used; type !vip again"
             ) from None
-        from .vip.auth import current_access
         principal = validate_session(store, session)
-        if not current_access(principal["guild"], principal["member"])["vip"]:
+        if principal.get("tier") not in {"VIP", "ADMIN", "DEVELOPER"}:
             key = hashed(session)
             store.append("member_session_revoked", key, {}, hashed("member_session_revoked:" + key))
             raise HTTPException(403, "VIP access is no longer available.")
