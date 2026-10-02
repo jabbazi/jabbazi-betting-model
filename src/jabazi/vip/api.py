@@ -128,6 +128,23 @@ def changes(ctx=Depends(context)):
     return response({'rows': changed[:100], 'initial_at': initial['generated_at'], 'current_at': latest.get('snapshot_at'), 'notice': 'Compared with the immutable morning moneyline sheet. Quotes may be stale; check each timestamp.'})
 
 
+@router.get('/slate')
+def slate(sport: str, ctx=Depends(context)):
+    b = snapshot(ctx[0])
+    sport = sport.upper()
+    rows = [r for r in b['rows'] if r['sport'] == sport and r['lifecycle'] == 'UPCOMING']
+    games = {}
+    for r in rows:
+        key = r['event_id'] or r['event']
+        game = games.setdefault(key, {'event_id': r['event_id'], 'event': r['event'], 'starts_at': r['starts_at'], 'markets': set()})
+        game['markets'].add(r['market'])
+    output = []
+    for game in sorted(games.values(), key=lambda g: g.get('starts_at') or '9999'):
+        game['markets'] = sorted(game['markets'])
+        output.append(game)
+    return response({'sport': sport, 'games': output, 'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
+
+
 @router.get('/top10')
 def top10(kind: Literal['hr', 'td', 'nba_props', 'nhl_goals'] = 'hr', ctx=Depends(context)):
     sport, markets = {'hr': ('MLB', {'batter_home_runs'}), 'td': ('NFL', {'player_anytime_td'}), 'nba_props': ('NBA', set()), 'nhl_goals': ('NHL', {'player_goal_scorer_anytime', 'player_goals'})}[kind]
