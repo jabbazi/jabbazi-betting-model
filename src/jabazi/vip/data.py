@@ -88,10 +88,10 @@ def project(r, record, now, historical=False):
             'model_version': r.get('model_version'), 'model_stage': r.get('model_stage', 'UNAVAILABLE'),
             'uncertainty': uncertainty, 'uncertainty_kind': 'policy haircut, not a confidence interval',
             'status': state, 'fresh': fresh, 'historical': historical, 'lifecycle': 'INVALIDATED' if invalidated else 'HISTORICAL' if historical else 'EXPIRED' if start and start <= now else 'UPCOMING',
-            'price_at': r.get('price_time_utc'), 'starts_at': r.get('starts_at_utc'), 'snapshot_at': record['payload'].get('completed_at', record['payload'].get('generated_at')),
+            'price_at': r.get('price_time_utc'), 'model_at': r.get('model_time_utc') or record['payload'].get('completed_at'), 'injury_at': r.get('injury_time_utc'), 'lineup_at': r.get('lineup_time_utc'), 'weather_at': r.get('weather_time_utc'), 'starts_at': r.get('starts_at_utc'), 'snapshot_at': record['payload'].get('completed_at', record['payload'].get('generated_at')),
             'data_health': r.get('data_health', 'UNKNOWN'), 'approved_for_betting': False,
             'why': 'Historical research snapshot; recheck current evidence.' if historical else 'Price requires a fresh check.' if not fresh else 'Research estimate compared with observed market consensus; not an official wager.',
-            'risks': ['Model estimates may be experimental.', 'Lineup, injury and weather confirmation are not included unless explicitly sourced.'],
+            'risks': ['Model estimates may be experimental.', 'Lineup, injury and weather confirmation are not included unless explicitly sourced.'], 'key_factors': list(r.get('key_factors') or [])[:8], 'role_context': r.get('role_context') or {},
             'other_prices': sorted(books, key=lambda b: -b['decimal'])}
 
 

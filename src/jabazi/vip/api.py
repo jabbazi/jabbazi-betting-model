@@ -128,6 +128,23 @@ def changes(ctx=Depends(context)):
     return response({'rows': changed[:100], 'initial_at': initial['generated_at'], 'current_at': latest.get('snapshot_at'), 'notice': 'Compared with the immutable morning moneyline sheet. Quotes may be stale; check each timestamp.'})
 
 
+@router.get('/slate')
+def slate(sport: str, ctx=Depends(context)):
+    b = snapshot(ctx[0])
+    sport = sport.upper()
+    rows = [r for r in b['rows'] if r['sport'] == sport and r['lifecycle'] == 'UPCOMING']
+    games = {}
+    for r in rows:
+        key = r['event_id'] or r['event']
+        game = games.setdefault(key, {'event_id': r['event_id'], 'event': r['event'], 'starts_at': r['starts_at'], 'markets': set()})
+        game['markets'].add(r['market'])
+    output = []
+    for game in sorted(games.values(), key=lambda g: g.get('starts_at') or '9999'):
+        game['markets'] = sorted(game['markets'])
+        output.append(game)
+    return response({'sport': sport, 'games': output, 'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
+
+
 @router.get('/top10')
 def top10(kind: Literal['hr', 'td', 'nba_props', 'nhl_goals'] = 'hr', ctx=Depends(context)):
     sport, markets = {'hr': ('MLB', {'batter_home_runs'}), 'td': ('NFL', {'player_anytime_td'}), 'nba_props': ('NBA', set()), 'nhl_goals': ('NHL', {'player_goal_scorer_anytime', 'player_goals'})}[kind]
@@ -136,9 +153,15 @@ def top10(kind: Literal['hr', 'td', 'nba_props', 'nhl_goals'] = 'hr', ctx=Depend
             and r['fresh'] and r['data_health'] == 'HEALTHY' and r['model_stage'] == 'PRODUCTION_APPROVED' and r['model_probability'] is not None
             and r['status'] not in {'QUARANTINED', 'PASS'}]
     unique = {}
-    for r in sorted(rows, key=lambda r: -r['model_probability']):
+    def ranking_value(r):
+        # Price-aware ranking: prefer expected value when both a calibrated/model
+        # probability and executable price exist. Probability is only a fallback.
+        p = r.get('calibrated_probability') or r.get('model_probability')
+        ev = (p * r['decimal'] - 1) if p is not None and r.get('decimal') else None
+        return (ev if ev is not None else -1.0, p if p is not None else -1.0)
+    for r in sorted(rows, key=ranking_value, reverse=True):
         unique.setdefault((r['event_id'], r['player'] or r['selection']), r)
-    return response({'rows': list(unique.values())[:10], 'kind': kind, 'observed_at': b.get('snapshot_at'), 'notice': 'Up to ten fresh candidates from production-approved player models. Ranked by modeled hit probability; this is not an official bet ranking.'})
+    return response({'rows': list(unique.values())[:10], 'kind': kind, 'observed_at': b.get('snapshot_at'), 'notice': 'Up to ten fresh candidates from production-approved player models. Ranked by price-aware expected value when available, then calibrated/model probability. This is research, not an automatic wager ranking.'})
 
 
 class Preferences(BaseModel):
@@ -200,6 +223,38 @@ def performance(ctx=Depends(context)):
     from ..performance import report
     report_data = report(ctx[0])
     return response({'periods': report_data['official_periods'], 'groups': [r for r in report_data['groups'] if r['origin'] == 'scanner'], 'provenance': report_data['provenance'], 'notice': report_data['note'], 'clv': None, 'clv_notice': 'Requires matched official entry and comparable closing evidence.'})
+
+
+@router.get('/ask')
+def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
+    """Evidence-grounded helper for common VIP research questions.
+
+    This intentionally does not call a generative model. It answers only from
+    canonical stored evidence so it cannot invent probabilities.
+    """
+    store, _ = ctx
+    b = snapshot(store)
+    query = data.normalize(q)
+    rows = b['rows']
+    if 'touchdown' in query or ' td ' in (' ' + query + ' '):
+        kind, sport, markets = 'NFL anytime TD', 'NFL', {'player_anytime_td'}
+    elif 'home run' in query or ' hr ' in (' ' + query + ' '):
+        kind, sport, markets = 'MLB home run', 'MLB', {'batter_home_runs'}
+    elif 'goal scorer' in query:
+        kind, sport, markets = 'NHL goal scorer', 'NHL', {'player_goal_scorer_anytime', 'player_goals'}
+    else:
+        kind, sport, markets = 'research', None, None
+    candidates = [r for r in rows if (not sport or r['sport'] == sport) and (not markets or r['market'] in markets)
+                  and r['fresh'] and r['status'] != 'QUARANTINED']
+    words = [w for w in query.split() if len(w) > 2 and w not in {'show', 'what', 'which', 'why', 'model', 'research'}]
+    if words:
+        matched = [r for r in candidates if all(w in data.normalize(' '.join(str(r.get(k) or '') for k in ('event','player','selection','market','sport'))) for w in words)]
+        if matched:
+            candidates = matched
+    candidates.sort(key=lambda r: ((r.get('calibrated_probability') or r.get('model_probability') or 0) * (r.get('decimal') or 1) - 1), reverse=True)
+    return response({'question': q, 'kind': kind, 'rows': candidates[:10], 'snapshot_at': b.get('snapshot_at'),
+                     'answer': 'Showing current canonical JABBAZI evidence only. Missing model or market evidence remains unavailable.',
+                     'notice': 'ASK JABBAZI does not invent probabilities or override BET/WATCH/PASS/model-stage controls.'})
 
 
 @router.get('/models')
