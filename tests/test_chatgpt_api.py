@@ -283,7 +283,8 @@ def test_public_schema_exposes_only_scoped_actions(setup):
     client, _, _ = setup
     schema = client.get("/chatgpt/openapi.json").json()
     assert set(schema["paths"]) == {
-        "/v1/chatgpt/scans", "/v1/chatgpt/scans/{scan_id}", "/v1/chatgpt/model-status"
+        "/v1/chatgpt/scans", "/v1/chatgpt/scans/{scan_id}", "/v1/chatgpt/model-status",
+        "/v1/chatgpt/same-game-parlay"
     }
     assert schema["security"] == [{"scannerKey": []}]
     operation = schema["paths"]["/v1/chatgpt/scans"]["post"]
@@ -296,7 +297,7 @@ def test_public_schema_exposes_only_scoped_actions(setup):
     reference = response["content"]["application/json"]["schema"]["$ref"]
     definition = schema["components"]["schemas"][reference.rsplit("/", 1)[1]]
     assert set(definition["properties"]) == {
-        "models", "errors", "player_feature_provider", "recent_scan_health"
+        "models", "errors", "player_feature_provider", "recent_scan_health", "same_game_engine"
     }
     model_ref = definition["properties"]["models"]["items"]["$ref"]
     model_schema = schema["components"]["schemas"][model_ref.rsplit("/", 1)[1]]

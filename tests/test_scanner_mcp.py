@@ -215,9 +215,9 @@ def test_mcp_protocol_and_tool_surface(setup):
         r = rpc(client, key, "initialize", {"protocolVersion": version})
         assert r.json()["result"]["protocolVersion"] == version
     r = rpc(client, key, "tools/list").json()["result"]["tools"]
-    assert {t["name"] for t in r} == {"scan_everything", "get_scan_results", "get_model_status"}
-    assert r[0]["annotations"]["readOnlyHint"] is False
-    assert r[1]["annotations"]["readOnlyHint"] is True
+    assert {t["name"] for t in r} == {"scan_everything", "get_scan_results", "get_model_status", "evaluate_same_game_parlay"}
+    assert next(t for t in r if t["name"] == "scan_everything")["annotations"]["readOnlyHint"] is False
+    assert next(t for t in r if t["name"] == "evaluate_same_game_parlay")["annotations"]["readOnlyHint"] is True
     assert all(t["securitySchemes"][0]["scopes"] == [mcp.SCOPE] for t in r)
     assert rpc(client, key, "notifications/initialized", ident=None).status_code == 202
     assert rpc(client, key, "unknown").json()["error"]["code"] == -32601
@@ -287,7 +287,7 @@ def test_official_mcp_client_discovers_tools_and_calls_shared_model_registry(set
                     initialized = await session.initialize()
                     assert initialized.server_info.name == "jabbazi-private-scanner"
                     tools = await session.list_tools()
-                    assert len(tools.tools) == 3
+                    assert len(tools.tools) == 4
                     result = await session.call_tool("get_model_status", {})
                     assert not result.is_error
                     models = result.structured_content["models"]

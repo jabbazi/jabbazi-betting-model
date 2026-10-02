@@ -611,3 +611,6 @@ from .vip.api import router as vip_router
 from .vip.security import guard as vip_guard
 app.include_router(vip_router)
 app.middleware("http")(vip_guard)
+
+from .sgp_api import router as sgp_router
+app.include_router(sgp_router)

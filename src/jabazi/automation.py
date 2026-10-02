@@ -492,6 +492,17 @@ class AutomaticScanner:
                 }
             except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
                 v5_errors.append(f"best_two_{type(exc).__name__}")
+        from .research.same_game import scan_candidates
+        same_game = scan_candidates(actions, models, now=datetime.now(UTC), player_models=player_models)
+        if errors:
+            same_game["scan_healthy"] = False
+            same_game["candidates"] = []
+            same_game["status"] = "UNAVAILABLE"
+            same_game["blocked_reasons"]["SCAN_UNHEALTHY"] = 1
+        else:
+            same_game["scan_healthy"] = True
+        if plan.coverage is not None:
+            plan.coverage["same_game_parlays"] = same_game
         # Persist only final decisions after the entire pass has cleared health checks.
         for action in actions:
             if ledger.record_action_card(action):

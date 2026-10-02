@@ -100,6 +100,7 @@ class ScanHealthSummary(BaseModel):
 
 class ScannerModelStatus(BaseModel):
     # GPT Actions requires explicit object properties in response schemas.
+    same_game_engine: dict[str, Any] = Field(default_factory=dict)
     models: list[ScannerModelState]
     errors: list[str]
     player_feature_provider: dict[str, Any] = Field(default_factory=dict)
@@ -148,6 +149,23 @@ def record(conn, kind, scan_id):
     return conn.execute(
         select(events).where(events.c.kind == kind, events.c.entity == scan_id)
     ).mappings().first()
+
+
+def present_coverage(coverage, now):
+    if not coverage or "same_game_parlays" not in coverage:
+        return coverage
+    from copy import deepcopy
+    from .models.team_elo import timestamp
+    coverage = deepcopy(coverage)
+    for candidate in coverage["same_game_parlays"].get("candidates", []):
+        try:
+            fresh = 0 <= (now - timestamp(candidate["expires_from"])).total_seconds() <= 120
+        except (KeyError, ValueError, TypeError):
+            fresh = False
+        if not fresh:
+            candidate["status"] = "STALE_DATA"
+            candidate["reasons"] = ["STALE_OR_FUTURE_LEG_DATA"]
+    return coverage
 
 
 def latest_record(conn, kind, scan_id):
@@ -350,7 +368,7 @@ def scan_page(store, scan_id, page=1, now=None):
         quotes_archived=payload.get("quotes_archived", progress.get("quotes_archived", 0)),
         credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
         model_coverage=payload.get("model_coverage", {}),
-        event_market_coverage=payload.get("event_market_coverage"),
+        event_market_coverage=present_coverage(payload.get("event_market_coverage"), now),
         result_ordering=payload.get("result_ordering"),
         progress=progress,
         actions=[present_action(r, now) for r in page_rows],
@@ -424,7 +442,25 @@ def model_status(authorization: Annotated[str | None, Header()] = None):
     authorize(authorization)
     from .api import model_status_data
 
-    output = ScannerModelStatus.model_validate(model_status_data())
+    data = model_status_data()
+    from .research.same_game import VERSION
+    data["same_game_engine"] = {
+        "version": VERSION, "status": "RESEARCH_ONLY", "approved_for_betting": False,
+        "method": "shared_score_scenarios", "legs": "2–4",
+        "game_markets": ["h2h", "spreads", "totals", "team_totals", "alternate lines"],
+        "player_props": "TWO_LEG_NFL_RESEARCH_WHEN_INPUTS_VERIFIED", "combined_quote": "owner_supplied_required",
+        "prospective_sgp_validation": "NOT_COMPLETED",
+    }
+    from .models.player_joint import load_joint_player_model
+    joint = load_joint_player_model()
+    data["same_game_engine"]["player_joint_model"] = None if joint is None else {
+        "version": joint.artifact["model_version"], "stage": "SHADOW_ONLY",
+        "fit_season": joint.artifact["fit_season"], "holdout_season": joint.artifact["holdout_season"],
+        "prospective_sample_count": 0,
+        "relationships": [{k: b[k] for k in ("relationship", "markets", "positions",
+            "rank_correlation", "research_admitted", "holdout")} for b in joint.artifact["buckets"]],
+    }
+    output = ScannerModelStatus.model_validate(data)
     return JSONResponse(output.model_dump(exclude_unset=True), headers=PRIVATE_HEADERS)
 
 
@@ -438,9 +474,10 @@ def owner_key(authorization: Annotated[str | None, Header()] = None):
 
 @router.get("/chatgpt/openapi.json", include_in_schema=False)
 def action_schema():
+    from .sgp_api import router as sgp_router
     schema = get_openapi(
         title="JABBAZI Private Scanner", version="1.0.0",
-        routes=[route for route in router.routes if "chatgpt" in getattr(route, "tags", [])],
+        routes=[route for route in router.routes if "chatgpt" in getattr(route, "tags", [])] + sgp_router.routes,
         description="Private owner research. No wagering or publishing tools.",
     )
     schema["servers"] = [{"url": ORIGIN}]
