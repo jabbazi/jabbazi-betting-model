@@ -707,6 +707,7 @@ class LivePlayerFeatureCollector:
                 or (depth or {}).get("gsis_id")
                 or player_rows[-1]["player_id"]
             ),
+            "team": str((depth or {}).get("team") or ""),
             "features": features,
             "expected_opportunities": projected_opportunities,
             "provider": (

@@ -1,6 +1,6 @@
 """Private single-owner MCP bridge with OAuth code/PKCE and rotating refresh grants.
 
-Only scan/status/results are exposed. All execution reuses chatgpt_api's quota,
+Only scan/status/results and same-game research are exposed. All execution reuses chatgpt_api's quota,
 idempotence, persistence and shadow-only presentation. No provider key leaves here.
 """
 from __future__ import annotations
@@ -302,7 +302,11 @@ def tool(name, description, properties, required, readonly):
             "_meta": {"securitySchemes": [{"type": "oauth2", "scopes": [SCOPE]}]}}
 
 
+from .sgp_api import SameGameRequest
+
 TOOLS = [
+    {**tool("evaluate_same_game_parlay", "Evaluate 2–4 legs from a healthy completed scan using the deployed joint score model. leg_indexes are zero-based across all retained rows: (page-1)*25 + row offset. An optional exact combined sportsbook quote must match the returned candidate_id and settlement. No odds-provider credits, wagers, or posting. Admitted two-leg NFL player correlations use historical residual-rank dependence; unvalidated relationships and other prop combinations return unavailable. Always research-only.", {}, ["scan_id", "leg_indexes"], True),
+     "inputSchema": SameGameRequest.model_json_schema()},
     tool("scan_everything", "Use when the owner says scan everything or requests a new JABBAZI model scan. Starts the real cloud scanner with current team and deployed NFL/MLB player-model research probabilities plus supported odds. Uses the configured provider-credit budget and persists research records. Reuse the same UUID on retries. Poll get_scan_results until complete; running responses include live progress when available. Never infer unsupported probabilities or betting approval. No wagers or Discord posts.",
          {"request_id": {"type": "string", "format": "uuid", "description": "A new UUID per explicit new scan; reuse on retries."}}, ["request_id"], False),
     tool("get_scan_results", "Read one real scan page, waiting up to 10 seconds if RUNNING. Continue the same scan_id until terminal. Each page contains at most 25 rows. Total coverage is across all pages; fetch further pages for full retained coverage. Report scan ID, generated time, model version and coverage. Keep market consensus separate from model probability; all estimates remain research only. Stale prices are unavailable for action.",
@@ -313,6 +317,9 @@ TOOLS = [
 
 def invoke(name, args, tasks):
     auth = "Bearer " + bridge.scanner_key()
+    if name == "evaluate_same_game_parlay":
+        from .sgp_api import evaluate
+        return evaluate(SameGameRequest.model_validate(args), auth)
     if name == "scan_everything":
         body = bridge.ScanEverythingRequest.model_validate(args)
         return bridge.start_scan(body, tasks, auth)
