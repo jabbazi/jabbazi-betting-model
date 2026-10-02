@@ -231,3 +231,32 @@ def test_vip_command_uses_fresh_roles_and_only_sends_private_access_to_the_membe
         await client.close()
 
     asyncio.run(exercise())
+
+
+def test_session_exchange_does_not_require_discord_bot_secret(portal, monkeypatch):
+    store, client = portal
+    monkeypatch.delenv("JABBAZI_DISCORD_BOT_TOKEN", raising=False)
+    ticket = issue_ticket(store, guild=1, member=2, authorized=True)
+    response = client.post(
+        "/v1/member/session",
+        json={"ticket": ticket},
+        headers={"Origin": portal_origin()},
+    )
+    assert response.status_code == 200
+    assert client.get("/v1/vip/me").status_code == 200
+    assert client.get("/v1/vip/me").json()["tier"] == "VIP"
+
+
+def test_owner_ticket_carries_admin_attestation(portal, monkeypatch):
+    store, client = portal
+    monkeypatch.setenv("JABBAZI_DISCORD_OWNER_ID", "2")
+    ticket = issue_ticket(store, guild=1, member=2, authorized=True)
+    response = client.post(
+        "/v1/member/session",
+        json={"ticket": ticket},
+        headers={"Origin": portal_origin()},
+    )
+    assert response.status_code == 200
+    me = client.get("/v1/vip/me").json()
+    assert me["tier"] == "ADMIN"
+    assert me["features"]["admin"] is True
