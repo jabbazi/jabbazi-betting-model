@@ -53,6 +53,15 @@ def inputs(market="h2h", line=None):
             "home_team": "Home",
             "away_team": "Away",
             "push_probability": 0,
+            "integrity": {
+                "event_identity": True,
+                "schedule_identity": True,
+                "line_identity": True,
+                "fresh_features": True,
+                "schema": True,
+                "variance": True,
+                "no_duplicate_event": True,
+            },
             "production_inputs_verified": False,
         },
     )
@@ -105,6 +114,7 @@ def test_first_forecast_is_immutable_and_duplicate_ladders_do_not_inflate(store)
         "away",
         "future_features",
         "push",
+        "unverified_event",
     ],
 )
 def test_ineligible_freezes_are_excluded(store, failure):
@@ -125,6 +135,8 @@ def test_ineligible_freezes_are_excluded(store, failure):
         ).isoformat()
     if failure == "push":
         e.feature_snapshot["push_probability"] = 0.1
+    if failure == "unverified_event":
+        e.feature_snapshot["integrity"]["event_identity"] = False
     assert not freeze_candidate(store, c, e, {}, now=NOW)
 
 

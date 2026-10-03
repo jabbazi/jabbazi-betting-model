@@ -172,8 +172,18 @@ class ScoreDistributionModel(ProbabilityModel):
         if len(events) != 1 or type(events[0].get("neutral_site")) is not bool:
             return None
         event = events[0]
-        if event.get("provider_event_id") and event["provider_event_id"] != price.event_id:
+        schedule_provider_event_id = event.get("provider_event_id")
+        if schedule_provider_event_id and schedule_provider_event_id != price.event_id:
             return None
+        # Cross-provider schedules do not necessarily share event IDs with the
+        # odds provider. A unique canonical home/away/kickoff match above is
+        # explicit identity evidence; if both provider IDs exist they must agree.
+        event_identity_verified = True
+        event_identity_method = (
+            "PROVIDER_EVENT_ID"
+            if schedule_provider_event_id
+            else "UNIQUE_CANONICAL_TEAMS_AND_START"
+        )
         if event.get("season") is not None and event["season"] not in (price.starts_at.year, price.starts_at.year-1):
             return None
         if event.get("week") is not None and not 0 <= event["week"] <= 30:
@@ -256,12 +266,14 @@ class ScoreDistributionModel(ProbabilityModel):
                 "team_history": history,
                 "home_team": home, "away_team": away,
                 "provider_event_id": price.event_id,
+                "schedule_provider_event_id": schedule_provider_event_id,
                 "canonical_selection": selection, "canonical_participant": participant,
                 "game_distribution": summary,
                 "raw_win_probability": result["win"],
                 "loss_probability": result["loss"],
                 "integrity": {
-                    "event_identity": event.get("provider_event_id") == price.event_id,
+                    "event_identity": event_identity_verified,
+                    "event_identity_method": event_identity_method,
                     "schedule_identity": True,
                     "line_identity": True,
                     "fresh_features": True,

@@ -50,6 +50,12 @@ def freeze_candidate(store, card, estimate, reliability, *, now=None):
     )
     if any(not f.get(k) for k in required) or timestamp(f["state_refreshed_at"]) > now:
         return False
+    integrity = f.get("integrity") or {}
+    if not all(
+        integrity.get(k) is True
+        for k in ("event_identity", "schedule_identity", "line_identity", "fresh_features", "schema", "variance", "no_duplicate_event")
+    ):
+        return False
     p = float(estimate.probability)
     market_p = float(card.consensus_probability)
     if not (
@@ -267,8 +273,14 @@ def validation_report(store):
         y = int(label == "WIN")
         g["pairs"].append((f["probability"], y))
         g["market_pairs"].append((f["market_probability"], y))
+        snapshot = f.get("feature_snapshot") or {}
+        integrity = snapshot.get("integrity") or {}
         g["input_verified"] += (
-            f["feature_snapshot"].get("production_inputs_verified") is True
+            snapshot.get("production_inputs_verified") is True
+            and all(
+                integrity.get(k) is True
+                for k in ("event_identity", "schedule_identity", "line_identity", "fresh_features", "schema", "variance", "no_duplicate_event")
+            )
         )
     buckets = []
     for (sport, version, bucket), g in sorted(groups.items()):
