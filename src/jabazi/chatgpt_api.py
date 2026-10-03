@@ -397,8 +397,28 @@ def start_scan(body: ScanEverythingRequest, tasks: BackgroundTasks,
     scan_id = str(body.request_id)
     max_credits = scan_credit_budget()
     try:
-        accepted = submit(store, scan_id, max_credits)
-        output = scan_page(store, scan_id)
+        try:
+            accepted = submit(store, scan_id, max_credits)
+            effective_scan_id = scan_id
+        except HTTPException as exc:
+            if exc.status_code != 429:
+                raise
+            # A protected cooldown/running job must not look like a broken
+            # scanner to the owner. Reuse the latest canonical request instead
+            # of consuming more provider credits or returning a generic MCP
+            # error. The returned scan_id makes the reuse explicit.
+            with store.engine.connect() as conn:
+                latest = conn.execute(
+                    select(events)
+                    .where(events.c.kind == "chatgpt_scan_request")
+                    .order_by(events.c.occurred_at.desc())
+                    .limit(1)
+                ).mappings().first()
+            if latest is None:
+                raise
+            accepted = False
+            effective_scan_id = latest["entity"]
+        output = scan_page(store, effective_scan_id)
     finally:
         store.close()
     if accepted:
