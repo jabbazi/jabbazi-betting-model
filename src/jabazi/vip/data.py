@@ -69,8 +69,10 @@ def project(r, record, now, historical=False):
                  and age_ok(r.get('price_time_utc'), now, 300) and start and start > now
                  and not r.get('price_stale') and r.get('executable') is True)
     status = str(r.get('status', 'WATCH')).replace('_', ' ')
-    quarantined = status == 'QUARANTINED' or r.get('anomaly_state') in {'QUARANTINED', 'EXTREME_DISAGREEMENT'}
-    state = 'INVALIDATED' if invalidated else 'QUARANTINED' if quarantined else 'PRICE CHECK' if not fresh else 'PASS' if status == 'PASS' else 'WATCH'
+    anomaly = str(r.get('anomaly_state') or '').upper()
+    quarantined = status == 'QUARANTINED' or anomaly == 'QUARANTINED'
+    safety_review = anomaly == 'EXTREME_DISAGREEMENT'
+    state = 'INVALIDATED' if invalidated else 'QUARANTINED' if quarantined else 'SAFETY REVIEW' if safety_review else 'PRICE CHECK' if not fresh else 'PASS' if status == 'PASS' else 'WATCH'
     uncertainty = number(r.get('uncertainty'))
     playto = number(r.get('maximum_playable_decimal'))
     books = []
@@ -87,7 +89,7 @@ def project(r, record, now, historical=False):
             'ev': p*price-1 if p and price else None, 'play_to_decimal': playto if playto and playto > 1 else None,
             'model_version': r.get('model_version'), 'model_stage': r.get('model_stage', 'UNAVAILABLE'),
             'uncertainty': uncertainty, 'uncertainty_kind': 'policy haircut, not a confidence interval',
-            'status': state, 'fresh': fresh, 'historical': historical, 'lifecycle': 'INVALIDATED' if invalidated else 'HISTORICAL' if historical else 'EXPIRED' if start and start <= now else 'UPCOMING',
+            'status': state, 'anomaly_state': anomaly or None, 'fresh': fresh, 'historical': historical, 'lifecycle': 'INVALIDATED' if invalidated else 'HISTORICAL' if historical else 'EXPIRED' if start and start <= now else 'UPCOMING',
             'price_at': r.get('price_time_utc'), 'model_at': r.get('model_time_utc') or record['payload'].get('completed_at'), 'injury_at': r.get('injury_time_utc'), 'lineup_at': r.get('lineup_time_utc'), 'weather_at': r.get('weather_time_utc'), 'starts_at': r.get('starts_at_utc'), 'snapshot_at': record['payload'].get('completed_at', record['payload'].get('generated_at')),
             'data_health': r.get('data_health', 'UNKNOWN'), 'approved_for_betting': False,
             'why': 'Historical research snapshot; recheck current evidence.' if historical else 'Price requires a fresh check.' if not fresh else 'Research estimate compared with observed market consensus; not an official wager.',
