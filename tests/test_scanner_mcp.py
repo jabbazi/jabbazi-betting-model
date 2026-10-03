@@ -239,7 +239,10 @@ def test_real_bridge_job_idempotence_probability_provenance_and_stale_guard(setu
             assert not result["isError"] and result["structuredContent"]["scan_id"] == scan_id
         background.assert_called_once_with(scan_id)
         other = rpc(client, key, "tools/call", {"name": "scan_everything", "arguments": {"request_id": str(uuid4())}})
-        assert other.json()["result"]["isError"]
+        reused = other.json()["result"]
+        assert not reused["isError"]
+        assert reused["structuredContent"]["scan_id"] == scan_id
+        background.assert_called_once_with(scan_id)
     now = datetime.now(UTC)
     action = {"event": "Test @ Fixture", "sport": "americanfootball_nfl",
               "source_timestamp": (now-timedelta(minutes=3)).isoformat(),
