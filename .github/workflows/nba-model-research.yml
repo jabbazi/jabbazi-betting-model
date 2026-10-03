@@ -1,0 +1,88 @@
+name: NBA model research artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v5/granular-simulation-market-intelligence
+    paths:
+      - "src/jabazi/models/team_elo.py"
+      - "src/jabazi/models/player_distribution.py"
+      - "src/jabazi/models/train_player_props.py"
+      - "src/jabazi/models/train_opportunity.py"
+      - "src/jabazi/models/opportunity.py"
+      - "src/jabazi/research/train_scores.py"
+      - "src/jabazi/research/nba_player_experiment.py"
+      - "tools/capture_nba_sportsdataverse.py"
+      - "tools/train_nba_player_props.py"
+      - ".github/workflows/nba-model-research.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install research dependencies
+        run: python -m pip install '.[research]'
+      - name: Capture normalized NBA history
+        run: python tools/capture_nba_sportsdataverse.py --output "$RUNNER_TEMP/nba-history"
+      - name: Fit NBA team score model
+        run: python -m jabazi.research.train_scores nba "$RUNNER_TEMP/nba-history/nba_team_history.json" "$RUNNER_TEMP/nba-team"
+      - name: Fit NBA player models
+        run: python tools/train_nba_player_props.py "$RUNNER_TEMP/nba-history/nba_player_history.json" "$RUNNER_TEMP/nba-player"
+      - name: Verify research-only outputs
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          team = json.loads((root / "nba-team" / "artifact.json").read_text())
+          players = json.loads((root / "nba-player" / "report.json").read_text())
+          assert team.get("status") == "SHADOW_ONLY"
+          assert players["approved_for_betting"] is False
+          for row in players["markets"].values():
+              artifact = row.get("artifact")
+              if artifact:
+                  assert artifact["stage"] in {"SHADOW_ONLY", "VALIDATING"}
+          for artifact in players.get("opportunity_models", {}).values():
+              assert artifact["stage"] == "VALIDATING"
+          print(json.dumps({
+              "team_model_version": team["model_version"],
+              "player_markets": players["markets"],
+              "opportunity_models": players.get("opportunity_models", {}),
+          }, indent=2))
+          PY
+      - name: Commit reproducible research artifacts to owner branch
+        if: github.event_name == 'push' && github.ref_name == 'v5/granular-simulation-market-intelligence'
+        run: |
+          mkdir -p src/jabazi/models/artifacts models/player_props/basketball_nba
+          cp "$RUNNER_TEMP/nba-team/artifact.json" src/jabazi/models/artifacts/nba_scores.json
+          cp "$RUNNER_TEMP/nba-player"/player_*.json models/player_props/basketball_nba/
+          mkdir -p models/opportunity/basketball_nba
+          cp "$RUNNER_TEMP/nba-player"/opportunity_*.json models/opportunity/basketball_nba/
+          git config user.name "jabbazi-research-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/jabazi/models/artifacts/nba_scores.json models/player_props/basketball_nba models/opportunity/basketball_nba
+          if ! git diff --cached --quiet; then
+            git commit -m "Add reproducible NBA research artifacts"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-model-research-artifacts
+          path: |
+            ${{ runner.temp }}/nba-history/receipts.json
+            ${{ runner.temp }}/nba-team
+            ${{ runner.temp }}/nba-player
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,269 @@
+{
+  "verified_at": "2026-09-25T05:56:45Z",
+  "commit": "f5fba4a179a6f0d9b1331be421e04974864514ba",
+  "pr": "https://github.com/jabbazi/jabbazi-betting-model/pull/6",
+  "ci": {
+    "run_id": 36100274978,
+    "passed": 364,
+    "local_passed": 350
+  },
+  "deployments": {
+    "api": "https://dashboard.render.com/web/srv-dapfgeff3r2c73citeog/deploys/dep-dar0olk9v7es7392o7qg",
+    "worker": "https://dashboard.render.com/worker/srv-dapfub1srm7s73fbo7cg/deploys/dep-dar0p149v7es7392ph5g"
+  },
+  "live_scan": {
+    "feeds": 5,
+    "quotes": 4408,
+    "modeled_actions": 762,
+    "errors": [],
+    "status": "RUNNING",
+    "note": "Observed worker completion log at 05:56:19Z; heartbeat payload completed_at is currently the loop start time, not completion."
+  },
+  "model_status": [
+    {
+      "market_buckets": {
+        "alternate_spread": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "alternate_team_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "alternate_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "moneyline": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 12,
+          "pending_result_count": 12,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "spread": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 10,
+          "pending_result_count": 10,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "team_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 12,
+          "pending_result_count": 12,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        }
+      },
+      "sport": "baseball_mlb",
+      "status": "SHADOW_ONLY",
+      "approved_for_betting": false,
+      "version": "mlb-score-ridge-0.1.0-792a7fe3fb48",
+      "supported_markets": [
+        "alternate_spreads",
+        "alternate_team_totals",
+        "alternate_totals",
+        "h2h",
+        "spreads",
+        "team_totals",
+        "totals"
+      ],
+      "state_refreshed_at": "2026-09-25T05:24:49.729210+00:00"
+    },
+    {
+      "market_buckets": {
+        "alternate_spread": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 1,
+          "pending_result_count": 1,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "alternate_team_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "alternate_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 1,
+          "pending_result_count": 1,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "moneyline": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 29,
+          "pending_result_count": 29,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "spread": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 29,
+          "pending_result_count": 29,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "team_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 1,
+          "pending_result_count": 1,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 29,
+          "pending_result_count": 29,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        }
+      },
+      "sport": "americanfootball_nfl",
+      "status": "SHADOW_ONLY",
+      "approved_for_betting": false,
+      "version": "nfl-score-ridge-0.1.0-8b55af293d53",
+      "supported_markets": [
+        "alternate_spreads",
+        "alternate_team_totals",
+        "alternate_totals",
+        "h2h",
+        "spreads",
+        "team_totals",
+        "totals"
+      ],
+      "state_refreshed_at": "2026-09-25T05:24:49.729210+00:00"
+    },
+    {
+      "market_buckets": {
+        "alternate_spread": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "alternate_team_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "alternate_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "moneyline": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 36,
+          "pending_result_count": 36,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "spread": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 35,
+          "pending_result_count": 35,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "team_total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 0,
+          "pending_result_count": 0,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        },
+        "total": {
+          "stage": "SHADOW_ONLY",
+          "model_version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+          "prospective_sample_count": 0,
+          "frozen_prediction_count": 37,
+          "pending_result_count": 37,
+          "approved_for_betting": false,
+          "reason": "No frozen prospective promotion evidence"
+        }
+      },
+      "sport": "americanfootball_ncaaf",
+      "status": "SHADOW_ONLY",
+      "approved_for_betting": false,
+      "version": "cfb-recency-ridge-0.2.0-02fb8f011cd5-2026-01",
+      "supported_markets": [
+        "alternate_spreads",
+        "alternate_team_totals",
+        "alternate_totals",
+        "h2h",
+        "spreads",
+        "team_totals",
+        "totals"
+      ],
+      "state_refreshed_at": "2026-09-25T04:58:10.437922+00:00"
+    }
+  ],
+  "result_capture": "Deployed and tested; six-hour refresh NOT_DUE at verification; no completed prospective results yet.",
+  "cfbd": "Credential not configured; bundled fresh CFB inference verified, continuous refresh remains blocked."
+}

@@ -1,0 +1,344 @@
+{
+  "roles": [
+    {
+      "name": "JABBAZI TEAM",
+      "color": 9123304,
+      "hoist": true
+    },
+    {
+      "name": "MODERATOR",
+      "color": 5793266,
+      "hoist": true
+    },
+    {
+      "name": "VIP",
+      "color": 10181046,
+      "hoist": true
+    },
+    {
+      "name": "FREE MEMBER",
+      "color": 9807270,
+      "hoist": false
+    },
+    {
+      "name": "FOUNDING VIP",
+      "color": 12745742,
+      "hoist": true
+    },
+    {
+      "name": "TRIAL VIP",
+      "color": 7419530,
+      "hoist": false
+    },
+    {
+      "name": "NFL Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "CFB Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "MLB Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "NBA Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "NHL Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Parlay Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Main Card Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Promo Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Cheat Sheet Alerts",
+      "color": 0,
+      "hoist": false
+    }
+  ],
+  "categories": [
+    {
+      "name": "👋 START HERE",
+      "access": "public",
+      "channels": [
+        "welcome",
+        "how-to-use-jabbazi"
+      ]
+    },
+    {
+      "name": "🔑 GET ACCESS",
+      "access": "public",
+      "channels": [
+        "get-access",
+        "alerts-and-support"
+      ]
+    },
+    {
+      "name": "🔥 TODAY’S JABBAZI",
+      "access": "vip",
+      "channels": [
+        "jabbazi-main-card",
+        "live-watch"
+      ]
+    },
+    {
+      "name": "📊 DAILY CHEAT SHEET",
+      "access": "vip",
+      "channels": [
+        "daily-moneyline-cheat-sheet"
+      ]
+    },
+    {
+      "name": "💎 VIP LOUNGE & RESEARCH",
+      "access": "vip",
+      "channels": [
+        "vip-lounge",
+        "vip-research",
+        "market-watch",
+        "scanner-status"
+      ]
+    },
+    {
+      "name": "💬 COMMUNITY",
+      "access": "public",
+      "channels": [
+        "general",
+        "sports-talk",
+        "winning-tickets"
+      ]
+    },
+    {
+      "name": "📈 RESULTS & SUPPORT",
+      "access": "public",
+      "channels": [
+        "results",
+        "support"
+      ]
+    },
+    {
+      "name": "🔒 STAFF ONLY",
+      "access": "staff",
+      "channels": [
+        "staff-chat",
+        "bot-log"
+      ]
+    }
+  ],
+  "deprecated_channels": [
+    "announcements",
+    "best-two-parlay",
+    "best-two-research",
+    "bet-talk",
+    "betting-basics",
+    "billing-log",
+    "billing-support",
+    "bookie-sheet-research",
+    "cfb-research",
+    "cheat-sheet-archive",
+    "choose-your-alerts",
+    "clv-tracking",
+    "college-football",
+    "content-planning",
+    "daily-results",
+    "daily-schedule",
+    "ev-and-vig",
+    "football-talk",
+    "how-jabbazi-works",
+    "how-to-read-cheat-sheets",
+    "how-to-use-the-picks",
+    "how-units-work",
+    "injury-news",
+    "jabbazi-models-explained",
+    "jabbazi-sprinkles",
+    "line-movement",
+    "line-shopping",
+    "memes",
+    "mlb",
+    "mlb-research",
+    "model-edges",
+    "model-performance",
+    "model-updates",
+    "moderation-log",
+    "monthly-results",
+    "nba",
+    "nba-research",
+    "nfl",
+    "nfl-research",
+    "nhl",
+    "nhl-research",
+    "odds-shopping",
+    "open-a-ticket",
+    "other-sports",
+    "parlays-and-correlation",
+    "parlays-sgps",
+    "promo-boosts",
+    "promo-tracker",
+    "research-tools",
+    "rules",
+    "scanner-errors",
+    "soccer",
+    "suggestions",
+    "system-status",
+    "technical-support",
+    "tennis",
+    "tennis-talk",
+    "understanding-odds",
+    "units-bankroll",
+    "upgrade-to-vip",
+    "vip-benefits",
+    "vip-longshots",
+    "vip-parlays",
+    "vip-sgps",
+    "vip-straights",
+    "weekly-results"
+  ],
+  "channel_aliases": {
+    "results": [
+      "results-and-clv",
+      "daily-results"
+    ],
+    "support": [
+      "open-a-ticket"
+    ],
+    "market-watch": [
+      "line-movement",
+      "odds-shopping"
+    ],
+    "welcome": [
+      "welcome-and-rules"
+    ],
+    "how-to-use-jabbazi": [
+      "vip-guide",
+      "learn-how-to"
+    ],
+    "alerts-and-support": [
+      "choose-your-roles",
+      "choose-your-alerts"
+    ],
+    "general": [
+      "guru-lounge"
+    ],
+    "winning-tickets": [
+      "member-wins"
+    ],
+    "live-watch": [
+      "live-game-chat",
+      "pick-updates"
+    ],
+    "daily-moneyline-cheat-sheet": [
+      "cheat-sheets"
+    ],
+    "staff-chat": [
+      "staff-chat"
+    ],
+    "bot-log": [
+      "bot-log",
+      "scanner-errors"
+    ],
+    "get-access": [
+      "vip-access",
+      "vip-membership",
+      "upgrade-to-vip"
+    ],
+    "vip-lounge": [
+      "vip-chat"
+    ]
+  },
+  "channel_topics": {
+    "welcome": "Welcome to JABBAZI GURU. Read the pinned guide, get access and join General. Member conversation stays in General.",
+    "how-to-use-jabbazi": "BET NOW / WATCH / PRICE CHECK / PASS / QUARANTINED. 1u = $30 unless officially changed.",
+    "alerts-and-support": "Choose notifications with /alerts. Open a private support thread with /support.",
+    "jabbazi-main-card": "Official JABBAZI recommendations only. Cash-authority gates required. No research-only candidates.",
+    "live-watch": "Important updates after publication. Frozen sheets and settled history remain unchanged.",
+    "daily-moneyline-cheat-sheet": "One frozen daily moneyline research sheet at 9 AM America/Chicago. /cheatsheet retrieves it without scanning again.",
+    "vip-research": "One consolidated sports research feed, including Best-2. Research is not an official wager; exact parlay quotes are required.",
+    "market-watch": "Meaningful line movement, best prices, deterioration, CLV and verified market opportunities.",
+    "scanner-status": "Compact model stage, provider health and last successful scan. Developer errors belong in bot-log.",
+    "general": "Community conversation. Respect members; no scams or referral spam.",
+    "sports-talk": "All sports in one conversation. Use threads for individual games.",
+    "winning-tickets": "Community tickets. These are separate from official JABBAZI performance.",
+    "results": "Authentic official JABBAZI results. Losses stay recorded; user sprinkles and hypothetical slips are excluded.",
+    "support": "Use /support for a private member/staff thread: VIP access, billing, technical or other. Do not post private details publicly.",
+    "staff-chat": "Private staff coordination. Never post credentials or private member-app tokens.",
+    "bot-log": "Private operational diagnostics only. No tokens, API keys or billing secrets.",
+    "get-access": "Approved VIP-family roles unlock premium sections immediately. /vip gives a private app link; !vip sends a DM.",
+    "vip-lounge": "Private VIP conversation. Discuss research, share questions and use !vip or /vip for your private app link."
+  },
+  "category_aliases": {
+    "👋 START HERE": [
+      "━━ START HERE ━━"
+    ],
+    "🔥 TODAY’S JABBAZI": [
+      "━━ TODAY’S JABBAZI ━━"
+    ],
+    "📊 DAILY CHEAT SHEET": [
+      "━━ CHEAT SHEET ━━"
+    ],
+    "💬 COMMUNITY": [
+      "━━ COMMUNITY ━━"
+    ],
+    "📈 RESULTS & SUPPORT": [
+      "━━ RESULTS & SUPPORT ━━"
+    ],
+    "🔒 STAFF ONLY": [
+      "━━ STAFF ONLY ━━"
+    ],
+    "💎 VIP LOUNGE & RESEARCH": [
+      "🧠 VIP RESEARCH",
+      "━━ VIP RESEARCH ━━"
+    ]
+  },
+  "channel_display_names": {
+    "welcome": "👋│welcome",
+    "how-to-use-jabbazi": "📖│how-to-use-jabbazi",
+    "get-access": "🔑│get-access",
+    "alerts-and-support": "🔔│alerts-and-support",
+    "jabbazi-main-card": "🎯│jabbazi-main-card",
+    "live-watch": "👀│live-watch",
+    "daily-moneyline-cheat-sheet": "📋│daily-moneyline-cheat-sheet",
+    "vip-lounge": "💎│vip-lounge",
+    "vip-research": "🧠│vip-research",
+    "market-watch": "📉│market-watch",
+    "scanner-status": "🛰️│scanner-status",
+    "general": "💬│general",
+    "sports-talk": "🏟️│sports-talk",
+    "winning-tickets": "🏆│winning-tickets",
+    "results": "📈│results",
+    "support": "🛟│support",
+    "staff-chat": "🛡️│staff-chat",
+    "bot-log": "🤖│bot-log"
+  },
+  "read_only_channels": [
+    "welcome",
+    "how-to-use-jabbazi",
+    "get-access",
+    "alerts-and-support",
+    "jabbazi-main-card",
+    "daily-moneyline-cheat-sheet",
+    "vip-research",
+    "market-watch",
+    "scanner-status",
+    "results",
+    "bot-log"
+  ]
+}

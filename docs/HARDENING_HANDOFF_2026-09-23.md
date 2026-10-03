@@ -1,0 +1,183 @@
+# JABBAZI hardening and model-readiness audit — 2026-09-23
+
+## Scope and verified local work
+
+This is a focused hardening pass on the existing platform, not completion of all
+sports or a claim of continuous overnight coding. Baseline is remote commit
+`5e2e35b007a93cba4ac4e8d3b3aeb741f1dba92d` on `build/production-foundations`.
+
+- Fixed member price freshness: both JSON and image routes check the current time,
+  not only the scan timestamp. Quotes expire after 120 seconds or at kickoff.
+- Member images always use the best-supported-edge filter, including legacy URLs
+  with `featured=false`. Unmodeled props cannot appear as invented model edges.
+- Browser clears old rows on failed refresh, sport/tab change and logout, removes
+  prices as they expire, and hides data when the research session expires. A
+  server-anchored clock prevents a backward device clock from extending validity.
+- Added scope, guild and expiry checks for member tickets/sessions. Member access
+  remains separate from owner/scanner credentials. Existing sessions last at most
+  15 minutes; instant role-removal revocation is not implemented.
+- The app defaults to conservative-value ranking, not the highest hit probability.
+  Its main columns remain Model / Market / Edge. It is experimental research,
+  not an official main card. Discord archive coverage remains separate.
+- Added a reproducible saved-artifact audit: `python tools/audit_model_readiness.py`.
+  It does not refit or promote a model and checks report/artifact provenance.
+- Added provider-neutral prop-dataset admission checks for initial MLB pitcher K
+  and NFL passing/rushing/receiving yards research. It rejects scrambled data,
+  future features, labels crossing chronological split boundaries, inconsistent
+  features, duplicate player/game rows and unresolved outcomes. DNP/void records
+  are excluded and counted, not turned into zero performances. This is **not a
+  trained player-prop model**. Supplied rights/timestamp declarations still need
+  independent review. A 100-row split floor is not proof of statistical power.
+
+Local verification: **261 pytest tests passed**, including four Node-based browser
+logic checks via the pytest wrapper; Ruff undefined/unused-name checks passed.
+The Node harness is a simulated DOM, not a replacement for a live browser check.
+One known dependency warning concerns discord.py's deprecated `audioop` import.
+Cloud rollout evidence must be recorded separately after actual verification.
+
+## Audit result: do not promote models
+
+| Saved moneyline diagnostic | NFL | MLB |
+|---|---:|---:|
+| Sample | 284 decisive games | 2,473 games |
+| Brier (lower is better) | 0.223282 | 0.247026 |
+| Log loss (lower is better) | 0.635409 | 0.687039 |
+| Bucket-weighted calibration gap | 0.050201 | 0.034459 |
+| Paired market sample | 284 | 0 |
+| Model Brier minus market | +0.012376 (worse) | unavailable |
+
+These are existing 2025 diagnostics, already inspected, not a new untouched test.
+The calibration gaps are descriptive, not confidence intervals. Existing score
+models are based on team score/rest/home-field features; they do not yet have
+verified QB, pitcher, lineup, usage or weather feature coverage. The 8% relative
+probability haircut is a policy choice, not estimated uncertainty. NFL does not
+beat its paired market baseline here. MLB lacks paired historical odds. Neither
+has decision-time-verified execution/ROI/CLV evidence. `SHADOW_ONLY` and disabled
+betting remain in place. NBA, tennis and CFB do not gain trained models in this pass.
+
+## Data and owner actions, consolidated
+
+1. **ChatGPT owner connection:** enable the private MCP connection only with
+   informed owner authorization. Official flow uses Settings > Security and login
+   > Developer mode, then a private MCP app/connection, depending on workspace
+   availability. Backend: `https://jabbazi-research-api.onrender.com/mcp`.
+   Public client ID: `jabbazi-chatgpt`; no client secret. The scanner credential
+   belongs only in the private consent form, never chat, GitHub or Discord.
+   Existing plugin: `https://chatgpt.com/plugins/plugins_6ab3f91ced948191a311a57e86f73def`.
+   A real authorized tool call is required before claiming ordinary chat works.
+2. **Historical odds entitlement and quota:** confirm current provider account
+   access before any historical download or quota increase. The Odds API paid
+   history includes event-level player props from May 2023 with snapshot-based
+   billing. Current-odds success does not prove historical entitlement. No new
+   subscription, credits or scan frequency increase was purchased/approved here.
+3. **Stats and usage rights:** provide a licensed real-data source covering MLB
+   player logs, starting pitchers/lineups and NFL player logs, snaps/usage,
+   injuries/depth charts, plus historical availability timestamps. SportsDataIO
+   is a candidate, not installed/licensed here. Its commercial agreement must
+   cover modeling and derived-output display. Its free trial uses scrambled data;
+   Discovery Lab is personal/noncommercial. Neither substitutes for this paid app's
+   required commercial real-data agreement. Obtain a scoped quote before purchase.
+   Effort: material provider mapping, point-in-time storage, identity reconciliation
+   and validation; not merely pasting a key. An equivalent licensed provider is fine.
+4. **Display rights:** The Odds API's published terms permit commercial analytical
+   displays, derived values and ML training, while prohibiting raw-feed resale.
+   JABBAZI must remain analysis rather than a repackaged feed. This does not grant
+   rights to unrelated statistics providers, photos, Outlier feeds or other cappers'
+   paid content. Obtain provider clarification where the intended usage is unclear.
+5. **Prospective validation:** predeclare features/splits and acceptance gates,
+   fit/calibrate on permitted point-in-time data, then log an untouched forward
+   sample with actual offered/closing prices and full losing/no-bet records.
+   Validate probability metrics and calibration alongside ROI/CLV/drawdown. No
+   promise of profitability or time-to-edge follows from adding a subscription.
+
+No new login, data-provider subscription or cloud service was created by the local
+work. GamblyBot installation and main-card/sprinkles channel creation were verified
+in the preceding change, not newly repeated. Outlier is an external account link,
+not a licensed automated feed. No wagers or public betting recommendations were made.
+
+## Official references checked 2026-09-23
+
+- ChatGPT MCP connection: https://developers.openai.com/plugins/deploy/connect-chatgpt
+- Odds history: https://the-odds-api.com/historical-odds-data/
+- Odds usage terms: https://the-odds-api.com/terms-and-conditions.html
+- SportsDataIO data rights: https://sportsdata.io/help/data-rights-and-licensing-questions
+- SportsDataIO products/trial limitations: https://sportsdata.io/developers
+
+## Remaining engineering after data approval
+
+Fit and backtest the narrow prop targets first; add TD-specific usage/TD-allocation
+models separately. Add point-in-time feature provenance checks, prediction coverage
+monitoring, paired market benchmarks and prospective CLV capture before broader
+markets. Make any eventual BET NOW promotion an explicit reviewed decision, never
+an automatic result of obtaining a provider key or passing software unit tests.
+
+## Verified rollout
+
+Application commit `16c17c0d1757639f577f7cf0cc04cd2ea65d5ddc` passed GitHub
+workflow runs `35906678004` and `35906670124`. The PostgreSQL-enabled CI suite
+reported **275 tests passed**, plus authenticated HTTP smoke, Docker startup,
+database backup/restore and database-outage checks. Local 261-test runs omit the
+PostgreSQL-specific collection; these counts are deliberately distinguished.
+
+- API deployment `dep-daq25ht9fdbs73eke6ug`: succeeded/live, 2026-09-23 19:05:31 UTC.
+- Worker deployment `dep-daq25n9srm7s73dabmt0`: succeeded/live, 19:05:50 UTC.
+- API readiness logs returned 200 after rollout. The live member app reload
+  displayed server branding and required a fresh private `!vip` link, with no
+  protected research data displayed to the signed-out browser.
+- The latest observed scan before the new rollout recorded 3,952 quotes and 232
+  model-backed research actions with both NFL/MLB versions and no scan errors.
+  This is prior-worker evidence, not proof of a newly requested scan or prop model.
+- No fresh authenticated member session or regular-ChatGPT tool call was completed
+  during this rollout check. Protected paths have automated integration coverage;
+  do not describe that as a new live member/ChatGPT end-to-end authorization.
+
+These changes did not increase quote quotas, change model coefficients, enable
+betting, place wagers, or purchase a provider. The code, tests and this handoff are
+committed to the existing development branch; no claim of perfection is made.
+
+## OAuth form repair, 20:14 UTC
+
+The owner's phone displayed `invalid_request`. Render logs showed valid consent
+GETs (200) followed within seconds by rejected POSTs (400), including 20:03:59 /
+20:04:05 and 20:04:12 / 20:04:15 UTC. Earlier browser return errors were not proof
+that server authorization succeeded: no token exchange or connected account had
+been verified.
+
+Found a browser-policy conflict: the consent document sent `no-referrer`, which
+causes native form POSTs to send `Origin: null`; the server requires its exact
+origin. The consent document now uses `same-origin`. Callback and token responses
+retain `no-referrer`. Its CSP also permits the already registered exact HTTPS
+ChatGPT callback so Chromium can follow the form's 303 redirect. Key checks,
+CSRF binding, expiry, PKCE, scope, resource and callback validation are preserved;
+missing, null and foreign origins remain rejected.
+
+Application commit `d333e9c5a394051b47d159835bc499fbe36a1322` passed 42 focused
+local scanner/authentication tests and Ruff. GitHub runs `35914337206` and
+`35914343422` both succeeded; the PostgreSQL-enabled suite reported 276 passed,
+with API/container smoke and database recovery/outage checks. These HTTP-client
+tests cover headers and authorization checks, not an actual iPhone login.
+
+API deployment `dep-daq3643ncjis73afv3cg` was verified Live for that exact commit;
+Render logged service live at 20:14:53 UTC and repeated `/readyz` 200 responses.
+No worker rollout was required for this API-only header change. A separate cloud
+browser visit to `/readyz` was blocked by the browser client; no alternate access
+was attempted. Live readiness evidence is the Render log, not that browser visit.
+
+### Follow-up after the owner's fresh authorization
+
+Render logs now verify consent POST `/oauth/authorize` returned 303 at 20:18:28 UTC
+and `/oauth/token` returned 200 at 20:18:29 UTC. A second consent POST returned
+400; its cause was not established. Subsequent `/mcp` requests included 200 and
+202 responses, plus 401 and 400 responses. Access logs do not identify JSON-RPC
+methods, so those statuses do not prove successful tool discovery or a model call.
+
+Fresh ChatGPT connection settings still displayed no connected account and no app
+tools; the current assistant tool registry also lacked JABBAZI tools. A fresh
+ordinary-chat test was started but did not reach submission: browser inspection
+stalled and its tool transport then reported `environment_offline`. No credential
+was read or resubmitted. OAuth token issuance is verified; ChatGPT account
+attachment, usable tool discovery and a real `get_model_status` response remain
+unverified. Resume at those checks when the browser session is available; do not
+repeat the key-entry step without evidence that another authorization is needed. No scan, provider-credit use, model promotion or Discord post occurred in
+this repair. Browser behavior reference:
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header

@@ -1,0 +1,286 @@
+{
+  "model_version": "nfl-scoring-form-logistic-0.1.0",
+  "status": "RESEARCH_ONLY",
+  "approved_for_betting": false,
+  "source_sha256": "8b55af293d53452d08112153c76f45594efcdd551c2e5b718471b471ef0c73da",
+  "split_counts": {
+    "training_through_2023": 787,
+    "calibration_2024": 285,
+    "diagnostic_2025": 284
+  },
+  "reserved_2026_rows_not_used": 31,
+  "ties_excluded": 4,
+  "uncalibrated": {
+    "n": 284,
+    "brier": 0.22526338528274148,
+    "log_loss": 0.6399648005783612,
+    "roc_auc": 0.6738437001594896,
+    "reliability": [
+      {
+        "lower": 0.2,
+        "upper": 0.3,
+        "n": 13,
+        "mean_probability": 0.2642299488667025,
+        "observed_rate": 0.3076923076923077
+      },
+      {
+        "lower": 0.3,
+        "upper": 0.4,
+        "n": 36,
+        "mean_probability": 0.3562412054948549,
+        "observed_rate": 0.3333333333333333
+      },
+      {
+        "lower": 0.4,
+        "upper": 0.5,
+        "n": 59,
+        "mean_probability": 0.4577598338846614,
+        "observed_rate": 0.4576271186440678
+      },
+      {
+        "lower": 0.5,
+        "upper": 0.6,
+        "n": 82,
+        "mean_probability": 0.5521147839482731,
+        "observed_rate": 0.5
+      },
+      {
+        "lower": 0.6,
+        "upper": 0.7,
+        "n": 50,
+        "mean_probability": 0.6464315058113035,
+        "observed_rate": 0.64
+      },
+      {
+        "lower": 0.7,
+        "upper": 0.8,
+        "n": 36,
+        "mean_probability": 0.7474814808906112,
+        "observed_rate": 0.7777777777777778
+      },
+      {
+        "lower": 0.8,
+        "upper": 0.9,
+        "n": 8,
+        "mean_probability": 0.8405844302568194,
+        "observed_rate": 1
+      }
+    ],
+    "expected_calibration_error": 0.029431348880104492
+  },
+  "calibrated": {
+    "n": 284,
+    "brier": 0.22552128092760693,
+    "log_loss": 0.6409254581476629,
+    "roc_auc": 0.6738437001594896,
+    "reliability": [
+      {
+        "lower": 0.2,
+        "upper": 0.3,
+        "n": 8,
+        "mean_probability": 0.2654819721369202,
+        "observed_rate": 0.25
+      },
+      {
+        "lower": 0.3,
+        "upper": 0.4,
+        "n": 33,
+        "mean_probability": 0.3504247883982831,
+        "observed_rate": 0.2727272727272727
+      },
+      {
+        "lower": 0.4,
+        "upper": 0.5,
+        "n": 66,
+        "mean_probability": 0.454246342710838,
+        "observed_rate": 0.4696969696969697
+      },
+      {
+        "lower": 0.5,
+        "upper": 0.6,
+        "n": 89,
+        "mean_probability": 0.5504680366915973,
+        "observed_rate": 0.5168539325842697
+      },
+      {
+        "lower": 0.6,
+        "upper": 0.7,
+        "n": 50,
+        "mean_probability": 0.6460443108723447,
+        "observed_rate": 0.64
+      },
+      {
+        "lower": 0.7,
+        "upper": 0.8,
+        "n": 33,
+        "mean_probability": 0.742317090718018,
+        "observed_rate": 0.8181818181818182
+      },
+      {
+        "lower": 0.8,
+        "upper": 0.9,
+        "n": 5,
+        "mean_probability": 0.8353512005008689,
+        "observed_rate": 1
+      }
+    ],
+    "expected_calibration_error": 0.03636713376159806
+  },
+  "training_home_rate_reference": {
+    "n": 284,
+    "brier": 0.24916264733674087,
+    "log_loss": 0.6914781707894232,
+    "roc_auc": 0.5,
+    "reliability": [
+      {
+        "lower": 0.5,
+        "upper": 0.6,
+        "n": 284,
+        "mean_probability": 0.5552731893265566,
+        "observed_rate": 0.5352112676056338
+      }
+    ],
+    "expected_calibration_error": 0.020061921720922804
+  },
+  "paired_market_diagnostic": {
+    "model": {
+      "n": 284,
+      "brier": 0.22552128092760693,
+      "log_loss": 0.6409254581476629,
+      "roc_auc": 0.6738437001594896,
+      "reliability": [
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 8,
+          "mean_probability": 0.2654819721369202,
+          "observed_rate": 0.25
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 33,
+          "mean_probability": 0.3504247883982831,
+          "observed_rate": 0.2727272727272727
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 66,
+          "mean_probability": 0.454246342710838,
+          "observed_rate": 0.4696969696969697
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 89,
+          "mean_probability": 0.5504680366915973,
+          "observed_rate": 0.5168539325842697
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 50,
+          "mean_probability": 0.6460443108723447,
+          "observed_rate": 0.64
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 33,
+          "mean_probability": 0.742317090718018,
+          "observed_rate": 0.8181818181818182
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 5,
+          "mean_probability": 0.8353512005008689,
+          "observed_rate": 1
+        }
+      ],
+      "expected_calibration_error": 0.03636713376159806
+    },
+    "market": {
+      "n": 284,
+      "brier": 0.2109063730663587,
+      "log_loss": 0.6069889381505206,
+      "roc_auc": 0.7227372408293461,
+      "reliability": [
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "n": 10,
+          "mean_probability": 0.16892735881141,
+          "observed_rate": 0.1
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "n": 25,
+          "mean_probability": 0.24716003225010807,
+          "observed_rate": 0.24
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "n": 36,
+          "mean_probability": 0.3463022678755983,
+          "observed_rate": 0.4166666666666667
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "n": 48,
+          "mean_probability": 0.4411938474934535,
+          "observed_rate": 0.4166666666666667
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "n": 47,
+          "mean_probability": 0.5535534822760071,
+          "observed_rate": 0.574468085106383
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "n": 48,
+          "mean_probability": 0.64509653382868,
+          "observed_rate": 0.5416666666666666
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "n": 41,
+          "mean_probability": 0.7485385002786579,
+          "observed_rate": 0.7317073170731707
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "n": 26,
+          "mean_probability": 0.8573696930189311,
+          "observed_rate": 0.9230769230769231
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "n": 3,
+          "mean_probability": 0.9053888284179062,
+          "observed_rate": 1
+        }
+      ],
+      "expected_calibration_error": 0.04650921617962813
+    },
+    "timestamp_verified_prices": 0
+  },
+  "limitations": [
+    "2025 was previously inspected: diagnostic only, not an untouched final holdout",
+    "Score-only features: no EPA, QB, injury, lineup, weather or player usage inputs",
+    "No point-in-time historical odds simulation, realized ROI or proven betting edge",
+    "Two-UTC-day result delay is a proxy, not actual provider availability evidence",
+    "Decisive-game probabilities exclude ties and are not a three-way settlement model",
+    "Calibration is not model approval; prospective evidence and stronger features remain required"
+  ]
+}

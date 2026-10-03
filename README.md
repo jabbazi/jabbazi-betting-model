@@ -1,1 +1,150 @@
-# jabbazi-betting-model
+# JABBAZI sports research platform
+
+**Research infrastructure, not a production-approved betting service.** No model
+in the active registry can produce approved paid picks. The platform does not place bets.
+
+This repository preserves the recovered MLB scanner and adds MLB/NFL/CFB/NHL team
+models plus NBA research-model architecture, audited pricing, central portfolio reservations, PostgreSQL-capable
+storage, an authenticated API, and research frameworks for calibration, props,
+alternates, correlated parlays, and historical execution evaluation.
+
+Start with [the implementation audit](docs/IMPLEMENTATION_STATUS.md),
+[the cloud launch checklist](docs/GO_LIVE.md), [deployment instructions](docs/DEPLOYMENT.md),
+and [mathematical conventions](docs/MATH.md).
+Documents in `docs/archive` describe older milestones and are not deployment instructions.
+
+## NHL research release
+
+The [NHL model and evaluation report](docs/experiments/nhl-goals/README.md) documents the
+coherent goals model, four-season data audit, held-out results and scanner integration.
+All NHL game-market buckets remain SHADOW_ONLY. NHL player-prop odds/history/training
+plumbing now exists for research, but no NHL player artifact is production-approved;
+same-day injury/scratch and starting-goalie evidence remain mandatory gates.
+
+## NBA research release
+
+NBA is now a first-class research model namespace. The branch contains a trained
+SHADOW_ONLY team score artifact and 12 VALIDATING player-prop artifacts covering
+points, rebounds, assists, threes, blocks, steals, turnovers, PRA/PR/PA/RA and
+double-double. Historical fitting used 4,932 completed team games and 129,050
+player-game rows; the player artifacts each have 24,280 held-out observations.
+No NBA model is production-approved: same-day rotation/injury inputs, archived
+decision-time prop prices and frozen prospective market/CLV evidence remain required.
+
+## Install and verify
+
+Requires Python 3.12 or later.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install '.[dev]'
+python -m pytest -q
+ruff check src tools tests --select F
+python tools/smoke_api.py
+```
+
+SQLite integration tests run locally. Set `JABBAZI_TEST_POSTGRES_URL` to a dedicated
+test database to run the transaction, concurrency, lifecycle, and immutability
+tests against PostgreSQL. CI supplies an ephemeral PostgreSQL 17 service.
+
+## Local research API
+
+Copy `.env.example` to `.env`; configure a database URL and a random service token.
+Use `sqlite:///platform-local.db` only for development or PostgreSQL for production.
+
+```bash
+python -m jabazi.persistence.migrate
+uvicorn jabazi.api:app --host 127.0.0.1 --port 8000
+```
+
+OpenAPI is at `/docs`. `/healthz` is liveness; `/readyz` verifies the database schema
+and explicitly reports that model approval remains disabled. All `/v1` data and
+scan endpoints require `Authorization: Bearer <service-token>`. Scan requests
+consume provider quota when a real API key is configured.
+
+The production entry points are `python -m jabazi.runtime api` and
+`python -m jabazi.runtime worker`. The worker collects pre-start closing proxies,
+runs bounded research scans, and stores quota reservations and heartbeats in
+PostgreSQL. Authenticated ledger endpoints record owner-reported placed wagers
+and auditable settlement corrections; performance is labeled with that provenance.
+The Render blueprint prepares an API, worker and private database for cost review.
+
+## Model training
+
+No private data or live ledger is committed. Reviewed reproducible research artifacts
+may be committed when their source provenance and fail-closed status are documented;
+the NHL player artifacts are one such research-only set. Existing MLB/NFL research
+artifacts can be reproduced with:
+
+```bash
+python -m jabazi history --sport nfl --as-of 2026-09-22 --output data/nfl_history.json
+python -m jabazi train-baseline --sport nfl --input data/nfl_history.json --output models/nfl_baseline.json --holdout 2025
+```
+
+Use the actual cutoff date for a new snapshot. The 2024 tuning / 2025 holdout
+convention is documented in `docs/MODEL_REPORT.md`; retain a new untouched
+evaluation period before developing additional features. MLB supports the same
+workflow. CFB requires `JABBAZI_CFBD_API_KEY`. Every baseline stays `SHADOW_ONLY`,
+including when an artifact's approval flag is manually changed.
+
+## Discord
+
+`python tools/discord_setup.py` prints the server plan without contacting Discord.
+The explicit `--apply` option requires an owner-controlled server and configured bot.
+`python -m jabazi.discord_review` previews research cards; its explicit `--send`
+option sends to the verified private review channel. Delivery is off by default.
+Production delivery verifies configured owner/channel permissions and records
+delivery claims and results in PostgreSQL. Ambiguous sends require review before
+any retry. A Discord administrator can bypass channel visibility restrictions.
+Paid memberships, public pick distribution, and billing are not implemented.
+
+## Reliability upgrade (2026-09-25)
+
+See [the measured upgrade report](docs/RELIABILITY_UPGRADE_REPORT.md) for the exact
+Chiefs/Miami reproduction, alternate-spread normalization fix, repaired V4.2
+integration, per-market stages, chronological challenger/calibration results,
+trained CFB baseline and rollout requirements. Every served model remains
+`SHADOW_ONLY`. NFL/MLB challengers did not justify replacing the champions.
+The report links the separately verified live deployment receipt.
+
+```bash
+python -m pip install '.[dev,discord,research]'
+python tools/diagnose_miami.py
+python -m pytest -q
+python tools/smoke_api.py
+```
+
+The CFB baseline covers FBS team markets only. Continuous refresh requires
+`JABBAZI_CFBD_API_KEY`; stale features produce no inference. No CFB player props,
+player-linked SGP probabilities, automatic wagers or unconfigured publications
+are introduced. New research endpoints require the existing owner credential.
+
+## Prospective model evidence
+
+The scanner now freezes the first fresh pregame home-side/Over forecast per game,
+model version and market family. Repeated scans, opposite sides and alternate
+ladders cannot inflate that bucket's sample. Existing scheduled provider refreshes
+archive completed score receipts; no extra odds requests are needed for grading.
+Owner endpoint `GET /v1/research/prospective-validation` reports pending games,
+conditional Brier/log loss, same-quote market comparison and calibration buckets
+with Wilson intervals. `get_model_status` includes frozen and graded counts.
+See [the evidence policy](docs/PROSPECTIVE_VALIDATION.md). These are research
+labels, not ticket settlements, and do not automatically promote a model.
+
+### Data authenticity and current validation status
+
+See [the September 28 data-trust release](docs/DATA_TRUST_RELEASE_2026-09-28.md)
+for provider quarantine, point-in-time player history, frozen evaluation verification,
+and NBA's explicitly untrained status. A successful provider response alone does not
+establish that a subscription supplies accurate production data.
+
+### NFL player probability reliability
+
+The [September 28 anytime-TD experiment](docs/experiments/nfl-atd-reliability/README.md)
+records a chronological opportunity-based challenger comparison and probability
+correctness fixes. The challenger did not establish a Brier/calibration improvement
+and is not registered for live inference. New player calibrators share one
+positive-side probability across complementary outcomes. Legacy calibrated
+negative-side quotes and whole-number player lines remain unavailable until their
+calibration or push-aware pricing contract is supported.

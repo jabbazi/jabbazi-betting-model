@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "sport": "baseball_mlb",
+  "model_version": "mlb-moneyline-challenger-0.1.0-7c9e6a1e79ad",
+  "status": "RESEARCH_ONLY",
+  "approved_for_betting": false,
+  "supported_markets": [
+    "h2h_decisive_game_only"
+  ],
+  "family": "form_elo",
+  "c": 0.1,
+  "features": [
+    "home_scoring_form",
+    "away_scoring_form",
+    "home_conceding_form",
+    "away_conceding_form",
+    "rest_advantage_days",
+    "home_field",
+    "lagged_elo_logit"
+  ],
+  "mean": [
+    4.470336083772621,
+    4.476439007100719,
+    4.46691567190658,
+    4.467789848520662,
+    0.0009526365609271479,
+    1.0,
+    -0.008707633038883483
+  ],
+  "scale": [
+    0.8116299990751472,
+    0.8167703919873027,
+    0.8847884241625104,
+    0.8817131768395798,
+    0.4643128908863458,
+    1.0,
+    0.503547214946585
+  ],
+  "coefficients": [
+    -0.016102784859206912,
+    -0.00048100763137540734,
+    -0.021832368055988136,
+    0.065833619644189,
+    0.005890337794704846,
+    0.0,
+    0.2990034462551241
+  ],
+  "intercept": 0.1311258290793631,
+  "calibration_slope": 0.9446880012128172,
+  "calibration_intercept": -0.03620079734278377,
+  "admitted_games_sha256": "d68c04ba730ce1fac8803a014048b0648ac7fdceb09d58710435bbbf854e0395",
+  "protocol_sha256": "30f3017ec1fc7eb36fe232c7390ef656e7e9bb1aaf87540cc9e4f8f588509041",
+  "source_sha256": "792a7fe3fb48aa4dae85a8279b67af0a6463bce9734958f98a61f1e8b3fea3aa"
+}

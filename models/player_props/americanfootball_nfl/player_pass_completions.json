@@ -1,0 +1,107 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "americanfootball_nfl",
+  "market": "player_pass_completions",
+  "provider": "nflverse",
+  "source_checksum": "a09cc1e185ca537a146e17830cc63497173c8ace1792ece1af342c0d90aa7f13",
+  "feature_names": [
+    "games_prior",
+    "is_home",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "position_qb",
+    "position_rb",
+    "position_te",
+    "position_wr",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      16.82009504412763,
+      0.5057705363204344,
+      31.43652410047522,
+      20.30346232179226,
+      30.9563052942381,
+      20.113159893964358,
+      31.36886173342384,
+      20.30821452817379,
+      31.1539601719846,
+      20.201120162932796,
+      0.9959266802443992,
+      0.0,
+      0.004073319755600814,
+      0.0,
+      20.043477398024883,
+      5.2917247499563
+    ],
+    "scale": [
+      9.786635010983955,
+      0.4999666998016665,
+      10.503040487057676,
+      7.430024425357653,
+      6.979932526359049,
+      5.004223359550875,
+      7.350646446228917,
+      5.322138592166506,
+      7.016991237870972,
+      5.057644186568355,
+      0.06369244713283825,
+      1.0,
+      0.06369244713283825,
+      1.0,
+      5.040869484207196,
+      2.3895485949104276
+    ]
+  },
+  "trained_at": "2026-09-26T02:34:39.057160+00:00",
+  "training_cutoff": "2023-12-31T00:15:00+00:00",
+  "stage": "VALIDATING",
+  "family": "count_nb",
+  "parameters": {
+    "coef": [
+      0.020100928274409274,
+      0.014126006809363673,
+      0.03489512771192157,
+      0.0309770996088241,
+      -0.02473606993172609,
+      0.07415940332338487,
+      -0.027533897413323783,
+      0.011503030540171308,
+      -0.008166006083130516,
+      0.03571929187825956,
+      0.009314547080754644,
+      0.0,
+      -0.00931454708075463,
+      0.0,
+      0.08306300804051442,
+      -0.017318604835802085
+    ],
+    "intercept": 2.9682091619990683,
+    "dispersion": 0.06739538076391248
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 679,
+    "mae": 5.694697336844324,
+    "rmse": 7.365464436166057,
+    "mean_bias": 1.077977021943534
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "artifact_schema_version": 2,
+  "split_policy": {
+    "train_before": "2024-01-01T00:00:00+00:00",
+    "test_before": "2025-01-01T00:00:00+00:00"
+  },
+  "model_version": "nfl-player_pass_completions-dist-0.2.0-e58fcbd0e720"
+}
