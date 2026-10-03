@@ -249,7 +249,12 @@ def test_session_exchange_does_not_require_discord_bot_secret(portal, monkeypatc
 
 def test_owner_ticket_carries_admin_attestation(portal, monkeypatch):
     store, client = portal
+    from fastapi import HTTPException
     monkeypatch.setenv("JABBAZI_DISCORD_OWNER_ID", "2")
+    monkeypatch.setattr(
+        "jabazi.vip.auth.current_access",
+        lambda *_: (_ for _ in ()).throw(HTTPException(503, "Discord access verification is temporarily unavailable.")),
+    )
     ticket = issue_ticket(store, guild=1, member=2, authorized=True)
     response = client.post(
         "/v1/member/session",
