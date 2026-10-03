@@ -40,3 +40,18 @@ def test_terminal_includes_evidence_grounded_ask_jabbazi():
     js = (STATIC / "terminal.js").read_text()
     assert "Ask JABBAZI" in js
     assert "ask?" in js
+
+
+def test_session_poll_does_not_full_rerender_active_view():
+    js = (STATIC / "terminal.js").read_text()
+    poll = js.split("setInterval(()=>", 1)[1].split("},30000);", 1)[0]
+    assert "get('me')" in poll
+    assert "render()" not in poll
+    assert "replaceChildren()" not in poll
+
+
+def test_extreme_disagreement_is_safety_review_not_quarantine():
+    data = (ROOT / "src" / "jabazi" / "vip" / "data.py").read_text()
+    assert "anomaly == 'EXTREME_DISAGREEMENT'" in data
+    assert "'SAFETY REVIEW' if safety_review" in data
+    assert "anomaly == 'QUARANTINED'" in data
