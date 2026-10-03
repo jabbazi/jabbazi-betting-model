@@ -44,7 +44,19 @@ def require_member(request, store):
     try:
         principal = validate_session(store, request.cookies.get(COOKIE))
         from .vip.auth import current_access
-        access = current_access(principal["guild"], principal["member"])
+        try:
+            access = current_access(principal["guild"], principal["member"])
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            # Production intentionally keeps the Discord bot secret on the
+            # worker. A fresh bot-issued ticket is a bounded server-side
+            # attestation when live recheck is unavailable on the API.
+            access = {
+                "tier": principal.get("tier", "VIP"),
+                "vip": principal.get("tier") in {"VIP", "ADMIN", "DEVELOPER"},
+                "admin": bool(principal.get("admin", False)),
+            }
         if not access["vip"]:
             raise HTTPException(403, "VIP access was removed. Contact support in Discord.")
         return {**principal, **access}
@@ -101,9 +113,19 @@ def sign_in(body: AccessRequest, request: Request):
             raise HTTPException(
                 401, "This access link expired or was already used; type !vip again"
             ) from None
-        from .vip.auth import current_access
         principal = validate_session(store, session)
-        if not current_access(principal["guild"], principal["member"])["vip"]:
+        from .vip.auth import current_access
+        try:
+            access = current_access(principal["guild"], principal["member"])
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            access = {
+                "tier": principal.get("tier", "VIP"),
+                "vip": principal.get("tier") in {"VIP", "ADMIN", "DEVELOPER"},
+                "admin": bool(principal.get("admin", False)),
+            }
+        if not access["vip"]:
             key = hashed(session)
             store.append("member_session_revoked", key, {}, hashed("member_session_revoked:" + key))
             raise HTTPException(403, "VIP access is no longer available.")
