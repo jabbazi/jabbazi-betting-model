@@ -354,3 +354,46 @@ def test_scanner_keeps_feed_events_when_no_price_card_survives(tmp_path):
         assert blocks[0]["rows"] == []
     finally:
         s.close()
+
+
+def test_unique_cross_provider_schedule_match_verifies_event_identity():
+    a = artifact("nfl")
+    p = card(a)
+    event = next(
+        e for e in a["events"]
+        if e["home_team"] in p.event and e["away_team"] in p.event
+        and abs((timestamp(e["starts_at"]) - p.starts_at).total_seconds()) <= 60
+    )
+    event.pop("provider_event_id", None)
+    estimate = ScoreDistributionModel(a).estimate(p)
+    assert estimate is not None
+    assert estimate.feature_snapshot["integrity"]["event_identity"] is True
+    assert estimate.feature_snapshot["integrity"]["event_identity_method"] == "UNIQUE_CANONICAL_TEAMS_AND_START"
+
+
+def test_conflicting_cross_provider_event_id_still_fails_closed():
+    a = artifact("nfl")
+    p = card(a)
+    event = next(
+        e for e in a["events"]
+        if e["home_team"] in p.event and e["away_team"] in p.event
+        and abs((timestamp(e["starts_at"]) - p.starts_at).total_seconds()) <= 60
+    )
+    event["provider_event_id"] = "definitely-not-" + p.event_id
+    assert ScoreDistributionModel(a).estimate(p) is None
+
+
+def test_ambiguous_schedule_identity_still_fails_closed():
+    a = artifact("nfl")
+    p = card(a)
+    event = next(
+        e for e in a["events"]
+        if e["home_team"] in p.event and e["away_team"] in p.event
+        and abs((timestamp(e["starts_at"]) - p.starts_at).total_seconds()) <= 60
+    )
+    duplicate = copy.deepcopy(event)
+    duplicate["game_id"] = str(duplicate["game_id"]) + "-duplicate"
+    duplicate.pop("provider_event_id", None)
+    event.pop("provider_event_id", None)
+    a["events"].append(duplicate)
+    assert ScoreDistributionModel(a).estimate(p) is None
