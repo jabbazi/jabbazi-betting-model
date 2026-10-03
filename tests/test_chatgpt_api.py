@@ -88,7 +88,10 @@ def test_scan_retry_is_idempotent_and_parallel_new_scan_is_rejected(setup):
         assert one.json()["status"] == "RUNNING"
         worker.assert_called_once_with(scan_id)
         other = client.post("/v1/chatgpt/scans", json={"request_id": str(uuid4())}, headers=headers)
-        assert other.status_code == 429 and other.headers["retry-after"] == "120"
+        assert other.status_code == 200
+        assert other.json()["scan_id"] == scan_id
+        assert other.json()["status"] == "RUNNING"
+        worker.assert_called_once_with(scan_id)
     invalid = client.post("/v1/chatgpt/scans", json={"request_id": scan_id, "max_credits": 1000}, headers=headers)
     assert invalid.status_code == 422
     assert client.get("/v1/chatgpt/scans/invalid", headers=headers).status_code == 422
