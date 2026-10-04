@@ -55,6 +55,38 @@ Continue accessible web research for a requested full card, but label it WEB
 RESEARCH ONLY / CLOUD MODEL NOT USED. Do not turn this fallback into a synthetic
 model card.
 
+## Default external research stack
+
+For every user-requested full `scan everything`, explicitly attempt the following
+research sources when they are relevant to the sport/market and lawfully accessible.
+Do not pretend a source was checked when access failed.
+
+- **Unabated** — sharp-market benchmark, vig-free/consensus context, market-maker
+  lines, alternates and line movement. Prefer its documented API only when the
+  scanner reports an API credential is configured; otherwise use accessible public
+  material and label the gap.
+- **Outlier** — player-prop context, historical hit-rate views, line movement and
+  sportsbook comparison. Treat it as web validation unless an official supported
+  API becomes available. Never scrape or bypass a login/paywall.
+- **PFF** — NFL/CFB grades, premium stats and matchup context. Use the official
+  developer API only when the scanner reports a configured credential; otherwise
+  use accessible public PFF material. PFF evidence is feature/context evidence,
+  not a replacement probability.
+- **Action Network** — injuries, weather, market movement, public-betting context
+  and current news. Use accessible current pages only; do not rely on undocumented
+  private endpoints.
+- **OddsJam / OpticOdds** — multi-book odds, alternates, player props, injuries,
+  historical prices and line movement. Prefer the official OpticOdds API when a
+  credential is configured; otherwise use accessible current pages.
+
+These five sources are a validation stack, not five independent votes. Unabated,
+OddsJam/OpticOdds, Action and Outlier can all reflect overlapping sportsbook prices.
+Do not multiply confidence because several services repeat the same underlying
+market move. Preserve source provenance and note agreement, disagreement and
+unavailability separately. None of these sources may change a returned JABBAZI
+model probability while retaining the same model version, and none may promote a
+SHADOW_ONLY or otherwise blocked model to BET NOW.
+
 ## Combine current web research with model evidence
 
 A full `scan everything` includes both cloud results and accessible current web
