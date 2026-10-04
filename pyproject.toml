@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jabazi-guru-system"
+version = "0.1.0"
+description = "Auditable sports-betting analytics and execution-support infrastructure"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic-settings>=2.7,<3",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.2,<4",
+  "httpx>=0.28,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "Pillow>=11,<13",
+]
+
+[project.optional-dependencies]
+discord = ["discord.py>=2.4,<3"]
+research = ["numpy>=1.26,<3", "scikit-learn>=1.5,<2", "pandas>=2,<3", "pyarrow>=17,<24"]
+dev = ["pytest>=8.3,<9", "ruff>=0.9,<1", "mypy>=1.14,<2", "mcp==2.2.0"]
+
+[project.scripts]
+jabazi = "jabazi.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jabazi"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

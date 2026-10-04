@@ -1,0 +1,320 @@
+{
+  "schema_version": 1,
+  "sport": "americanfootball_nfl",
+  "model_version": "nfl-player-joint-ranks-0.1.0",
+  "source_checksum": "09b89f8e7ba96a2904258a0e9ff7f4a3af23cfe0ed3e96e95bf1052ac115449d",
+  "fit_season": 2024,
+  "holdout_season": 2025,
+  "approved_for_betting": false,
+  "stage": "SHADOW_ONLY",
+  "prospective_sample_count": 0,
+  "limitations": [
+    "Historical reconstructed features; not prospective validation",
+    "Benchmark lines are fixed research thresholds, not historical sportsbook quotes",
+    "Repeated players and two teams per game are not independent observations",
+    "Pooled role dependence assumes transfer to current players",
+    "Two prop legs only; no fitted player/team or 3\u20134 player joint distribution"
+  ],
+  "buckets": [
+    {
+      "relationship": "same_player",
+      "markets": [
+        "player_receptions",
+        "player_reception_yds"
+      ],
+      "positions": [
+        "WR",
+        "WR"
+      ],
+      "marginal_versions": [
+        "nfl-player_receptions-dist-0.2.0-f07a1c6911a3",
+        "nfl-player_reception_yds-dist-0.2.0-253a8fd8d7be"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.7635984755325969,
+      "research_admitted": true,
+      "holdout": {
+        "season": 2025,
+        "pairs": 2015,
+        "unique_games": 272,
+        "benchmark_lines": [
+          3.5,
+          49.5
+        ],
+        "joint_brier": 0.1392550416680308,
+        "independence_brier": 0.14475357336622965,
+        "mean_joint_probability": 0.25016328662444326,
+        "observed_joint_rate": 0.22779156327543423,
+        "beats_independence": true
+      }
+    },
+    {
+      "relationship": "same_player",
+      "markets": [
+        "player_receptions",
+        "player_reception_yds"
+      ],
+      "positions": [
+        "TE",
+        "TE"
+      ],
+      "marginal_versions": [
+        "nfl-player_receptions-dist-0.2.0-f07a1c6911a3",
+        "nfl-player_reception_yds-dist-0.2.0-253a8fd8d7be"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.771340717746463,
+      "research_admitted": true,
+      "holdout": {
+        "season": 2025,
+        "pairs": 1051,
+        "unique_games": 271,
+        "benchmark_lines": [
+          3.5,
+          49.5
+        ],
+        "joint_brier": 0.10039001136604282,
+        "independence_brier": 0.10299023668565244,
+        "mean_joint_probability": 0.17631613356613904,
+        "observed_joint_rate": 0.13701236917221693,
+        "beats_independence": true
+      }
+    },
+    {
+      "relationship": "same_player",
+      "markets": [
+        "player_receptions",
+        "player_reception_yds"
+      ],
+      "positions": [
+        "RB",
+        "RB"
+      ],
+      "marginal_versions": [
+        "nfl-player_receptions-dist-0.2.0-f07a1c6911a3",
+        "nfl-player_reception_yds-dist-0.2.0-253a8fd8d7be"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.6656753501574928,
+      "research_admitted": true,
+      "holdout": {
+        "season": 2025,
+        "pairs": 1006,
+        "unique_games": 272,
+        "benchmark_lines": [
+          3.5,
+          49.5
+        ],
+        "joint_brier": 0.041757072632799375,
+        "independence_brier": 0.04286755027885845,
+        "mean_joint_probability": 0.069371003297171,
+        "observed_joint_rate": 0.04970178926441352,
+        "beats_independence": true
+      }
+    },
+    {
+      "relationship": "same_player",
+      "markets": [
+        "player_rush_attempts",
+        "player_rush_yds"
+      ],
+      "positions": [
+        "RB",
+        "RB"
+      ],
+      "marginal_versions": [
+        "nfl-player_rush_attempts-dist-0.2.0-0c085829c476",
+        "nfl-player_rush_yds-dist-0.2.0-45861839037b"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.7368196905539932,
+      "research_admitted": true,
+      "holdout": {
+        "season": 2025,
+        "pairs": 1134,
+        "unique_games": 272,
+        "benchmark_lines": [
+          12.5,
+          49.5
+        ],
+        "joint_brier": 0.15399752687117885,
+        "independence_brier": 0.1696854318211969,
+        "mean_joint_probability": 0.2320307192556649,
+        "observed_joint_rate": 0.2786596119929453,
+        "beats_independence": true
+      }
+    },
+    {
+      "relationship": "same_player",
+      "markets": [
+        "player_pass_attempts",
+        "player_pass_completions"
+      ],
+      "positions": [
+        "QB",
+        "QB"
+      ],
+      "marginal_versions": [
+        "nfl-player_pass_attempts-dist-0.2.0-eebd650f20d1",
+        "nfl-player_pass_completions-dist-0.2.0-e58fcbd0e720"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.8933441704398738,
+      "research_admitted": true,
+      "holdout": {
+        "season": 2025,
+        "pairs": 575,
+        "unique_games": 272,
+        "benchmark_lines": [
+          30.5,
+          20.5
+        ],
+        "joint_brier": 0.2174565781244571,
+        "independence_brier": 0.24362958123595332,
+        "mean_joint_probability": 0.3410441823947598,
+        "observed_joint_rate": 0.3617391304347826,
+        "beats_independence": true
+      }
+    },
+    {
+      "relationship": "same_player",
+      "markets": [
+        "player_pass_yds",
+        "player_pass_tds"
+      ],
+      "positions": [
+        "QB",
+        "QB"
+      ],
+      "marginal_versions": [
+        "nfl-player_pass_yds-dist-0.2.0-f835fa19d8e3",
+        "nfl-player_pass_tds-dist-0.2.0-9088087f60b5"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.49429865099601883,
+      "research_admitted": true,
+      "holdout": {
+        "season": 2025,
+        "pairs": 575,
+        "unique_games": 272,
+        "benchmark_lines": [
+          225.5,
+          1.5
+        ],
+        "joint_brier": 0.19113098397922065,
+        "independence_brier": 0.2007206500612741,
+        "mean_joint_probability": 0.2604676307134378,
+        "observed_joint_rate": 0.28,
+        "beats_independence": true
+      }
+    },
+    {
+      "relationship": "same_team",
+      "markets": [
+        "player_pass_yds",
+        "player_reception_yds"
+      ],
+      "positions": [
+        "QB",
+        "WR"
+      ],
+      "marginal_versions": [
+        "nfl-player_pass_yds-dist-0.2.0-f835fa19d8e3",
+        "nfl-player_reception_yds-dist-0.2.0-253a8fd8d7be"
+      ],
+      "training_unique_games": 272,
+      "rank_correlation": 0.2533279198329813,
+      "research_admitted": false,
+      "holdout": {
+        "season": 2025,
+        "pairs": 2134,
+        "unique_games": 272,
+        "benchmark_lines": [
+          225.5,
+          49.5
+        ],
+        "joint_brier": 0.12335253000082311,
+        "independence_brier": 0.12304329955798622,
+        "mean_joint_probability": 0.1883706407819938,
+        "observed_joint_rate": 0.16729147141518275,
+        "beats_independence": false
+      }
+    },
+    {
+      "relationship": "same_team",
+      "markets": [
+        "player_pass_yds",
+        "player_reception_yds"
+      ],
+      "positions": [
+        "QB",
+        "TE"
+      ],
+      "marginal_versions": [
+        "nfl-player_pass_yds-dist-0.2.0-f835fa19d8e3",
+        "nfl-player_reception_yds-dist-0.2.0-253a8fd8d7be"
+      ],
+      "training_unique_games": 271,
+      "rank_correlation": 0.17432604023968445,
+      "research_admitted": false,
+      "holdout": {
+        "season": 2025,
+        "pairs": 1121,
+        "unique_games": 269,
+        "benchmark_lines": [
+          225.5,
+          39.5
+        ],
+        "joint_brier": 0.10287497573324889,
+        "independence_brier": 0.1015894036595797,
+        "mean_joint_probability": 0.17058591497475192,
+        "observed_joint_rate": 0.1302408563782337,
+        "beats_independence": false
+      }
+    }
+  ],
+  "receipts": [
+    {
+      "url": "https://raw.githubusercontent.com/nflverse/nfldata/c12fe11a1f4c08a16ec2068c522cf36cd3e73d99/data/games.csv",
+      "file": "games.csv",
+      "bytes": 2180735,
+      "sha256": "bb00b4190db4e4bc6ee859f3127469cf59a76d61ffdc72e5dcda236e1bc038cd",
+      "observed_at": "2026-10-02T05:01:43.318639+00:00"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2021.csv.gz",
+      "file": "stats_player_week_2021.csv.gz",
+      "bytes": 1254611,
+      "sha256": "1b6eff730fb10a61ad7681c293000d6653fb583259d771d40d8d025fe8fca36a",
+      "observed_at": "2026-10-02T05:01:43.373604+00:00"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2022.csv.gz",
+      "file": "stats_player_week_2022.csv.gz",
+      "bytes": 1241515,
+      "sha256": "0f064dede2896107868d784ede7a92cbe239852f7274c12c4589bcfd5e129b4a",
+      "observed_at": "2026-10-02T05:01:43.702771+00:00"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2023.csv.gz",
+      "file": "stats_player_week_2023.csv.gz",
+      "bytes": 1237909,
+      "sha256": "6c2258cf5d90cb918dfca093b20dba2e062b1eca54f5d2d348f15a0045d86113",
+      "observed_at": "2026-10-02T05:01:44.020152+00:00"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2024.csv.gz",
+      "file": "stats_player_week_2024.csv.gz",
+      "bytes": 1244175,
+      "sha256": "61fc9a44706522218a4448001706e3fec65ebbb97c1d9c5746ceef364989125d",
+      "observed_at": "2026-10-02T05:01:44.306642+00:00"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2025.csv.gz",
+      "file": "stats_player_week_2025.csv.gz",
+      "bytes": 1262421,
+      "sha256": "c7401e321bdb369443f3280b9acd74ba6e16d82e710383bf1c01acabfebeac0b",
+      "observed_at": "2026-10-02T05:01:44.635299+00:00"
+    }
+  ]
+}

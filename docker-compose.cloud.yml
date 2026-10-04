@@ -1,0 +1,70 @@
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    JABAZI_ENV: production
+    JABAZI_DATABASE_PATH: /data/jabazi.db
+  volumes:
+    - jabazi_data:/data
+    - ./models:/app/models:ro
+    - ./config:/app/config:ro
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: jabazi
+      POSTGRES_USER: jabazi
+      POSTGRES_PASSWORD: ${JABBAZI_POSTGRES_PASSWORD:?Set a database password}
+    volumes:
+      - jabazi_postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jabazi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    <<: *app
+    command: ["python", "-m", "jabazi.persistence.migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scanner:
+    <<: *app
+    command: ["python", "-m", "jabazi.runtime", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "jabazi.runtime", "doctor"]
+      interval: 5m
+      timeout: 10s
+      retries: 2
+      start_period: 3m
+
+volumes:
+  jabazi_data:
+  jabazi_postgres:
