@@ -266,6 +266,8 @@ def model_status_data():
     finally:
         store.close()
     from .providers.player_features_live import LivePlayerFeatureCollector
+    from .research.external_sources import external_research_sources
+
     provider = LivePlayerFeatureCollector(
         sportsdataio_api_key=Settings.from_environment().sportsdataio_api_key
     ).provider_status()
@@ -273,6 +275,7 @@ def model_status_data():
         "models": rows,
         "errors": errors + player_errors,
         "player_feature_provider": provider,
+        "external_research_sources": external_research_sources(),
         "recent_scan_health": scan_health,
     }
 
@@ -410,6 +413,8 @@ def run_scan(
 
 def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callback=None) -> dict:
     """Shared scanner execution; callers must authorize before invoking."""
+    from .research.external_sources import external_research_sources
+
     settings = Settings.from_environment()
     if not settings.api_key:
         raise HTTPException(status_code=503, detail="Odds provider is not configured")
@@ -440,6 +445,7 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callb
             "quotes_archived": result.quotes_archived,
             "credits_remaining": result.credits_remaining,
             "event_market_coverage": result.event_market_coverage,
+            "external_research_sources": external_research_sources(),
             "errors": list(result.errors),
             "model_coverage": {
                 "modeled_actions": sum(a.model_probability is not None for a in result.actions),

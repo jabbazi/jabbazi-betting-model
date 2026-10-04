@@ -73,6 +73,23 @@ GPT instructions, query strings, chats, logs or screenshots.
 - Full scan means active supported feeds within the budget, NFL/MLB/CFB first;
   it does not mean every league, prop, derivative, or model is implemented.
 
+## External research validation stack
+
+Full-card scanner workflows now treat **Unabated, Outlier, PFF, Action Network,
+and OddsJam / OpticOdds** as named validation sources.
+
+- Unabated, PFF and OddsJam/OpticOdds have official credential-gated API paths.
+  Scanner responses expose only whether those credentials are configured; keys are
+  never returned.
+- Outlier and Action Network remain web-validation sources unless an official
+  supported developer API is available. The scanner must not scrape private
+  endpoints or bypass authentication.
+- All five sources are research/context inputs only. They cannot overwrite a
+  JABBAZI model probability, change a model version, promote SHADOW_ONLY research,
+  or bypass reliability/portfolio controls.
+- Overlapping sportsbook prices are correlated evidence. Agreement across multiple
+  odds screens must not be counted as multiple statistically independent signals.
+
 ## Acceptance checks
 
 1. Import schema in the private GPT; configure bearer authentication.
