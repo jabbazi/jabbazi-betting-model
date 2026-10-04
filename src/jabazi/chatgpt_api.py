@@ -104,6 +104,7 @@ class ScannerModelStatus(BaseModel):
     models: list[ScannerModelState]
     errors: list[str]
     player_feature_provider: dict[str, Any] = Field(default_factory=dict)
+    external_research_sources: dict[str, Any] = Field(default_factory=dict)
     recent_scan_health: list[ScanHealthSummary] = Field(default_factory=list)
 
 
@@ -127,6 +128,7 @@ class ScanPage(BaseModel):
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
     event_market_coverage: dict[str, Any] | None = None
+    external_research_sources: dict[str, Any] = Field(default_factory=dict)
     result_ordering: str | None = None
     progress: dict[str, Any] = Field(default_factory=dict)
     actions: list[dict[str, Any]] = []
