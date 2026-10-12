@@ -177,6 +177,27 @@ def worker(*, once=False):
                     )
                 except Exception as exc:
                     print("JABBAZI_BRAND_SETUP_UNAVAILABLE_" + type(exc).__name__, flush=True)
+            if os.getenv("JABBAZI_WELCOME_REPAIR_ON_START", "false").lower() == "true":
+                try:
+                    repair = subprocess.run(
+                        [sys.executable, "tools/repair_jabbazi_welcome.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=300,
+                    )
+                    for line in repair.stdout.splitlines():
+                        if line.startswith("JABBAZI_WELCOME_REPAIR "):
+                            print(line, flush=True)
+                    print(
+                        "JABBAZI_WELCOME_REPAIR_"
+                        + ("COMPLETED" if repair.returncode == 0 else "ACTION_REQUIRED"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(
+                        "JABBAZI_WELCOME_REPAIR_UNAVAILABLE_" + type(exc).__name__,
+                        flush=True,
+                    )
             if os.getenv("JABBAZI_DISCORD_VERIFY_ON_START", "false").lower() == "true":
                 try:
                     verify = subprocess.run(
