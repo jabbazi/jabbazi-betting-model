@@ -160,6 +160,19 @@ def worker(*, once=False):
                                       "Discord backup readback failed"}:
                         detail = "_" + str(exc).replace(" ", "_")
                     print("DISCORD_RECONCILE_UNAVAILABLE_" + type(exc).__name__ + detail, flush=True)
+            if os.getenv("JABBAZI_VIP_GAME_VERIFY_ON_START", "false").lower() == "true":
+                try:
+                    check = subprocess.run(
+                        [sys.executable, "tools/verify_vip_game_research.py"],
+                        capture_output=True, text=True, timeout=30,
+                    )
+                    for line in check.stdout.splitlines():
+                        if line.startswith("JABBAZI_VIP_GAME_RESEARCH_VERIFICATION "):
+                            print(line, flush=True)
+                    if check.returncode != 0:
+                        print("JABBAZI_VIP_GAME_RESEARCH_VERIFICATION_ACTION_REQUIRED", flush=True)
+                except Exception as exc:
+                    print("JABBAZI_VIP_GAME_RESEARCH_VERIFY_UNAVAILABLE_" + type(exc).__name__, flush=True)
             if os.getenv("JABBAZI_LAYOUT_INSPECT_ON_START", "false").lower() == "true":
                 try:
                     inspect = subprocess.run(
