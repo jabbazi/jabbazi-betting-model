@@ -9,13 +9,15 @@ from .discord_migration import PIN_MESSAGES, channel_name, effective_permissions
 from .persistence.store import digest
 
 MARKER = 'JABBAZI_SETUP_V'
-SIGNATURE = '*JABBAZI GURU · Channel guide*'
-EMBED_FOOTER = 'JABBAZI GURU · Channel guide'
+SIGNATURE = '*JABBAZI · Channel guide*'
+EMBED_FOOTER = 'JABBAZI · Channel guide'
+LEGACY_SIGNATURES = ('*JABBAZI GURU · Channel guide*',)
+LEGACY_FOOTERS = ('JABBAZI GURU · Channel guide',)
 
 def guide_payload(message):
     title, body = message.split('\n', 1)
     return {'content': '', 'embeds': [{'title': title.replace('**', ''),
-            'description': body.replace(SIGNATURE, '').strip(), 'color': 0x8B35E8,
+            'description': body.replace(SIGNATURE, '').replace(LEGACY_SIGNATURES[0], '').strip(), 'color': 0x8B35E8,
             'footer': {'text': EMBED_FOOTER}}], 'allowed_mentions': {'parse': []}}
 
 def matches_guide(row, payload):
@@ -27,7 +29,14 @@ def matches_guide(row, payload):
 
 def is_introduction(message):
     content = message.get('content', '').rstrip()
-    return MARKER in content or content.endswith(SIGNATURE) or any(e.get('footer', {}).get('text') == EMBED_FOOTER for e in message.get('embeds', []))
+    return (
+        MARKER in content
+        or content.endswith((SIGNATURE, *LEGACY_SIGNATURES))
+        or any(
+            e.get('footer', {}).get('text') in (EMBED_FOOTER, *LEGACY_FOOTERS)
+            for e in message.get('embeds', [])
+        )
+    )
 
 
 def read_pins(http, channel):
@@ -63,8 +72,23 @@ def seed(http, store, *, guild, owner, apply=False):
     bp = json.loads(Path('docs/discord/server_blueprint.json').read_text())
     content = json.loads(Path('docs/discord/seed_content.json').read_text())
     parents = {str(c['id']): c['name'] for c in channels if c['type'] == 4}
-    expected = {n: c['name'] for c in bp['categories'] for n in c['channels']}
-    by_name = {channel_name(c['name']): c for c in channels if c['type'] == 0 and parents.get(str(c.get('parent_id'))) == expected.get(channel_name(c['name']))}
+    expected = {n: cat['name'] for cat in bp['categories'] for n in cat['channels']}
+    display = bp.get('channel_display_names', {})
+    observed_to_key = {channel_name(value): key for key, value in display.items()}
+    by_name = {}
+    link_lookup = {}
+    for row in channels:
+        if row['type'] != 0:
+            continue
+        observed = channel_name(row['name'])
+        key = observed_to_key.get(observed, observed)
+        if parents.get(str(row.get('parent_id'))) != expected.get(key):
+            continue
+        by_name[key] = row
+        link_lookup[key] = row
+        link_lookup[observed] = row
+        for alias in bp.get('channel_aliases', {}).get(key, []):
+            link_lookup[channel_name(alias)] = row
     plan = []
     for name, message in content.items():
         channel = by_name.get(name)
@@ -74,9 +98,10 @@ def seed(http, store, *, guild, owner, apply=False):
         cid = str(channel['id'])
         try:
             def mention(match):
-                if match[1] not in by_name:
+                destination = link_lookup.get(match[1])
+                if destination is None:
                     raise ValueError('Missing onboarding link destination')
-                return '<#' + str(by_name[match[1]]['id']) + '>'
+                return '<#' + str(destination['id']) + '>'
             message = re.sub(r'#([a-z][a-z0-9-]+)', mention, message)
             snapshot = introduction_snapshot(http, cid, bot)
             previous = None
