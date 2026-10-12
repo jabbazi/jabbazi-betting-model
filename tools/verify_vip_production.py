@@ -49,6 +49,31 @@ def main():
                                     checks[path]['state'] = body['state']
                         except httpx.HTTPError as exc:
                             checks[path] = {'http': None, 'elapsed_ms': round((time.monotonic() - started) * 1000), 'error': type(exc).__name__}
+                    try:
+                        from urllib.parse import quote
+                        games = client.get('/v1/vip/matchups').json().get('games', [])
+                        checks['matchup_games_observed'] = len(games)
+                        if games:
+                            game = games[0]
+                            sport = quote(str(game['sport']), safe='')
+                            event = quote(str(game['event_id']), safe='')
+                            for label, path in (
+                                ('matchup_detail', f'/v1/vip/matchup/{sport}/{event}'),
+                                ('game_sim', f'/v1/vip/sim/{sport}/{event}'),
+                            ):
+                                started = time.monotonic()
+                                try:
+                                    result = client.get(path)
+                                    checks[label] = {'http': result.status_code, 'elapsed_ms': round((time.monotonic()-started)*1000)}
+                                    if result.status_code == 200:
+                                        checks[label]['state'] = result.json().get('state', 'RESEARCH')
+                                except httpx.HTTPError as exc:
+                                    checks[label] = {'http': None, 'error': type(exc).__name__}
+                        else:
+                            checks['matchup_detail'] = {'state': 'NO_ELIGIBLE_GAMES'}
+                            checks['game_sim'] = {'state': 'NO_ELIGIBLE_GAMES'}
+                    except (ValueError, KeyError, TypeError) as exc:
+                        checks['matchup_smoke_error'] = type(exc).__name__
                     checks['ticket_replay_rejected'] = client.post('/v1/member/session', json={'ticket': ticket}, headers={'Origin': origin}).status_code == 401
                 finally:
                     checks['logout_http'] = client.post('/v1/member/logout', headers={'Origin': origin}).status_code
