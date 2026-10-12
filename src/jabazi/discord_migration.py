@@ -10,8 +10,10 @@ from pathlib import Path
 
 import httpx
 
-from .discord_access import STAFF_NAMES, is_staff_name, normalize_role_name, vip_role_ids
+from .discord_access import STAFF_NAMES as ACCESS_STAFF_NAMES, is_staff_name, normalize_role_name, vip_role_ids
 from .persistence.store import Store, digest
+
+STAFF_NAMES = ACCESS_STAFF_NAMES  # backward-compatible export
 
 VIEW = 1 << 10
 SEND = 1 << 11
