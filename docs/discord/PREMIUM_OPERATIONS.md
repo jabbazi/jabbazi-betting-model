@@ -1,4 +1,4 @@
-# JABBAZI GURU Discord operations
+# JABBAZI Discord operations
 
 ## Production contract
 
