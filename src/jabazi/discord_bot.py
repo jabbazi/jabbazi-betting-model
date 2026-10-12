@@ -369,6 +369,67 @@ def build_client(config, store):
                         ephemeral=True,
                     )
 
+            @self.tree.command(name="card", description="Show today's official JABBAZI Main Card")
+            async def card(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild:
+                    return await interaction.response.send_message(
+                        "This command is only available in the JABBAZI server.", ephemeral=True
+                    )
+                await interaction.response.defer(ephemeral=True)
+                member = await interaction.guild.fetch_member(interaction.user.id)
+                if not member_has_vip(config, member):
+                    return await interaction.followup.send(
+                        f"The Main Card requires an approved VIP role. See {access_destination(config)}.",
+                        ephemeral=True,
+                    )
+                today = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date().isoformat()
+                positions = await asyncio.to_thread(store.list_positions, 1000)
+                rows = []
+                for row in positions:
+                    payload = row.get("payload") or {}
+                    if payload.get("origin") != "scanner" or payload.get("betting_date") != today:
+                        continue
+                    if row.get("state") not in {"placed", "settled"}:
+                        continue
+                    try:
+                        decimal_odds = float(payload.get("decimal_odds"))
+                        american = round((decimal_odds - 1) * 100) if decimal_odds >= 2 else round(-100 / (decimal_odds - 1))
+                        price = f"{american:+d}"
+                    except (TypeError, ValueError, ZeroDivisionError):
+                        price = "—"
+                    units = payload.get("stake_units")
+                    if units is None:
+                        try:
+                            units = float(payload.get("stake")) / float(payload.get("unit_size"))
+                        except (TypeError, ValueError, ZeroDivisionError):
+                            units = None
+                    unit_text = "—" if units is None else f"{float(units):.2f}u"
+                    selection = str(payload.get("selection") or "Selection unavailable")
+                    line = payload.get("line")
+                    if line is not None:
+                        selection += f" {line}"
+                    book = str(payload.get("sportsbook") or payload.get("book") or "book")
+                    state = "OPEN" if row.get("state") == "placed" else "SETTLED"
+                    rows.append(f"• **{selection}** — {book} {price} • {unit_text} • {state}")
+                if not rows:
+                    text = "👑 **JABBAZI MAIN CARD**\nNo official scanner-origin positions are recorded for today yet."
+                else:
+                    text = "👑 **JABBAZI MAIN CARD**\n" + "\n".join(rows[:20])
+                    text += "\n\n*Stored official-entry snapshot — verify the current market before placing anything.*"
+                await interaction.followup.send(text[:1900], ephemeral=True)
+
+            @self.tree.command(name="performance", description="Show the official JABBAZI performance ledger")
+            async def performance(interaction: discord.Interaction):
+                if interaction.guild_id != config.guild:
+                    return await interaction.response.send_message(
+                        "This command is only available in the JABBAZI server.", ephemeral=True
+                    )
+                await interaction.response.defer(ephemeral=True)
+                from .performance import report as performance_report
+                from .discord_content import performance_text
+                report = await asyncio.to_thread(performance_report, store)
+                await interaction.followup.send(performance_text(report), ephemeral=True)
+
             class AlertSelect(discord.ui.Select):
                 def __init__(self):
                     super().__init__(
@@ -494,10 +555,10 @@ def build_client(config, store):
 
             self.tree.copy_global_to(guild=discord.Object(id=config.guild))
             synced = await self.tree.sync(guild=discord.Object(id=config.guild))
-            expected = {"vip", "cheatsheet", "alerts", "support"}
+            expected = {"vip", "cheatsheet", "alerts", "support", "card", "performance"}
             if {command.name for command in synced} != expected:
                 raise RuntimeError("Discord command registration mismatch")
-            print("DISCORD_COMMANDS_REGISTERED: vip,cheatsheet,alerts,support", flush=True)
+            print("DISCORD_COMMANDS_REGISTERED: vip,cheatsheet,alerts,support,card,performance", flush=True)
             self.publisher = asyncio.create_task(self.publish_loop())
 
         async def checked_channel(self, channel_id):
