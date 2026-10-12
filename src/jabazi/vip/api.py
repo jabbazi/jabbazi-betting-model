@@ -97,6 +97,24 @@ def picks(ctx=Depends(context)):
     return response({'rows': data.official(ctx[0]), 'notice': 'Only the same current official candidates eligible for the Discord Main Card. Sprinkles and community bets are excluded.'})
 
 
+@router.get('/playoftheday')
+def play_of_the_day(ctx=Depends(context)):
+    from zoneinfo import ZoneInfo
+    today = datetime.now(UTC).astimezone(ZoneInfo('America/Chicago')).date().isoformat()
+    issued = ctx[0].list_records('play_of_day', 1, entity=today)
+    if not issued:
+        return response({'date': today, 'state': 'PASS', 'play': None,
+                         'notice': 'No officially issued Play of the Day. We never force a selection.'})
+    record = issued[0]
+    candidate_id = str(record['payload'].get('candidate_id') or '')
+    official = next((r for r in data.official(ctx[0]) if r['id'] == candidate_id), None)
+    if official is None:
+        return response({'date': today, 'state': 'UNAVAILABLE', 'play': None,
+                         'notice': 'The recorded selection is no longer an active official position; original history is preserved.'})
+    return response({'date': today, 'state': 'ISSUED', 'play': official,
+                     'notice': 'An official JABBAZI-issued position; respect its play-to price.'})
+
+
 @router.get('/sheets')
 def sheets(day: date | None = None, sport: str = '', ctx=Depends(context)):
     result = data.frozen(ctx[0], day.isoformat() if day else None)
