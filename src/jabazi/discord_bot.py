@@ -21,6 +21,30 @@ from .discord_daily import daily_moneyline, render_text as render_daily_moneylin
 from .persistence.store import Store, digest
 from .sheet_images import render_card, page_count
 
+ALERT_ROLE_LABELS = {
+    "NFL Alerts": "🏈 NFL Alerts",
+    "CFB Alerts": "🎓 CFB Alerts",
+    "NBA Alerts": "🏀 NBA Alerts",
+    "MLB Alerts": "⚾ MLB Alerts",
+    "NHL Alerts": "🏒 NHL Alerts",
+    "Soccer Alerts": "⚽ Soccer Alerts",
+    "Tennis Alerts": "🎾 Tennis Alerts",
+    "Combat Alerts": "🥊 Combat Alerts",
+    "Main Card Alerts": "👑 Main Card Alerts",
+    "Parlay Alerts": "🎲 Parlay Alerts",
+    "Live Alerts": "🚨 Live Alerts",
+    "Promo Alerts": "✨ Promo Alerts",
+    "Cheat Sheet Alerts": "📊 Cheat Sheet Alerts",
+}
+
+
+def alert_role_key(role_name):
+    normalized = normalize_role_name(role_name)
+    return next(
+        (name for name in ALERT_ROLE_LABELS if normalize_role_name(name) == normalized),
+        None,
+    )
+
 
 @dataclass(frozen=True)
 class BotConfig:
@@ -345,38 +369,15 @@ def build_client(config, store):
                         ephemeral=True,
                     )
 
-            alert_roles = {
-                "NFL Alerts": "🏈 NFL Alerts",
-                "CFB Alerts": "🎓 CFB Alerts",
-                "NBA Alerts": "🏀 NBA Alerts",
-                "MLB Alerts": "⚾ MLB Alerts",
-                "NHL Alerts": "🏒 NHL Alerts",
-                "Soccer Alerts": "⚽ Soccer Alerts",
-                "Tennis Alerts": "🎾 Tennis Alerts",
-                "Combat Alerts": "🥊 Combat Alerts",
-                "Main Card Alerts": "👑 Main Card Alerts",
-                "Parlay Alerts": "🎲 Parlay Alerts",
-                "Live Alerts": "🚨 Live Alerts",
-                "Promo Alerts": "✨ Promo Alerts",
-                "Cheat Sheet Alerts": "📊 Cheat Sheet Alerts",
-            }
-
-            def alert_key(role_name):
-                normalized = normalize_role_name(role_name)
-                return next(
-                    (name for name in alert_roles if normalize_role_name(name) == normalized),
-                    None,
-                )
-
             class AlertSelect(discord.ui.Select):
                 def __init__(self):
                     super().__init__(
                         placeholder="Choose the alerts you want",
                         min_values=0,
-                        max_values=len(alert_roles),
+                        max_values=len(ALERT_ROLE_LABELS),
                         options=[
                             discord.SelectOption(label=label, value=name)
-                            for name, label in alert_roles.items()
+                            for name, label in ALERT_ROLE_LABELS.items()
                         ],
                     )
 
@@ -391,14 +392,14 @@ def build_client(config, store):
                     member = await guild.fetch_member(interaction.user.id)
                     available = {}
                     for role in guild.roles:
-                        key = alert_key(role.name)
+                        key = alert_role_key(role.name)
                         if (
                             key
                             and role.permissions.value == 0
                             and not role.managed
                             and guild.me is not None
                             and role.position < guild.me.top_role.position
-                            and sum(alert_key(r.name) == key for r in guild.roles) == 1
+                            and sum(alert_role_key(r.name) == key for r in guild.roles) == 1
                         ):
                             available[key] = role
                     if set(self.values) - set(available):
@@ -409,8 +410,8 @@ def build_client(config, store):
                     add = [available[name] for name in selected if name in available]
                     remove = [
                         role for role in member.roles
-                        if alert_key(role.name) in available
-                        and alert_key(role.name) not in selected
+                        if alert_role_key(role.name) in available
+                        and alert_role_key(role.name) not in selected
                     ]
                     if add:
                         await member.add_roles(*add, reason="JABBAZI alert preference")
@@ -815,9 +816,9 @@ def build_client(config, store):
                 names.add(label + " Alerts")
             guild = self.get_guild(config.guild)
             roles = [] if guild is None else [role for role in guild.roles
-                if alert_key(role.name) in names and role.permissions.value == 0 and not role.managed
+                if alert_role_key(role.name) in names and role.permissions.value == 0 and not role.managed
                 and guild.me is not None and role.position < guild.me.top_role.position
-                and sum(alert_key(other.name) == alert_key(role.name) for other in guild.roles) == 1]
+                and sum(alert_role_key(other.name) == alert_role_key(role.name) for other in guild.roles) == 1]
             return {"content": " ".join(role.mention for role in roles) or None,
                     "allowed_mentions": discord.AllowedMentions(everyone=False, users=False, roles=roles, replied_user=False)}
 
