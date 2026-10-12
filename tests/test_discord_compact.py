@@ -5,12 +5,22 @@ from tools.bootstrap_discord import resolve_role
 from jabazi.discord_bot import BotConfig, validate_target
 
 
-def test_compact_discord_blueprint_is_small_and_keeps_core_surfaces():
+def test_jabbazi_crown_blueprint_is_structured_and_keeps_core_surfaces():
     blueprint = json.loads(Path("docs/discord/server_blueprint.json").read_text())
     categories = blueprint["categories"]
     channels = [name for category in categories for name in category["channels"]]
-    assert len(categories) <= 8
-    assert len(channels) <= 20
+    assert [category["name"] for category in categories] == [
+        "👑 WELCOME TO JABBAZI",
+        "🔥 TODAY’S JABBAZI",
+        "🧠 THE LAB",
+        "💎 INNER CIRCLE",
+        "🏟️ THE LOCKER ROOM",
+        "🎓 JABBAZI ACADEMY",
+        "📈 THE LEDGER",
+        "🛠️ SUPPORT",
+        "🔒 JABBAZI HQ",
+    ]
+    assert len(channels) == 45
     assert len(channels) == len(set(channels))
     assert not {"best-two-parlay", "parlays-sgps", "promo-boosts"} & set(channels)
     for required in (
