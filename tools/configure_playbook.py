@@ -121,7 +121,19 @@ def configure(*, apply: bool, test: bool):
         channels = request(http, "GET", f"/guilds/{guild}/channels")
         targets, categories = target_channels(channels)
         if not targets:
-            raise RuntimeError("PLAYBOOK_NO_TARGET_CHANNELS")
+            return {
+                "status": "NEEDS_TARGET_DISCOVERY",
+                "playbook_role": role.get("name"),
+                "channels": [
+                    {
+                        "name": ch.get("name", ""),
+                        "type": ch.get("type"),
+                        "category": categories.get(str(ch.get("parent_id")), ""),
+                    }
+                    for ch in channels
+                    if ch.get("type") in (0, 5)
+                ][:80],
+            }
         if len(targets) > 12:
             raise RuntimeError("PLAYBOOK_TARGET_SCOPE_TOO_BROAD")
 
