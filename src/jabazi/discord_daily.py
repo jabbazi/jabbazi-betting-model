@@ -115,7 +115,7 @@ def render_text(record):
         return "Today's JABBAZI moneyline cheat sheet is not available yet."
     p=record["payload"]
     lines=[
-        "🟣 **JABBAZI GURU — DAILY MONEYLINE CHEAT SHEET**",
+        "👑 **JABBAZI — DAILY MONEYLINE CHEAT SHEET**",
         f"**{p['date']} • Frozen {datetime.fromisoformat(p['generated_at']).astimezone(ZoneInfo(p['timezone'])).strftime('%I:%M %p %Z')}**",
         f"Data: {p['data_freshness']} • {p['unit_reference']}",
         "",
