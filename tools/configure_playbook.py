@@ -27,8 +27,10 @@ TARGET_ALLOW = VIEW | SEND | EMBED | ATTACH | HISTORY
 # Strict production allowlist. These are the only active wager/update channels in
 # the current server blueprint. Research, cheat sheets, chat, archived picks and
 # staff channels are intentionally excluded.
-TARGET_EXACT = {"jabbazi"}
-TARGET_CATEGORY = "VIP PICKS"
+TARGETS = {
+    "jabbazi": "VIP PICKS",
+    "member-plays": "INNER CIRCLE",
+}
 
 
 def request(http: httpx.Client, method: str, path: str, payload=None):
@@ -66,7 +68,8 @@ def target_channels(channels):
             continue
         name = canonical_channel_name(channel.get("name", ""))
         parent = categories.get(str(channel.get("parent_id")), "")
-        if name in TARGET_EXACT and TARGET_CATEGORY in parent:
+        expected_category = TARGETS.get(name)
+        if expected_category and expected_category in parent:
             targets.append(channel)
     return targets, categories
 
@@ -296,7 +299,7 @@ def configure(*, apply: bool, test: bool):
                     }
                 )
 
-        # Grant only the exact minimum on the approved VIP capper channel.
+        # Grant only the exact minimum on approved Playbook-enabled channels.
         for channel in targets:
             request(
                 http,
@@ -368,7 +371,7 @@ def configure(*, apply: bool, test: bool):
             # Playbook may intentionally ignore bot-authored messages. A response proves
             # end-to-end command handling; no response is reported separately from the
             # permission verification above.
-            priority = ["jabbazi"]
+            priority = ["jabbazi", "member-plays"]
             target = next(
                 (
                     channel
