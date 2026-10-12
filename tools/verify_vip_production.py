@@ -36,7 +36,7 @@ def main():
             checks['sign_in_http'] = signed.status_code
             if signed.status_code == 200:
                 try:
-                    for path in ('me', 'home', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
+                    for path in ('me', 'home', 'matchups', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
                         started = time.monotonic()
                         try:
                             result = client.get('/v1/vip/' + path)
