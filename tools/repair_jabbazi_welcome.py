@@ -116,6 +116,17 @@ def main():
                 raise RuntimeError("WELCOME_REPAIR_NAME_VERIFY_FAILED")
             if str(channel.get("parent_id")) != str(parent["id"]):
                 raise RuntimeError("WELCOME_REPAIR_PARENT_VERIFY_FAILED")
+            if (channel.get("topic") or "") != expected_topic:
+                print("JABBAZI_WELCOME_REPAIR STAGE_UPDATE_TOPIC", flush=True)
+                channel = request(
+                    http,
+                    "PATCH",
+                    f"/channels/{channel['id']}",
+                    "WELCOME_UPDATE_TOPIC",
+                    json={"topic": expected_topic},
+                )
+            if (channel.get("topic") or "") != expected_topic:
+                raise RuntimeError("WELCOME_REPAIR_TOPIC_VERIFY_FAILED")
 
             print("JABBAZI_WELCOME_REPAIR STAGE_SEED_AND_PIN", flush=True)
             onboarding = seed(http, store, guild=guild, owner=owner, apply=True)
