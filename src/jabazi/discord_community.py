@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from .discord_access import vip_role_ids
-from .discord_migration import VIEW, STAFF_NAMES, channel_name, effective_permissions, request
+from .discord_access import is_staff_name
+from .discord_migration import VIEW, channel_name, effective_permissions, request
 from .discord_sheets import latest_sheet
 from .persistence.store import digest
 
@@ -29,7 +30,7 @@ def ensure_review_thread(http, store, *, guild, owner):
     info = request(http, 'GET', f'/guilds/{guild}', 'READ_REVIEW_OWNER')
     if str(info['owner_id']) != str(owner):
         raise ValueError('Review owner mismatch')
-    approved = set(vip_role_ids(roles)) | {str(r['id']) for r in roles if r['name'].upper() in STAFF_NAMES or int(r.get('permissions', 0)) & 8}
+    approved = set(vip_role_ids(roles)) | {str(r['id']) for r in roles if is_staff_name(r.get('name')) or int(r.get('permissions', 0)) & 8}
     if effective_permissions(guild, '0', [], roles, lounge, owner) & VIEW:
         raise ValueError('Review parent is public')
     for overwrite in lounge.get('permission_overwrites', []):
