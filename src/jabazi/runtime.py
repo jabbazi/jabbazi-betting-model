@@ -240,6 +240,27 @@ def worker(*, once=False):
                         "JABBAZI_FINAL_VERIFY_UNAVAILABLE_" + type(exc).__name__,
                         flush=True,
                     )
+            if os.getenv("JABBAZI_NATIVE_SAFETY_ON_START", "false").lower() == "true":
+                try:
+                    native = subprocess.run(
+                        [sys.executable, "tools/configure_discord_native_safety.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=180,
+                    )
+                    for line in native.stdout.splitlines():
+                        if line.startswith("JABBAZI_NATIVE_SAFETY "):
+                            print(line, flush=True)
+                    print(
+                        "JABBAZI_NATIVE_SAFETY_SETUP_"
+                        + ("COMPLETED" if native.returncode == 0 else "ACTION_REQUIRED"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(
+                        "JABBAZI_NATIVE_SAFETY_SETUP_UNAVAILABLE_" + type(exc).__name__,
+                        flush=True,
+                    )
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         if not once:
             from .discord_schedule import daily_loop
