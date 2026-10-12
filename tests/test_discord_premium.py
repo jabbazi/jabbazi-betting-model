@@ -158,14 +158,14 @@ def test_named_jabbazi_vip_role_is_backward_compatible():
     assert member_has_vip(config, member) is True
 
 
-def test_simplified_blueprint_is_compact():
+def test_jabbazi_crown_blueprint_keeps_vip_lanes_separate():
     blueprint=json.loads(Path("docs/discord/server_blueprint.json").read_text())
     channels=[name for category in blueprint["categories"] for name in category["channels"]]
-    assert len(blueprint["categories"]) <= 8
-    assert len(channels) <= 20
+    assert len(blueprint["categories"]) == 9
+    assert len(channels) == 45
     vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
     assert {c["name"] for c in vip_categories} == {
-        "🔥 TODAY’S JABBAZI", "📊 DAILY CHEAT SHEET", "💎 VIP LOUNGE & RESEARCH"
+        "🔥 TODAY’S JABBAZI", "🧠 THE LAB", "💎 INNER CIRCLE"
     }
 
 
