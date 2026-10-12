@@ -43,6 +43,7 @@ def main():
             channels = request(
                 http, "GET", f"/guilds/{guild}/channels", "WELCOME_READ_CHANNELS"
             )
+            print("JABBAZI_WELCOME_REPAIR_STAGE READ_LIVE_STATE", flush=True)
             parents = [c for c in channels if c.get("type") == 4 and c.get("name") == CATEGORY]
             if len(parents) != 1:
                 raise RuntimeError("WELCOME_REPAIR_CATEGORY_NOT_UNIQUE")
@@ -79,6 +80,7 @@ def main():
                     "topic": expected_topic,
                     "rate_limit_per_user": 0,
                 }
+                print("JABBAZI_WELCOME_REPAIR_STAGE CREATE_CHANNEL", flush=True)
                 channel = request(
                     http,
                     "POST",
@@ -93,6 +95,7 @@ def main():
             if str(channel.get("parent_id")) != str(parent["id"]):
                 raise RuntimeError("WELCOME_REPAIR_PARENT_VERIFY_FAILED")
 
+            print("JABBAZI_WELCOME_REPAIR_STAGE SEED_AND_PIN", flush=True)
             onboarding = seed(http, store, guild=guild, owner=owner, apply=True)
             row = next(
                 (r for r in onboarding["plan"] if r.get("channel") == KEY),
