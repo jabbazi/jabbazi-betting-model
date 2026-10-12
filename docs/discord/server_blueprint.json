@@ -105,14 +105,10 @@
       ]
     },
     {
-      "name": "🔥 TODAY’S JABBAZI",
+      "name": "🏆 VIP PICKS",
       "access": "vip",
       "channels": [
-        "main-card",
-        "live-watch",
-        "sprinkles",
-        "parlays",
-        "line-moves"
+        "main-card"
       ]
     },
     {
@@ -123,6 +119,8 @@
         "model-room",
         "cheat-sheets",
         "market-watch",
+        "live-watch",
+        "line-moves",
         "edge-board",
         "scanner-status"
       ]
@@ -132,6 +130,8 @@
       "access": "vip",
       "channels": [
         "vip-lounge",
+        "sprinkles",
+        "parlays",
         "member-plays",
         "vip-requests",
         "winning-tickets"
@@ -277,7 +277,9 @@
     "main-card": [
       "jabbazi-main-card",
       "daily-card",
-      "jabbazi-picks"
+      "jabbazi-picks",
+      "jabbazi",
+      "main-card"
     ],
     "live-watch": [
       "live-game-chat",
@@ -419,7 +421,7 @@
     "how-jabbazi-works": "How BET NOW, WATCH, PRICE CHECK, PASS, QUARANTINED, units and play-to prices work.",
     "get-access": "VIP access and private JABBAZI member-app entry points.",
     "choose-alerts": "Choose sport, Main Card, parlay, live and cheat-sheet notifications.",
-    "main-card": "Official issued JABBAZI positions only. Verify current price and respect the posted play-to number.",
+    "main-card": "Official JABBAZI capper picks inside VIP PICKS. Verify current price and respect the posted play-to number.",
     "live-watch": "Post-publication injuries, lineups, weather, price changes and do-not-chase updates.",
     "sprinkles": "Lower-priority JABBAZI ideas kept separate from the official Main Card.",
     "parlays": "Approved JABBAZI parlays and SGPs only; exact combined price and correlation matter.",
@@ -497,7 +499,7 @@
     "how-jabbazi-works": "📖│how-jabbazi-works",
     "get-access": "🔑│get-access",
     "choose-alerts": "🔔│choose-alerts",
-    "main-card": "👑│main-card",
+    "main-card": "👑│jabbazi",
     "live-watch": "⚡│live-watch",
     "sprinkles": "🧩│sprinkles",
     "parlays": "🎲│parlays",
