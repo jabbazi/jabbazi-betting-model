@@ -230,6 +230,9 @@ def configure(*, apply: bool, test: bool):
         base_permissions = member_base_permissions(roles, member_roles, guild)
 
         write_failures = []
+        category_fallbacks = {}
+        attempted_parent_denies = set()
+        channel_by_id = {str(ch["id"]): ch for ch in post_role_channels}
         for channel in [c for c in post_role_channels if c.get("type") in (0, 5)]:
             if str(channel["id"]) in target_ids:
                 continue
@@ -250,14 +253,37 @@ def configure(*, apply: bool, test: bool):
                     {"type": 0, "allow": "0", "deny": str(VIEW)},
                 )
             except RuntimeError as exc:
+                parent_id = str(channel.get("parent_id") or "")
+                fallback_status = "NO_PARENT"
+                if parent_id and parent_id not in attempted_parent_denies:
+                    attempted_parent_denies.add(parent_id)
+                    parent = channel_by_id.get(parent_id)
+                    try:
+                        request(
+                            http,
+                            "PUT",
+                            f"/channels/{parent_id}/permissions/{role_id}",
+                            {"type": 0, "allow": "0", "deny": str(VIEW)},
+                        )
+                        fallback_status = "CATEGORY_DENY_APPLIED"
+                    except RuntimeError as parent_exc:
+                        fallback_status = "CATEGORY_DENY_FAILED_" + str(parent_exc)
+                    category_fallbacks[parent_id] = {
+                        "category": parent.get("name") if parent else "",
+                        "status": fallback_status,
+                    }
+                elif parent_id:
+                    fallback_status = category_fallbacks.get(
+                        parent_id, {}
+                    ).get("status", "CATEGORY_ALREADY_ATTEMPTED")
                 write_failures.append(
-                    {"id": str(channel["id"]), "name": channel["name"], "error": str(exc)}
+                    {
+                        "id": str(channel["id"]),
+                        "name": channel["name"],
+                        "error": str(exc),
+                        "fallback": fallback_status,
+                    }
                 )
-
-        if write_failures:
-            # Keep going to target grants, then live-read effective access and fail only
-            # if any blocked channel remains visible.
-            pass
 
         # Grant only the exact minimum on approved VIP pick/parlay channels.
         for channel in targets:
@@ -373,7 +399,8 @@ def configure(*, apply: bool, test: bool):
             "status": "VERIFIED",
             "role_permissions": 0,
             "verified_channels": len(verified),
-            "permission_write_failures_ignored_after_effective_check": len(write_failures),
+            "permission_write_failures_resolved_by_effective_check": len(write_failures),
+            "category_fallbacks": category_fallbacks,
             "test": test_result,
         }
 
