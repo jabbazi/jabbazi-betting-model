@@ -5,7 +5,7 @@
 - Backup-first migration succeeded at 23:03:51 UTC. Backup: 291a5190cd7fe82c7db01b34a67e32f1209ca543d0677a7a5cb9a90aea29f967. Old history was hidden, not deleted by the migration.
 - Discord View Server As Role verified free/public visibility and VIP premium visibility; neither sees staff/archive. All four VIP-family roles are simulated during reconciliation. Manual VIP access does not require billing.
 - Live owner tests: !vip DM acknowledgement, /vip private response, /alerts exact nine-role selection and acknowledgement, /support private non-invitable thread (test thread closed), /cheatsheet private no-sheet response without a scan.
-- Bot displays JABBAZI GURU, above VIP/alert roles, Administrator OFF. Moderator rights limited. Mention-spam and suspected-spam protection enabled, alerts routed to bot-log.
+- Bot displays JABBAZI, above VIP/alert roles, Administrator OFF. Moderator rights limited. Mention-spam and suspected-spam protection enabled, alerts routed to bot-log.
 - Short onboarding published. Authentic period results published, no settled official positions; no invented wins or CLV.
 
 ## Latest owner correction and organization
