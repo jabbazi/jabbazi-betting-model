@@ -91,7 +91,7 @@ def preview_payload(record, *, now):
     # reasons, private links, member information, odds or stakes are copied.
     games = len({(r.get('sport'), r.get('event_id') or r.get('event')) for r in rows})
     ct = stamp.astimezone(ZoneInfo('America/Chicago'))
-    return {'title': 'PUBLIC RESEARCH PREVIEW • NOT A PICK', 'color': 0x8B35E8,
+    return {'title': 'PUBLIC RESEARCH PREVIEW • NOT A PICK', 'color': 0xFF0A8A,
             'description': f'**Inside one recent research scan**\n{games} matchups represented • {len(rows)} research rows\n'
                            f'Snapshot: {ct:%b %d, %I:%M %p} CT\n\n'
                            '**How we screen:** data health → current market price → model uncertainty → reliability and exposure checks. '
