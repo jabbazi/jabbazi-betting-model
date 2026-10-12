@@ -49,21 +49,27 @@ def me(ctx=Depends(context)):
 
 @router.get('/home')
 def home(ctx=Depends(context)):
-    store, p = ctx
-    b = snapshot(store)
-    fresh = [r for r in b['rows'] if r['fresh'] and r['status'] != 'QUARANTINED']
-    prefs = data.preference(store, p)
-    preferred = [r for r in fresh if not prefs.get('sports') or r['sport'] in prefs['sports']]
-    preferred.sort(key=lambda r: r['edge'] if r['edge'] is not None else -1, reverse=True)
-    picks = data.official(store)
-    return response({'state': b['state'], 'snapshot_at': b.get('snapshot_at'), 'server_time': datetime.now(UTC).isoformat(),
-                     'research': preferred[:6], 'official': picks[:5], 'top_play': None,
-                     'notice': 'Research rankings are not official bets. No top play is assigned without an explicit supported designation.',
-                     'sports': [{'sport': s, 'events': len({r['event_id'] or r['event'] for r in b['rows'] if r['sport'] == s}),
-                                 'fresh_rows': sum(r['sport'] == s for r in fresh),
-                                 'status': 'ACTIVE' if any(r['sport'] == s for r in fresh) else 'UNAVAILABLE'} for s in data.SPORTS],
-                     'frozen_available': bool(store.list_records('daily_moneyline_sheet', 1, entity=datetime.now(UTC).astimezone(ZoneInfo('America/Chicago')).date().isoformat()))})
+    """Fast authenticated shell; large research snapshots load on demand.
 
+    The former home endpoint projected the entire latest research slate and
+    official candidates before first paint. Under large feeds that could
+    exhaust the request timeout despite successful VIP authentication.
+    """
+    store, p = ctx
+    prefs = data.preference(store, p)
+    return response({
+        'state': 'ON_DEMAND',
+        'snapshot_at': None,
+        'server_time': datetime.now(UTC).isoformat(),
+        'research': [],
+        'official': [],
+        'top_play': None,
+        'notice': 'VIP access is ready. Open a sport or the research board to load its latest evidence. Research projections are not automatically official bets.',
+        'sports': [{'sport': sport, 'events': None, 'fresh_rows': None, 'status': 'CHECK ON OPEN'} for sport in data.SPORTS],
+        'frozen_available': False,
+        'load_strategy': 'on_demand',
+        'preferences_loaded': bool(prefs),
+    })
 
 @router.get('/board')
 def board(sport: str = '', q: str = Query('', max_length=100), market: str = Query('', max_length=80), status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
