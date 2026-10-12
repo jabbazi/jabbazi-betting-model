@@ -24,42 +24,38 @@ ADMINISTRATOR = 1 << 3
 
 TARGET_ALLOW = VIEW | SEND | EMBED | ATTACH | HISTORY
 
-# Playbook belongs only in actual VIP pick/parlay channels.
-TARGET_EXACT = {
-    "jabbazi-picks",
-    "daily-card",
-    "vip-picks",
-    "mlb-picks",
-    "nfl-picks",
-    "college-football-picks",
-    "cfb-picks",
-    "parlays-and-alternates",
-    "parlays-sgps",
-    "best-two-parlay",
-}
-TARGET_HINTS = ("pick", "parlay", "daily-card", "card")
-
-
-def checked(response: httpx.Response, operation: str) -> httpx.Response:
-    if response.status_code == 429:
-        retry = float(response.json().get("retry_after", 1))
-        if retry > 20:
-            raise RuntimeError("PLAYBOOK_RATE_LIMIT_TOO_LONG")
-        time.sleep(max(0.2, retry))
-        return checked(response.request.send(), operation)
-    try:
-        response.raise_for_status()
-    except httpx.HTTPStatusError:
-        raise RuntimeError(f"PLAYBOOK_{operation}_HTTP_{response.status_code}") from None
-    return response
+# Strict production allowlist. These are the only active wager/update channels in
+# the current server blueprint. Research, cheat sheets, chat, archived picks and
+# staff channels are intentionally excluded.
+TARGET_EXACT = {"jabbazi-main-card", "live-watch"}
+TARGET_CATEGORY = "TODAY’S JABBAZI"
 
 
 def request(http: httpx.Client, method: str, path: str, payload=None):
-    response = http.request(method, path, json=payload)
-    checked(response, method + "_" + path.rsplit("/", 1)[-1].upper())
-    if response.status_code == 204 or not response.content:
-        return None
-    return response.json()
+    operation = method + "_" + path.rsplit("/", 1)[-1].upper()
+    for _ in range(4):
+        response = http.request(method, path, json=payload)
+        if response.status_code == 429:
+            retry = float(response.json().get("retry_after", 1))
+            if retry > 20:
+                raise RuntimeError("PLAYBOOK_RATE_LIMIT_TOO_LONG")
+            time.sleep(max(0.2, retry))
+            continue
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            raise RuntimeError(
+                f"PLAYBOOK_{operation}_HTTP_{response.status_code}"
+            ) from None
+        if response.status_code == 204 or not response.content:
+            return None
+        return response.json()
+    raise RuntimeError("PLAYBOOK_RATE_LIMIT_PERSISTED")
+
+
+def canonical_channel_name(name: str) -> str:
+    # Display names are emoji-prefixed, e.g. "🎯│jabbazi-main-card".
+    return name.rsplit("│", 1)[-1].strip().lower()
 
 
 def target_channels(channels):
@@ -68,16 +64,10 @@ def target_channels(channels):
     for channel in channels:
         if channel.get("type") not in (0, 5):
             continue
-        name = channel.get("name", "").lower()
+        name = canonical_channel_name(channel.get("name", ""))
         parent = categories.get(str(channel.get("parent_id")), "")
-        vip_parent = "vip" in parent.lower()
-        if name in TARGET_EXACT or (
-            vip_parent and any(hint in name for hint in TARGET_HINTS)
-        ):
-            # Deliberately exclude chat/research/status/boost channels unless they are
-            # explicitly named above.
-            if "chat" not in name and "research" not in name and "status" not in name:
-                targets.append(channel)
+        if name in TARGET_EXACT and TARGET_CATEGORY in parent:
+            targets.append(channel)
     return targets, categories
 
 
@@ -240,9 +230,14 @@ def configure(*, apply: bool, test: bool):
             # Playbook may intentionally ignore bot-authored messages. A response proves
             # end-to-end command handling; no response is reported separately from the
             # permission verification above.
-            priority = ["jabbazi-picks", "daily-card", "nfl-picks"]
+            priority = ["jabbazi-main-card", "live-watch"]
             target = next(
-                (c for name in priority for c in targets if c["name"] == name),
+                (
+                    channel
+                    for name in priority
+                    for channel in targets
+                    if canonical_channel_name(channel["name"]) == name
+                ),
                 targets[0],
             )
             message = request(
