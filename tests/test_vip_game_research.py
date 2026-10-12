@@ -1,6 +1,9 @@
 """Game-center safety tests: research projections are not betting approval."""
 from datetime import UTC, datetime, timedelta
 import pytest
+from test_member_portal import portal as _portal_fixture
+
+portal = _portal_fixture
 
 from jabazi.vip.game_research import (
     matchups, matchup_detail, simulate_samples, first_td_distribution,
