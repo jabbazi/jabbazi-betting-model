@@ -95,3 +95,13 @@ def test_graphic_requires_approved_logo_and_uses_exact_asset(tmp_path):
     Image.new("RGB", (320, 160), (255, 10, 138)).save(logo)
     graphic = Image.open(BytesIO(render_matchup(detail, logo)))
     assert graphic.size == (1200, 675)
+
+
+def test_play_of_day_is_not_forced(portal):
+    from test_member_portal import sign_in
+    store, client = portal
+    assert client.get("/v1/vip/playoftheday").status_code == 401
+    sign_in(store, client)
+    payload = client.get("/v1/vip/playoftheday").json()
+    assert payload["state"] == "PASS"
+    assert payload["play"] is None
