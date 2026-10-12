@@ -100,7 +100,8 @@
         "the-code",
         "how-jabbazi-works",
         "get-access",
-        "choose-alerts"
+        "choose-alerts",
+        "announcements"
       ]
     },
     {
@@ -131,7 +132,7 @@
       "access": "vip",
       "channels": [
         "vip-lounge",
-        "jabbazi-desk",
+        "member-plays",
         "vip-requests",
         "winning-tickets"
       ]
@@ -193,7 +194,6 @@
     }
   ],
   "deprecated_channels": [
-    "announcements",
     "best-two-parlay",
     "best-two-research",
     "bet-talk",
@@ -250,7 +250,8 @@
     "vip-research",
     "jabbazi-main-card",
     "sports-talk",
-    "staff-chat"
+    "staff-chat",
+    "jabbazi-desk"
   ],
   "channel_aliases": {
     "welcome": [
@@ -322,7 +323,6 @@
     "vip-lounge": [
       "vip-chat"
     ],
-    "jabbazi-desk": [],
     "vip-requests": [
       "member-bets"
     ],
@@ -404,7 +404,14 @@
     "content-room": [
       "content-planning"
     ],
-    "operations": []
+    "operations": [],
+    "member-plays": [
+      "jabbazi-desk",
+      "member-bets"
+    ],
+    "announcements": [
+      "announcements"
+    ]
   },
   "channel_topics": {
     "welcome": "Start here. Welcome to JABBAZI 👑 — Built on Edge. Not Hype.",
@@ -424,7 +431,6 @@
     "edge-board": "Fresh, supported model-versus-market opportunities awaiting final betting approval.",
     "scanner-status": "Compact member-facing scanner, provider and model-health status.",
     "vip-lounge": "Private VIP conversation. Member opinions are separate from official JABBAZI plays.",
-    "jabbazi-desk": "Direct notes, reactions and market observations from JABBAZI.",
     "vip-requests": "VIP questions and requested research; responses are not automatically official plays.",
     "winning-tickets": "Member-submitted wins, kept separate from official JABBAZI performance.",
     "general": "The JABBAZI community locker room.",
@@ -451,7 +457,9 @@
     "bot-log": "Private sanitized operational diagnostics. Never post credentials.",
     "model-review": "Private staff model-quality and release review.",
     "content-room": "Private JABBAZI content planning and publishing coordination.",
-    "operations": "Private operational checklists, integrations and launch coordination."
+    "operations": "Private operational checklists, integrations and launch coordination.",
+    "member-plays": "VIP member-posted plays and tickets. These are separate from the official JABBAZI Main Card.",
+    "announcements": "Official JABBAZI news, product updates, events and major community announcements."
   },
   "category_aliases": {
     "👑 WELCOME TO JABBAZI": [
@@ -501,7 +509,6 @@
     "edge-board": "🎯│edge-board",
     "scanner-status": "🛰️│scanner-status",
     "vip-lounge": "💎│vip-lounge",
-    "jabbazi-desk": "👑│jabbazi-desk",
     "vip-requests": "📝│vip-requests",
     "winning-tickets": "🏆│winning-tickets",
     "general": "💬│general",
@@ -528,7 +535,9 @@
     "bot-log": "🤖│bot-log",
     "model-review": "🧪│model-review",
     "content-room": "📣│content-room",
-    "operations": "⚙️│operations"
+    "operations": "⚙️│operations",
+    "member-plays": "🎟️│member-plays",
+    "announcements": "📣│announcements"
   },
   "read_only_channels": [
     "welcome",
@@ -544,7 +553,6 @@
     "market-watch",
     "edge-board",
     "scanner-status",
-    "jabbazi-desk",
     "academy",
     "betting-101",
     "betting-math",
@@ -557,6 +565,7 @@
     "bet-history",
     "faq",
     "bot-log",
-    "model-review"
+    "model-review",
+    "announcements"
   ]
 }
