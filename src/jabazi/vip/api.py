@@ -263,8 +263,13 @@ def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
 @router.get('/models')
 def models(ctx=Depends(context)):
     from ..api import model_status_data
-    result = model_status_data()
-    return response({'models': [{k: r.get(k) for k in ('sport', 'version', 'status', 'supported_markets', 'player_status', 'player_supported_markets', 'state_refreshed_at', 'market_buckets', 'player_market_buckets')} for r in result['models']], 'has_errors': bool(result.get('errors')), 'controls': data.flags(ctx[0]), 'notice': 'Model readiness is separate from current odds freshness. Model stages are never upgraded by this app.'})
+    from .model_cache import status
+    current = status(model_status_data)
+    if current['data'] is None:
+        return response({'state': current['state'], 'models': [], 'has_errors': True, 'controls': {},
+                         'notice': 'Model evidence is refreshing in the background. No unverified model probability is shown. Reopen this view shortly.'})
+    result = current['data']
+    return response({'state': 'READY', 'models': [{k: r.get(k) for k in ('sport', 'version', 'status', 'supported_markets', 'player_status', 'player_supported_markets', 'state_refreshed_at', 'market_buckets', 'player_market_buckets')} for r in result['models']], 'has_errors': bool(result.get('errors')), 'controls': data.flags(ctx[0]), 'notice': 'Model readiness is separate from current odds freshness. Model stages are never upgraded by this app.'})
 
 
 class Control(BaseModel):
