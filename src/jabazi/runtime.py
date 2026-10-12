@@ -160,6 +160,23 @@ def worker(*, once=False):
                                       "Discord backup readback failed"}:
                         detail = "_" + str(exc).replace(" ", "_")
                     print("DISCORD_RECONCILE_UNAVAILABLE_" + type(exc).__name__ + detail, flush=True)
+            if os.getenv("JABBAZI_DISCORD_SEED_ON_START", "false").lower() == "true":
+                try:
+                    seed = subprocess.run(
+                        [sys.executable, "tools/seed_discord_content.py", "--apply"],
+                        capture_output=True,
+                        text=True,
+                        timeout=300,
+                    )
+                    for line in seed.stdout.splitlines():
+                        if line.startswith(("DISCORD_ONBOARDING_VERIFICATION ", "DISCORD_OPERATION_")):
+                            print(line, flush=True)
+                    print(
+                        "DISCORD_ONBOARDING_" + ("SEEDED" if seed.returncode == 0 else "ACTION_REQUIRED"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print("DISCORD_ONBOARDING_SEED_UNAVAILABLE_" + type(exc).__name__, flush=True)
             if os.getenv("JABBAZI_BRAND_SETUP_ON_START", "false").lower() == "true":
                 try:
                     brand = subprocess.run(
