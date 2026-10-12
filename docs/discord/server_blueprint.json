@@ -112,6 +112,18 @@
       ]
     },
     {
+      "name": "💎 INNER CIRCLE",
+      "access": "vip",
+      "channels": [
+        "vip-lounge",
+        "sprinkles",
+        "parlays",
+        "member-plays",
+        "vip-requests",
+        "winning-tickets"
+      ]
+    },
+    {
       "name": "🧠 THE LAB",
       "access": "vip",
       "channels": [
@@ -123,18 +135,6 @@
         "line-moves",
         "edge-board",
         "scanner-status"
-      ]
-    },
-    {
-      "name": "💎 INNER CIRCLE",
-      "access": "vip",
-      "channels": [
-        "vip-lounge",
-        "sprinkles",
-        "parlays",
-        "member-plays",
-        "vip-requests",
-        "winning-tickets"
       ]
     },
     {
