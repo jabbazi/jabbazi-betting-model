@@ -160,6 +160,23 @@ def worker(*, once=False):
                                       "Discord backup readback failed"}:
                         detail = "_" + str(exc).replace(" ", "_")
                     print("DISCORD_RECONCILE_UNAVAILABLE_" + type(exc).__name__ + detail, flush=True)
+            if os.getenv("JABBAZI_BRAND_SETUP_ON_START", "false").lower() == "true":
+                try:
+                    brand = subprocess.run(
+                        [sys.executable, "tools/apply_jabbazi_brand.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=180,
+                    )
+                    for line in brand.stdout.splitlines():
+                        if line.startswith("JABBAZI_BRAND_VERIFICATION "):
+                            print(line, flush=True)
+                    print(
+                        "JABBAZI_BRAND_SETUP_" + ("COMPLETED" if brand.returncode == 0 else "UNAVAILABLE"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print("JABBAZI_BRAND_SETUP_UNAVAILABLE_" + type(exc).__name__, flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         if not once:
             from .discord_schedule import daily_loop
