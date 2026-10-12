@@ -190,7 +190,7 @@ def main():
             failures.append("LEGACY_PUBLIC_BRAND")
 
         command_names = {c.get("name") for c in commands}
-        required_commands = {"vip", "cheatsheet", "alerts", "support"}
+        required_commands = {"vip", "cheatsheet", "alerts", "support", "card", "performance"}
         if not required_commands.issubset(command_names):
             failures.append("COMMANDS")
 
