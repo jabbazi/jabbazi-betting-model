@@ -25,9 +25,9 @@ def test_jabbazi_crown_blueprint_is_structured_and_keeps_core_surfaces():
     assert not {"best-two-parlay", "parlays-sgps", "promo-boosts"} & set(channels)
     for required in (
         "welcome",
-        "jabbazi-main-card",
-        "daily-moneyline-cheat-sheet",
-        "vip-research",
+        "main-card",
+        "cheat-sheets",
+        "research-desk",
         "scanner-status",
         "results",
         "support",
