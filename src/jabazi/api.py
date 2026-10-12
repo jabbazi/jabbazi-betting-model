@@ -129,7 +129,7 @@ def platform_store():
         raise HTTPException(status_code=503, detail="Production requires PostgreSQL")
     store = None
     try:
-        store = Store(url)
+        store = Store(url, shared=url.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")))
         if not store.ready():
             raise ValueError("Schema unavailable")
         return store
