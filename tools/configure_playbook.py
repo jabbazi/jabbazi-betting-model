@@ -340,7 +340,7 @@ def configure(*, apply: bool, test: bool):
                 parent_name = categories.get(str(channel.get("parent_id")), "")
                 is_public_welcome = (
                     canonical == "welcome"
-                    and "START HERE" in parent_name
+                    and ("START HERE" in parent_name or "WELCOME TO JABBAZI" in parent_name)
                     and not can_send
                 )
                 if not visible:
