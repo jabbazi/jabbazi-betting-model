@@ -343,7 +343,7 @@ def build_client(config, store):
                 except discord.HTTPException as response_error:
                     print(f"DISCORD_SLASH_RESPONSE_HTTP_{response_error.status}_CODE_{response_error.code}", flush=True)
 
-            @self.tree.command(name="cheatsheet", description="Show today's frozen 9 AM JABBAZI moneyline sheet")
+            @self.tree.command(name="cheatsheet", description="Show today's JABBAZI game-by-game winner sheets")
             async def cheatsheet(interaction: discord.Interaction):
                 if interaction.guild_id != config.guild:
                     return await interaction.response.send_message(
