@@ -247,15 +247,33 @@ def migrate(*, apply=False, archive_obsolete=False):
         preserved_unmanageable = set()
 
         def manageable_channel(channel):
-            return bool(
-                permissions & ADMIN
-                or effective_permissions(
-                    guild, bot, membership["roles"], roles, channel, owner
-                ) & MANAGE_CHANNELS
+            if permissions & ADMIN:
+                return True
+            current = effective_permissions(
+                guild, bot, membership["roles"], roles, channel, owner
             )
+            return bool(current & VIEW and current & MANAGE_CHANNELS)
 
         for position, category in enumerate(bp["categories"]):
-            existing = next((c for c in channels if c["type"] == 4 and c["name"] in [category["name"], *bp.get("category_aliases", {}).get(category["name"], [])]), None)
+            category_names = [
+                category["name"],
+                *bp.get("category_aliases", {}).get(category["name"], []),
+            ]
+            matching_categories = [
+                c for c in channels
+                if c["type"] == 4 and c["name"] in category_names
+            ]
+            existing = next(
+                (c for c in matching_categories if manageable_channel(c)),
+                None,
+            )
+            for locked in matching_categories:
+                if existing is not None and str(locked["id"]) == str(existing["id"]):
+                    continue
+                if not manageable_channel(locked):
+                    plan["warnings"].append(
+                        f"PRESERVED_UNMANAGEABLE_CATEGORY:{locked['id']}:{locked['name']}"
+                    )
             parent = upsert(existing, {"name": category["name"], "type": 4, "position": position,
                                       "permission_overwrites": desired(category["access"])}, "UPSERT_CATEGORY")
             used.add(str(parent["id"]))
