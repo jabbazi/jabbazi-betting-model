@@ -24,8 +24,18 @@ def announce(http, store, *, guild, owner):
     if receipts:
         mid = receipts[0]['payload']['message_id']
         row = request(http, 'GET', f'/channels/{CHANNEL}/messages/{mid}', 'VERIFY_EXISTING_MEMBERSHIP_BANNER')
-        verify(row)
-        return {'status': 'VERIFIED_ALREADY_POSTED', 'channel_id': CHANNEL, 'message_id': mid, 'mention_everyone': True}
+        if row.get('content') != TEXT:
+            # Rebrand the existing owner-approved post in place. Editing with
+            # mentions disabled preserves history without issuing a fresh @everyone ping.
+            row = request(
+                http,
+                'PATCH',
+                f'/channels/{CHANNEL}/messages/{mid}',
+                'REBRAND_EXISTING_MEMBERSHIP_BANNER',
+                json={'content': TEXT, 'allowed_mentions': {'parse': []}},
+            )
+        verify(row, require_everyone=False)
+        return {'status': 'VERIFIED_ALREADY_POSTED', 'channel_id': CHANNEL, 'message_id': mid, 'mention_everyone': bool(row.get('mention_everyone'))}
     info = request(http, 'GET', f'/guilds/{guild}', 'READ_ANNOUNCEMENT_OWNER')
     if str(info['owner_id']) != str(owner):
         raise ValueError('Announcement owner mismatch')
@@ -60,8 +70,8 @@ def announce(http, store, *, guild, owner):
     return {'status': 'POSTED_VERIFIED', 'channel_id': CHANNEL, 'message_id': mid, 'mention_everyone': True}
 
 
-def verify(row):
-    if row.get('content') != TEXT or not row.get('mention_everyone'):
-        raise RuntimeError('Banner announcement or everyone mention not verified')
+def verify(row, require_everyone=True):
+    if row.get('content') != TEXT or (require_everyone and not row.get('mention_everyone')):
+        raise RuntimeError('Banner announcement content or mention state not verified')
     if not any(a.get('filename') == FILENAME and a.get('size', 0) > 0 and a.get('width', 0) > 0 for a in row.get('attachments', [])):
         raise RuntimeError('Banner attachment not verified')
