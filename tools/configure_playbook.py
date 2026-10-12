@@ -253,29 +253,40 @@ def configure(*, apply: bool, test: bool):
                     {"type": 0, "allow": "0", "deny": str(VIEW)},
                 )
             except RuntimeError as exc:
-                parent_id = str(channel.get("parent_id") or "")
-                fallback_status = "NO_PARENT"
-                if parent_id and parent_id not in attempted_parent_denies:
-                    attempted_parent_denies.add(parent_id)
-                    parent = channel_by_id.get(parent_id)
-                    try:
-                        request(
-                            http,
-                            "PUT",
-                            f"/channels/{parent_id}/permissions/{role_id}",
-                            {"type": 0, "allow": "0", "deny": str(VIEW)},
-                        )
-                        fallback_status = "CATEGORY_DENY_APPLIED"
-                    except RuntimeError as parent_exc:
-                        fallback_status = "CATEGORY_DENY_FAILED_" + str(parent_exc)
-                    category_fallbacks[parent_id] = {
-                        "category": parent.get("name") if parent else "",
-                        "status": fallback_status,
-                    }
-                elif parent_id:
-                    fallback_status = category_fallbacks.get(
-                        parent_id, {}
-                    ).get("status", "CATEGORY_ALREADY_ATTEMPTED")
+                # First try a member-specific overwrite. This is narrower than touching
+                # the category and avoids managed-role restrictions on some Discord channels.
+                try:
+                    request(
+                        http,
+                        "PUT",
+                        f"/channels/{channel['id']}/permissions/{playbook_user_id}",
+                        {"type": 1, "allow": "0", "deny": str(VIEW)},
+                    )
+                    fallback_status = "MEMBER_DENY_APPLIED"
+                except RuntimeError as member_exc:
+                    parent_id = str(channel.get("parent_id") or "")
+                    fallback_status = "MEMBER_DENY_FAILED_" + str(member_exc)
+                    if parent_id and parent_id not in attempted_parent_denies:
+                        attempted_parent_denies.add(parent_id)
+                        parent = channel_by_id.get(parent_id)
+                        try:
+                            request(
+                                http,
+                                "PUT",
+                                f"/channels/{parent_id}/permissions/{role_id}",
+                                {"type": 0, "allow": "0", "deny": str(VIEW)},
+                            )
+                            fallback_status += "_CATEGORY_DENY_APPLIED"
+                        except RuntimeError as parent_exc:
+                            fallback_status += "_CATEGORY_DENY_FAILED_" + str(parent_exc)
+                        category_fallbacks[parent_id] = {
+                            "category": parent.get("name") if parent else "",
+                            "status": fallback_status,
+                        }
+                    elif parent_id:
+                        fallback_status += "_" + category_fallbacks.get(
+                            parent_id, {}
+                        ).get("status", "CATEGORY_ALREADY_ATTEMPTED")
                 write_failures.append(
                     {
                         "id": str(channel["id"]),
@@ -419,7 +430,7 @@ def main():
         print(
             "PLAYBOOK_CONFIGURATION "
             + json.dumps(
-                {"status": "UNAVAILABLE", "error": str(exc)[:180]},
+                {"status": "UNAVAILABLE", "error": str(exc)[:1500]},
                 separators=(",", ":"),
             ),
             flush=True,
