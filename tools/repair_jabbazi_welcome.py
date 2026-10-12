@@ -45,6 +45,11 @@ def main():
             )
             print("JABBAZI_WELCOME_REPAIR_STAGE READ_LIVE_STATE", flush=True)
             parents = [c for c in channels if c.get("type") == 4 and c.get("name") == CATEGORY]
+            print(
+                "JABBAZI_WELCOME_REPAIR "
+                + json.dumps({"status": "STAGE", "stage": "CATEGORY_READ", "matches": len(parents)}),
+                flush=True,
+            )
             if len(parents) != 1:
                 raise RuntimeError("WELCOME_REPAIR_CATEGORY_NOT_UNIQUE")
             parent = parents[0]
@@ -63,6 +68,18 @@ def main():
             else:
                 vip = vip_role_ids(roles, configured_vip_ids())
                 staff = {str(r["id"]) for r in roles if is_staff_name(r.get("name"))}
+                print(
+                    "JABBAZI_WELCOME_REPAIR "
+                    + json.dumps(
+                        {
+                            "status": "STAGE",
+                            "stage": "PERMISSIONS_RESOLVED",
+                            "vip_roles": len(vip),
+                            "staff_roles": len(staff),
+                        }
+                    ),
+                    flush=True,
+                )
                 payload = {
                     "name": expected_name,
                     "type": 0,
@@ -81,6 +98,11 @@ def main():
                     "rate_limit_per_user": 0,
                 }
                 print("JABBAZI_WELCOME_REPAIR_STAGE CREATE_CHANNEL", flush=True)
+                print(
+                    "JABBAZI_WELCOME_REPAIR "
+                    + json.dumps({"status": "STAGE", "stage": "CREATE_REQUEST"}),
+                    flush=True,
+                )
                 channel = request(
                     http,
                     "POST",
@@ -122,4 +144,22 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(
+            "JABBAZI_WELCOME_REPAIR "
+            + json.dumps(
+                {
+                    "status": "ACTION_REQUIRED",
+                    "error_type": type(exc).__name__,
+                    "error": str(exc)[:500],
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+            flush=True,
+        )
+        raise SystemExit(1)
