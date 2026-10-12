@@ -10,7 +10,7 @@ from pathlib import Path
 
 import httpx
 
-from .discord_access import is_staff_name, normalize_role_name, vip_role_ids
+from .discord_access import STAFF_NAMES, is_staff_name, normalize_role_name, vip_role_ids
 from .persistence.store import Store, digest
 
 VIEW = 1 << 10
