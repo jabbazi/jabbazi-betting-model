@@ -17,20 +17,21 @@ import httpx
 from PIL import Image, ImageDraw, ImageFont
 
 API = "https://discord.com/api/v10"
-PURPLE = 0x7F3DFF
-ROYAL = 0x5B2EFF
-VIOLET = 0x8A63FF
-SILVER = 0xB9BCC6
+HOT_PINK = 0xFF0A8A
+NEON_PINK = 0xFF1493
+MAGENTA = 0xD90068
+PINK_LIGHT = 0xFF4DB8
+SILVER = 0xD9D9D9
 MEMBER_GRAY = 0x90909A
 ROOKIE_GRAY = 0x6B7280
 
 ROLE_STYLE = {
-    "JABBAZI": {"color": PURPLE, "hoist": True},
-    "JABBAZI TEAM": {"color": ROYAL, "hoist": True},
+    "JABBAZI": {"color": HOT_PINK, "hoist": True},
+    "JABBAZI TEAM": {"color": MAGENTA, "hoist": True},
     "MODERATOR": {"color": SILVER, "hoist": True},
-    "INNER CIRCLE": {"color": VIOLET, "hoist": True},
-    "JABBAZI VIP": {"color": PURPLE, "hoist": True},
-    "SHARP": {"color": VIOLET, "hoist": False},
+    "INNER CIRCLE": {"color": NEON_PINK, "hoist": True},
+    "JABBAZI VIP": {"color": HOT_PINK, "hoist": True},
+    "SHARP": {"color": PINK_LIGHT, "hoist": False},
     "MEMBER": {"color": MEMBER_GRAY, "hoist": False},
     "ROOKIE": {"color": ROOKIE_GRAY, "hoist": False},
     "TRIAL VIP": {"color": ROOKIE_GRAY, "hoist": False},
@@ -81,35 +82,34 @@ def crown(draw, cx, top, width, height):
         (x1 - int(width * 0.08), base_y),
         (x0 + int(width * 0.08), base_y),
     ]
-    draw.polygon(points, fill=(185, 188, 198), outline=(127, 61, 255), width=max(3, width // 80))
-    draw.line([(x0 + int(width * 0.08), base_y), (x1 - int(width * 0.08), base_y)], fill=(127, 61, 255), width=max(5, width // 50))
+    draw.polygon(points, fill=(255, 255, 255), outline=(255, 10, 138), width=max(3, width // 80))
+    draw.line([(x0 + int(width * 0.08), base_y), (x1 - int(width * 0.08), base_y)], fill=(255, 20, 147), width=max(5, width // 50))
 
 
 def generated_icon():
-    img = Image.new("RGB", (512, 512), (8, 8, 16))
+    asset = Path("docs/discord/assets/jabbazi-hot-pink-logo.jpg")
+    if asset.exists():
+        img = Image.open(asset).convert("RGB")
+        img.thumbnail((460, 260), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGB", (512, 512), (9, 9, 9))
+        canvas.paste(img, ((512-img.width)//2, (512-img.height)//2))
+        return encoded_image(canvas, "JPEG", 88)
+    img = Image.new("RGB", (512, 512), (9, 9, 9))
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle((18, 18, 494, 494), radius=88, outline=(63, 35, 112), width=8)
-    crown(draw, 256, 105, 300, 190)
-    draw.ellipse((222, 335, 290, 403), fill=(91, 46, 255))
-    return encoded_image(img)
+    draw.rounded_rectangle((18, 18, 494, 494), radius=88, outline=(255, 10, 138), width=8)
+    font = ImageFont.truetype(FONT_BOLD, 260)
+    box = draw.textbbox((0, 0), "J", font=font)
+    draw.text(((512-(box[2]-box[0]))//2, 105), "J", font=font, fill=(255,255,255))
+    draw.arc((85, 280, 430, 460), start=15, end=345, fill=(255, 20, 147), width=18)
+    return encoded_image(img, "JPEG", 88)
 
 
 def generated_avatar():
-    img = Image.new("RGB", (512, 512), (8, 8, 16))
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle((18, 18, 494, 494), radius=88, outline=(63, 35, 112), width=8)
-    crown(draw, 256, 55, 220, 125)
-    font = ImageFont.truetype(FONT_BOLD, 210)
-    box = draw.textbbox((0, 0), "JB", font=font)
-    x = (512 - (box[2] - box[0])) // 2
-    y = 205
-    draw.text((x + 5, y + 7), "JB", font=font, fill=(91, 46, 255))
-    draw.text((x, y), "JB", font=font, fill=(232, 233, 238))
-    return encoded_image(img)
+    return generated_icon()
 
 
 def generated_banner():
-    img = Image.new("RGB", (960, 540), (7, 7, 14))
+    img = Image.new("RGB", (960, 540), (9, 9, 9))
     draw = ImageDraw.Draw(img)
     for i in range(0, 960, 48):
         draw.line((i, 0, i - 300, 540), fill=(13, 10, 24), width=2)
@@ -119,13 +119,13 @@ def generated_banner():
     word = "JABBAZI"
     box = draw.textbbox((0, 0), word, font=font)
     x = (960 - (box[2] - box[0])) // 2
-    draw.text((x + 4, 216), word, font=font, fill=(91, 46, 255))
+    draw.text((x + 4, 216), word, font=font, fill=(255, 20, 147))
     draw.text((x, 210), word, font=font, fill=(236, 237, 242))
     sub = "SPORTS RESEARCH  •  DATA  •  DISCIPLINE  •  RESULTS"
     box2 = draw.textbbox((0, 0), sub, font=small)
     x2 = (960 - (box2[2] - box2[0])) // 2
     draw.text((x2, 365), sub, font=small, fill=(185, 188, 198))
-    draw.line((190, 416, 770, 416), fill=(127, 61, 255), width=5)
+    draw.line((190, 416, 770, 416), fill=(255, 10, 138), width=5)
     return encoded_image(img, "JPEG", 88)
 
 
