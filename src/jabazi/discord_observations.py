@@ -86,7 +86,7 @@ def observations(snapshots, *, lane, now=None):
         bucket = now.astimezone(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %H")
         updates.append({"priority": priority,
             "identity": [bucket, row["sport"], row["event_id"], row.get("market"), lane],
-            "embed": {"title": title, "color": 0x8B35E8 if lane == "research" else 0x3498DB,
+            "embed": {"title": title, "color": 0xFF0A8A if lane == "research" else 0x3498DB,
                 "description": f"**{label} • {str(row.get('event'))[:180]}**\n{selection.strip()[:150]} • {row.get('market')}\n\n{description}",
                 "fields": [{"name": "Best observed price", "value": quote, "inline": True},
                            {"name": "Data health", "value": health, "inline": True},
