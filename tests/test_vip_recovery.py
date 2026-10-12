@@ -4,6 +4,9 @@ from pathlib import Path
 import pytest
 
 from jabazi.persistence import store as persistence
+from test_member_portal import portal as _portal_fixture
+
+portal = _portal_fixture
 
 
 def test_api_shared_pool_is_not_disposed_per_request(monkeypatch):
