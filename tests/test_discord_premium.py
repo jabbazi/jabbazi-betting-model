@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
-from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline, render_text
+from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline, render_game_card, render_text
 from jabazi.discord_entitlements import set_entitlement, latest_entitlement, active_members
 from jabazi.discord_content import official_pick_embed, best_two_embed
 from jabazi.persistence.store import Store
@@ -13,6 +13,11 @@ def research_record(store):
     payload={
         "completed_at":"2026-09-29T13:58:00+00:00",
         "healthy":True,
+        "slate_events":[
+            {"sport":"basketball_nba","event_id":"nba1","event":"A @ B","starts_at_utc":"2026-09-29T23:00:00+00:00"},
+            {"sport":"icehockey_nhl","event_id":"nhl1","event":"C @ D","starts_at_utc":"2026-09-29T23:30:00+00:00"},
+            {"sport":"basketball_nba","event_id":"tomorrow","event":"E @ F","starts_at_utc":"2026-09-30T15:00:00+00:00"},
+        ],
         "rows":[
             {
                 "sport":"basketball_nba","event_id":"nba1","event":"A @ B","market":"h2h",
@@ -28,7 +33,7 @@ def research_record(store):
                 "selection":"D","book":"DraftKings","decimal_odds":"2.05",
                 "price_time_utc":"2026-09-29T13:57:30+00:00",
                 "starts_at_utc":"2026-09-29T23:30:00+00:00",
-                "market_no_vig_probability":"0.48","research_probability":None,
+                "market_no_vig_probability":"0.54","research_probability":None,
                 "model_version":None,"uncertainty":None,"probability_edge":None,
                 "status":"RESEARCH / NOT AN OFFICIAL PICK","reason":"market only",
                 "price_stale":False,"executable":True,
@@ -61,8 +66,16 @@ def test_daily_moneyline_is_frozen_once_and_moneyline_only():
         assert daily["payload"]["row_count"]==2
         assert {r["sport_label"] for r in daily["payload"]["rows"]}=={"NBA","NHL"}
         text=render_text(daily)
-        assert "DAILY MONEYLINE CHEAT SHEET" in text
+        assert "DAILY WINNER BOARD" in text
         assert "spreads" not in text.lower()
+        assert "tomorrow" not in text.lower()
+        assert {r["projected_winner"] for r in daily["payload"]["rows"]} == {"B", "D"}
+        assert daily["payload"]["verified_count_match"] is True
+        import io
+        from PIL import Image
+        for row in daily["payload"]["rows"]:
+            card = Image.open(io.BytesIO(render_game_card(daily, row)))
+            assert card.format == "PNG" and card.size == (1200, 900)
     finally:
         store.close()
 
@@ -162,7 +175,7 @@ def test_jabbazi_crown_blueprint_keeps_vip_lanes_separate():
     blueprint=json.loads(Path("docs/discord/server_blueprint.json").read_text())
     channels=[name for category in blueprint["categories"] for name in category["channels"]]
     assert len(blueprint["categories"]) == 9
-    assert len(channels) == 45
+    assert len(channels) == 46
     vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
     assert {c["name"] for c in vip_categories} == {
         "🔥 TODAY’S JABBAZI", "🧠 THE LAB", "💎 INNER CIRCLE"
