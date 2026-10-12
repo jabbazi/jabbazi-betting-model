@@ -218,6 +218,16 @@ def migrate(*, apply=False, archive_obsolete=False):
         used = set()
         targets = []
         aliases = bp.get("channel_aliases", {})
+        preserved_unmanageable = set()
+
+        def manageable_channel(channel):
+            return bool(
+                permissions & ADMIN
+                or effective_permissions(
+                    guild, bot, membership["roles"], roles, channel, owner
+                ) & MANAGE_CHANNELS
+            )
+
         for position, category in enumerate(bp["categories"]):
             existing = next((c for c in channels if c["type"] == 4 and c["name"] in [category["name"], *bp.get("category_aliases", {}).get(category["name"], [])]), None)
             parent = upsert(existing, {"name": category["name"], "type": 4, "position": position,
@@ -231,10 +241,28 @@ def migrate(*, apply=False, archive_obsolete=False):
                 if name == "scanner-status" and any(str(c["id"]) == configured and channel_name(c["name"]) == "owner-archive" for c in channels):
                     plan["warnings"].append("STALE_STATUS_ID_OWNER_ARCHIVE_PRESERVED")
                     configured = ""
-                exact = [c for c in channels if c["type"] == 0 and str(c["id"]) not in used]
-                existing = next((c for c in exact if str(c["id"]) == configured), None) if configured else None
-                if configured and existing is None:
+
+                configured_row = next(
+                    (c for c in channels if c["type"] == 0 and str(c["id"]) == configured),
+                    None,
+                ) if configured else None
+                if configured and configured_row is None:
                     raise ValueError(f"Configured channel ID missing for {name}; review before migration")
+                if configured_row is not None and not manageable_channel(configured_row):
+                    preserved_unmanageable.add(str(configured_row["id"]))
+                    plan["warnings"].append(
+                        f"UNMANAGEABLE_CONFIGURED_CHANNEL_PRESERVED:{name}:{configured_row['id']}"
+                    )
+                    configured = ""
+
+                exact = [
+                    c for c in channels
+                    if c["type"] == 0
+                    and str(c["id"]) not in used
+                    and str(c["id"]) not in preserved_unmanageable
+                    and manageable_channel(c)
+                ]
+                existing = next((c for c in exact if str(c["id"]) == configured), None) if configured else None
                 if existing is None:
                     existing = next((c for c in exact if channel_name(c["name"]) == name), None)
                 if existing is None:
