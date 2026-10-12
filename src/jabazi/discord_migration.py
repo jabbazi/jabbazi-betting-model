@@ -409,8 +409,16 @@ def migrate(*, apply=False, archive_obsolete=False):
                 raise RuntimeError("Discord active category order verification failed")
             print("DISCORD_CATEGORY_ORDER_VERIFIED " + json.dumps(category_order, ensure_ascii=False), flush=True)
             by_id = {str(c["id"]): c for c in live}
+            active_channel_ids = set(plan["channel_ids"].values())
             for target, access in targets:
-                actual = by_id[str(target["id"])]
+                target_id = str(target["id"])
+                actual = by_id.get(target_id)
+                if actual is None:
+                    if target_id in active_channel_ids:
+                        print(f"DISCORD_VERIFY_ACTIVE_CHANNEL_MISSING ID={target_id}", flush=True)
+                        raise RuntimeError("Discord active channel disappeared during verification")
+                    plan["warnings"].append("PRESERVED_OR_REMOVED_LEGACY_TARGET:" + target_id)
+                    continue
                 if actual.get("parent_id") != target.get("parent_id") or actual["name"] != target["name"] or actual.get("topic") != target.get("topic"):
                     print("DISCORD_VERIFY_CHANNEL_MISMATCH " + json.dumps({"id": actual["id"], "actual_name": actual["name"], "expected_name": target["name"], "parent_matches": actual.get("parent_id") == target.get("parent_id"), "topic_matches": actual.get("topic") == target.get("topic")}, ensure_ascii=False), flush=True)
                     raise RuntimeError("Discord channel readback mismatch")
