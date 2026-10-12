@@ -101,6 +101,9 @@ def configure():
         if can_manage:
             existing = checked(http, "GET", f"/guilds/{guild}/auto-moderation/rules", "READ_AUTOMOD")
             by_name = {row.get("name"): row for row in existing}
+            by_trigger = {}
+            for row in existing:
+                by_trigger.setdefault(int(row.get("trigger_type", 0)), []).append(row)
             for name, spec in TARGET_RULES.items():
                 actions = [{"type": 1, "metadata": {"custom_message": "Blocked by JABBAZI server safety."}}]
                 if bot_log.isdigit():
@@ -114,6 +117,17 @@ def configure():
                     "exempt_channels": [],
                 }
                 current = by_name.get(name)
+                same_type = by_trigger.get(int(spec["trigger_type"]), [])
+                if current is None and same_type:
+                    active = [row for row in same_type if row.get("enabled")]
+                    chosen = active[0] if active else same_type[0]
+                    result["automod"].append({
+                        "name": chosen.get("name") or name,
+                        "id": str(chosen.get("id", "")),
+                        "enabled": bool(chosen.get("enabled")),
+                        "status": "EXISTING_RULE_VERIFIED" if chosen.get("enabled") else "ACTION_REQUIRED_EXISTING_RULE_DISABLED",
+                    })
+                    continue
                 try:
                     if current:
                         changed = checked(
@@ -122,9 +136,12 @@ def configure():
                             "UPDATE_AUTOMOD", json=payload,
                         )
                     else:
+                        create_payload = dict(payload)
+                        if int(spec["trigger_type"]) == 3:
+                            create_payload.pop("trigger_metadata", None)
                         changed = checked(
                             http, "POST", f"/guilds/{guild}/auto-moderation/rules",
-                            "CREATE_AUTOMOD", json=payload,
+                            "CREATE_AUTOMOD", json=create_payload,
                         )
                     result["automod"].append({
                         "name": name,
@@ -153,7 +170,7 @@ def configure():
         else:
             result["onboarding"] = "COMMUNITY_REQUIRED"
 
-    failures = [r for r in result["automod"] if r.get("status") not in {"VERIFIED"}]
+    failures = [r for r in result["automod"] if r.get("status") not in {"VERIFIED", "EXISTING_RULE_VERIFIED"}]
     result["status"] = "VERIFIED" if not failures else "PARTIAL"
     return result
 
