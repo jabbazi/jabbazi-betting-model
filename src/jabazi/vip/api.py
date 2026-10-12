@@ -148,6 +148,51 @@ def slate(sport: str, ctx=Depends(context)):
     return response({'sport': sport, 'games': output, 'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
 
 
+@router.get('/matchups')
+def matchups(sport: str = Query('', max_length=12), ctx=Depends(context)):
+    from .game_research import matchups as list_matchups
+    b = snapshot(ctx[0])
+    return response({'state': b['state'], 'snapshot_at': b.get('snapshot_at'),
+                     'games': list_matchups(b['rows'], sport=sport, limit=100),
+                     'notice': 'Observed research events only. Matchups are not official wagers.'})
+
+
+@router.get('/matchup/{sport}/{event_id}')
+def matchup(sport: str, event_id: str, ctx=Depends(context)):
+    from .game_research import matchup_detail
+    b = snapshot(ctx[0])
+    result = matchup_detail(b['rows'], sport.upper(), event_id)
+    if result is None:
+        raise HTTPException(404, 'No observed research for this matchup.')
+    return response({**result, 'snapshot_at': b.get('snapshot_at'),
+                     'notice': 'Projections and market observations are research only. Do not treat these as issued bets.'})
+
+
+@router.get('/sim/{sport}/{event_id}')
+def simulation(sport: str, event_id: str, ctx=Depends(context)):
+    from .game_research import matchup_detail
+    b = snapshot(ctx[0])
+    result = matchup_detail(b['rows'], sport.upper(), event_id)
+    if result is None:
+        raise HTTPException(404, 'No observed research for this matchup.')
+    return response({'event': result['event'], 'event_id': event_id,
+                     **result['simulation'],
+                     'model_probability': None,
+                     'notice': 'No simulated score or win probability is fabricated. A validated event-specific joint distribution is required.'})
+
+
+@router.get('/firsttd/{event_id}')
+def firsttd(event_id: str, ctx=Depends(context)):
+    from .game_research import matchup_detail
+    b = snapshot(ctx[0])
+    result = matchup_detail(b['rows'], 'NFL', event_id)
+    if result is None:
+        raise HTTPException(404, 'No observed NFL research for this matchup.')
+    return response({'event': result['event'], 'event_id': event_id,
+                     **result['first_td'],
+                     'notice': 'First touchdown is distinct from anytime touchdown. No unsupported rankings are displayed.'})
+
+
 @router.get('/top10')
 def top10(kind: Literal['hr', 'td', 'nba_props', 'nhl_goals'] = 'hr', ctx=Depends(context)):
     sport, markets = {'hr': ('MLB', {'batter_home_runs'}), 'td': ('NFL', {'player_anytime_td'}), 'nba_props': ('NBA', set()), 'nhl_goals': ('NHL', {'player_goal_scorer_anytime', 'player_goals'})}[kind]
