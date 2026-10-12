@@ -30,6 +30,18 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
     if sheet is None:
         return "SOURCE_UNAVAILABLE"
     frozen_id, created = freeze_daily_moneyline(store, sheet, now=datetime.now(UTC), timezone="America/Chicago")
+    frozen = daily_moneyline(store, now=now)
+    if frozen is None:
+        raise RuntimeError("Daily sheet readback failed")
+    payload = frozen["payload"]
+    eligible = int(payload.get("eligible_game_count", -1))
+    published = int(payload.get("row_count", -2))
+    if eligible != published or payload.get("verified_count_match") is not True:
+        raise RuntimeError("Daily slate/card count mismatch")
+    print(
+        f"DAILY_CHEAT_SHEET_VERIFIED DATE={date} ELIGIBLE={eligible} GAME_CARDS={published} SPORTS={','.join(payload.get('sports', []))}",
+        flush=True,
+    )
     if created:
         print(f"DISCORD_DAILY_FROZEN DATE={date} SHEET={frozen_id} SOURCE={sheet_id} SCAN_COMPLETED={sheet['payload']['completed_at']}", flush=True)
     return "FROZEN" if created else "ALREADY_FROZEN"
