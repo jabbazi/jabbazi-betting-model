@@ -54,3 +54,20 @@ def test_vip_home_does_not_project_heavy_board(monkeypatch, portal):
     assert payload["load_strategy"] == "on_demand"
     assert payload["research"] == []
     assert payload["official"] == []
+
+
+def test_model_status_refresh_is_nonblocking(monkeypatch):
+    import concurrent.futures
+    from jabazi.vip import model_cache
+    waiting = concurrent.futures.Future()
+    monkeypatch.setattr(model_cache, "_future", None)
+    monkeypatch.setattr(model_cache, "_cache", None)
+    monkeypatch.setattr(model_cache, "_error_at", 0.0)
+    monkeypatch.setattr(model_cache._executor, "submit", lambda fn: waiting)
+    first = model_cache.status(lambda: None)
+    assert first["state"] == "REFRESHING"
+    assert first["data"] is None
+    waiting.set_result({"models": [], "errors": []})
+    second = model_cache.status(lambda: None)
+    assert second["state"] == "READY"
+    assert second["data"]["models"] == []
