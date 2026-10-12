@@ -30,14 +30,14 @@ BOT_CHANNEL = VIEW | SEND | READ | (1 << 13) | (1 << 14) | (1 << 15) | THREAD_SE
 ARCHIVE = "🗄️ ARCHIVE"
 CHANNEL_ENV = {
     "scanner-status": "STATUS_CHANNEL_ID",
-    "daily-moneyline-cheat-sheet": "SHEETS_CHANNEL_ID",
-    "jabbazi-main-card": "MAIN_CARD_CHANNEL_ID",
+    "cheat-sheets": "SHEETS_CHANNEL_ID",
+    "main-card": "MAIN_CARD_CHANNEL_ID",
     "results": "RESULTS_CHANNEL_ID",
     "support": "SUPPORT_CHANNEL_ID",
-    "vip-research": "VIP_RESEARCH_CHANNEL_ID",
+    "research-desk": "VIP_RESEARCH_CHANNEL_ID",
     "market-watch": "MARKET_WATCH_CHANNEL_ID",
     "welcome": "WELCOME_CHANNEL_ID",
-    "how-to-use-jabbazi": "GUIDE_CHANNEL_ID",
+    "how-jabbazi-works": "GUIDE_CHANNEL_ID",
     "get-access": "ACCESS_CHANNEL_ID",
     "general": "GENERAL_CHANNEL_ID",
     "bot-log": "BOT_LOG_CHANNEL_ID",
