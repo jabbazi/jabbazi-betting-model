@@ -121,11 +121,14 @@ class AutomaticScanner:
         if mode not in {"quick", "full", "moneyline"}:
             raise ValueError("mode must be quick, full or moneyline")
         active = self._active_supported()
-        selected = (
-            [sport for sport in active if sport["key"] in QUICK_SPORTS]
-            if mode == "quick"
-            else active
-        )
+        if mode == "quick":
+            selected = [sport for sport in active if sport["key"] in QUICK_SPORTS]
+        elif mode == "moneyline":
+            from .discord_daily import configured_daily_sports, sport_label
+            daily_labels = set(configured_daily_sports())
+            selected = [sport for sport in active if sport_label(sport["key"]) in daily_labels]
+        else:
+            selected = active
         # Full scans still prioritize the owner's primary leagues within quota.
         priority = {
             "americanfootball_nfl": 0,
