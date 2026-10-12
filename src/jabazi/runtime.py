@@ -177,6 +177,27 @@ def worker(*, once=False):
                     )
                 except Exception as exc:
                     print("JABBAZI_BRAND_SETUP_UNAVAILABLE_" + type(exc).__name__, flush=True)
+            if os.getenv("JABBAZI_DISCORD_VERIFY_ON_START", "false").lower() == "true":
+                try:
+                    verify = subprocess.run(
+                        [sys.executable, "tools/verify_jabbazi_discord.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=300,
+                    )
+                    for line in verify.stdout.splitlines():
+                        if line.startswith("JABBAZI_FINAL_VERIFICATION "):
+                            print(line, flush=True)
+                    print(
+                        "JABBAZI_FINAL_VERIFY_"
+                        + ("COMPLETED" if verify.returncode == 0 else "ACTION_REQUIRED"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(
+                        "JABBAZI_FINAL_VERIFY_UNAVAILABLE_" + type(exc).__name__,
+                        flush=True,
+                    )
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         if not once:
             from .discord_schedule import daily_loop
