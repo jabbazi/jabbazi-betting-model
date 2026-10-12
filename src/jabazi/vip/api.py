@@ -170,15 +170,15 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
 
 @router.get('/sim/{sport}/{event_id}')
 def simulation(sport: str, event_id: str, ctx=Depends(context)):
-    from .game_research import matchup_detail
+    from .game_research import matchup_detail, simulate_current_event
     b = snapshot(ctx[0])
     result = matchup_detail(b['rows'], sport.upper(), event_id)
     if result is None:
         raise HTTPException(404, 'No observed research for this matchup.')
+    simulation_result = simulate_current_event(ctx[0], sport=sport.upper(), event_id=event_id, rows=b['rows'])
     return response({'event': result['event'], 'event_id': event_id,
-                     **result['simulation'],
-                     'model_probability': None,
-                     'notice': 'No simulated score or win probability is fabricated. A validated event-specific joint distribution is required.'})
+                     **simulation_result,
+                     'notice': 'Only verified event-matched paired score distributions are shown. Model output remains SHADOW_ONLY research.'})
 
 
 @router.get('/firsttd/{event_id}')
