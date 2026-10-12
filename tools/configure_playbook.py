@@ -27,7 +27,7 @@ TARGET_ALLOW = VIEW | SEND | EMBED | ATTACH | HISTORY
 # Strict production allowlist. These are the only active wager/update channels in
 # the current server blueprint. Research, cheat sheets, chat, archived picks and
 # staff channels are intentionally excluded.
-TARGET_EXACT = {"jabbazi-main-card", "live-watch"}
+TARGET_EXACT = {"main-card", "live-watch"}
 TARGET_CATEGORY = "TODAY’S JABBAZI"
 
 
@@ -373,7 +373,7 @@ def configure(*, apply: bool, test: bool):
             # Playbook may intentionally ignore bot-authored messages. A response proves
             # end-to-end command handling; no response is reported separately from the
             # permission verification above.
-            priority = ["jabbazi-main-card", "live-watch"]
+            priority = ["main-card", "live-watch"]
             target = next(
                 (
                     channel
