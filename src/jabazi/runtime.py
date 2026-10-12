@@ -177,6 +177,27 @@ def worker(*, once=False):
                     )
                 except Exception as exc:
                     print("JABBAZI_BRAND_SETUP_UNAVAILABLE_" + type(exc).__name__, flush=True)
+            if os.getenv("JABBAZI_VISUAL_BRAND_ON_START", "false").lower() == "true":
+                try:
+                    visual = subprocess.run(
+                        [sys.executable, "tools/apply_discord_visual_brand.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=180,
+                    )
+                    for line in visual.stdout.splitlines():
+                        if line.startswith("JABBAZI_VISUAL_BRAND "):
+                            print(line, flush=True)
+                    print(
+                        "JABBAZI_VISUAL_BRAND_SETUP_"
+                        + ("COMPLETED" if visual.returncode == 0 else "ACTION_REQUIRED"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(
+                        "JABBAZI_VISUAL_BRAND_SETUP_UNAVAILABLE_" + type(exc).__name__,
+                        flush=True,
+                    )
             if os.getenv("JABBAZI_WELCOME_REPAIR_ON_START", "false").lower() == "true":
                 try:
                     repair = subprocess.run(
