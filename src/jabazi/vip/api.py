@@ -55,8 +55,6 @@ def home(ctx=Depends(context)):
     official candidates before first paint. Under large feeds that could
     exhaust the request timeout despite successful VIP authentication.
     """
-    store, p = ctx
-    prefs = data.preference(store, p)
     return response({
         'state': 'ON_DEMAND',
         'snapshot_at': None,
@@ -68,8 +66,7 @@ def home(ctx=Depends(context)):
         'sports': [{'sport': sport, 'events': None, 'fresh_rows': None, 'status': 'CHECK ON OPEN'} for sport in data.SPORTS],
         'frozen_available': False,
         'load_strategy': 'on_demand',
-        'preferences_loaded': bool(prefs),
-    })
+     })
 
 @router.get('/board')
 def board(sport: str = '', q: str = Query('', max_length=100), market: str = Query('', max_length=80), status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
