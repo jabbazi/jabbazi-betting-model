@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
-from .discord_migration import PIN_MESSAGES, channel_name, effective_permissions, request
+from .discord_migration import CHANNEL_ENV, PIN_MESSAGES, channel_name, effective_permissions, request
 from .persistence.store import digest
 
 MARKER = 'JABBAZI_SETUP_V'
@@ -89,6 +90,30 @@ def seed(http, store, *, guild, owner, apply=False):
         link_lookup[observed] = row
         for alias in bp.get('channel_aliases', {}).get(key, []):
             link_lookup[channel_name(alias)] = row
+
+    # When legacy aliases create more than one channel with the same canonical
+    # key, prefer the production-configured ID. This keeps seeding attached to
+    # the channel actually used by the gateway/publishers.
+    for key, suffix in CHANNEL_ENV.items():
+        configured = os.getenv('JABBAZI_DISCORD_' + suffix, '').strip()
+        if not configured:
+            continue
+        parent_name = expected.get(key)
+        preferred = next(
+            (
+                row for row in channels
+                if row.get('type') == 0
+                and str(row.get('id')) == configured
+                and parents.get(str(row.get('parent_id'))) == parent_name
+            ),
+            None,
+        )
+        if preferred is not None:
+            by_name[key] = preferred
+            link_lookup[key] = preferred
+            link_lookup[channel_name(preferred.get('name', ''))] = preferred
+            for alias in bp.get('channel_aliases', {}).get(key, []):
+                link_lookup[channel_name(alias)] = preferred
     plan = []
     for name, message in content.items():
         channel = by_name.get(name)
