@@ -9,3 +9,9 @@
 .market-strip{display:flex;gap:8px;overflow-x:auto;white-space:nowrap;margin:14px 0 19px;padding-bottom:4px;scrollbar-width:none}.market-strip::-webkit-scrollbar{display:none}.market-strip a{flex:0 0 auto;border:1px solid var(--line);border-radius:9px;padding:9px 12px;color:var(--muted);font-size:11px;font-weight:750}.market-strip a:hover{text-decoration:none;color:var(--ink);border-color:var(--purple)}
 .compact-note{font-size:11px;color:var(--muted);margin-top:8px}
 @media(max-width:650px){.sportbar{margin-top:-6px;margin-bottom:19px}.sportbar a{font-size:11px;padding:8px 11px}.workspace-kpis{grid-template-columns:1fr 1fr 1fr}.workspace-kpis strong{font-size:16px}}
+
+.simulation-chart{margin:18px 0 24px;padding:18px;border:1px solid var(--line);background:var(--panel);border-radius:15px}
+.simulation-chart p{margin:0 0 12px;font-size:13px}
+.simulation-bar{display:flex;overflow:hidden;height:20px;border-radius:999px;background:#363036}
+.simulation-home{background:#FF0A8A;min-width:0}
+.simulation-away{background:#D9D9D9;min-width:0}
