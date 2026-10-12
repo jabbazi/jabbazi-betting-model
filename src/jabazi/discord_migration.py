@@ -10,7 +10,7 @@ from pathlib import Path
 
 import httpx
 
-from .discord_access import vip_role_ids
+from .discord_access import is_staff_name, normalize_role_name, vip_role_ids
 from .persistence.store import Store, digest
 
 VIEW = 1 << 10
@@ -25,7 +25,6 @@ PIN_MESSAGES = 1 << 51
 APP_COMMANDS = 1 << 31
 POSTING = SEND | (1 << 35) | THREAD_CREATE | THREAD_SEND
 BOT_CHANNEL = VIEW | SEND | READ | (1 << 13) | (1 << 14) | (1 << 15) | THREAD_SEND | THREAD_CREATE | (1 << 35)
-STAFF_NAMES = {"JABBAZI TEAM", "MODERATOR"}
 ARCHIVE = "🗄️ ARCHIVE"
 CHANNEL_ENV = {
     "scanner-status": "STATUS_CHANNEL_ID",
@@ -138,14 +137,14 @@ def migrate(*, apply=False, archive_obsolete=False):
         vip = vip_role_ids(roles, configured_vip_ids())
         if not vip:
             raise ValueError("No approved VIP-family role exists")
-        staff = {str(r["id"]) for r in roles if r["name"].upper() in STAFF_NAMES}
+        staff = {str(r["id"]) for r in roles if is_staff_name(r.get("name"))}
         bot_roles = [r for r in roles if str(r["id"]) in membership["roles"]]
         top = max((r.get("position", 0) for r in bot_roles), default=0)
         permissions = effective_permissions(guild, bot, membership["roles"], roles, {}, owner)
         warnings = []
         if permissions & ADMIN:
             warnings.append("BOT_HAS_ADMINISTRATOR: owner must review role before completion")
-        high = [str(r["id"]) for r in roles if (str(r["id"]) in vip or r["name"].endswith(" Alerts")) and r.get("position", 0) >= top]
+        high = [str(r["id"]) for r in roles if (str(r["id"]) in vip or normalize_role_name(r.get("name")).endswith(" ALERTS")) and r.get("position", 0) >= top]
         if high:
             warnings.append("BOT_ROLE_NOT_ABOVE_MANAGED_ROLES: " + ",".join(high))
         plan = {"mode": "APPLIED" if apply else "DRY_RUN", "guild_id": guild,
@@ -320,7 +319,10 @@ def migrate(*, apply=False, archive_obsolete=False):
             call("PATCH", f"/guilds/{guild}/channels", "ORDER_CATEGORIES", json=[{"id": c["id"], "position": position} for position, c in enumerate(active + legacy)])
         # Create only missing opt-in alerts; no duplicate VIP-family roles.
         for spec in bp["roles"]:
-            if not spec["name"].endswith(" Alerts") or any(r["name"] == spec["name"] for r in roles):
+            if not normalize_role_name(spec["name"]).endswith(" ALERTS") or any(
+                normalize_role_name(r.get("name")) == normalize_role_name(spec["name"])
+                for r in roles
+            ):
                 continue
             plan["actions"].append({"operation": "CREATE_ALERT_ROLE", "name": spec["name"]})
             if apply:
