@@ -131,6 +131,21 @@ def worker(*, once=False):
                         if line.startswith(("DISCORD_ONBOARDING_VERIFICATION ", "DISCORD_OPERATION_")):
                             print(line, flush=True)
                     print("DISCORD_ONBOARDING_" + ("SEEDED" if seed.returncode == 0 else "UNAVAILABLE"), flush=True)
+                    if os.getenv("JABBAZI_DISCORD_REBRAND_ENABLED", "false").lower() == "true":
+                        brand = subprocess.run(
+                            [sys.executable, "tools/rebrand_discord_identity.py"],
+                            capture_output=True,
+                            text=True,
+                            timeout=180,
+                        )
+                        for line in brand.stdout.splitlines():
+                            if line.startswith("JABBAZI_REBRAND "):
+                                print(line, flush=True)
+                        print(
+                            "JABBAZI_REBRAND_"
+                            + ("COMPLETED" if brand.returncode == 0 else "UNAVAILABLE"),
+                            flush=True,
+                        )
                 except Exception as exc:
                     # Never dump SDK response bodies, URLs, environment values or
                     # exceptions that could contain credentials.
