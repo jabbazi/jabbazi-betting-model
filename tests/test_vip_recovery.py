@@ -36,3 +36,18 @@ def test_vip_frontend_has_bounded_requests_and_no_auto_ticket_replay():
     assert "Retry existing session" in source
     assert "Retry this view" in source
     assert "serviceWorker.register(" not in source
+
+
+def test_vip_home_does_not_project_heavy_board(monkeypatch, portal):
+    from jabazi.vip import data
+    from test_member_portal import sign_in
+    store, client = portal
+    sign_in(store, client)
+    monkeypatch.setattr(data, "board", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("heavy board read")))
+    monkeypatch.setattr(data, "official", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("heavy official read")))
+    result = client.get("/v1/vip/home")
+    assert result.status_code == 200
+    payload = result.json()
+    assert payload["load_strategy"] == "on_demand"
+    assert payload["research"] == []
+    assert payload["official"] == []
