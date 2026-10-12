@@ -160,6 +160,19 @@ def worker(*, once=False):
                                       "Discord backup readback failed"}:
                         detail = "_" + str(exc).replace(" ", "_")
                     print("DISCORD_RECONCILE_UNAVAILABLE_" + type(exc).__name__ + detail, flush=True)
+            if os.getenv("JABBAZI_LAYOUT_INSPECT_ON_START", "false").lower() == "true":
+                try:
+                    inspect = subprocess.run(
+                        [sys.executable, "tools/inspect_discord_layout.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                    )
+                    for line in inspect.stdout.splitlines():
+                        if line.startswith("DISCORD_LAYOUT_INSPECT "):
+                            print(line, flush=True)
+                except Exception as exc:
+                    print("DISCORD_LAYOUT_INSPECT_UNAVAILABLE_" + type(exc).__name__, flush=True)
             if os.getenv("JABBAZI_DISCORD_SEED_ON_START", "false").lower() == "true":
                 try:
                     seed = subprocess.run(
