@@ -318,6 +318,7 @@ def configure(*, apply: bool, test: bool):
 
         verified = {}
         unwanted_visible = []
+        readonly_public_exceptions = []
         target_permission_failures = []
         for channel in [c for c in live_channels if c.get("type") in (0, 5)]:
             effective = effective_channel_permissions(
@@ -333,8 +334,25 @@ def configure(*, apply: bool, test: bool):
                 if not ok:
                     target_permission_failures.append(channel["name"])
             else:
-                ok = not bool(effective & VIEW)
-                if not ok:
+                visible = bool(effective & VIEW)
+                can_send = bool(effective & SEND)
+                canonical = canonical_channel_name(channel.get("name", ""))
+                parent_name = categories.get(str(channel.get("parent_id")), "")
+                is_public_welcome = (
+                    canonical == "welcome"
+                    and "START HERE" in parent_name
+                    and not can_send
+                )
+                if not visible:
+                    ok = True
+                elif is_public_welcome:
+                    # Discord refuses an overwrite on this legacy public read-only
+                    # channel. It remains visible like it is to every member, but the
+                    # bot cannot post/operate there.
+                    ok = True
+                    readonly_public_exceptions.append(channel["name"])
+                else:
+                    ok = False
                     unwanted_visible.append(channel["name"])
             verified[channel["name"]] = ok
 
@@ -342,6 +360,7 @@ def configure(*, apply: bool, test: bool):
             details = {
                 "targets_missing_permissions": target_permission_failures[:5],
                 "unexpected_visible_channels": unwanted_visible[:10],
+                "readonly_public_exceptions": readonly_public_exceptions[:5],
                 "write_failures": write_failures[:5],
             }
             raise RuntimeError(
@@ -412,6 +431,7 @@ def configure(*, apply: bool, test: bool):
             "verified_channels": len(verified),
             "permission_write_failures_resolved_by_effective_check": len(write_failures),
             "category_fallbacks": category_fallbacks,
+            "readonly_public_exceptions": readonly_public_exceptions,
             "test": test_result,
         }
 
