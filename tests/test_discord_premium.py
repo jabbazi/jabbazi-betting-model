@@ -122,8 +122,8 @@ def test_discord_blueprint_has_unique_channels_and_required_sections():
     channels=[name for category in blueprint["categories"] for name in category["channels"]]
     assert len(channels)==len(set(channels))
     for required in (
-        "daily-moneyline-cheat-sheet","jabbazi-main-card","vip-research",
-        "get-access","scanner-status","support","staff-chat",
+        "cheat-sheets","main-card","research-desk",
+        "get-access","scanner-status","support","staff-room",
     ):
         assert required in channels
     assert any(role["name"]=="VIP" for role in blueprint["roles"])
