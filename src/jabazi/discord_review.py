@@ -43,7 +43,7 @@ def render(action, now=None):
         {"name": "Model decision", "value": action.reason},
     ]
     return {
-        "username": "JABBAZI GURU",
+        "username": "JABBAZI",
         "allowed_mentions": {"parse": []},
         "embeds": [
             {
