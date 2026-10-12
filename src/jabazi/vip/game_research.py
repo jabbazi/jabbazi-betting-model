@@ -162,3 +162,73 @@ def first_td_distribution(*, team_first_td_probabilities, scorer_shares, no_td_p
     return {"state": "SHADOW_ONLY", "approved_for_betting": False,
             "outcomes": sorted(output, key=lambda x: -x["probability"]),
             "no_td_probability": no_td, "method": "supplied_conditional_first_touchdown_hazards"}
+
+
+def simulate_current_event(store, *, sport, event_id, rows):
+    """Reuse the canonical fitted score model and its strict identity/freshness gates.
+
+    A successful estimate supplies actual paired score samples. This endpoint
+    never manufactures a distribution from a market moneyline.
+    """
+    from decimal import Decimal
+    from ..domain.shopping import PriceCard
+    from ..models.team_elo import SPORTS
+    from ..models.score_distribution import ScoreDistributionModel
+
+    unavailable = {
+        "state": "UNAVAILABLE", "approved_for_betting": False,
+        "reason": "No validated, fresh, event-matched score distribution is available.",
+    }
+    if sport not in {"NFL", "CFB", "NBA", "MLB"}:
+        return unavailable
+    model_sport = SPORTS[{"NFL": "nfl", "CFB": "cfb", "NBA": "nba", "MLB": "mlb"}[sport]]
+    artifacts = store.list_records("game_model", 1, entity=model_sport)
+    if not artifacts:
+        return unavailable
+    artifact = artifacts[0]["payload"]
+    if artifact.get("status") == "UNAVAILABLE":
+        return unavailable
+    try:
+        model = ScoreDistributionModel(artifact)
+        for row in rows:
+            if (row.get("sport") != sport or str(row.get("event_id")) != event_id
+                    or row.get("market") != "h2h" or not row.get("fresh")):
+                continue
+            observed = datetime.fromisoformat(str(row["price_at"]).replace("Z", "+00:00"))
+            start = datetime.fromisoformat(str(row["starts_at"]).replace("Z", "+00:00"))
+            price = Decimal(str(row["decimal"]))
+            market_probability = Decimal(str(row["market_probability"]))
+            if not (observed.tzinfo and start.tzinfo and price > 1
+                    and 0 < market_probability < 1):
+                continue
+            card = PriceCard(
+                sport=model_sport, event_id=event_id, event=row["event"],
+                market="h2h", participant=None, selection=row["selection"], line=None,
+                book_prices={str(row.get("book") or "observed"): price},
+                best_book=str(row.get("book") or "observed"), best_decimal=price,
+                consensus_probability=market_probability, market_relative_ev=Decimal("0"),
+                sportsbook_disagreement=Decimal("0"), stale=False, in_play=False,
+                quote_ids=(), observed_at=observed, source_timestamp=observed,
+                starts_at=start, executable=False,
+            )
+            estimate = model.estimate(card)
+            if estimate is None or not model._cache:
+                continue
+            _, distribution = next(iter(model._cache.values()))
+            summary = distribution.summary()
+            home = estimate.feature_snapshot["home_team"]
+            away = estimate.feature_snapshot["away_team"]
+            return {
+                "state": "SHADOW_ONLY", "approved_for_betting": False,
+                "source": "CANONICAL_PAIRED_SCORE_MODEL",
+                "model_version": estimate.model_version,
+                "model_snapshot_id": estimate.feature_snapshot["snapshot_id"],
+                "home": home, "away": away,
+                "summary": summary,
+                "home_win": distribution.outcome("h2h", home, None, home, away),
+                "away_win": distribution.outcome("h2h", away, None, home, away),
+                "notice": "Real model score scenarios, research only. Missing starter, roster, injury or calibration evidence blocks betting approval.",
+            }
+    except (ValueError, TypeError, KeyError, IndexError, OverflowError, ArithmeticError):
+        return unavailable
+    return unavailable
