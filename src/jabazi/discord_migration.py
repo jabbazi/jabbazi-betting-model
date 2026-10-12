@@ -154,7 +154,7 @@ def migrate(*, apply=False, archive_obsolete=False):
         for name, suffix in CHANNEL_ENV.items():
             configured = os.getenv("JABBAZI_DISCORD_" + suffix, "")
             if configured and not any(c["type"] == 0 and str(c["id"]) == configured for c in channels):
-                raise ValueError(f"Configured channel ID missing for {name}; review before migration")
+                warnings.append(f"STALE_CONFIGURED_CHANNEL_ID:{name}")
         if apply:
             if not permissions & ADMIN and permissions & (MANAGE_CHANNELS | MANAGE_ROLES) != MANAGE_CHANNELS | MANAGE_ROLES:
                 raise ValueError("Bot requires Manage Channels and Manage Roles before permission repair")
@@ -291,7 +291,8 @@ def migrate(*, apply=False, archive_obsolete=False):
                     None,
                 ) if configured else None
                 if configured and configured_row is None:
-                    raise ValueError(f"Configured channel ID missing for {name}; review before migration")
+                    plan["warnings"].append(f"STALE_CONFIGURED_CHANNEL_ID_FALLBACK:{name}")
+                    configured = ""
                 if configured_row is not None and not manageable_channel(configured_row):
                     preserved_unmanageable.add(str(configured_row["id"]))
                     plan["warnings"].append(
