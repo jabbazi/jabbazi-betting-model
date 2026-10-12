@@ -64,7 +64,7 @@ def official_pick_embed(payload, *, now=None):
     return {
         "title":f"🟢 JABBAZI MAIN CARD • {price.get('event')}",
         "color":STATUS_COLORS["BET NOW"],"fields":fields,
-        "footer":{"text":"Official recommendation • price-sensitive • no wager is guaranteed"},
+        "footer":{"text":"To build a slip: reply to this post with @Playbook + sportsbook • verify price before placing"},
     }
 
 
