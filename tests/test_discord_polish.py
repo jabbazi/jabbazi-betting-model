@@ -162,7 +162,8 @@ def test_intro_backup_idempotency_pin_reuse_and_unpin_preserves_history(store, p
     with httpx.Client(base_url='https://discord.com/api/v10', transport=httpx.MockTransport(handler)) as http:
         first = seed(http, store, guild='1', owner='2', apply=True)
         second = seed(http, store, guild='1', owner='2', apply=True)
-    assert len(posts) == 17  # Reuses the existing welcome and creates only missing guides.
+    expected_posts = len(json.loads(Path("docs/discord/seed_content.json").read_text())) - 1
+    assert len(posts) == expected_posts  # Reuses the existing welcome and creates all other guides.
     assert [p['message_id'] for p in first['plan']] == [p['message_id'] for p in second['plan']]
     assert all(p['status'] == ('INTRO_VERIFIED_PIN_PERMISSION_REQUIRED' if pin_blocked else 'PINNED') for p in second['plan'])
     assert messages[welcome]['12']['pinned']
