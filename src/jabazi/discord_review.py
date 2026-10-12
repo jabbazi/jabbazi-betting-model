@@ -48,7 +48,7 @@ def render(action, now=None):
         "embeds": [
             {
                 "title": f"RESEARCH / NOT A PICK — {card.event}"[:256],
-                "color": 0x8B5CF6,
+                "color": 0xFF0A8A,
                 "fields": fields,
                 "footer": {"text": "Private review • no automatic VIP publication"},
                 "timestamp": now.isoformat(),
