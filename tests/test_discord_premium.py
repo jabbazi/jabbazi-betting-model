@@ -178,7 +178,7 @@ def test_jabbazi_crown_blueprint_keeps_vip_lanes_separate():
     assert len(channels) == 46
     vip_categories=[c for c in blueprint["categories"] if c["access"]=="vip"]
     assert {c["name"] for c in vip_categories} == {
-        "🔥 TODAY’S JABBAZI", "🧠 THE LAB", "💎 INNER CIRCLE"
+        "🏆 VIP PICKS", "🧠 THE LAB", "💎 INNER CIRCLE"
     }
 
 
