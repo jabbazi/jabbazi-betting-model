@@ -678,7 +678,7 @@ def build_client(config, store):
                 try:
                     key = digest(["discord_brand", config.guild, message.id])
                     if await asyncio.to_thread(store.append, "brand_delivery_claim", key, {}, key):
-                        embed = discord.Embed(title="JABBAZI 👑", colour=0x8B35E8)
+                        embed = discord.Embed(title="JABBAZI 👑", colour=0xFF0A8A)
                         embed.set_image(url=config.brand_gif_url)
                         await message.channel.send(
                             embed=embed, allowed_mentions=discord.AllowedMentions.none()
@@ -726,7 +726,7 @@ def build_client(config, store):
                     embed = discord.Embed(
                         title="Open JABBAZI",
                         url=link,
-                        colour=0x8B35E8,
+                        colour=0xFF0A8A,
                         description="Your private research room: game sheets, player props, anytime TDs, insights and lessons. This single-use link expires in 5 minutes; access lasts 15 minutes. Keep this link private.",
                     )
                     try:
