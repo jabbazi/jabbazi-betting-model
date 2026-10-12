@@ -2,32 +2,32 @@
   "roles": [
     {
       "name": "JABBAZI TEAM",
-      "color": 9123304,
+      "color": 14221416,
       "hoist": true
     },
     {
       "name": "MODERATOR",
-      "color": 5793266,
+      "color": 14277081,
       "hoist": true
     },
     {
       "name": "VIP",
-      "color": 10181046,
+      "color": 16714378,
       "hoist": true
     },
     {
       "name": "FREE MEMBER",
-      "color": 9807270,
+      "color": 9474202,
       "hoist": false
     },
     {
       "name": "FOUNDING VIP",
-      "color": 12745742,
+      "color": 16716947,
       "hoist": true
     },
     {
       "name": "TRIAL VIP",
-      "color": 7419530,
+      "color": 7041664,
       "hoist": false
     },
     {
