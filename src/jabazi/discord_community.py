@@ -97,7 +97,7 @@ def preview_payload(record, *, now):
                            'A healthy scan does not mean the model is approved for cash bets.\n\n'
                            'WATCH and PASS are valid outcomes. Research leans are not official wagers. '
                            'This snapshot covers returned research only, not a verified complete league schedule.',
-            'footer': {'text': 'JABBAZI GURU · Research process preview'}}
+            'footer': {'text': 'JABBAZI · Research process preview'}}
 
 
 async def publish_public_preview(client, store, config, *, now=None):
