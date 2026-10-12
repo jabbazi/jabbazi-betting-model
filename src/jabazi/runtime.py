@@ -100,6 +100,23 @@ def worker(*, once=False):
     try:
         if not store.ready():
             raise RuntimeError("Database migration required")
+        if not once and os.getenv("JABBAZI_PLAYBOOK_SETUP_ON_START", "false").lower() == "true":
+            try:
+                playbook = subprocess.run(
+                    [sys.executable, "tools/configure_playbook.py", "--apply", "--test"],
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
+                )
+                for line in playbook.stdout.splitlines():
+                    if line.startswith("PLAYBOOK_CONFIGURATION "):
+                        print(line, flush=True)
+                print(
+                    "PLAYBOOK_SETUP_" + ("COMPLETED" if playbook.returncode == 0 else "UNAVAILABLE"),
+                    flush=True,
+                )
+            except Exception as exc:
+                print("PLAYBOOK_SETUP_UNAVAILABLE_" + type(exc).__name__, flush=True)
         if not once and os.getenv("JABBAZI_DISCORD_COMMANDS_ENABLED", "false").lower() == "true":
             if os.getenv("JABBAZI_DISCORD_RECONCILE_ENABLED", "false").lower() == "true":
                 try:
