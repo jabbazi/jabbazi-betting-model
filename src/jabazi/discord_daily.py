@@ -367,18 +367,19 @@ def _wrapped(draw, text, face, width):
 
 
 def render_game_card(record, row):
-    from PIL import Image, ImageDraw, ImageOps
+    from PIL import Image, ImageDraw
     p = record["payload"]
     image = Image.new("RGB", (1200, 900), BLACK)
     draw = ImageDraw.Draw(image)
 
-    logo_path = Path("docs/discord/assets/jabbazi-hot-pink-logo.jpg")
-    if logo_path.exists():
-        logo = Image.open(logo_path).convert("RGB")
-        logo = ImageOps.fit(logo, (460, 259), method=Image.Resampling.LANCZOS)
-        image.paste(logo, (370, 8))
-    else:
-        draw.text((60, 40), "JABBAZI", font=_font(72, True), fill=WHITE)
+    # Large-format JABBAZI wordmark treatment. The Discord icon uses a compact J;
+    # game cards keep the full brand name prominent and legible.
+    logo_font = _font(88, True)
+    logo_box = draw.textbbox((0, 0), "JABBAZI", font=logo_font)
+    logo_x = (1200 - (logo_box[2] - logo_box[0])) // 2
+    draw.text((logo_x + 5, 72), "JABBAZI", font=logo_font, fill=MAGENTA)
+    draw.text((logo_x, 67), "JABBAZI", font=logo_font, fill=WHITE)
+    draw.arc((330, 120, 870, 235), start=8, end=350, fill=NEON_PINK, width=10)
 
     draw.rectangle((0, 0, 1200, 8), fill=HOT_PINK)
     draw.rectangle((36, 255, 1164, 865), outline=HOT_PINK, width=3)
