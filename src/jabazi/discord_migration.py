@@ -207,8 +207,34 @@ def migrate(*, apply=False, archive_obsolete=False):
                     try:
                         result = call("PATCH", f"/channels/{existing['id']}", operation, json=payload)
                     except RuntimeError:
-                        current = effective_permissions(guild, bot, membership["roles"], roles, existing, owner)
-                        print(f"DISCORD_CHANNEL_FAILURE ID={existing['id']} BOT={bot} VIEW={bool(current & VIEW)} MANAGE_CHANNELS={bool(current & MANAGE_CHANNELS)} MANAGE_ROLES={bool(current & MANAGE_ROLES)}", flush=True)
+                        current = effective_permissions(
+                            guild, bot, membership["roles"], roles, existing, owner
+                        )
+                        print(
+                            f"DISCORD_CHANNEL_FAILURE ID={existing['id']} BOT={bot} "
+                            f"VIEW={bool(current & VIEW)} "
+                            f"MANAGE_CHANNELS={bool(current & MANAGE_CHANNELS)} "
+                            f"MANAGE_ROLES={bool(current & MANAGE_ROLES)}",
+                            flush=True,
+                        )
+                        # Some legacy channels have an explicit overwrite that blocks
+                        # Manage Channels for the JABBAZI bot even though the bot can
+                        # manage the surrounding category. Preserve those channels
+                        # only when the requested migration does not need to rename or
+                        # move them. Their existing topic/permissions remain intact and
+                        # are still checked by the later effective-access verifier.
+                        same_name = existing.get("name") == payload.get("name")
+                        same_parent = str(existing.get("parent_id")) == str(
+                            payload.get("parent_id")
+                        )
+                        if operation == "UPSERT_CHANNEL" and same_name and same_parent:
+                            warning = (
+                                "PRESERVED_LOCKED_ACTIVE_CHANNEL:"
+                                + str(existing["id"])
+                            )
+                            plan["warnings"].append(warning)
+                            print(warning, flush=True)
+                            return existing
                         raise
                 else:
                     result = call("POST", f"/guilds/{guild}/channels", operation, json=payload)
