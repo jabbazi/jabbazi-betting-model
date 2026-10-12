@@ -21,7 +21,8 @@ def main():
     out={
       "status":"VERIFIED",
       "categories":[{"id":str(x["id"]),"name":x.get("name"),"position":x.get("position",0)} for x in cats],
-      "matches":[{"id":str(x["id"]),"name":x.get("name"),"parent_id":str(x.get("parent_id") or ""),"position":x.get("position",0)} for x in texts if any(k in x.get("name","").lower() for k in ("nsf","nfs","logo"))]
+      "matches":[{"id":str(x["id"]),"name":x.get("name"),"type":x.get("type"),"parent_id":str(x.get("parent_id") or ""),"position":x.get("position",0)} for x in rows if any(k in x.get("name","").lower() for k in ("nsf","nfs","logo"))],
+      "all_nonstandard":[{"id":str(x["id"]),"name":x.get("name"),"type":x.get("type"),"parent_id":str(x.get("parent_id") or ""),"position":x.get("position",0)} for x in rows if x.get("type") not in (0,4,5)]
     }
     print("DISCORD_LAYOUT_INSPECT "+json.dumps(out,ensure_ascii=False), flush=True)
     return 0
