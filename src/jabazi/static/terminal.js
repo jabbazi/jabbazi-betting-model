@@ -113,6 +113,14 @@ else if(route==='simdetail'||route==='firsttddetail'){
     if(d.state==='SHADOW_ONLY'&&d.summary){
       root.append(metrics([['Projected '+d.home,Number(d.summary.expected_home_points).toFixed(1)],['Projected '+d.away,Number(d.summary.expected_away_points).toFixed(1)],['Total mean',Number(d.summary.expected_total).toFixed(1)],['Simulated score scenarios',String(d.summary.sample_count)]]));
       root.append(metrics([['Home win',pct(d.home_win.win)],['Away win',pct(d.away_win.win)],['Tie',pct(d.home_win.push)]]));
+      const chart=node('div',undefined,'simulation-chart'),bar=node('div',undefined,'simulation-bar');
+      const homeBar=node('span',undefined,'simulation-home'),awayBar=node('span',undefined,'simulation-away');
+      const homePct=Math.max(0,Math.min(100,Number(d.home_win.win)*100));
+      const awayPct=Math.max(0,Math.min(100,Number(d.away_win.win)*100));
+      homeBar.style.width=homePct+'%';awayBar.style.width=awayPct+'%';
+      bar.append(homeBar,awayBar);
+      chart.append(node('p',d.home+' '+homePct.toFixed(1)+'%  ·  '+d.away+' '+awayPct.toFixed(1)+'%','muted'),bar);
+      root.append(chart);
       root.append(node('p','Model: '+d.model_version+' · paired score samples, research only. Not approved for betting.','muted'));
     }else if(d.players&&d.players.length){
       for(const player of d.players){const p=node('article',undefined,'panel');p.append(node('h3',player.name),node('p',pct(player.probability)));root.append(p);}
