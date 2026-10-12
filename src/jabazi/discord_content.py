@@ -85,7 +85,7 @@ def best_two_embed(candidate):
     ]
     return {
         "title":"🟣 JABBAZI BEST-2 RESEARCH",
-        "color":STATUS_COLORS.get(status,0x8B35E8),"fields":fields,
+        "color":STATUS_COLORS.get(status,0xFF0A8A),"fields":fields,
         "footer":{"text":"External sheets are discovery evidence only • exact combined quote required"},
     }
 
