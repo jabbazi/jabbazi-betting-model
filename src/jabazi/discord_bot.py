@@ -712,6 +712,10 @@ def build_client(config, store):
                     if not await asyncio.to_thread(
                         store.append, "member_access_command", str(member.id), {}, key
                     ):
+                        await message.channel.send(
+                            "A VIP access link was requested recently. Check your DMs or use /vip for a fresh private link.",
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
                         return
                     from .member_access import issue_ticket, portal_origin
 
