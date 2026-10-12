@@ -6,6 +6,7 @@ transaction-scoped advisory lock to serialize capacity reservations across worke
 """
 
 from contextlib import contextmanager
+from functools import lru_cache
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -78,18 +79,34 @@ class Conflict(ValueError):
     pass
 
 
+@lru_cache(maxsize=2)
+def _shared_postgres_engine(url):
+    """One bounded pool per API process, not one pool per HTTP request."""
+    return create_engine(
+        url, pool_pre_ping=True, pool_size=3, max_overflow=2,
+        pool_timeout=5, pool_recycle=900,
+        connect_args={"connect_timeout": 5},
+    )
+
+
 class Store:
-    def __init__(self, url, *, initialize=False):
+    def __init__(self, url, *, initialize=False, shared=False):
         if url.startswith("postgres://"):
             url = "postgresql+psycopg://" + url[len("postgres://") :]
         if url.startswith("postgresql://"):
             url = "postgresql+psycopg://" + url[len("postgresql://") :]
-        options = {"pool_pre_ping": True}
-        if url == "sqlite:///:memory:":
-            options.update(poolclass=StaticPool, connect_args={"check_same_thread": False})
-        elif url.startswith("sqlite:"):
-            options.update(connect_args={"timeout": 10})
-        self.engine = create_engine(url, **options)
+        self._shared = bool(shared)
+        if shared:
+            if not url.startswith("postgresql+psycopg://"):
+                raise ValueError("Shared API engine requires PostgreSQL")
+            self.engine = _shared_postgres_engine(url)
+        else:
+            options = {"pool_pre_ping": True}
+            if url == "sqlite:///:memory:":
+                options.update(poolclass=StaticPool, connect_args={"check_same_thread": False})
+            elif url.startswith("sqlite:"):
+                options.update(connect_args={"timeout": 10})
+            self.engine = create_engine(url, **options)
         if initialize:
             self.migrate()
 
@@ -436,4 +453,5 @@ class Store:
             return conn.execute(select(versions.c.version)).scalars().all() == [1]
 
     def close(self):
-        self.engine.dispose()
+        if not self._shared:
+            self.engine.dispose()
