@@ -337,7 +337,6 @@ def configure(*, apply: bool, test: bool):
                 visible = bool(effective & VIEW)
                 can_send = bool(effective & SEND)
                 canonical = canonical_channel_name(channel.get("name", ""))
-                parent_name = categories.get(str(channel.get("parent_id")), "")
                 is_public_welcome = canonical == "welcome" and not can_send
                 if not visible:
                     ok = True
