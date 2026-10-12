@@ -129,9 +129,28 @@ def main():
                     and str(c.get("parent_id")) == str(parent["id"])
                 ]
                 if len(matches) != 1:
-                    failures.append("CHANNEL:" + key)
-                    continue
-                row = matches[0]
+                    if key == "welcome" and len(matches) > 1:
+                        configured_welcome = os.getenv("JABBAZI_DISCORD_WELCOME_CHANNEL_ID", "").strip()
+                        preferred = next(
+                            (m for m in matches if str(m.get("id")) == configured_welcome),
+                            None,
+                        )
+                        if preferred is None:
+                            failures.append("CHANNEL:" + key)
+                            continue
+                        row = preferred
+                        warnings.append(
+                            "PRESERVED_LOCKED_WELCOME_DUPLICATE:"
+                            + ",".join(
+                                str(m.get("id")) for m in matches
+                                if str(m.get("id")) != configured_welcome
+                            )
+                        )
+                    else:
+                        failures.append("CHANNEL:" + key)
+                        continue
+                else:
+                    row = matches[0]
                 channel_ids[key] = str(row["id"])
                 active_channel_rows.append((key, row, category["access"]))
                 expected_topic = bp.get("channel_topics", {}).get(key, "")
