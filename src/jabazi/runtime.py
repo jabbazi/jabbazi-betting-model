@@ -240,6 +240,27 @@ def worker(*, once=False):
                         "JABBAZI_FINAL_VERIFY_UNAVAILABLE_" + type(exc).__name__,
                         flush=True,
                     )
+            if os.getenv("JABBAZI_DAILY_CHEATSHEET_VERIFY_ON_START", "false").lower() == "true":
+                try:
+                    check = subprocess.run(
+                        [sys.executable, "tools/verify_daily_cheatsheet.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=180,
+                    )
+                    for line in check.stdout.splitlines():
+                        if line.startswith("JABBAZI_DAILY_CHEATSHEET_VERIFICATION "):
+                            print(line, flush=True)
+                    print(
+                        "JABBAZI_DAILY_CHEATSHEET_VERIFY_"
+                        + ("COMPLETED" if check.returncode == 0 else "ACTION_REQUIRED"),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(
+                        "JABBAZI_DAILY_CHEATSHEET_VERIFY_UNAVAILABLE_" + type(exc).__name__,
+                        flush=True,
+                    )
             if os.getenv("JABBAZI_NATIVE_SAFETY_ON_START", "false").lower() == "true":
                 try:
                     native = subprocess.run(
