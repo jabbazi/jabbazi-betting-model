@@ -353,19 +353,19 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
     if not healthy:
         selected = []
     height = 336 + max(2, len(selected)) * 64
-    image = Image.new("RGB", (1400, height), "#100c1b")
+    image = Image.new("RGB", (1400, height), "#090909")
     draw = ImageDraw.Draw(image)
     title, heading, body, small = font(35, True), font(23, True), font(20), font(17)
-    draw.rectangle((0, 0, 1400, 8), fill="#ad68ff")
-    draw.text((28, 22), "JABBAZI GURU", font=title, fill="#f9f5ff")
-    draw.text((28, 70), f"{sport.upper()} / {GROUPS[sport][group]}", font=heading, fill="#c7a1ff")
+    draw.rectangle((0, 0, 1400, 8), fill="#FF0A8A")
+    draw.text((28, 22), "JABBAZI", font=title, fill="#FFFFFF")
+    draw.text((28, 70), f"{sport.upper()} / {GROUPS[sport][group]}", font=heading, fill="#FF4DB8")
     at = record["payload"]["completed_at"][:19].replace("T", " ")
     label = "games" if group == 0 or sport == "cfb" else "players"
     draw.text(
         (28, 110),
         f"{len(rows)} {label} · page {page}/{pages} · Snapshot {at} UTC",
         font=small,
-        fill="#beb4cc",
+        fill="#B8B8B8",
     )
     notice = (
         "PARTIAL SOURCE EXPORT" if record["payload"].get("truncated") else "EXPERIMENTAL RESEARCH"
@@ -376,7 +376,7 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
         font=small,
         fill="#f4c674",
     )
-    draw.rectangle((20, 181, 1380, 218), fill="#322046")
+    draw.rectangle((20, 181, 1380, 218), fill="#1A1A1F")
     for x, text in [
         (30, "MATCHUP / PLAYER"),
         (493, "SELECTION / PRICE"),
@@ -384,11 +384,11 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
         (1102, "MARKET"),
         (1235, "EDGE"),
     ]:
-        draw.text((x, 187), text, font=small, fill="#d6b9ff")
+        draw.text((x, 187), text, font=small, fill="#FF4DB8")
     for index, item in enumerate(selected):
         y = 222 + index * 64
         if index % 2 == 0:
-            draw.rectangle((20, y, 1380, y + 62), fill="#20162e")
+            draw.rectangle((20, y, 1380, y + 62), fill="#121212")
         name = item.get("participant") if group != 0 and sport != "cfb" else item["event"]
         sub = (
             item["event"]
@@ -399,21 +399,21 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
         if group == 0 and " @ " in name:
             away, home = name.split(" @ ", 1)
             draw.text((30, y + 5), short(draw, away, body, 445), font=body, fill="white")
-            draw.text((30, y + 31), short(draw, "@ " + home, body, 445), font=body, fill="#c4b8d0")
+            draw.text((30, y + 31), short(draw, "@ " + home, body, 445), font=body, fill="#D9D9D9")
         else:
             draw.text((30, y + 5), short(draw, name, body, 445), font=body, fill="white")
-            draw.text((30, y + 33), short(draw, sub, small, 445), font=small, fill="#b8aac8")
+            draw.text((30, y + 33), short(draw, sub, small, 445), font=small, fill="#B8B8B8")
         chosen, reference = item["best"], item["reference"]
         if chosen:
             draw.text(
                 (493, y + 5),
                 short(draw, selection_label(chosen), body, 452),
                 font=body,
-                fill="#f9f5ff",
+                fill="#FFFFFF",
             )
             stamp = "PASS · " if item["status"] == "PASS" else ""
             detail = f"{stamp}{odds(chosen['decimal_odds'])} · {chosen['book']}"
-            draw.text((493, y + 33), short(draw, detail, small, 452), font=small, fill="#b8aac8")
+            draw.text((493, y + 33), short(draw, detail, small, 452), font=small, fill="#B8B8B8")
             model = percentage(chosen["research_probability"])
             market = percentage(chosen["market_no_vig_probability"])
             edge = f"{item['edge'] * 100:+.1f} pp"
@@ -422,24 +422,24 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
                 (493, y + 5),
                 short(draw, selection_label(reference, reference=True), body, 452),
                 font=body,
-                fill="#c4b8d0",
+                fill="#D9D9D9",
             )
             draw.text(
-                (493, y + 33), "No player model; market reference only", font=small, fill="#b8aac8"
+                (493, y + 33), "No player model; market reference only", font=small, fill="#B8B8B8"
             )
             model, market, edge = "—", percentage(reference["market_no_vig_probability"]), "—"
             market = ("O " if reference["selection"].lower() == "over" else "Y ") + market
         else:
-            draw.text((493, y + 5), "NO SUPPORTED SELECTION", font=body, fill="#c4b8d0")
+            draw.text((493, y + 5), "NO SUPPORTED SELECTION", font=body, fill="#D9D9D9")
             draw.text(
                 (493, y + 33),
                 "Model or fresh comparable prices unavailable",
                 font=small,
-                fill="#b8aac8",
+                fill="#B8B8B8",
             )
             model = market = edge = "—"
         for x, value in ((966, model), (1102, market), (1235, edge)):
-            draw.text((x, y + 15), value, font=body, fill="#ddd0f0")
+            draw.text((x, y + 15), value, font=body, fill="#E8E8E8")
     if not selected:
         text = (
             "DATA UNHEALTHY"
@@ -455,19 +455,19 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
             (30, 290),
             "Missing data never becomes a model percentage or a pick.",
             font=body,
-            fill="#b8aac8",
+            fill="#B8B8B8",
         )
     draw.text(
         (28, height - 83),
         "Market = no-vig consensus. Edge = Model − Market in percentage points; not expected ROI.",
         font=small,
-        fill="#beb4cc",
+        fill="#B8B8B8",
     )
     draw.text(
         (28, height - 56),
         "Compared by price value after uncertainty. Snapshots can move; recheck prices. Never a guarantee.",
         font=small,
-        fill="#beb4cc",
+        fill="#B8B8B8",
     )
     draw.text(
         (28, height - 29),
@@ -475,7 +475,7 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
         if featured
         else "No model = no model edge. Every feed matchup is kept, even when no selection is supported.",
         font=small,
-        fill="#beb4cc",
+        fill="#B8B8B8",
     )
     output = io.BytesIO()
     image.save(output, format="PNG", optimize=True)
