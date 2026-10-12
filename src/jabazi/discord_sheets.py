@@ -195,7 +195,7 @@ def scanner_status(store, *, now=None):
             state = p.get("status", "UNAVAILABLE") if 0 <= age <= 180 else "STALE"
         except (ValueError, TypeError):
             state = "UNAVAILABLE"
-    lines = [f"JABBAZI GURU — {state}", f"Worker heartbeat (UTC): {at}"]
+    lines = [f"JABBAZI — {state}", f"Worker heartbeat (UTC): {at}"]
     from .models.registry import load_models
     from .models.player_registry import load_player_models, player_status
     models, errors = load_models(store)
