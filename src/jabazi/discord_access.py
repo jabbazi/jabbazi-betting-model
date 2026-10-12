@@ -1,16 +1,24 @@
-"""Explicit VIP-family policy shared by commands and permission repair."""
+"""Explicit VIP/staff role policy shared by commands and permission repair."""
 import re
 
 VIP_NAMES = frozenset({
-    "VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP",
-    # Existing branded role from the production migration; not substring matching.
+    "VIP", "JABBAZI VIP", "FOUNDING VIP", "TRIAL VIP", "INNER CIRCLE",
+    # Existing branded legacy role from the production migration.
     "JABBAZI GURU VIP ACCESS",
 })
+STAFF_NAMES = frozenset({"JABBAZI TEAM", "MODERATOR"})
+
+
+def normalize_role_name(name):
+    return re.sub(r"[^A-Z0-9]+", " ", str(name or "").upper()).strip()
 
 
 def is_vip_name(name):
-    normalized = re.sub(r"[^A-Z0-9]+", " ", str(name or "").upper()).strip()
-    return normalized in VIP_NAMES
+    return normalize_role_name(name) in VIP_NAMES
+
+
+def is_staff_name(name):
+    return normalize_role_name(name) in STAFF_NAMES
 
 
 def vip_role_ids(roles, configured=()):
