@@ -10,7 +10,7 @@ GUILD = '1552043745153650840'
 CHANNEL = '1554590523921272943'
 CAMPAIGN = 'vip-banner-owner-approved-2026-09-29'
 FILENAME = 'jabbazi-vip-banner.png'
-TEXT = ('@everyone\n💎 **WELCOME TO JABBAZI GURU VIP**\n\n'
+TEXT = ('@everyone\n💎 **WELCOME TO JABBAZI VIP**\n\n'
         'Explore the official Main Card, daily moneyline sheet, VIP research and our private lounge.\n'
         'See the pinned membership guide here for access details. '
         'For current plans or private help, use **/support** in <#1552129273517711421>.')
@@ -45,7 +45,7 @@ def announce(http, store, *, guild, owner):
     if not image.startswith(b'\x89PNG\r\n\x1a\n'):
         raise ValueError('Banner must be the approved PNG')
     payload = {'content': TEXT, 'allowed_mentions': {'parse': ['everyone'], 'users': [], 'roles': [], 'replied_user': False},
-               'attachments': [{'id': 0, 'filename': FILENAME, 'description': 'JABBAZI GURU VIP Membership — black and purple stadium banner'}],
+               'attachments': [{'id': 0, 'filename': FILENAME, 'description': 'JABBAZI VIP Membership — black and purple stadium banner'}],
                'nonce': key[:24], 'enforce_nonce': True}
     if not store.append('discord_banner_claim', key, {'status': 'CLAIMED', 'image_sha256': hashlib.sha256(image).hexdigest()}, key):
         return {'status': 'DELIVERY_REQUIRES_REVIEW', 'channel_id': CHANNEL}
