@@ -1,7 +1,7 @@
 """Apply the JABBAZI visual identity to the live Discord guild.
 
 One-shot and verification-first. Binary env assets are optional; when absent or
-invalid, clean JABBAZI crown assets are generated deterministically in-process.
+invalid, a hot-pink JABBAZI fallback is generated deterministically in-process.
 Role IDs and permissions are preserved. Third-party managed roles are untouched.
 """
 from __future__ import annotations
@@ -12,6 +12,7 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 
 import httpx
 from PIL import Image, ImageDraw, ImageFont
