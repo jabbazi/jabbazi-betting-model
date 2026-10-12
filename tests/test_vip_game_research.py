@@ -150,3 +150,48 @@ def test_scenario_endpoint_rejects_invalid_lines(portal, query):
     store, client = portal
     sign_in(store, client)
     assert client.get('/v1/vip/sim/NFL/g1?' + query).status_code == 422
+
+
+def test_nhl_adapter_uses_canonical_weighted_grid_and_blocks_stale_state():
+    from test_nhl import artifact, card
+    from jabazi.vip.game_research import simulate_current_event
+    from jabazi.models.nhl_goals import NHLGoalsModel
+    a = artifact()
+    p = card(a)
+    class Store:
+        def list_records(self, *args, **kwargs):
+            return [{"payload": a}]
+    row = {**_row(p.selection, None, .5), "sport": "NHL", "event_id": p.event_id,
+           "event": p.event, "price_at": p.observed_at.isoformat(),
+           "starts_at": p.starts_at.isoformat(), "decimal": 2, "book": "TEST"}
+    result = simulate_current_event(Store(), sport="NHL", event_id=p.event_id,
+                                    rows=[row], spread_line=-1, total_line=6)
+    assert result["state"] == "SHADOW_ONLY"
+    assert result["home_win"]["push"] == 0
+    assert result["summary"]["count_label"] == "Weighted score outcomes"
+    assert result["home_win"]["win"] == pytest.approx(float(NHLGoalsModel(a).estimate(p).probability))
+    for market in ("spread", "total"):
+        assert sum(result[market][k] for k in ("win", "loss", "push")) == pytest.approx(1)
+        assert result[market]["push"] > 0
+    a["state_refreshed_at"] = "2000-01-01T00:00:00+00:00"
+    assert simulate_current_event(Store(), sport="NHL", event_id=p.event_id, rows=[row])["state"] == "UNAVAILABLE"
+    a["status"] = "QUARANTINED"
+    with pytest.raises(ValueError):
+        NHLGoalsModel(a)
+
+
+def test_graphics_auth_and_unavailable_simulation(portal, monkeypatch):
+    from test_member_portal import sign_in
+    import jabazi.vip.api as api
+    store, client = portal
+    monkeypatch.setattr(api, 'snapshot', lambda store: {'rows': [_row('Home', .61, .55)], 'snapshot_at': 'TEST'})
+    assert client.get('/v1/vip/graphic/NFL/g1').status_code == 401
+    sign_in(store, client)
+    response = client.get('/v1/vip/graphic/NFL/g1')
+    assert response.status_code == 200
+    assert response.content.startswith(b'\x89PNG\r\n\x1a\n')
+    assert 'no-store' in response.headers['cache-control']
+    assert client.get('/v1/vip/graphic/NFL/g1?kind=simulation').status_code == 503
+    assert client.get('/v1/vip/graphic/NFL/g1?kind=cheatsheet&day=2000-01-01').status_code == 404
+    assert client.get('/vip/jabbazi-approved.png').status_code == 200
+    assert client.get('/v1/vip/performance-graphic').status_code == 503

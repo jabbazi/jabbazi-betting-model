@@ -21,7 +21,7 @@ def main():
     guild = os.environ['JABBAZI_DISCORD_GUILD_ID']
     owner = os.environ['JABBAZI_DISCORD_OWNER_ID']
     store = Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
-    checks = {'verification_version': 2}
+    checks = {'verification_version': 3}
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + os.environ['JABBAZI_DISCORD_BOT_TOKEN']}, timeout=20) as discord:
             info = discord.get(f'/guilds/{guild}')
@@ -70,6 +70,17 @@ def main():
                                         checks[label]['model_available'] = bool(result.json().get('summary')) if label == 'game_sim' else bool(result.json().get('projection', {}).get('model_probability'))
                                 except httpx.HTTPError as exc:
                                     checks[label] = {'http': None, 'error': type(exc).__name__}
+                            graphic = client.get(f'/v1/vip/graphic/{sport}/{event}')
+                            checks['matchup_graphic'] = {'http': graphic.status_code,
+                                'png_signature': graphic.content.startswith(b'\x89PNG\r\n\x1a\n')}
+                            nfl = next((g for g in games if g['sport'] == 'NFL'), None)
+                            if nfl:
+                                ft = client.get('/v1/vip/firsttd/'+quote(str(nfl['event_id']), safe=''))
+                                checks['firsttd'] = {'http': ft.status_code,
+                                    'state': ft.json().get('state'), 'rankings': len(ft.json().get('players', []))}
+                            brand = client.get('/vip/jabbazi-approved.png')
+                            checks['approved_logo'] = {'http': brand.status_code,
+                                'png_signature': brand.content.startswith(b'\x89PNG\r\n\x1a\n')}
                         else:
                             checks['matchup_detail'] = {'state': 'NO_ELIGIBLE_GAMES'}
                             checks['game_sim'] = {'state': 'NO_ELIGIBLE_GAMES'}

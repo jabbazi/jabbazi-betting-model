@@ -187,20 +187,47 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
 
 
 @router.get('/graphic/{sport}/{event_id}')
-def matchup_graphic(sport: str, event_id: str, ctx=Depends(context)):
+def matchup_graphic(sport: str, event_id: str,
+                    kind: Literal['matchup', 'simulation', 'cheatsheet'] = 'matchup',
+                    day: date | None = None, ctx=Depends(context)):
     import os
     from fastapi.responses import Response
     from .game_research import matchup_detail
-    from .graphics import render_matchup
+    from .graphics import render_matchup, render_research_card
     b = snapshot(ctx[0])
     detail = matchup_detail(b['rows'], sport.upper(), event_id)
-    if detail is None:
+    if detail is None and kind != 'cheatsheet':
         raise HTTPException(404, 'No observed research for this matchup.')
-    approved_logo = os.getenv('JABBAZI_APPROVED_LOGO_PATH', '')
+    from .graphics import approved_logo_path
+    approved_logo = approved_logo_path()
     if not approved_logo:
         raise HTTPException(503, 'The approved JABBAZI logo asset has not been installed.')
     try:
-        graphic = render_matchup(detail, approved_logo)
+        if kind == 'simulation':
+            from .game_research import simulate_current_event
+            sim = simulate_current_event(ctx[0], sport=sport.upper(), event_id=event_id, rows=b['rows'])
+            if not sim.get('summary'):
+                raise HTTPException(503, 'No supported score distribution for this graphic.')
+            summary = sim['summary']
+            lines = [detail['event'], 'Model: '+sim['model_version'],
+                     f"{sim['home']}: {summary['expected_home_points']:.1f}",
+                     f"{sim['away']}: {summary['expected_away_points']:.1f}",
+                     f"Home win: {sim['home_win']['win']:.1%} | Away win: {sim['away_win']['win']:.1%}",
+                     f"Projected total: {summary['expected_total']:.1f}",
+                     'Snapshot: '+str(b.get('snapshot_at'))]
+            graphic = render_research_card('GAME SIM • SHADOW ONLY', lines, approved_logo)
+        elif kind == 'cheatsheet':
+            sheet = data.frozen(ctx[0], day.isoformat() if day else None)
+            card = next((r for r in sheet['rows'] if r['sport'] == sport.upper() and str(r['event_id']) == event_id), None)
+            if card is None:
+                raise HTTPException(404, 'No cheat-sheet card for this game on the requested Central date.')
+            graphic = render_research_card('DAILY CHEAT SHEET • '+sheet['date'],
+                [card['event'], 'Projected winner: '+str(card['selection'] or 'Unavailable'),
+                 'Confidence: '+str(card.get('confidence') or 'Unavailable'),
+                 'Source: '+str(card.get('projection_source') or 'Unavailable'),
+                 'Frozen: '+str(sheet.get('generated_at'))], approved_logo)
+        else:
+            graphic = render_matchup(detail, approved_logo)
     except (OSError, ValueError):
         raise HTTPException(503, 'The approved logo asset is not available for rendering.')
     return Response(content=graphic, media_type='image/png', headers={
@@ -315,6 +342,29 @@ def performance(ctx=Depends(context)):
     from ..performance import report
     report_data = report(ctx[0])
     return response({'periods': report_data['official_periods'], 'groups': [r for r in report_data['groups'] if r['origin'] == 'scanner'], 'provenance': report_data['provenance'], 'notice': report_data['note'], 'clv': None, 'clv_notice': 'Requires matched official entry and comparable closing evidence.'})
+
+
+@router.get('/performance-graphic')
+def performance_graphic(period: Literal['Today', 'This week', 'This month', 'All time'] = 'Today', ctx=Depends(context)):
+    from ..performance import report
+    from .graphics import approved_logo_path, render_research_card
+    from fastapi.responses import Response
+    result = report(ctx[0])
+    cohort = next(p for p in result['official_periods'] if p['label'] == period)
+    if not sum(g['settled'] for g in cohort['groups']):
+        raise HTTPException(503, 'No settled official ledger evidence for this period. Missing records do not imply zero bets.')
+    lines = [cohort['from']+' through '+cohort['through'], 'OWNER-REPORTED • SCANNER POSITIONS ONLY']
+    for group in cohort['groups']:
+        roi = f"{group['roi']:.1%}" if group['roi'] is not None else 'Unavailable'
+        lines.extend([f"{group['kind']}: {group['wins']}W / {group['losses']}L / {group['pushes_or_voids']} push or void",
+                      f"Net: {group['profit_units']:+.2f}u | ROI: {roi} | Settled: {group['settled']}"])
+    lines.append('CLV: unavailable without matched closing evidence')
+    try:
+        png = render_research_card('PERFORMANCE • '+period.upper(), lines, approved_logo_path(),
+                                  notice='SETTLED RECORDS ONLY • OPEN POSITIONS EXCLUDED • COVERAGE MAY BE INCOMPLETE')
+    except (OSError, ValueError):
+        raise HTTPException(503, 'Approved brand asset unavailable.')
+    return Response(png, media_type='image/png', headers={'Cache-Control': 'private, no-store'})
 
 
 @router.get('/ask')

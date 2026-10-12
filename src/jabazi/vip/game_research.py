@@ -190,9 +190,9 @@ def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, to
         "state": "UNAVAILABLE", "approved_for_betting": False,
         "reason": "No validated, fresh, event-matched score distribution is available.",
     }
-    if sport not in {"NFL", "CFB", "NBA", "MLB"}:
+    if sport not in {"NFL", "CFB", "NBA", "MLB", "NHL"}:
         return unavailable
-    model_sport = SPORTS[{"NFL": "nfl", "CFB": "cfb", "NBA": "nba", "MLB": "mlb"}[sport]]
+    model_sport = SPORTS[sport.lower()]
     artifacts = store.list_records("game_model", 1, entity=model_sport)
     if not artifacts:
         return unavailable
@@ -200,7 +200,11 @@ def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, to
     if artifact.get("status") in {"UNAVAILABLE", "QUARANTINED"}:
         return {**unavailable, "state": artifact["status"]}
     try:
-        model = ScoreDistributionModel(artifact)
+        if sport == "NHL":
+            from ..models.nhl_goals import NHLGoalsModel
+            model = NHLGoalsModel(artifact)
+        else:
+            model = ScoreDistributionModel(artifact)
         for row in rows:
             if (row.get("sport") != sport or str(row.get("event_id")) != event_id
                     or row.get("market") != "h2h" or not row.get("fresh")):
@@ -225,13 +229,18 @@ def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, to
             estimate = model.estimate(card)
             if estimate is None or not model._cache:
                 continue
-            _, distribution = next(iter(model._cache.values()))
+            if sport == "NHL":
+                from .nhl_scenarios import NHLScenarios
+                distribution = NHLScenarios(estimate.feature_snapshot)
+            else:
+                _, distribution = next(iter(model._cache.values()))
             summary = distribution.summary()
             home = estimate.feature_snapshot["home_team"]
             away = estimate.feature_snapshot["away_team"]
             return {
                 "state": "SHADOW_ONLY", "approved_for_betting": False,
-                "source": "CANONICAL_PAIRED_SCORE_MODEL",
+                "source": "CANONICAL_NHL_WEIGHTED_SCORE_GRID" if sport == "NHL" else "CANONICAL_PAIRED_SCORE_MODEL",
+                "settlement": estimate.feature_snapshot.get("settlement"),
                 "model_version": estimate.model_version,
                 "model_snapshot_id": estimate.feature_snapshot["snapshot_id"],
                 "home": home, "away": away,

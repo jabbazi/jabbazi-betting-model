@@ -336,6 +336,11 @@ def manifest():
 def app_icon():
     return FileResponse(STATIC / "icon.svg", media_type="image/svg+xml", headers=HEADERS)
 
+
+@router.get("/vip/jabbazi-approved.png", include_in_schema=False)
+def approved_brand():
+    return FileResponse(STATIC / "jabbazi-approved.png", media_type="image/png", headers=HEADERS)
+
 @router.get("/vip/sw.js", include_in_schema=False)
 def service_worker():
     return FileResponse(STATIC / "sw.js", media_type="application/javascript", headers={**HEADERS, "Service-Worker-Allowed": "/vip"})

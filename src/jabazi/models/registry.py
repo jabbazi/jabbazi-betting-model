@@ -40,7 +40,7 @@ def load_models(store=None):
         result.pop(sport, None)
         try:
             artifact = records[0]["payload"] if records else json.loads(path.read_text())
-            if artifact.get("status") == "UNAVAILABLE":
+            if artifact.get("status") in {"UNAVAILABLE", "QUARANTINED"}:
                 raise ValueError("Model refresh unavailable")
             if short == "nhl":
                 from .nhl_goals import NHLGoalsModel

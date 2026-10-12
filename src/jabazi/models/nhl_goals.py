@@ -151,7 +151,7 @@ class NHLGoalsModel(ProbabilityModel):
             or artifact.get("feature_schema_version") != SCHEMA
             or artifact.get("settlement") != SETTLEMENT
             or artifact.get("schema_version") != 1
-            or artifact.get("status") == "UNAVAILABLE"
+            or artifact.get("status") in {"UNAVAILABLE", "QUARANTINED"}
         ):
             raise ValueError("Invalid NHL artifact identity")
         coefficients = artifact["coefficients"]

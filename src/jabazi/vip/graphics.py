@@ -12,6 +12,32 @@ WHITE = (255, 255, 255)
 MUTED = (217, 217, 217)
 
 
+def approved_logo_path():
+    import os
+    return os.getenv("JABBAZI_APPROVED_LOGO_PATH") or str(
+        Path(__file__).resolve().parents[1] / "static" / "jabbazi-approved.png")
+
+
+def render_research_card(title, lines, logo_file, *, notice="RESEARCH ONLY • NOT AN OFFICIAL BET"):
+    """Render supplied canonical facts, never synthesize picks or probabilities."""
+    with Image.open(logo_file) as raw:
+        logo = ImageOps.contain(raw.convert("RGBA"), (190, 190))
+    image = Image.new("RGB", (1200, 1200), BLACK)
+    image.paste(logo, (30, 20), logo)
+    draw = ImageDraw.Draw(image)
+    text_fit(draw, (250, 85), title, max_width=900, size=38, bold=True, fill=PINK)
+    draw.line((45, 225, 1155, 225), fill=PINK, width=3)
+    for i, line in enumerate(lines[:10]):
+        y = 250+i*78
+        draw.rounded_rectangle((45, y, 1155, y+66), radius=12, fill=PANEL)
+        text_fit(draw, (65, y+18), line, max_width=1060, size=25)
+    text_fit(draw, (45, 1100), notice, max_width=1110, size=20, fill=PINK)
+    draw.text((45, 1140), "JABBAZI • Timestamped evidence. Keep losses in the record.", font=font(18), fill=MUTED)
+    out = BytesIO()
+    image.save(out, "PNG", optimize=True)
+    return out.getvalue()
+
+
 def font(size, bold=False):
     path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     try:
