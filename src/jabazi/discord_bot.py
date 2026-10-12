@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from .discord_access import is_vip_name
+from .discord_access import is_staff_name, is_vip_name, normalize_role_name
 from .discord_sheets import SPORTS, latest_sheet, parse_command
 from .discord_daily import daily_moneyline, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
@@ -214,7 +214,7 @@ def build_client(config, store):
                 key = digest(["discord_ops_notice", lane, error, status, datetime.now(UTC).strftime("%Y-%m-%dT%H")])
                 if not await asyncio.to_thread(store.append, "discord_ops_notice", lane, {"error": error, "http_status": status}, key):
                     return
-                await channel.send(f"⚠️ **JABBAZI GURU · {lane}**\n{error} · HTTP {status}. Check the worker diagnostics for this operation.", allowed_mentions=discord.AllowedMentions.none())
+                await channel.send(f"⚠️ **JABBAZI · {lane}**\n{error} · HTTP {status}. Check the worker diagnostics for this operation.", allowed_mentions=discord.AllowedMentions.none())
             except Exception:
                 print("DISCORD_PRIVATE_DIAGNOSTIC_UNAVAILABLE", flush=True)
 
@@ -285,8 +285,8 @@ def build_client(config, store):
                 guild = await self.fetch_guild(config.guild)
                 if guild.owner_id != config.owner:
                     return
-                if getattr(self.user, "name", "JABBAZI GURU") != "JABBAZI GURU":
-                    await self.user.edit(username="JABBAZI GURU")
+                if getattr(self.user, "name", "JABBAZI") != "JABBAZI":
+                    await self.user.edit(username="JABBAZI")
                 if not guild.icon:
                     return
                 await asyncio.to_thread(
@@ -345,10 +345,28 @@ def build_client(config, store):
                         ephemeral=True,
                     )
 
-            alert_roles = (
-                "NFL Alerts", "CFB Alerts", "MLB Alerts", "NBA Alerts", "NHL Alerts",
-                "Parlay Alerts", "Main Card Alerts", "Promo Alerts", "Cheat Sheet Alerts",
-            )
+            alert_roles = {
+                "NFL Alerts": "🏈 NFL Alerts",
+                "CFB Alerts": "🎓 CFB Alerts",
+                "NBA Alerts": "🏀 NBA Alerts",
+                "MLB Alerts": "⚾ MLB Alerts",
+                "NHL Alerts": "🏒 NHL Alerts",
+                "Soccer Alerts": "⚽ Soccer Alerts",
+                "Tennis Alerts": "🎾 Tennis Alerts",
+                "Combat Alerts": "🥊 Combat Alerts",
+                "Main Card Alerts": "👑 Main Card Alerts",
+                "Parlay Alerts": "🎲 Parlay Alerts",
+                "Live Alerts": "🚨 Live Alerts",
+                "Promo Alerts": "✨ Promo Alerts",
+                "Cheat Sheet Alerts": "📊 Cheat Sheet Alerts",
+            }
+
+            def alert_key(role_name):
+                normalized = normalize_role_name(role_name)
+                return next(
+                    (name for name in alert_roles if normalize_role_name(name) == normalized),
+                    None,
+                )
 
             class AlertSelect(discord.ui.Select):
                 def __init__(self):
@@ -356,7 +374,10 @@ def build_client(config, store):
                         placeholder="Choose the alerts you want",
                         min_values=0,
                         max_values=len(alert_roles),
-                        options=[discord.SelectOption(label=name, value=name) for name in alert_roles],
+                        options=[
+                            discord.SelectOption(label=label, value=name)
+                            for name, label in alert_roles.items()
+                        ],
                     )
 
                 async def callback(self, interaction: discord.Interaction):
@@ -368,13 +389,18 @@ def build_client(config, store):
                     await interaction.response.defer(ephemeral=True)
                     guild = interaction.guild
                     member = await guild.fetch_member(interaction.user.id)
-                    available = {
-                        role.name: role for role in guild.roles
-                        if role.name in alert_roles and role.permissions.value == 0
-                        and not role.managed and guild.me is not None
-                        and role.position < guild.me.top_role.position
-                        and sum(r.name == role.name for r in guild.roles) == 1
-                    }
+                    available = {}
+                    for role in guild.roles:
+                        key = alert_key(role.name)
+                        if (
+                            key
+                            and role.permissions.value == 0
+                            and not role.managed
+                            and guild.me is not None
+                            and role.position < guild.me.top_role.position
+                            and sum(alert_key(r.name) == key for r in guild.roles) == 1
+                        ):
+                            available[key] = role
                     if set(self.values) - set(available):
                         return await interaction.followup.send(
                             "An alert role is missing or cannot safely be assigned. Please contact staff.", ephemeral=True
@@ -383,7 +409,8 @@ def build_client(config, store):
                     add = [available[name] for name in selected if name in available]
                     remove = [
                         role for role in member.roles
-                        if role.name in available and role.name not in selected
+                        if alert_key(role.name) in available
+                        and alert_key(role.name) not in selected
                     ]
                     if add:
                         await member.add_roles(*add, reason="JABBAZI alert preference")
@@ -494,7 +521,7 @@ def build_client(config, store):
                 vip_alias_ids = {
                     int(role["id"])
                     for role in guild_roles
-                    if is_vip_name(role.get("name")) or role.get("name", "").upper() in {"JABBAZI TEAM", "MODERATOR"}
+                    if is_vip_name(role.get("name")) or is_staff_name(role.get("name"))
                 }
                 document = await get(f"/channels/{channel_id}")
                 validate_target(
@@ -581,7 +608,7 @@ def build_client(config, store):
                 try:
                     key = digest(["discord_brand", config.guild, message.id])
                     if await asyncio.to_thread(store.append, "brand_delivery_claim", key, {}, key):
-                        embed = discord.Embed(title="JABBAZI GURU", colour=0x8B35E8)
+                        embed = discord.Embed(title="JABBAZI 👑", colour=0x8B35E8)
                         embed.set_image(url=config.brand_gif_url)
                         await message.channel.send(
                             embed=embed, allowed_mentions=discord.AllowedMentions.none()
@@ -627,7 +654,7 @@ def build_client(config, store):
                     )
                     link = portal_origin() + "/vip#access=" + ticket
                     embed = discord.Embed(
-                        title="Open JABBAZI GURU",
+                        title="Open JABBAZI",
                         url=link,
                         colour=0x8B35E8,
                         description="Your private research room: game sheets, player props, anytime TDs, insights and lessons. This single-use link expires in 5 minutes; access lasts 15 minutes. Keep this link private.",
@@ -788,9 +815,9 @@ def build_client(config, store):
                 names.add(label + " Alerts")
             guild = self.get_guild(config.guild)
             roles = [] if guild is None else [role for role in guild.roles
-                if role.name in names and role.permissions.value == 0 and not role.managed
+                if alert_key(role.name) in names and role.permissions.value == 0 and not role.managed
                 and guild.me is not None and role.position < guild.me.top_role.position
-                and sum(other.name == role.name for other in guild.roles) == 1]
+                and sum(alert_key(other.name) == alert_key(role.name) for other in guild.roles) == 1]
             return {"content": " ".join(role.mention for role in roles) or None,
                     "allowed_mentions": discord.AllowedMentions(everyone=False, users=False, roles=roles, replied_user=False)}
 
@@ -874,7 +901,7 @@ def build_client(config, store):
                     prefix = delivery.pop("content") or ""
                     message = await channel.send(
                         (prefix+"\n" if prefix else "") +
-                        f"🟣 **JABBAZI GURU DAILY MONEYLINE CHEAT SHEET • {date}**\n"
+                        f"👑 **JABBAZI DAILY MONEYLINE CHEAT SHEET • {date}**\n"
                         f"{record['payload']['row_count']} games • Frozen snapshot • Full slate attached.\n"
                         "Research leans are not automatically official wagers. Use /cheatsheet to retrieve this same sheet.",
                         file=discord.File(io.BytesIO(text.encode()), filename=f"jabbazi-{date}.txt"),
