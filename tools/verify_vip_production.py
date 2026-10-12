@@ -6,6 +6,7 @@ watchlist mutations, permission changes, or notifications are created.
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
@@ -28,7 +29,7 @@ def main():
             if info.status_code != 200 or member.status_code != 200 or str(info.json()['owner_id']) != owner:
                 raise ValueError('Owner identity verification failed')
         origin = portal_origin()
-        with httpx.Client(base_url=origin, timeout=45) as client:
+        with httpx.Client(base_url=origin, timeout=12) as client:
             checks['anonymous_blocked'] = client.get('/v1/vip/home').status_code == 401
             ticket = issue_ticket(store, guild=guild, member=owner, authorized=True)
             signed = client.post('/v1/member/session', json={'ticket': ticket}, headers={'Origin': origin})
@@ -36,14 +37,18 @@ def main():
             if signed.status_code == 200:
                 try:
                     for path in ('me', 'home', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
-                        result = client.get('/v1/vip/' + path)
-                        checks[path] = {'http': result.status_code}
-                        if result.status_code == 200:
-                            body = result.json()
-                            if 'rows' in body:
-                                checks[path]['rows'] = len(body['rows'])
-                            if 'state' in body:
-                                checks[path]['state'] = body['state']
+                        started = time.monotonic()
+                        try:
+                            result = client.get('/v1/vip/' + path)
+                            checks[path] = {'http': result.status_code, 'elapsed_ms': round((time.monotonic() - started) * 1000)}
+                            if result.status_code == 200:
+                                body = result.json()
+                                if 'rows' in body:
+                                    checks[path]['rows'] = len(body['rows'])
+                                if 'state' in body:
+                                    checks[path]['state'] = body['state']
+                        except httpx.HTTPError as exc:
+                            checks[path] = {'http': None, 'elapsed_ms': round((time.monotonic() - started) * 1000), 'error': type(exc).__name__}
                     checks['ticket_replay_rejected'] = client.post('/v1/member/session', json={'ticket': ticket}, headers={'Origin': origin}).status_code == 401
                 finally:
                     checks['logout_http'] = client.post('/v1/member/logout', headers={'Origin': origin}).status_code
