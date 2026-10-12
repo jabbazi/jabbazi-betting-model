@@ -168,6 +168,28 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
                      'notice': 'Projections and market observations are research only. Do not treat these as issued bets.'})
 
 
+@router.get('/graphic/{sport}/{event_id}')
+def matchup_graphic(sport: str, event_id: str, ctx=Depends(context)):
+    import os
+    from fastapi.responses import Response
+    from .game_research import matchup_detail
+    from .graphics import render_matchup
+    b = snapshot(ctx[0])
+    detail = matchup_detail(b['rows'], sport.upper(), event_id)
+    if detail is None:
+        raise HTTPException(404, 'No observed research for this matchup.')
+    approved_logo = os.getenv('JABBAZI_APPROVED_LOGO_PATH', '')
+    if not approved_logo:
+        raise HTTPException(503, 'The approved JABBAZI logo asset has not been installed.')
+    try:
+        graphic = render_matchup(detail, approved_logo)
+    except (OSError, ValueError):
+        raise HTTPException(503, 'The approved logo asset is not available for rendering.')
+    return Response(content=graphic, media_type='image/png', headers={
+        'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff'
+    })
+
+
 @router.get('/sim/{sport}/{event_id}')
 def simulation(sport: str, event_id: str, ctx=Depends(context)):
     from .game_research import matchup_detail, simulate_current_event
