@@ -71,6 +71,62 @@ def target_channels(channels):
     return targets, categories
 
 
+def member_base_permissions(roles, member_roles, guild_id):
+    role_ids = {str(r) for r in member_roles}
+    role_ids.add(str(guild_id))
+    permissions = 0
+    for role in roles:
+        if str(role["id"]) in role_ids:
+            permissions |= int(role.get("permissions", "0"))
+    return permissions
+
+
+def effective_channel_permissions(base, channel, member_roles, member_id, guild_id):
+    if base & ADMINISTRATOR:
+        return (1 << 53) - 1
+
+    permissions = base
+    overwrites = channel.get("permission_overwrites", [])
+
+    everyone = next(
+        (
+            p for p in overwrites
+            if int(p.get("type", -1)) == 0 and str(p.get("id")) == str(guild_id)
+        ),
+        None,
+    )
+    if everyone:
+        permissions &= ~int(everyone.get("deny", "0"))
+        permissions |= int(everyone.get("allow", "0"))
+
+    role_ids = {str(r) for r in member_roles}
+    role_deny = 0
+    role_allow = 0
+    for overwrite in overwrites:
+        if int(overwrite.get("type", -1)) != 0:
+            continue
+        oid = str(overwrite.get("id"))
+        if oid == str(guild_id) or oid not in role_ids:
+            continue
+        role_deny |= int(overwrite.get("deny", "0"))
+        role_allow |= int(overwrite.get("allow", "0"))
+    permissions &= ~role_deny
+    permissions |= role_allow
+
+    member = next(
+        (
+            p for p in overwrites
+            if int(p.get("type", -1)) == 1 and str(p.get("id")) == str(member_id)
+        ),
+        None,
+    )
+    if member:
+        permissions &= ~int(member.get("deny", "0"))
+        permissions |= int(member.get("allow", "0"))
+
+    return permissions
+
+
 def configure(*, apply: bool, test: bool):
     token = os.getenv("JABBAZI_DISCORD_BOT_TOKEN", "").strip()
     guild = os.getenv("JABBAZI_DISCORD_GUILD_ID", "").strip()
@@ -165,26 +221,43 @@ def configure(*, apply: bool, test: bool):
             {"permissions": "0"},
         )
 
-        # Deny Playbook in every existing category by default so synced/new child channels
-        # under those categories stay inaccessible unless explicitly allowed below.
-        for category in [c for c in channels if c.get("type") == 4]:
-            request(
-                http,
-                "PUT",
-                f"/channels/{category['id']}/permissions/{role_id}",
-                {"type": 0, "allow": "0", "deny": str(VIEW)},
-            )
+        # Deny every currently visible non-target text/announcement channel.
+        # We do this per channel instead of requiring access to every category; private
+        # staff/archive areas that Playbook already cannot view need no write.
+        member = request(http, "GET", f"/guilds/{guild}/members/{playbook_user_id}")
+        member_roles = [str(r) for r in member.get("roles", [])]
+        post_role_channels = request(http, "GET", f"/guilds/{guild}/channels")
+        base_permissions = member_base_permissions(roles, member_roles, guild)
 
-        # Explicitly deny every existing non-target text/announcement channel.
-        for channel in text_channels:
+        write_failures = []
+        for channel in [c for c in post_role_channels if c.get("type") in (0, 5)]:
             if str(channel["id"]) in target_ids:
                 continue
-            request(
-                http,
-                "PUT",
-                f"/channels/{channel['id']}/permissions/{role_id}",
-                {"type": 0, "allow": "0", "deny": str(VIEW)},
+            effective = effective_channel_permissions(
+                base_permissions,
+                channel,
+                member_roles,
+                playbook_user_id,
+                guild,
             )
+            if not (effective & VIEW):
+                continue
+            try:
+                request(
+                    http,
+                    "PUT",
+                    f"/channels/{channel['id']}/permissions/{role_id}",
+                    {"type": 0, "allow": "0", "deny": str(VIEW)},
+                )
+            except RuntimeError as exc:
+                write_failures.append(
+                    {"id": str(channel["id"]), "name": channel["name"], "error": str(exc)}
+                )
+
+        if write_failures:
+            # Keep going to target grants, then live-read effective access and fail only
+            # if any blocked channel remains visible.
+            pass
 
         # Grant only the exact minimum on approved VIP pick/parlay channels.
         for channel in targets:
@@ -195,35 +268,49 @@ def configure(*, apply: bool, test: bool):
                 {"type": 0, "allow": str(TARGET_ALLOW), "deny": "0"},
             )
 
-        # Read back the live overwrites and role permissions.
+        # Read back the live role and compute effective access for the Playbook member.
         live_roles = request(http, "GET", f"/guilds/{guild}/roles")
         live_role = next(r for r in live_roles if str(r["id"]) == role_id)
         if int(live_role.get("permissions", "0")) != 0:
             raise RuntimeError("PLAYBOOK_ROLE_PERMISSION_REDUCTION_FAILED")
 
+        live_member = request(http, "GET", f"/guilds/{guild}/members/{playbook_user_id}")
+        live_member_roles = [str(r) for r in live_member.get("roles", [])]
         live_channels = request(http, "GET", f"/guilds/{guild}/channels")
+        live_base = member_base_permissions(live_roles, live_member_roles, guild)
+
         verified = {}
+        unwanted_visible = []
+        target_permission_failures = []
         for channel in [c for c in live_channels if c.get("type") in (0, 5)]:
-            overwrite = next(
-                (
-                    p for p in channel.get("permission_overwrites", [])
-                    if str(p.get("id")) == role_id and int(p.get("type", -1)) == 0
-                ),
-                None,
+            effective = effective_channel_permissions(
+                live_base,
+                channel,
+                live_member_roles,
+                playbook_user_id,
+                guild,
             )
-            if str(channel["id"]) in target_ids:
-                ok = bool(
-                    overwrite
-                    and int(overwrite.get("allow", "0")) & TARGET_ALLOW == TARGET_ALLOW
-                    and int(overwrite.get("deny", "0")) & VIEW == 0
-                )
+            is_target = str(channel["id"]) in target_ids
+            if is_target:
+                ok = (effective & TARGET_ALLOW) == TARGET_ALLOW
+                if not ok:
+                    target_permission_failures.append(channel["name"])
             else:
-                ok = bool(overwrite and int(overwrite.get("deny", "0")) & VIEW)
+                ok = not bool(effective & VIEW)
+                if not ok:
+                    unwanted_visible.append(channel["name"])
             verified[channel["name"]] = ok
 
-        if not all(verified.values()):
-            bad = sorted(name for name, ok in verified.items() if not ok)
-            raise RuntimeError("PLAYBOOK_PERMISSION_VERIFY_FAILED_" + ",".join(bad[:5]))
+        if target_permission_failures or unwanted_visible:
+            details = {
+                "targets_missing_permissions": target_permission_failures[:5],
+                "unexpected_visible_channels": unwanted_visible[:10],
+                "write_failures": write_failures[:5],
+            }
+            raise RuntimeError(
+                "PLAYBOOK_EFFECTIVE_PERMISSION_VERIFY_FAILED_"
+                + json.dumps(details, separators=(",", ":"))
+            )
 
         test_result = {"status": "NOT_RUN"}
         if test:
@@ -285,7 +372,8 @@ def configure(*, apply: bool, test: bool):
             **plan,
             "status": "VERIFIED",
             "role_permissions": 0,
-            "verified_channel_overwrites": len(verified),
+            "verified_channels": len(verified),
+            "permission_write_failures_ignored_after_effective_check": len(write_failures),
             "test": test_result,
         }
 
