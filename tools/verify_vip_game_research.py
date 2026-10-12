@@ -10,6 +10,7 @@ def main():
         "sport": "NFL", "event_id": "synthetic-event", "event": "Away @ Home",
         "starts_at": (now + timedelta(hours=3)).isoformat(),
         "lifecycle": "UPCOMING", "market": "h2h", "fresh": True,
+        "model_stage": "SHADOW_ONLY", "data_health": "HEALTHY", "status": "WATCH",
         "price_at": now.isoformat(),
     }
     rows = [

@@ -14,6 +14,16 @@ def _valid_probability(value):
         return None
 
 
+def _usable_model(row):
+    return (
+        row.get("model_stage") in {"SHADOW_ONLY", "PRODUCTION_APPROVED"}
+        and row.get("status") != "QUARANTINED"
+        and row.get("data_health") == "HEALTHY"
+        and bool(row.get("model_version"))
+        and _valid_probability(row.get("model_probability")) is not None
+    )
+
+
 def matchups(rows, *, sport="", limit=100):
     """Aggregate observed market rows into games, keeping data provenance."""
     events = {}
@@ -36,8 +46,7 @@ def matchups(rows, *, sport="", limit=100):
         game["observed_rows"] += 1
         game["fresh_rows"] += bool(row.get("fresh"))
         game["model_supported_rows"] += bool(
-            _valid_probability(row.get("model_probability")) is not None
-            and row.get("model_version")
+            _usable_model(row)
         )
         at = row.get("price_at")
         if at and (game["price_at"] is None or at > game["price_at"]):
@@ -58,9 +67,9 @@ def matchup_detail(rows, sport, event_id):
     favorite = None
     candidates = [
         r for r in moneyline
-        if _valid_probability(r.get("model_probability")) is not None
-        and r.get("model_version") and r.get("fresh")
+        if _usable_model(r) and r.get("fresh")
     ]
+    model_selected = bool(candidates)
     if candidates:
         favorite = max(candidates, key=lambda r: float(r["model_probability"]))
     else:
@@ -72,11 +81,12 @@ def matchup_detail(rows, sport, event_id):
             favorite = max(candidates, key=lambda r: float(r["market_probability"]))
     projection = {
         "selection": favorite.get("selection") if favorite else None,
-        "source": ("INDEPENDENT MODEL" if favorite and favorite.get("model_probability") is not None else
+        "source": ("INDEPENDENT MODEL" if model_selected else
                    "MARKET CONSENSUS" if favorite else "UNAVAILABLE"),
-        "model_probability": _valid_probability(favorite.get("model_probability")) if favorite else None,
+        "model_probability": _valid_probability(favorite.get("model_probability")) if model_selected else None,
         "market_no_vig_probability": _valid_probability(favorite.get("market_probability")) if favorite else None,
-        "model_version": favorite.get("model_version") if favorite else None,
+        "model_version": favorite.get("model_version") if model_selected else None,
+        "model_stage": favorite.get("model_stage") if model_selected else "UNAVAILABLE",
         "betting_status": "RESEARCH ONLY",
     }
     return {
@@ -93,7 +103,7 @@ def matchup_detail(rows, sport, event_id):
             "approved_for_betting": False,
         },
         "first_td": {
-            "state": "SHADOW_ONLY" if sport == "NFL" else "NOT_APPLICABLE",
+            "state": "UNAVAILABLE" if sport == "NFL" else "NOT_APPLICABLE",
             "players": [],
             "reason": "A validated first-touchdown event hazard model with complete scorer outcomes is not connected.",
             "approved_for_betting": False,
@@ -128,7 +138,8 @@ def first_td_distribution(*, team_first_td_probabilities, scorer_shares, no_td_p
     """Coherent conditional first-TD event model from explicitly supplied inputs.
 
     This is a mathematical primitive, not a trained/calibrated player model.
-    The input team probabilities include only offensive first touchdowns.
+    Team probabilities include offensive, defensive and special-teams first
+    touchdowns. Scorer shares must partition all of those outcomes.
     """
     no_td = _valid_probability(no_td_probability)
     if no_td is None and no_td_probability != 0:
@@ -164,7 +175,7 @@ def first_td_distribution(*, team_first_td_probabilities, scorer_shares, no_td_p
             "no_td_probability": no_td, "method": "supplied_conditional_first_touchdown_hazards"}
 
 
-def simulate_current_event(store, *, sport, event_id, rows):
+def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, total_line=None):
     """Reuse the canonical fitted score model and its strict identity/freshness gates.
 
     A successful estimate supplies actual paired score samples. This endpoint
@@ -186,8 +197,8 @@ def simulate_current_event(store, *, sport, event_id, rows):
     if not artifacts:
         return unavailable
     artifact = artifacts[0]["payload"]
-    if artifact.get("status") == "UNAVAILABLE":
-        return unavailable
+    if artifact.get("status") in {"UNAVAILABLE", "QUARANTINED"}:
+        return {**unavailable, "state": artifact["status"]}
     try:
         model = ScoreDistributionModel(artifact)
         for row in rows:
@@ -227,6 +238,10 @@ def simulate_current_event(store, *, sport, event_id, rows):
                 "summary": summary,
                 "home_win": distribution.outcome("h2h", home, None, home, away),
                 "away_win": distribution.outcome("h2h", away, None, home, away),
+                "spread": ({"home_line": spread_line, **distribution.outcome("spreads", home, spread_line, home, away)}
+                           if spread_line is not None else None),
+                "total": ({"line": total_line, "selection": "Over", **distribution.outcome("totals", "Over", total_line, home, away)}
+                          if total_line is not None else None),
                 "notice": "Real model score scenarios, research only. Missing starter, roster, injury or calibration evidence blocks betting approval.",
             }
     except (ValueError, TypeError, KeyError, IndexError, OverflowError, ArithmeticError):

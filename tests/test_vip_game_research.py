@@ -16,6 +16,7 @@ def _row(selection, probability, market_probability, *, sport="NFL", event_id="g
         "starts_at": (datetime.now(UTC) + timedelta(hours=2)).isoformat(),
         "lifecycle": "UPCOMING", "market": market, "selection": selection,
         "model_probability": probability, "model_version": "synthetic-test" if probability else None,
+        "model_stage": "SHADOW_ONLY", "data_health": "HEALTHY", "status": "WATCH",
         "market_probability": market_probability, "fresh": True,
         "price_at": datetime.now(UTC).isoformat(),
     }
@@ -32,7 +33,20 @@ def test_matchups_are_deduped_and_projection_provenance_preserved():
     assert detail["projection"]["model_probability"] == pytest.approx(.61)
     assert detail["projection"]["betting_status"] == "RESEARCH ONLY"
     assert detail["simulation"]["state"] == "UNAVAILABLE"
-    assert detail["first_td"]["state"] == "SHADOW_ONLY"
+    assert detail["first_td"]["state"] == "UNAVAILABLE"
+
+
+@pytest.mark.parametrize("changes", [{"model_stage": "QUARANTINED"},
+                                    {"status": "QUARANTINED"},
+                                    {"data_health": "DEGRADED"},
+                                    {"model_stage": "UNAVAILABLE"}])
+def test_blocked_model_never_leaks_into_market_fallback(changes):
+    rows = [{**_row("Home", .99, .56), **changes}]
+    projection = matchup_detail(rows, "NFL", "g1")["projection"]
+    assert projection["source"] == "MARKET CONSENSUS"
+    assert projection["model_probability"] is None
+    assert projection["model_version"] is None
+    assert matchups(rows)[0]["model_supported_rows"] == 0
 
 
 def test_market_fallback_does_not_create_fake_model_probability():
@@ -105,3 +119,34 @@ def test_play_of_day_is_not_forced(portal):
     payload = client.get("/v1/vip/playoftheday").json()
     assert payload["state"] == "PASS"
     assert payload["play"] is None
+
+
+def test_real_score_adapter_preserves_pushes_and_quarantine():
+    from test_score_models import artifact, card
+    from jabazi.vip.game_research import simulate_current_event
+    a = artifact()
+    price = card(a)
+    class Store:
+        def list_records(self, *args, **kwargs):
+            return [{"payload": a}]
+    row = {**_row(price.selection, None, .5), "event_id": price.event_id,
+           "event": price.event, "price_at": price.observed_at.isoformat(),
+           "starts_at": price.starts_at.isoformat(), "decimal": 2, "book": "TEST"}
+    result = simulate_current_event(Store(), sport="NFL", event_id=price.event_id,
+                                    rows=[row], spread_line=0, total_line=44)
+    assert result["state"] == "SHADOW_ONLY"
+    assert result["spread"]["win"] == result["home_win"]["win"]
+    assert result["spread"]["push"] == result["home_win"]["push"]
+    assert sum(result["total"][k] for k in ("win", "loss", "push")) == pytest.approx(1)
+    a["status"] = "QUARANTINED"
+    blocked = simulate_current_event(Store(), sport="NFL", event_id=price.event_id, rows=[row])
+    assert blocked["state"] == "QUARANTINED"
+    assert "summary" not in blocked
+
+
+@pytest.mark.parametrize("query", ["spread_line=nan", "total_line=inf", "total_line=-1", "spread_line=301"])
+def test_scenario_endpoint_rejects_invalid_lines(portal, query):
+    from test_member_portal import sign_in
+    store, client = portal
+    sign_in(store, client)
+    assert client.get('/v1/vip/sim/NFL/g1?' + query).status_code == 422

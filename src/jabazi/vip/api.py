@@ -209,13 +209,17 @@ def matchup_graphic(sport: str, event_id: str, ctx=Depends(context)):
 
 
 @router.get('/sim/{sport}/{event_id}')
-def simulation(sport: str, event_id: str, ctx=Depends(context)):
+def simulation(sport: str, event_id: str,
+               spread_line: float | None = Query(None, ge=-300, le=300, allow_inf_nan=False),
+               total_line: float | None = Query(None, ge=0, le=500, allow_inf_nan=False),
+               ctx=Depends(context)):
     from .game_research import matchup_detail, simulate_current_event
     b = snapshot(ctx[0])
     result = matchup_detail(b['rows'], sport.upper(), event_id)
     if result is None:
         raise HTTPException(404, 'No observed research for this matchup.')
-    simulation_result = simulate_current_event(ctx[0], sport=sport.upper(), event_id=event_id, rows=b['rows'])
+    simulation_result = simulate_current_event(ctx[0], sport=sport.upper(), event_id=event_id, rows=b['rows'],
+                                               spread_line=spread_line, total_line=total_line)
     return response({'event': result['event'], 'event_id': event_id,
                      **simulation_result,
                      'notice': 'Only verified event-matched paired score distributions are shown. Model output remains SHADOW_ONLY research.'})

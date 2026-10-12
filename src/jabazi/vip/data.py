@@ -159,7 +159,11 @@ def frozen(store, date=None):
     record = records[0]
     rows = []
     for raw in record['payload']['rows']:
-        value = project({**raw, 'market': 'h2h'}, record, datetime.now(UTC), historical=True)
+        value = project({**raw, 'market': 'h2h',
+                         'selection': raw.get('projected_winner', raw.get('selection'))},
+                        record, datetime.now(UTC), historical=True)
         if value:
+            value.update(projection_source=raw.get('projection_source'),
+                         confidence=raw.get('confidence'))
             rows.append(value)
     return {'state': 'FROZEN', 'version': '9 AM INITIAL', 'date': date, 'id': record['id'], 'generated_at': record['payload']['generated_at'], 'rows': rows}

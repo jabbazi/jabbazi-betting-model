@@ -107,12 +107,25 @@ else if(route==='matchups'||route==='sim'||route==='firsttd'||route==='props'){
 else if(route==='simdetail'||route==='firsttddetail'){
   const [sport,eventId]=(arg||'').split('|').map(decodeURIComponent);
   if(!sport||!eventId)throw Error('Select a game from the matchup list.');
-  const d=await get(route==='simdetail'?'sim/'+encodeURIComponent(sport)+'/'+encodeURIComponent(eventId):'firsttd/'+encodeURIComponent(eventId));
+  const scenario=new URLSearchParams();
+  for(const key of ['spread_line','total_line'])if(params.has(key))scenario.set(key,params.get(key));
+  const d=await get(route==='simdetail'?'sim/'+encodeURIComponent(sport)+'/'+encodeURIComponent(eventId)+'?'+scenario:'firsttd/'+encodeURIComponent(eventId));
   build=root=>{
     root.append(node('h2',d.event||'Game research'),badge(d.state),node('p',d.notice||d.reason||'','muted'));
     if(d.state==='SHADOW_ONLY'&&d.summary){
+      const form=node('form',undefined,'filters');
+      const [sl,spread]=field('Home spread (scenario)','number',params.get('spread_line')||'');
+      const [tl,total]=field('Game total (scenario)','number',params.get('total_line')||'');
+      spread.step=total.step='0.5';spread.min='-300';spread.max='300';total.min='0';total.max='500';
+      const calculate=node('button','Evaluate lines','button');calculate.type='submit';
+      form.append(sl,tl,calculate);
+      form.addEventListener('submit',e=>{e.preventDefault();const q=new URLSearchParams();if(spread.value!=='')q.set('spread_line',spread.value);if(total.value!=='')q.set('total_line',total.value);location.hash='simdetail='+encodeURIComponent(sport)+'|'+encodeURIComponent(eventId)+'&'+q;});
+      root.append(form,node('p','Scenario lines are your inputs, not quoted sportsbook prices.','muted'));
       root.append(metrics([['Projected '+d.home,Number(d.summary.expected_home_points).toFixed(1)],['Projected '+d.away,Number(d.summary.expected_away_points).toFixed(1)],['Total mean',Number(d.summary.expected_total).toFixed(1)],['Simulated score scenarios',String(d.summary.sample_count)]]));
       root.append(metrics([['Home win',pct(d.home_win.win)],['Away win',pct(d.away_win.win)],['Tie',pct(d.home_win.push)]]));
+      if(d.spread)root.append(metrics([['Home '+d.spread.home_line+' cover',pct(d.spread.win)],['Spread push',pct(d.spread.push)],['Spread loss',pct(d.spread.loss)]]));
+      if(d.total)root.append(metrics([['Over '+d.total.line,pct(d.total.win)],['Total push',pct(d.total.push)],['Under '+d.total.line,pct(d.total.loss)]]));
+      root.append(metrics([['Margin: 90% scenario interval',d.summary.margin_predictive_interval_90.join(' to ')],['Total: 90% scenario interval',d.summary.total_predictive_interval_90.join(' to ')]]));
       const chart=node('div',undefined,'simulation-chart'),bar=node('div',undefined,'simulation-bar');
       const homeBar=node('span',undefined,'simulation-home'),awayBar=node('span',undefined,'simulation-away');
       const homePct=Math.max(0,Math.min(100,Number(d.home_win.win)*100));
@@ -134,6 +147,7 @@ else if(route==='matchup'){
   const d=await get('matchup/'+encodeURIComponent(sport)+'/'+encodeURIComponent(eventId));
   build=root=>{
     root.append(node('span',d.sport+' · '+when(d.starts_at),'eyebrow'),node('h2',d.event||'Matchup'),badge(d.projection.source));
+    if(d.projection.model_version)root.append(badge(d.projection.model_stage),node('p','Model: '+d.projection.model_version,'muted'));
     root.append(metrics([['Projected winner',d.projection.selection||'Unavailable'],['Independent model',pct(d.projection.model_probability)],['Market no-vig',pct(d.projection.market_no_vig_probability)],['Observed markets',String(d.markets.length)]]));
     root.append(node('p','Projected winner is not an official wager. Research snapshot: '+when(d.snapshot_at),'muted'));
     gridLinks(root,[['Game Sim',d.simulation.reason,'#simdetail='+encodeURIComponent(sport)+'|'+encodeURIComponent(eventId)],['First TD',d.first_td.reason,'#firsttddetail='+encodeURIComponent(sport)+'|'+encodeURIComponent(eventId)],['Player Props','View the current player research board.','#props&sport='+sport]]);
@@ -174,4 +188,5 @@ window.addEventListener('offline',()=>{$('offline').hidden=false;++serial;$('con
 window.addEventListener('online',render);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me)render();});
 setInterval(()=>{if(!me||document.hidden)return;if(Date.parse(me.expires_at)<=now()){lock('Session expired. Use /vip in Discord for a fresh private link.');return;}get('me').then(d=>{me=d;$('access-badge').textContent=me.tier+' ACCESS';}).catch(e=>{if(me)say(e.message);});},30000);
-(async()=>{const hash=new URLSearchParams(location.hash.slice(1)),ticket=hash.get('access');$('access-badge').textContent=ticket?'VERIFYING ACCESS':'PRIVATE ACCESS';try{if(ticket){await api('/v1/member/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});history.replaceState(null,'','/vip#home');}me=await get('me');$('login').hidden=true;$('workspace').hidden=false;$('navigation').hidden=false;$('signout').hidden=false;$('access-badge').textContent=me.tier+' ACCESS';render();}catch(e){if(ticket&&/expired|already used|invalid/i.test(e.message))history.replaceState(null,'','/vip#home');lock(e.message);}if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>new URL(r.scope).pathname.startsWith('/vip')).map(r=>r.unregister()))).catch(()=>{});})();
+function accessView(value){return ['sim','firsttd','matchups','props','playoftheday'].includes(value)?value:'home';}
+(async()=>{const hash=new URLSearchParams(location.hash.slice(1)),ticket=hash.get('access');$('access-badge').textContent=ticket?'VERIFYING ACCESS':'PRIVATE ACCESS';try{if(ticket){await api('/v1/member/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});history.replaceState(null,'','/vip#'+accessView(hash.get('view')));}me=await get('me');$('login').hidden=true;$('workspace').hidden=false;$('navigation').hidden=false;$('signout').hidden=false;$('access-badge').textContent=me.tier+' ACCESS';render();}catch(e){if(ticket&&/expired|already used|invalid/i.test(e.message))history.replaceState(null,'','/vip#home');lock(e.message);}if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>new URL(r.scope).pathname.startsWith('/vip')).map(r=>r.unregister()))).catch(()=>{});})();

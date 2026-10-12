@@ -537,8 +537,7 @@ def build_client(config, store):
                     f"Private support opened: {thread.mention}", ephemeral=True
                 )
 
-            @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
-            async def vip(interaction: discord.Interaction):
+            async def open_research(interaction: discord.Interaction, view="home"):
                 if interaction.guild_id != config.guild:
                     return await interaction.response.send_message(
                         "This command is only available in the JABBAZI server.", ephemeral=True
@@ -556,17 +555,44 @@ def build_client(config, store):
                     issue_ticket, store, guild=config.guild, member=member.id, authorized=True
                 )
                 link = portal_origin() + "/vip#access=" + ticket
+                if view != "home":
+                    link += "&view=" + view
                 await interaction.followup.send(
                     f"Your private JABBAZI member link (expires quickly): {link}",
                     ephemeral=True,
                 )
 
+            @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
+            async def vip(interaction: discord.Interaction):
+                await open_research(interaction)
+
+            @self.tree.command(name="sim", description="Open supported game score scenarios and model status")
+            async def sim(interaction: discord.Interaction):
+                await open_research(interaction, "sim")
+
+            @self.tree.command(name="firsttd", description="Open first touchdown research availability and model status")
+            async def firsttd(interaction: discord.Interaction):
+                await open_research(interaction, "firsttd")
+
+            @self.tree.command(name="matchup", description="Open event matchup research")
+            async def matchup(interaction: discord.Interaction):
+                await open_research(interaction, "matchups")
+
+            @self.tree.command(name="props", description="Open supported exact-line player research")
+            async def props(interaction: discord.Interaction):
+                await open_research(interaction, "props")
+
+            @self.tree.command(name="playoftheday", description="View the official Play of the Day or PASS")
+            async def playoftheday(interaction: discord.Interaction):
+                await open_research(interaction, "playoftheday")
+
             self.tree.copy_global_to(guild=discord.Object(id=config.guild))
             synced = await self.tree.sync(guild=discord.Object(id=config.guild))
-            expected = {"vip", "cheatsheet", "alerts", "support", "card", "performance"}
+            expected = {"vip", "cheatsheet", "alerts", "support", "card", "performance",
+                        "sim", "firsttd", "matchup", "props", "playoftheday"}
             if {command.name for command in synced} != expected:
                 raise RuntimeError("Discord command registration mismatch")
-            print("DISCORD_COMMANDS_REGISTERED: vip,cheatsheet,alerts,support,card,performance", flush=True)
+            print("DISCORD_COMMANDS_REGISTERED: " + ",".join(sorted(expected)), flush=True)
             self.publisher = asyncio.create_task(self.publish_loop())
 
         async def checked_channel(self, channel_id):
