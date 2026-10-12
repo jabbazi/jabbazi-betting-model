@@ -210,7 +210,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
         elif path.endswith("/messages/pins"): value = {"items": [], "has_more": False}
         elif path.endswith("/messages"): value = []
         elif path.startswith("/channels/"):
-            if path == "/channels/23" and archive_blocked:
+            if path == "/channels/24" and archive_blocked:
                 return httpx.Response(403, json={"code": 50013, "message": "NEVER_PRINT_ME"})
             value = next(c for c in channels if c["id"] == path.split("/")[2])
             if req.method == "DELETE":
@@ -228,18 +228,20 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert not mutations and dry["mode"] == "DRY_RUN"
     result = migrate(apply=True, archive_obsolete=True)
     assert "parlays-sgps" not in result["channel_ids"]
-    assert not effective_permissions("1", "vip", ["7"], roles, next(c for c in channels if c["id"] == "21"), "2") & VIEW
+    assert result["channel_ids"]["parlays"] == "21"
+    assert effective_permissions("1", "vip", ["7"], roles, next(c for c in channels if c["id"] == "21"), "2") & VIEW
+    assert result["channel_ids"]["tennis"] == "23"
     assert result["channel_ids"]["support"] == "22"
-    assert len(result["channel_ids"]) == 18
+    assert len(result["channel_ids"]) == 45
     assert result["channel_ids"]["vip-lounge"] == "26"
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]
     assert next(c for c in channels if c["id"] == "27")["name"] == "╰➤ 🔒 OWNER HISTORY"
     assert result["channel_ids"]["welcome"] == "29"
     assert not effective_permissions("1", "vip", ["7"], roles, next(c for c in channels if c["id"] == "30"), "2") & VIEW
-    archived = next(c for c in channels if c["id"] == "23")
+    archived = next(c for c in channels if c["id"] == "24")
     assert bool(effective_permissions("1", "vip", ["7"], roles, archived, "2") & VIEW) == archive_blocked
-    assert any("ARCHIVE_CHANNEL_HTTP_403_PATH_/channels/23_CODE_50013" in warning for warning in result["warnings"]) == archive_blocked
+    assert any("ARCHIVE_CHANNEL_HTTP_403_PATH_/channels/24_CODE_50013" in warning for warning in result["warnings"]) == archive_blocked
     assert all(row["status"] == "VERIFIED" for row in result["verification"])
     snapshot = backup.list_records("discord_server_backup", 1, entity="1")[0]["payload"]
     assert snapshot["channels"] == original
