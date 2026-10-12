@@ -88,22 +88,18 @@ def crown(draw, cx, top, width, height):
 
 
 def generated_icon():
-    asset = Path("docs/discord/assets/jabbazi-hot-pink-logo.jpg")
-    if asset.exists():
-        img = Image.open(asset).convert("RGB")
-        img.thumbnail((460, 260), Image.Resampling.LANCZOS)
-        canvas = Image.new("RGB", (512, 512), (9, 9, 9))
-        canvas.paste(img, ((512-img.width)//2, (512-img.height)//2))
-        return encoded_image(canvas, "JPEG", 88)
+    """Discord-safe hot-pink J mark; avoids wide wordmark legibility loss."""
     img = Image.new("RGB", (512, 512), (9, 9, 9))
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle((18, 18, 494, 494), radius=88, outline=(255, 10, 138), width=8)
     font = ImageFont.truetype(FONT_BOLD, 260)
     box = draw.textbbox((0, 0), "J", font=font)
-    draw.text(((512-(box[2]-box[0]))//2, 105), "J", font=font, fill=(255,255,255))
-    draw.arc((85, 280, 430, 460), start=15, end=345, fill=(255, 20, 147), width=18)
-    return encoded_image(img, "JPEG", 88)
-
+    x = (512 - (box[2] - box[0])) // 2
+    draw.text((x + 6, 104), "J", font=font, fill=(217, 0, 104))
+    draw.text((x, 98), "J", font=font, fill=(255, 255, 255))
+    draw.arc((82, 275, 435, 460), start=12, end=346, fill=(255, 20, 147), width=18)
+    draw.arc((110, 300, 420, 475), start=15, end=330, fill=(255, 10, 138), width=8)
+    return encoded_image(img, "JPEG", 90)
 
 def generated_avatar():
     return generated_icon()
