@@ -38,7 +38,7 @@ function setSportbar(route,arg){
     a.setAttribute('aria-current',active?'page':'false');
   }
 }
-async function render(){if(!me)return;if(!navigator.onLine){$('content').replaceChildren();$('offline').hidden=false;return;}$('offline').hidden=true;const n=++serial;const raw=location.hash.slice(1)||'home';const parts=raw.split('&'),first=parts.shift(),params=new URLSearchParams(parts.join('&'));const [route,arg]=first.split('=');for(const a of $('navigation').querySelectorAll('a'))a.setAttribute('aria-current',a.hash==='#'+route?'page':'false');setSportbar(route,arg);page(({home:'Today’s board',sport:(arg||'Sport')+' research',sports:'Sports',board:'Research board',sheets:'Daily cheat sheets',top10:'Top 10',search:'Find your research',detail:'Research detail',watchlist:'Your watchlist',performance:'The honest record',models:'Model center',ask:'Ask JABBAZI',changes:'What changed since 9 AM?',more:'Your terminal',settings:'My board & preferences',admin:'Operations',promo:'Boost research',academy:'JABBAZI Academy',picks:'Official JABBAZI picks',archive:'Historical sheets',matchups:'Matchup center',matchup:'Game breakdown',sim:'Game simulator',firsttd:'First touchdown research',props:'Player props'})[route]||'Research');$('content').append(node('div',undefined,'loading'));$('refresh').disabled=true;
+async function render(){if(!me)return;if(!navigator.onLine){$('content').replaceChildren();$('offline').hidden=false;return;}$('offline').hidden=true;const n=++serial;const raw=location.hash.slice(1)||'home';const parts=raw.split('&'),first=parts.shift(),params=new URLSearchParams(parts.join('&'));const [route,arg]=first.split('=');for(const a of $('navigation').querySelectorAll('a'))a.setAttribute('aria-current',a.hash==='#'+route?'page':'false');setSportbar(route,arg);page(({home:'Today’s board',sport:(arg||'Sport')+' research',sports:'Sports',board:'Research board',sheets:'Daily cheat sheets',top10:'Top 10',search:'Find your research',detail:'Research detail',watchlist:'Your watchlist',performance:'The honest record',models:'Model center',ask:'Ask JABBAZI',changes:'What changed since 9 AM?',more:'Your terminal',settings:'My board & preferences',admin:'Operations',promo:'Boost research',academy:'JABBAZI Academy',picks:'Official JABBAZI picks',archive:'Historical sheets',matchups:'Matchup center',matchup:'Game breakdown',sim:'Game simulator',firsttd:'First touchdown research',props:'Player props',simdetail:'Game simulation',firsttddetail:'First touchdown board'})[route]||'Research');$('content').append(node('div',undefined,'loading'));$('refresh').disabled=true;
 try{let build;
 if(route==='home'||route==='sports'){const d=await get('home');build=root=>{if(route==='home'){const hero=node('article',undefined,'panel hero');hero.append(node('span','JABBAZI VIP RESEARCH','eyebrow'),node('h2',d.load_strategy==='on_demand'?'Your VIP terminal is ready':d.top_play?'Today’s top play':'No top play yet'),node('p',d.notice,'muted'),badge(d.state));root.append(hero);gridLinks(root,[['Daily cheat sheet','Open today’s frozen game sheets when available.','#sheets'],['Official Main Card','View issued JABBAZI positions.','#picks'],['Research board','Browse current market evidence on demand.','#board'],['Matchup center','Game-by-game market and model evidence.','#matchups'],['Game Sim','Joint score simulations when a validated event model is connected.','#sim'],['First TD','Dedicated first-touchdown research, separate from anytime TD.','#firsttd'],['Player Props','Exact player lines and model status.','#props'],['Top 10','Qualified player-model lists, when validated.','#top10'],['What changed?','Compare the morning baseline with later market observations.','#changes']]);if(d.load_strategy!=='on_demand'){root.append(section('Official Main Card','#picks'));cards(d.official,root,'No current official recommendations.');root.append(section('Research to explore','#board'));cards(d.research,root,'No fresh research available.');}}else{const items=d.sports.map(s=>[s.sport,s.status+' · '+s.events+' observed events · '+s.fresh_rows+' fresh rows','#board&sport='+s.sport]);gridLinks(root,items);root.append(node('p','Active means an observed upcoming slate with fresh research. It does not mean the model is production-approved.','muted'));}if(d.snapshot_at)root.append(node('p','Latest snapshot: '+when(d.snapshot_at),'muted'));};}
 else if(route==='sport'){
@@ -95,7 +95,7 @@ else if(route==='matchups'||route==='sim'||route==='firsttd'||route==='props'){
       root.append(filters);
       if(!d.games.length)root.append(empty('No current games available','The research feed has no eligible upcoming games for this view.'));
       for(const g of d.games){
-        const href='#matchup='+encodeURIComponent(g.sport)+'|'+encodeURIComponent(g.event_id);
+        const href=(route==='sim'?'#simdetail=':route==='firsttd'?'#firsttddetail=':'#matchup=')+encodeURIComponent(g.sport)+'|'+encodeURIComponent(g.event_id);
         const p=link('',href,'panel opportunity');
         p.append(node('span',g.sport+' · '+when(g.starts_at),'eyebrow'),node('h3',g.event||g.event_id),badge(g.state),node('p',g.markets.join(' · '),'muted'));
         p.append(node('small',g.fresh_rows+' fresh market rows · '+g.model_supported_rows+' model-supported rows'));
@@ -103,6 +103,22 @@ else if(route==='matchups'||route==='sim'||route==='firsttd'||route==='props'){
       }
     };
   }
+}
+else if(route==='simdetail'||route==='firsttddetail'){
+  const [sport,eventId]=(arg||'').split('|').map(decodeURIComponent);
+  if(!sport||!eventId)throw Error('Select a game from the matchup list.');
+  const d=await get(route==='simdetail'?'sim/'+encodeURIComponent(sport)+'/'+encodeURIComponent(eventId):'firsttd/'+encodeURIComponent(eventId));
+  build=root=>{
+    root.append(node('h2',d.event||'Game research'),badge(d.state),node('p',d.notice||d.reason||'','muted'));
+    if(d.state==='SHADOW_ONLY'&&d.summary){
+      root.append(metrics([['Projected '+d.home,Number(d.summary.expected_home_points).toFixed(1)],['Projected '+d.away,Number(d.summary.expected_away_points).toFixed(1)],['Total mean',Number(d.summary.expected_total).toFixed(1)],['Simulated score scenarios',String(d.summary.sample_count)]]));
+      root.append(metrics([['Home win',pct(d.home_win.win)],['Away win',pct(d.away_win.win)],['Tie',pct(d.home_win.push)]]));
+      root.append(node('p','Model: '+d.model_version+' · paired score samples, research only. Not approved for betting.','muted'));
+    }else if(d.players&&d.players.length){
+      for(const player of d.players){const p=node('article',undefined,'panel');p.append(node('h3',player.name),node('p',pct(player.probability)));root.append(p);}
+    }else root.append(empty('Verified projections unavailable',d.reason||'This market requires validated event-specific inputs.'));
+    root.append(link('Back to matchups','#matchups'));
+  };
 }
 else if(route==='matchup'){
   const [sport,eventId]=(arg||'').split('|').map(decodeURIComponent);
@@ -112,7 +128,7 @@ else if(route==='matchup'){
     root.append(node('span',d.sport+' · '+when(d.starts_at),'eyebrow'),node('h2',d.event||'Matchup'),badge(d.projection.source));
     root.append(metrics([['Projected winner',d.projection.selection||'Unavailable'],['Independent model',pct(d.projection.model_probability)],['Market no-vig',pct(d.projection.market_no_vig_probability)],['Observed markets',String(d.markets.length)]]));
     root.append(node('p','Projected winner is not an official wager. Research snapshot: '+when(d.snapshot_at),'muted'));
-    gridLinks(root,[['Game Sim',d.simulation.reason,'#sim'],['First TD',d.first_td.reason,'#firsttd'],['Player Props','View the current player research board.','#props&sport='+sport]]);
+    gridLinks(root,[['Game Sim',d.simulation.reason,'#simdetail='+encodeURIComponent(sport)+'|'+encodeURIComponent(eventId)],['First TD',d.first_td.reason,'#firsttddetail='+encodeURIComponent(sport)+'|'+encodeURIComponent(eventId)],['Player Props','View the current player research board.','#props&sport='+sport]]);
     root.append(section('Observed matchup markets'));
     cards(d.research,root,'No research rows for this game.');
   };
