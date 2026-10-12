@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import time
 
 import httpx
@@ -138,7 +137,6 @@ def rebrand():
 
             # Never create duplicate display names. Configured role IDs remain
             # authoritative even when a secondary legacy VIP role keeps its old name.
-            live_names = {r.get("name") for r in roles}
             for rid, target in list(desired.items()):
                 conflicts = [
                     r for r in roles
