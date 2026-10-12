@@ -18,7 +18,7 @@ LEGACY_FOOTERS = ('JABBAZI GURU · Channel guide',)
 def guide_payload(message):
     title, body = message.split('\n', 1)
     return {'content': '', 'embeds': [{'title': title.replace('**', ''),
-            'description': body.replace(SIGNATURE, '').replace(LEGACY_SIGNATURES[0], '').strip(), 'color': 0x8B35E8,
+            'description': body.replace(SIGNATURE, '').replace(LEGACY_SIGNATURES[0], '').strip(), 'color': 0xFF0A8A,
             'footer': {'text': EMBED_FOOTER}}], 'allowed_mentions': {'parse': []}}
 
 def matches_guide(row, payload):
