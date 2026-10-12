@@ -80,3 +80,18 @@ def test_vip_matchup_endpoints_require_member_and_fail_closed(portal):
     assert client.get("/v1/vip/matchup/NFL/unknown").status_code == 404
     assert client.get("/v1/vip/sim/NFL/unknown").status_code == 404
     assert client.get("/v1/vip/firsttd/unknown").status_code == 404
+
+
+def test_graphic_requires_approved_logo_and_uses_exact_asset(tmp_path):
+    from io import BytesIO
+    from PIL import Image
+    from jabazi.vip.graphics import render_matchup
+    detail = {"sport": "NFL", "event": "Away @ Home",
+              "projection": {"selection": "Home", "source": "INDEPENDENT MODEL",
+                             "model_probability": .61}}
+    with pytest.raises(FileNotFoundError):
+        render_matchup(detail, tmp_path / "missing.png")
+    logo = tmp_path / "approved.png"
+    Image.new("RGB", (320, 160), (255, 10, 138)).save(logo)
+    graphic = Image.open(BytesIO(render_matchup(detail, logo)))
+    assert graphic.size == (1200, 675)
