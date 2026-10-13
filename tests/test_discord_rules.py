@@ -118,7 +118,11 @@ def test_installer_preserves_members_and_verifies_live_permissions(store, monkey
     roles=[{'id':'1','name':'@everyone','permissions':'0'}, {'id':'2','name':'VIP','permissions':'0'}, {'id':'8','name':'BOT','permissions':'8','managed':True}]
     members={'9':{'user':{'id':'9'},'roles':['2'],'joined_at':'2026-10-01T00:00:00+00:00'},'200':{'user':{'id':'200','bot':True},'roles':['8']}}
     info={'owner_id':'100','system_channel_id':ids[5],'system_channel_flags':0,'rules_channel_id':ids[2]}
+    onboarding={'enabled':False,'mode':0,'default_channel_ids':[ids[5]],'prompts':[]}
     def request(http,method,path,operation,**kwargs):
+        if path=='/guilds/1/onboarding':
+            if method=='PUT': onboarding.update(copy.deepcopy(kwargs['json']))
+            return copy.deepcopy(onboarding)
         if path=='/users/@me': return {'id':'200'}
         if path=='/guilds/1':
             if method=='PATCH': info.update(kwargs['json'])
@@ -134,7 +138,10 @@ def test_installer_preserves_members_and_verifies_live_permissions(store, monkey
             return copy.deepcopy(members[mid])
         if path.startswith('/channels/'):
             cid=path.split('/')[2]
-            if method=='PATCH':channels[cid].update(copy.deepcopy(kwargs['json']))
+            if method=='PATCH':
+                if 'permission_overwrites' in kwargs['json'] and cid==ids[5]:
+                    assert cid not in onboarding['default_channel_ids'], 'Discord 350003'
+                channels[cid].update(copy.deepcopy(kwargs['json']))
             return copy.deepcopy(channels[cid])
         raise AssertionError(path)
     monkeypatch.setattr('jabazi.discord_rules.request',request)

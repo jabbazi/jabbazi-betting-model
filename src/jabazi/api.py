@@ -428,6 +428,20 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, daily_only: bo
             max_credits_per_run=body.max_credits,
             progress_callback=progress_callback,
         ).run(body.mode)
+        # Manual/API scans must refresh the same immutable VIP research archive
+        # as scheduled scans. Persist the full result before response truncation.
+        snapshot_status = "UNAVAILABLE"
+        snapshot_store = None
+        try:
+            from .discord_sheets import archive_sheets
+            snapshot_store = platform_store()
+            archive_sheets(snapshot_store, result)
+            snapshot_status = "UPDATED"
+        except Exception as exc:
+            print("VIP_SCAN_SNAPSHOT_FAILED_" + type(exc).__name__, flush=True)
+        finally:
+            if snapshot_store is not None:
+                snapshot_store.close()
         from .daily_scope import eligible_today
         eligible_actions = [a for a in result.actions if not daily_only or eligible_today(
             {'starts_at': a.price.starts_at, 'in_play': a.price.in_play})]
@@ -444,6 +458,7 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, daily_only: bo
         return {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "mode": body.mode,
+            "vip_snapshot_status": snapshot_status,
             "feeds_scanned": result.feeds_scanned,
             "quotes_archived": result.quotes_archived,
             "credits_remaining": result.credits_remaining,

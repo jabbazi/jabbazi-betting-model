@@ -62,3 +62,14 @@ Production database backup retention/PITR is not returned by the current Render
 connector. CI backup/restore covers disposable synthetic evidence only; production
 restore coverage must remain unverified until a backup inventory and isolated
 restore can be inspected through the Render dashboard or an authorized operator.
+
+Follow-up: Discord rejects hiding channels still referenced by disabled native
+onboarding (350003). Back up the full onboarding object before removing gated
+channel references; preserve the enabled state and verify readback before applying
+permissions. The shared derived VIP gate refuses rollout if it would broaden any
+source paid tier's effective permissions. Restore saved onboarding only after
+restoring channel visibility during rollback.
+
+Manual API/MCP scans now archive their full research result before truncating the
+chat response. `vip_snapshot_status` distinguishes successful archive writes from
+storage failures; a successful provider scan alone no longer implies publication.

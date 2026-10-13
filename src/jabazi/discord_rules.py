@@ -109,7 +109,8 @@ def install(store):
             if len(page)<1000: break
             after=str(page[-1]['user']['id'])
         else: raise ValueError('Member inventory exceeds bounded rollout')
-        backup={'channels':channels,'roles':roles,'system_channel_id':info.get('system_channel_id'),
+        onboarding=request(http,'GET',f'/guilds/{guild}/onboarding','RULES_ONBOARDING')
+        backup={'onboarding':onboarding,'channels':channels,'roles':roles,'system_channel_id':info.get('system_channel_id'),
                 'system_channel_flags':info.get('system_channel_flags',0),'rules_channel_id':info.get('rules_channel_id'),
                 'members':[{'id':m['user']['id'],'roles':m['roles'],'joined_at':m.get('joined_at')} for m in members]}
         key=digest(['discord_rules_backup',guild,backup])
@@ -158,6 +159,13 @@ def install(store):
             for held in ([],list(source_vip)):
                 if effective_permissions(guild,'0',held,virtual_roles,proposed,owner)&VIEW:
                     raise ValueError('Unaccepted member would retain access')
+            # A shared paid gate is safe only if source tiers already have
+            # equivalent access. Refuse to broaden a narrower paid tier.
+            for source in source_vip:
+                before=effective_permissions(guild,'0',[source],roles,channel,owner)
+                after_paid=effective_permissions(guild,'0',[source,community,paid],virtual_roles,proposed,owner)
+                if after_paid & VIEW and (not before & VIEW or after_paid & ~before):
+                    raise ValueError('Paid tier permissions differ; separate derived roles required')
             for member in members:
                 if member['user'].get('bot'): continue
                 mid=str(member['user']['id']); old=member['roles']
@@ -166,6 +174,32 @@ def install(store):
                 after_perms=effective_permissions(guild,mid,old+extra,virtual_roles,proposed,owner)
                 if before&VIEW and not after_perms&VIEW:
                     raise ValueError('Existing member visibility would regress')
+        # Disabled native onboarding still constrains referenced channels. Preserve
+        # its state and prompts while removing references to channels being gated.
+        gated={str(channel['id']) for channel,_ in plans}
+        prompts=[]
+        for original in onboarding.get('prompts',[]):
+            prompt={k:original[k] for k in ('id','type','title','single_select','required','in_onboarding') if k in original}
+            options=[]
+            for original_option in original.get('options',[]):
+                option={k:original_option[k] for k in ('id','title','description','role_ids') if k in original_option}
+                option['channel_ids']=[cid for cid in original_option.get('channel_ids',[]) if str(cid) not in gated]
+                emoji=original_option.get('emoji') or {}
+                option.update(emoji_id=emoji.get('id'),emoji_name=emoji.get('name'),emoji_animated=emoji.get('animated',False))
+                options.append(option)
+            prompt['options']=options
+            prompts.append(prompt)
+        defaults=[cid for cid in onboarding.get('default_channel_ids',[]) if str(cid) not in gated]
+        if not defaults: defaults=[ids['welcome'],ids['guide'],ids['access']]
+        updated={'enabled':onboarding.get('enabled',False),'mode':onboarding.get('mode',0),
+                 'default_channel_ids':defaults,'prompts':prompts}
+        request(http,'PUT',f'/guilds/{guild}/onboarding','RULES_ONBOARDING_ROUTES',json=updated)
+        verified=request(http,'GET',f'/guilds/{guild}/onboarding','RULES_VERIFY_ONBOARDING')
+        references=set(map(str,verified.get('default_channel_ids',[])))
+        for prompt in verified.get('prompts',[]):
+            for option in prompt.get('options',[]): references.update(map(str,option.get('channel_ids',[])))
+        if references & gated or verified.get('enabled',False)!=onboarding.get('enabled',False):
+            raise RuntimeError('Native onboarding routing verification failed')
         for channel,changes in plans:
             if changes!=channel.get('permission_overwrites',[]):
                 request(http,'PATCH',f'/channels/{channel["id"]}','RULES_APPLY_GATE',json={'permission_overwrites':changes})
