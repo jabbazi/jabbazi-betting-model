@@ -13,7 +13,9 @@ def ensure_lookup_indexes(store):
         postgres = conn.dialect.name == 'postgresql'
         if postgres:
             conn.execute(text("SET statement_timeout = '600s'"))
-            conn.execute(text("SET lock_timeout = '5s'"))
+            conn.execute(text("SET lock_timeout = '120s'"))
+            activity = conn.execute(text("SELECT state, count(*) AS connections, max(extract(epoch from (clock_timestamp()-xact_start)))::int AS oldest_transaction_seconds FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() GROUP BY state")).mappings().all()
+            print('Lookup migration activity ' + repr([dict(row) for row in activity]), flush=True)
         for name, columns in INDEXES.items():
             if postgres:
                 existing = conn.execute(text("SELECT indisvalid, pg_get_indexdef(indexrelid) AS definition FROM pg_index WHERE indexrelid = to_regclass(:name)"), {'name': name}).mappings().first()
