@@ -17,7 +17,6 @@ def main():
         r.raise_for_status()
         rows=r.json()
     cats=sorted([x for x in rows if x.get("type")==4], key=lambda x:x.get("position",0))
-    texts=sorted([x for x in rows if x.get("type") in (0,5)], key=lambda x:(x.get("position",0),x.get("name","")))
     out={
       "status":"VERIFIED",
       "categories":[{"id":str(x["id"]),"name":x.get("name"),"position":x.get("position",0)} for x in cats],
