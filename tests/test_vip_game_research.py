@@ -144,6 +144,32 @@ def test_real_score_adapter_preserves_pushes_and_quarantine():
     assert "summary" not in blocked
 
 
+@pytest.mark.parametrize("changes", [
+    {"status": "QUARANTINED"},
+    {"status": "INVALIDATED"},
+    {"data_health": "DEGRADED"},
+    {"lifecycle": "LIVE"},
+    {"lifecycle": "HISTORICAL"},
+    {"model_stage": "QUARANTINED"},
+])
+def test_score_simulation_rejects_untrusted_market_context(changes):
+    from test_score_models import artifact, card
+    from jabazi.vip.game_research import simulate_current_event
+    a = artifact()
+    p = card(a)
+    class Store:
+        def list_records(self, *args, **kwargs):
+            return [{"payload": a}]
+    row = {**_row(p.selection, None, .5), "event_id": p.event_id,
+           "event": p.event, "price_at": p.observed_at.isoformat(),
+           "starts_at": p.starts_at.isoformat(), "decimal": 2, "book": "TEST",
+           **changes}
+    result = simulate_current_event(Store(), sport="NFL", event_id=p.event_id, rows=[row])
+    assert result["state"] == "UNAVAILABLE"
+    assert result["approved_for_betting"] is False
+    assert "summary" not in result
+
+
 @pytest.mark.parametrize("query", ["spread_line=nan", "total_line=inf", "total_line=-1", "spread_line=301"])
 def test_scenario_endpoint_rejects_invalid_lines(portal, query):
     from test_member_portal import sign_in
