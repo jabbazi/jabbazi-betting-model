@@ -155,3 +155,11 @@ def test_lease_owner_cannot_release_another_worker(store):
 def test_migration_is_repeatable_and_schema_is_ready(store):
     store.migrate()
     assert store.ready()
+
+
+def test_latest_lookup_index_catalog_and_repeat_migration(store):
+    from jabazi.persistence.lookup_indexes import ensure_lookup_indexes
+    assert ensure_lookup_indexes(store) == ensure_lookup_indexes(store)
+    if store.engine.dialect.name == 'postgresql':
+        with store.engine.connect() as conn:
+            assert conn.execute(text("SELECT indisvalid FROM pg_index WHERE indexrelid=to_regclass('ix_platform_events_kind_latest')")).scalar() is True

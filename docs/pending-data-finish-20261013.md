@@ -4,10 +4,11 @@ Continues 00af98a; original branding, entitlement rules, data sources and valida
 statuses are unchanged. No paid subscriptions or synthetic production messages.
 
 - Add two latest-event lookup indexes in the predeploy migration. PostgreSQL uses
-  CREATE INDEX CONCURRENTLY, a 60-second statement budget and 5-second lock budget.
+  CREATE INDEX CONCURRENTLY, a 600-second statement budget and 5-second lock budget.
   Validity is checked before deploy proceeds. This is additive and compatible with
-  older code/schema version 1; no evidence or table data is rewritten. If creation
-  fails, inspect any invalid new index rather than repeatedly retrying blindly.
+  older code/schema version 1; no evidence or table data is rewritten. The first production build exceeded 60 seconds and the release was stopped.
+  The recovery inspects catalog validity and exact definition before rebuilding
+  only an interrupted index owned by this migration; differing definitions block deployment.
   Optional rollback: DROP INDEX CONCURRENTLY for ix_platform_events_kind_latest
   and ix_platform_events_kind_entity_latest (not needed for application rollback).
 - Keep home shell fast; load today's event links, issued official picks, research
