@@ -371,76 +371,70 @@ def _wrapped(draw, text, face, width):
 
 
 def render_game_card(record, row):
-    from PIL import Image, ImageDraw
+    """Editorial game card: original logo, flat surfaces, real frozen evidence."""
+    from PIL import Image, ImageDraw, ImageOps
+    from .vip.graphics import approved_logo_path, text_fit
+
     p = record["payload"]
     image = Image.new("RGB", (1200, 900), BLACK)
     draw = ImageDraw.Draw(image)
-
-    from .vip.graphics import approved_logo_path, text_fit
-    from PIL import ImageOps
+    muted = "#A8A8B3"
+    rule = "#34343C"
     with Image.open(approved_logo_path()) as original:
-        logo = ImageOps.contain(original.convert("RGBA"), (320, 205))
-    image.paste(logo, (45, 25), logo)
-    draw.text((405, 75), "DAILY GAME RESEARCH", font=_font(38, True), fill=WHITE)
-    draw.text((405, 135), str(p["date"]) + " • America/Chicago", font=_font(23), fill=HOT_PINK)
-    generated = _aware(p.get("generated_at"))
-    stamp = generated.astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p CT") if generated else "Unavailable"
-    draw.text((405, 177), "Snapshot: " + stamp, font=_font(19), fill=SILVER)
-
-    draw.rectangle((0, 0, 1200, 8), fill=HOT_PINK)
-    draw.rectangle((36, 255, 1164, 865), outline=HOT_PINK, width=3)
-    heading = _font(28, True)
-    body = _font(23)
-    small = _font(19)
+        logo = ImageOps.contain(original.convert("RGBA"), (140, 140), Image.Resampling.LANCZOS)
+    image.paste(logo, (48, 28), logo)
+    draw.text((218, 48), "DAILY CHEAT SHEET", font=_font(32, True), fill=WHITE)
+    draw.text((218, 96), str(p["date"]) + "  /  AMERICA/CHICAGO", font=_font(20), fill=muted)
+    draw.rectangle((48, 190, 112, 194), fill=HOT_PINK)
+    draw.line((128, 192, 1152, 192), fill=rule, width=1)
 
     start = _aware(row.get("starts_at_utc"))
-    time_text = start.astimezone(ZoneInfo(p["timezone"])).strftime("%b %d • %I:%M %p CT") if start else "Time unavailable"
-    draw.text((58, 278), f"{row['sport_label']} • {time_text}", font=small, fill=HOT_PINK)
-    text_fit(draw, (58, 316), row.get("event") or row.get("event_id"), max_width=1080, size=34, bold=True)
+    time_text = start.astimezone(ZoneInfo(p["timezone"])).strftime("%b %d / %I:%M %p CT") if start else "Time unavailable"
+    text_fit(draw, (48, 214), f"{row['sport_label']}  /  {time_text}", max_width=1104, size=21, fill=muted)
+    text_fit(draw, (48, 255), row.get("event") or row.get("event_id"), max_width=1104, size=40, bold=True)
 
-    draw.rectangle((58, 380, 1140, 495), fill=GRAPHITE, outline=NEON_PINK, width=2)
-    draw.text((82, 397), "PROJECTED WINNER", font=small, fill=SILVER)
-    winner = str(row.get("projected_winner") or "UNAVAILABLE")
-    text_fit(draw, (82, 430), winner, max_width=1030, size=42, bold=True)
+    draw.rectangle((48, 328, 1152, 456), fill=GRAPHITE)
+    draw.rectangle((48, 328, 52, 456), fill=HOT_PINK)
+    draw.text((76, 348), "PROJECTED WINNER", font=_font(18, True), fill=muted)
+    text_fit(draw, (76, 380), row.get("projected_winner") or "UNAVAILABLE", max_width=1036, size=38, bold=True)
 
-    draw.text((58, 525), "CONFIDENCE", font=small, fill=HOT_PINK)
-    draw.text((58, 555), str(row.get("confidence") or "—"), font=heading, fill=WHITE)
-    draw.text((625, 525), "BETTING STATUS", font=small, fill=HOT_PINK)
-    draw.text((625, 555), str(row.get("status") or "PASS"), font=heading, fill=WHITE)
+    draw.text((48, 480), "CONFIDENCE", font=_font(17, True), fill=muted)
+    text_fit(draw, (48, 508), row.get("confidence") or "Unavailable", max_width=510, size=27, bold=True)
+    draw.text((626, 480), "RESEARCH STATUS", font=_font(17, True), fill=muted)
+    text_fit(draw, (626, 508), row.get("status") or "PASS", max_width=526, size=27, bold=True)
+    draw.line((48, 553, 1152, 553), fill=rule, width=1)
+    draw.line((590, 580, 590, 806), fill=rule, width=1)
 
-    model = _pct(row.get("model_probability"))
-    market = _pct(row.get("market_no_vig_probability"))
     price = (str(row.get("book")) + " " + _odds(row.get("decimal_odds"))) if row.get("book") else "Unavailable"
-    draw.text((58, 610), f"JABBAZI MODEL: {model}", font=body, fill=SILVER)
-    draw.text((58, 646), f"MARKET NO-VIG: {market}", font=body, fill=SILVER)
-    text_fit(draw, (58, 682), f"BEST OBSERVED PRICE: {price}", max_width=530, size=23, fill=SILVER)
-    text_fit(draw, (58, 718), f"SOURCE: {row.get('projection_source')}", max_width=530, size=23, fill=SILVER)
-    text_fit(draw, (58, 756), f"MODEL: {row.get('model_stage') or 'UNAVAILABLE'}", max_width=530, size=19, fill=SILVER)
+    facts = [
+        ("MODEL", _pct(row.get("model_probability"))),
+        ("MARKET NO-VIG", _pct(row.get("market_no_vig_probability"))),
+        ("OBSERVED PRICE", price),
+        ("SOURCE", row.get("projection_source") or "Unavailable"),
+        ("MODEL STATUS", row.get("model_stage") or "UNAVAILABLE"),
+    ]
+    for index, (label, value) in enumerate(facts):
+        y = 581 + index * 44
+        draw.text((48, y), label, font=_font(16, True), fill=muted)
+        text_fit(draw, (242, y-2), value, max_width=324, size=21, fill=WHITE)
 
-    draw.text((625, 610), "WHY", font=small, fill=HOT_PINK)
-    y = 642
-    for item in row.get("why", [])[:3]:
-        for line in _wrapped(draw, "• " + item, small, 500):
-            draw.text((625, y), line, font=small, fill=WHITE)
-            y += 27
-            if y > 735:
-                break
-        if y > 735:
-            break
+    def notes(label, items, top, max_lines):
+        draw.text((626, top), label, font=_font(17, True), fill=HOT_PINK)
+        face = _font(20)
+        lines = _wrapped(draw, " • ".join(str(item) for item in items) or "Unavailable", face, 520)
+        visible = lines[:max_lines]
+        if len(lines) > max_lines:
+            visible[-1] = visible[-1].rstrip(" .") + "…"
+        for index, line in enumerate(visible):
+            text_fit(draw, (626, top+29+index*27), line, max_width=520, size=20)
 
-    draw.text((625, 755), "RISK", font=small, fill=HOT_PINK)
-    y = 787
-    for item in row.get("risk", [])[:2]:
-        for line in _wrapped(draw, "• " + item, small, 500):
-            draw.text((625, y), line, font=small, fill=SILVER)
-            y += 26
-            if y > 845:
-                break
-        if y > 845:
-            break
-
-    draw.rectangle((36, 857, 1164, 897), fill=BLACK)
-    text_fit(draw, (58, 864), "RESEARCH ONLY • Projected winner is not an official wager.", max_width=1080, size=19, fill=SILVER)
+    notes("RESEARCH NOTES", row.get("why") or [], 581, 3)
+    notes("KEY RISK", row.get("risk") or [], 706, 2)
+    draw.line((48, 823, 1152, 823), fill=rule, width=1)
+    draw.text((48, 843), "RESEARCH ONLY / NOT AN OFFICIAL WAGER", font=_font(18, True), fill=WHITE)
+    generated = _aware(p.get("generated_at"))
+    stamp = generated.astimezone(ZoneInfo("America/Chicago")).strftime("%b %d, %I:%M %p CT") if generated else "Unavailable"
+    text_fit(draw, (48, 874), "Snapshot: " + stamp + "  /  Prices may have changed.", max_width=1104, size=15, fill=muted)
     output = io.BytesIO()
     image.save(output, format="PNG", optimize=True)
     return output.getvalue()
