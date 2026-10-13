@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from .. import member_api
 from ..persistence.store import digest
 from . import data
-from zoneinfo import ZoneInfo
 from .state import change_watch, check_watches, owner_key, read_state
 
 router = APIRouter(prefix='/v1/vip')
@@ -190,7 +189,6 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
 def matchup_graphic(sport: str, event_id: str,
                     kind: Literal['matchup', 'simulation', 'cheatsheet'] = 'matchup',
                     day: date | None = None, ctx=Depends(context)):
-    import os
     from fastapi.responses import Response
     from .game_research import matchup_detail
     from .graphics import render_matchup, render_research_card
