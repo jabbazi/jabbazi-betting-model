@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 from .discord_access import is_staff_name, is_vip_name, normalize_role_name
 from .discord_sheets import SPORTS, latest_sheet, parse_command
-from .discord_daily import daily_moneyline, render_game_card, render_text as render_daily_moneyline
+from .discord_daily import daily_moneyline, render_slate, render_text as render_daily_moneyline
 from .persistence.store import Store, digest
 from .sheet_images import render_card, page_count
 
@@ -384,21 +384,17 @@ def build_client(config, store):
                     return await interaction.followup.send(
                         "Today's JABBAZI game cheat sheets are not available yet.", ephemeral=True
                     )
-                text = render_daily_moneyline(record)
-                await interaction.followup.send(text, ephemeral=True)
-                cards = record["payload"].get("rows", [])
-                for offset in range(0, len(cards), 10):
-                    files = []
-                    for index, row in enumerate(cards[offset:offset + 10], start=offset + 1):
-                        data = await asyncio.to_thread(render_game_card, record, row)
-                        files.append(
-                            discord.File(
-                                io.BytesIO(data),
-                                filename=f"jabbazi-{record['payload']['date']}-game-{index}.png",
-                            )
-                        )
-                    if files:
-                        await interaction.followup.send(files=files, ephemeral=True)
+                from .daily_scope import eligible_today, delivery_eligible
+                rows = [row for row in record["payload"].get("rows", []) if eligible_today(row)]
+                record = {**record, "payload": {**record["payload"], "rows": rows, "row_count": len(rows)}}
+                data = await asyncio.to_thread(render_slate, record)
+                if rows and not await asyncio.to_thread(delivery_eligible, store, rows):
+                    return await interaction.followup.send("The slate changed. Please request a fresh sheet.", ephemeral=True)
+                await interaction.followup.send(
+                    render_daily_moneyline(record),
+                    file=discord.File(io.BytesIO(data), filename=f"jabbazi-{record['payload']['date']}-slate.png"),
+                    ephemeral=True,
+                )
 
             @self.tree.command(name="card", description="Show today's official JABBAZI Main Card")
             async def card(interaction: discord.Interaction):
@@ -1062,39 +1058,22 @@ def build_client(config, store):
             ):
                 return
             try:
-                text = render_daily_moneyline(record)
+                data = await asyncio.to_thread(render_slate, record)
+                expected = int(record["payload"].get("eligible_game_count", -1))
+                if len(cards) != expected or expected != int(record["payload"].get("row_count", -2)):
+                    raise RuntimeError("Daily cheat sheet delivery count mismatch")
+                if cards and not await asyncio.to_thread(delivery_eligible, store, cards):
+                    raise RuntimeError("Daily game eligibility changed before delivery")
                 delivery = self.alert_delivery("Cheat Sheet Alerts")
                 prefix = delivery.pop("content") or ""
-                summary = await channel.send((prefix + "\n" + text).strip(), **delivery)
-                message_ids = [str(summary.id)]
-                cards = record["payload"].get("rows", [])
-                rendered_count = 0
-                for offset in range(0, len(cards), 10):
-                    files = []
-                    for index, row in enumerate(cards[offset:offset + 10], start=offset + 1):
-                        data = await asyncio.to_thread(render_game_card, record, row)
-                        if len(data) > 7_000_000:
-                            raise ValueError("Daily game card exceeds safe attachment size")
-                        files.append(
-                            discord.File(
-                                io.BytesIO(data),
-                                filename=f"jabbazi-{record['payload']['date']}-game-{index}.png",
-                            )
-                        )
-                        rendered_count += 1
-                    if files:
-                        if not await asyncio.to_thread(delivery_eligible, store, cards[offset:offset + 10]):
-                            raise RuntimeError("Daily game eligibility changed before delivery")
-                        sent = await channel.send(files=files, allowed_mentions=discord.AllowedMentions.none())
-                        message_ids.append(str(sent.id))
-                expected = int(record["payload"].get("eligible_game_count", -1))
-                if rendered_count != expected or expected != int(record["payload"].get("row_count", -2)):
-                    raise RuntimeError("Daily cheat sheet delivery count mismatch")
-                result = {"status": "delivered", "message_ids": message_ids, "game_cards": rendered_count}
-                print(
-                    f"DAILY_CHEAT_SHEET_PUBLISHED DATE={record['payload']['date']} ELIGIBLE={expected} GAME_CARDS={rendered_count}",
-                    flush=True,
+                sent = await channel.send(
+                    (prefix + "\n" + render_daily_moneyline(record)).strip(),
+                    file=discord.File(io.BytesIO(data), filename=f"jabbazi-{record['payload']['date']}-slate.png"),
+                    **delivery,
                 )
+                result = {"status": "delivered", "message_ids": [str(sent.id)], "games": len(cards), "slate_images": 1}
+                print(f"DAILY_CHEAT_SHEET_PUBLISHED DATE={record['payload']['date']} ELIGIBLE={expected} SLATE_IMAGES=1", flush=True)
+
             except Exception:  # noqa: BLE001 -- uncertain delivery must be audited, not retried
                 result = {"status": "needs_review"}
             await asyncio.to_thread(
