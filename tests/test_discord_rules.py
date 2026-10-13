@@ -141,6 +141,7 @@ def test_installer_preserves_members_and_verifies_live_permissions(store, monkey
             if method=='PATCH':
                 if 'permission_overwrites' in kwargs['json'] and cid==ids[5]:
                     assert cid not in onboarding['default_channel_ids'], 'Discord 350003'
+                    assert info['system_channel_id']!=cid, 'System channel must stay readable'
                 channels[cid].update(copy.deepcopy(kwargs['json']))
             return copy.deepcopy(channels[cid])
         raise AssertionError(path)

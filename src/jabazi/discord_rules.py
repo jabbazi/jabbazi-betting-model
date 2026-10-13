@@ -187,6 +187,16 @@ def install(store):
                 if before&VIEW and not after_perms&VIEW:
                     raise ValueError('Existing member visibility would regress')
         print('DISCORD_RULES_PREFLIGHT_PASSED '+json.dumps({'channels':len(plans),'paid_tiers':len(paid_roles)}),flush=True)
+        # Restore the existing rules channel, preserving its message history.
+        # Its archived permissions must become publicly readable and read-only.
+        rule_permissions=[dict(r) for r in by_id[ids['welcome']].get('permission_overwrites',[])]
+        request(http,'PATCH',f'/channels/{ids["rules"]}','RULES_RESTORE_EXISTING',json={'permission_overwrites':rule_permissions})
+        # Move/relabel only onboarding channels; preserve other overwrite sets.
+        for key_name,name,pos in [('welcome','👋│welcome',0),('rules','📜│rules',1),('guide','🧭│start-here',2),('support','🆘│support',3)]:
+            request(http,'PATCH',f'/channels/{ids[key_name]}','RULES_CHANNEL_LAYOUT',json={'name':name,'parent_id':ids['category'],'position':pos})
+        request(http,'PATCH',f'/channels/{ids["category"]}','RULES_CATEGORY',json={'name':'👋 START HERE','position':0})
+        request(http,'PATCH',f'/guilds/{guild}','RULES_SYSTEM_ROUTING',json={'system_channel_id':ids['welcome'],'system_channel_flags':int(info.get('system_channel_flags',0))|1,'rules_channel_id':ids['rules']})
+        print('DISCORD_START_HERE_READY',flush=True)
         # The audited native flow is disabled. Its obsolete prompts/defaults
         # still prevent private channels; use the bot-managed gate instead.
         # The complete original native configuration is in the verified backup.
@@ -208,15 +218,6 @@ def install(store):
             for held in ([],list(source_vip)):
                 if effective_permissions(guild,'0',held,virtual_roles,live,owner)&VIEW:
                     raise RuntimeError('Live gate verification failed')
-        # Restore the existing rules channel, preserving its message history.
-        # Its archived permissions must become publicly readable and read-only.
-        rule_permissions=[dict(r) for r in by_id[ids['welcome']].get('permission_overwrites',[])]
-        request(http,'PATCH',f'/channels/{ids["rules"]}','RULES_RESTORE_EXISTING',json={'permission_overwrites':rule_permissions})
-        # Move/relabel only onboarding channels; preserve other overwrite sets.
-        for key_name,name,pos in [('welcome','👋│welcome',0),('rules','📜│rules',1),('guide','🧭│start-here',2),('support','🆘│support',3)]:
-            request(http,'PATCH',f'/channels/{ids[key_name]}','RULES_CHANNEL_LAYOUT',json={'name':name,'parent_id':ids['category'],'position':pos})
-        request(http,'PATCH',f'/channels/{ids["category"]}','RULES_CATEGORY',json={'name':'👋 START HERE','position':0})
-        request(http,'PATCH',f'/guilds/{guild}','RULES_SYSTEM_ROUTING',json={'system_channel_id':ids['welcome'],'system_channel_flags':int(info.get('system_channel_flags',0))|1,'rules_channel_id':ids['rules']})
         store.append('discord_rules_config',CONFIG_KEY,config)
         print('DISCORD_RULES_INSTALL '+json.dumps({'status':'ACTIVE','channels_changed':len(plans),'existing_members_preserved':len(grandfathered),'community_role':community,'paid_role':paid,'backup_id':key}),flush=True)
         return config
