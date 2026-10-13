@@ -111,6 +111,19 @@ def request(http, method, path, operation, **kwargs):
         code = response.json().get("code") if response.headers.get("content-type", "").startswith("application/json") else None
         detail = f"DISCORD_OPERATION_{operation}_HTTP_{response.status_code}_PATH_{path}_CODE_{code if isinstance(code, int) else 'UNKNOWN'}"
         print(detail, flush=True)
+        if operation == "RULES_ONBOARDING_ROUTES" and code == 50035:
+            # Log only validation field paths and machine codes, never values,
+            # request bodies, provider messages, or credentials.
+            def error_codes(value, path=""):
+                found=[]
+                if isinstance(value, dict):
+                    for key,item in value.items():
+                        if key == "_errors" and isinstance(item,list):
+                            found.extend({"field":path,"code":str(e.get("code","UNKNOWN"))[:100]} for e in item if isinstance(e,dict))
+                        elif str(key).replace("_","").isalnum():
+                            found.extend(error_codes(item,path+"."+str(key)))
+                return found
+            print("DISCORD_ONBOARDING_VALIDATION " + json.dumps(error_codes(response.json().get("errors",{}))),flush=True)
         raise RuntimeError(detail)
     return response.json() if response.content else None
 

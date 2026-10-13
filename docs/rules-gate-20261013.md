@@ -79,3 +79,9 @@ channel edits. The revised rollout creates a zero-global-permission derived role
 for each original source VIP role, copying its own channel grants independently.
 Reconciliation grants that derived role only after acceptance and while its
 specific source role remains present. Playbook source roles remain untouched.
+
+Discord rejected reserialization of its inactive native onboarding settings.
+Because native onboarding was already disabled, the bot-managed rollout clears
+its inactive prompts/default-channel references after backing them up. It refuses
+this operation if native onboarding has since been enabled. This does not remove
+Community mode, server history, paid roles, or the visible onboarding channels.

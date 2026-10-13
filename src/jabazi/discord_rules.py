@@ -187,25 +187,13 @@ def install(store):
                 if before&VIEW and not after_perms&VIEW:
                     raise ValueError('Existing member visibility would regress')
         print('DISCORD_RULES_PREFLIGHT_PASSED '+json.dumps({'channels':len(plans),'paid_tiers':len(paid_roles)}),flush=True)
-        # Disabled native onboarding still constrains referenced channels. Preserve
-        # its state and prompts while removing references to channels being gated.
+        # The audited native flow is disabled. Its obsolete prompts/defaults
+        # still prevent private channels; use the bot-managed gate instead.
+        # The complete original native configuration is in the verified backup.
+        if onboarding.get('enabled',False):
+            raise ValueError('Native onboarding changed since audit; review required')
         gated={str(channel['id']) for channel,_ in plans}
-        prompts=[]
-        for original in onboarding.get('prompts',[]):
-            prompt={k:original[k] for k in ('id','type','title','single_select','required','in_onboarding') if k in original}
-            options=[]
-            for original_option in original.get('options',[]):
-                option={k:original_option[k] for k in ('id','title','description','role_ids') if k in original_option}
-                option['channel_ids']=[cid for cid in original_option.get('channel_ids',[]) if str(cid) not in gated]
-                emoji=original_option.get('emoji') or {}
-                option.update(emoji_id=emoji.get('id'),emoji_name=emoji.get('name'),emoji_animated=emoji.get('animated',False))
-                options.append(option)
-            prompt['options']=options
-            prompts.append(prompt)
-        defaults=[cid for cid in onboarding.get('default_channel_ids',[]) if str(cid) not in gated]
-        if not defaults: defaults=[ids['welcome'],ids['guide'],ids['access']]
-        updated={'enabled':onboarding.get('enabled',False),'mode':onboarding.get('mode',0),
-                 'default_channel_ids':defaults,'prompts':prompts}
+        updated={'enabled':False,'default_channel_ids':[], 'prompts':[]}
         request(http,'PUT',f'/guilds/{guild}/onboarding','RULES_ONBOARDING_ROUTES',json=updated)
         verified=request(http,'GET',f'/guilds/{guild}/onboarding','RULES_VERIFY_ONBOARDING')
         references=set(map(str,verified.get('default_channel_ids',[])))
