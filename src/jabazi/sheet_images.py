@@ -355,9 +355,14 @@ def render_card(record, sport, group, *, page=1, rows=None, featured=False):
     height = 336 + max(2, len(selected)) * 64
     image = Image.new("RGB", (1400, height), "#090909")
     draw = ImageDraw.Draw(image)
-    title, heading, body, small = font(35, True), font(23, True), font(20), font(17)
+    heading, body, small = font(23, True), font(20), font(17)
     draw.rectangle((0, 0, 1400, 8), fill="#FF0A8A")
-    draw.text((28, 22), "JABBAZI", font=title, fill="#FFFFFF")
+    from .vip.graphics import approved_logo_path
+    from PIL import ImageOps
+    with Image.open(approved_logo_path()) as raw:
+        logo = ImageOps.contain(raw.convert("RGBA"), (145, 145))
+    image.paste(logo, (1215, 20), logo)
+    draw.text((28, 22), "DAILY RESEARCH BOARD", font=font(35, True), fill="#FFFFFF")
     draw.text((28, 70), f"{sport.upper()} / {GROUPS[sport][group]}", font=heading, fill="#FF4DB8")
     at = record["payload"]["completed_at"][:19].replace("T", " ")
     label = "games" if group == 0 or sport == "cfb" else "players"

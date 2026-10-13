@@ -125,7 +125,10 @@ def test_best_two_renderer_keeps_price_check_visible():
             {"event":"C @ D","selection":"D","line":None},
         ],
     }
-    embed=best_two_embed(candidate)
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    for leg in candidate["legs"]:
+        leg["starts_at"] = (now + timedelta(hours=2)).isoformat()
+    embed=best_two_embed(candidate, now=now)
     assert embed is not None
     assert any(f["value"]=="PRICE CHECK" for f in embed["fields"])
 

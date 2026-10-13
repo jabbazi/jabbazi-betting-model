@@ -123,8 +123,11 @@ def _best_model_row(rows):
     candidates = [
         row for row in rows
         if row.get("model_version")
-        and row.get("data_health") != "UNHEALTHY"
-        and (_number(row.get("model_probability")) or 0) > 0
+        and row.get("data_health") == "HEALTHY"
+        and row.get("model_stage") in {"SHADOW_ONLY", "LIMITED_LIVE", "PRODUCTION_APPROVED"}
+        and row.get("status") != "QUARANTINED"
+        and row.get("anomaly_state") != "QUARANTINED"
+        and 0 < (_number(row.get("model_probability")) or 0) < 1
     ]
     return max(
         candidates,
@@ -201,8 +204,9 @@ def _projection(event, rows):
         "projected_winner": str(chosen.get("selection") or "UNAVAILABLE"),
         "projection_source": source,
         "confidence": _confidence(probability, source=source, agreement=agreement),
-        "model_probability": _number(chosen.get("model_probability")),
-        "model_version": chosen.get("model_version"),
+        "model_probability": _number(chosen.get("model_probability")) if source == "MODEL" else None,
+        "model_version": chosen.get("model_version") if source == "MODEL" else None,
+        "model_stage": chosen.get("model_stage", "UNAVAILABLE") if source == "MODEL" else "UNAVAILABLE",
         "market_no_vig_probability": chosen_market,
         "book": chosen.get("book"),
         "decimal_odds": _number(chosen.get("decimal_odds")),
@@ -370,18 +374,19 @@ def render_game_card(record, row):
     image = Image.new("RGB", (1200, 900), BLACK)
     draw = ImageDraw.Draw(image)
 
-    # Large-format JABBAZI wordmark treatment. The Discord icon uses a compact J;
-    # game cards keep the full brand name prominent and legible.
-    logo_font = _font(88, True)
-    logo_box = draw.textbbox((0, 0), "JABBAZI", font=logo_font)
-    logo_x = (1200 - (logo_box[2] - logo_box[0])) // 2
-    draw.text((logo_x + 5, 72), "JABBAZI", font=logo_font, fill=MAGENTA)
-    draw.text((logo_x, 67), "JABBAZI", font=logo_font, fill=WHITE)
-    draw.arc((330, 120, 870, 235), start=8, end=350, fill=NEON_PINK, width=10)
+    from .vip.graphics import approved_logo_path, text_fit
+    from PIL import ImageOps
+    with Image.open(approved_logo_path()) as original:
+        logo = ImageOps.contain(original.convert("RGBA"), (320, 205))
+    image.paste(logo, (45, 25), logo)
+    draw.text((405, 75), "DAILY GAME RESEARCH", font=_font(38, True), fill=WHITE)
+    draw.text((405, 135), str(p["date"]) + " • America/Chicago", font=_font(23), fill=HOT_PINK)
+    generated = _aware(p.get("generated_at"))
+    stamp = generated.astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p CT") if generated else "Unavailable"
+    draw.text((405, 177), "Snapshot: " + stamp, font=_font(19), fill=SILVER)
 
     draw.rectangle((0, 0, 1200, 8), fill=HOT_PINK)
     draw.rectangle((36, 255, 1164, 865), outline=HOT_PINK, width=3)
-    title = _font(34, True)
     heading = _font(28, True)
     body = _font(23)
     small = _font(19)
@@ -389,12 +394,12 @@ def render_game_card(record, row):
     start = _aware(row.get("starts_at_utc"))
     time_text = start.astimezone(ZoneInfo(p["timezone"])).strftime("%b %d • %I:%M %p CT") if start else "Time unavailable"
     draw.text((58, 278), f"{row['sport_label']} • {time_text}", font=small, fill=HOT_PINK)
-    draw.text((58, 316), str(row.get("event") or row.get("event_id")), font=title, fill=WHITE)
+    text_fit(draw, (58, 316), row.get("event") or row.get("event_id"), max_width=1080, size=34, bold=True)
 
     draw.rectangle((58, 380, 1140, 495), fill=GRAPHITE, outline=NEON_PINK, width=2)
     draw.text((82, 397), "PROJECTED WINNER", font=small, fill=SILVER)
     winner = str(row.get("projected_winner") or "UNAVAILABLE")
-    draw.text((82, 430), winner[:46], font=_font(42, True), fill=WHITE)
+    text_fit(draw, (82, 430), winner, max_width=1030, size=42, bold=True)
 
     draw.text((58, 525), "CONFIDENCE", font=small, fill=HOT_PINK)
     draw.text((58, 555), str(row.get("confidence") or "—"), font=heading, fill=WHITE)
@@ -406,8 +411,9 @@ def render_game_card(record, row):
     price = (str(row.get("book")) + " " + _odds(row.get("decimal_odds"))) if row.get("book") else "Unavailable"
     draw.text((58, 610), f"JABBAZI MODEL: {model}", font=body, fill=SILVER)
     draw.text((58, 646), f"MARKET NO-VIG: {market}", font=body, fill=SILVER)
-    draw.text((58, 682), f"BEST OBSERVED PRICE: {price}", font=body, fill=SILVER)
-    draw.text((58, 718), f"PROJECTION SOURCE: {row.get('projection_source')}", font=body, fill=SILVER)
+    text_fit(draw, (58, 682), f"BEST OBSERVED PRICE: {price}", max_width=530, size=23, fill=SILVER)
+    text_fit(draw, (58, 718), f"SOURCE: {row.get('projection_source')}", max_width=530, size=23, fill=SILVER)
+    text_fit(draw, (58, 756), f"MODEL: {row.get('model_stage') or 'UNAVAILABLE'}", max_width=530, size=19, fill=SILVER)
 
     draw.text((625, 610), "WHY", font=small, fill=HOT_PINK)
     y = 642
@@ -431,12 +437,8 @@ def render_game_card(record, row):
         if y > 845:
             break
 
-    draw.text(
-        (58, 825),
-        "Projected winner is research only. Main Card is the authoritative official JABBAZI betting record.",
-        font=small,
-        fill="#AFAFAF",
-    )
+    draw.rectangle((36, 857, 1164, 897), fill=BLACK)
+    text_fit(draw, (58, 864), "RESEARCH ONLY • Projected winner is not an official wager.", max_width=1080, size=19, fill=SILVER)
     output = io.BytesIO()
     image.save(output, format="PNG", optimize=True)
     return output.getvalue()

@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from .discord_daily import sport_label
 from .discord_content import american
+from .daily_scope import eligible_today
 
 
 def row_key(row):
@@ -42,6 +43,8 @@ def observations(snapshots, *, lane, now=None):
             pass
     updates = []
     for row in current.get("rows", []):
+        if not eligible_today(row, now=now):
+            continue
         label = sport_label(row.get("sport", ""))
         if not label or not row.get("event_id") or row.get("in_play"):
             continue
@@ -84,7 +87,7 @@ def observations(snapshots, *, lane, now=None):
         stamp = quoted.astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p %Z")
         selection = str(row.get("participant") or row.get("selection") or "") + " " + str(row.get("line") or "")
         bucket = now.astimezone(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %H")
-        updates.append({"priority": priority,
+        updates.append({"priority": priority, "event_scope": row,
             "identity": [bucket, row["sport"], row["event_id"], row.get("market"), lane],
             "embed": {"title": title, "color": 0xFF0A8A if lane == "research" else 0x3498DB,
                 "description": f"**{label} • {str(row.get('event'))[:180]}**\n{selection.strip()[:150]} • {row.get('market')}\n\n{description}",

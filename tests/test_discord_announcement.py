@@ -2,7 +2,7 @@
 import httpx
 import pytest
 
-from jabazi.discord_announcement import CHANNEL, GUILD, FILENAME, TEXT, announce
+from jabazi.discord_announcement import CHANNEL, GUILD, FILENAME, TEXT, announce, banner_bytes
 from jabazi.discord_migration import READ, SEND, VIEW
 from jabazi.persistence.store import Store
 
@@ -11,7 +11,7 @@ from jabazi.persistence.store import Store
 def test_approved_banner_has_one_everyone_ping_and_no_replay(tmp_path, mode):
     store = Store('sqlite:///' + str(tmp_path / 'announcement.db'), initialize=True)
     posts = []
-    row = {'id': '111', 'content': TEXT, 'mention_everyone': True, 'attachments': [{'filename': FILENAME, 'size': 2266074, 'width': 2048}]}
+    row = {'id': '111', 'content': TEXT, 'mention_everyone': True, 'attachments': [{'filename': FILENAME, 'size': len(banner_bytes()), 'width': 1200}]}
     def handler(req):
         path = req.url.path
         if req.method == 'POST':
@@ -37,7 +37,7 @@ def test_approved_banner_has_one_everyone_ping_and_no_replay(tmp_path, mode):
                 assert announce(http, store, guild=GUILD, owner='2')['missing_bits'] == str(1 << 17)
             else:
                 assert announce(http, store, guild=GUILD, owner='2')['status'] == 'POSTED_VERIFIED'
-                assert announce(http, store, guild=GUILD, owner='2')['status'] == 'VERIFIED_ALREADY_POSTED'
+                assert announce(http, store, guild=GUILD, owner='2')['status'] == 'VERIFIED_HOT_PINK'
         assert len(posts) == (0 if mode == 'blocked' else 1)
     finally:
         store.close()

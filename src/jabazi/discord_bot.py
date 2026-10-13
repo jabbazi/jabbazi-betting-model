@@ -666,6 +666,10 @@ def build_client(config, store):
                     "DATA UNHEALTHY — latest scan failed checks. "
                     "No research sheets published for this scan."
                 )
+            from .daily_scope import eligible_today
+            record = {**record, "payload": {**payload, "rows": [
+                row for row in payload.get("rows", []) if eligible_today(row)
+            ], "slate_events": [event for event in payload.get("slate_events", []) if eligible_today(event)]}}
             last_message = None
             for sport in sports:
                 files = []
@@ -870,6 +874,9 @@ def build_client(config, store):
                 store.append, "discord_best_two_claim", str(config.best_two_channel), {}, key
             ):
                 return
+            payload = best_two_embed(candidate)
+            if payload is None:
+                return
             await channel.send(
                 embed=discord.Embed.from_dict(payload),
                 **self.alert_delivery("Parlay Alerts"),
@@ -937,8 +944,13 @@ def build_client(config, store):
                 return
             channel = await self.checked_channel(channel_id)
             for update in updates:
+                from .daily_scope import eligible_today
+                if not eligible_today(update["event_scope"]):
+                    continue
                 key = digest(["discord_observation", config.guild, lane, update["identity"]])
                 if not await asyncio.to_thread(store.append, "discord_observation_claim", str(channel_id), {}, key):
+                    continue
+                if not eligible_today(update["event_scope"]):
                     continue
                 await channel.send(embed=discord.Embed.from_dict(update["embed"]), allowed_mentions=discord.AllowedMentions.none())
 
@@ -982,6 +994,12 @@ def build_client(config, store):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
                 return
+            from .daily_scope import eligible_today, CENTRAL
+            if record['payload']['date'] != datetime.now(CENTRAL).date().isoformat():
+                return
+            cards = [row for row in record['payload'].get('rows', []) if eligible_today(row)]
+            record = {**record, 'payload': {**record['payload'], 'rows': cards,
+                       'eligible_game_count': len(cards), 'row_count': len(cards)}}
             channel = await self.checked_channel(config.sheets_channel)
             key = digest(["discord_daily_moneyline", config.guild, channel.id, record["id"]])
             claim = {"sheet_id": record["id"], "channel": str(channel.id)}
@@ -1011,6 +1029,8 @@ def build_client(config, store):
                         )
                         rendered_count += 1
                     if files:
+                        if not all(eligible_today(row) for row in cards[offset:offset + 10]):
+                            raise RuntimeError("Daily game eligibility changed before delivery")
                         sent = await channel.send(files=files, allowed_mentions=discord.AllowedMentions.none())
                         message_ids.append(str(sent.id))
                 expected = int(record["payload"].get("eligible_game_count", -1))

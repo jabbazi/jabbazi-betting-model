@@ -136,7 +136,7 @@ def test_discord_role_checks_fail_closed_and_cache_bounded(monkeypatch):
 def test_frozen_sheet_immutable_and_shared_with_discord(portal):
     from jabazi.discord_daily import freeze_daily_moneyline
     store, client = portal
-    row = seed(store, market='h2h', participant=None, selection='Yankees', research_probability='.6')
+    row = seed(store, market='h2h', participant=None, selection='Yankees', research_probability='.6', model_stage='SHADOW_ONLY')
     current = store.list_records('research_sheet', 1, entity='latest_scan')[0]
     current['payload']['slate_events'] = [{k: row[k] for k in ('sport', 'event_id', 'event', 'starts_at_utc')}]
     frozen_id, _ = freeze_daily_moneyline(store, current)

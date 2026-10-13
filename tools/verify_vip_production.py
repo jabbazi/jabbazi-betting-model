@@ -21,7 +21,7 @@ def main():
     guild = os.environ['JABBAZI_DISCORD_GUILD_ID']
     owner = os.environ['JABBAZI_DISCORD_OWNER_ID']
     store = Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
-    checks = {'verification_version': 3}
+    checks = {'verification_version': 4}
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + os.environ['JABBAZI_DISCORD_BOT_TOKEN']}, timeout=20) as discord:
             info = discord.get(f'/guilds/{guild}')
@@ -45,6 +45,11 @@ def main():
                                 body = result.json()
                                 if 'rows' in body:
                                     checks[path]['rows'] = len(body['rows'])
+                                    if path.startswith('board'):
+                                        from jabazi.daily_scope import eligible_today
+                                        checks[path]['today_only'] = all(eligible_today(row) for row in body['rows'])
+                                        if not checks[path]['today_only']:
+                                            checks[path]['scope_error'] = 'OUT_OF_DATE_EVENT'
                                 if 'state' in body:
                                     checks[path]['state'] = body['state']
                         except httpx.HTTPError as exc:
@@ -91,7 +96,7 @@ def main():
                     checks['logout_http'] = client.post('/v1/member/logout', headers={'Origin': origin}).status_code
                 checks['logged_out_blocked'] = client.get('/v1/vip/home').status_code == 401
             checks['scope'] = 'AUTH_AND_ENDPOINT_TRANSPORT_ONLY_NOT_MODEL_VALIDATION'
-            checks['status'] = 'VERIFIED' if checks.get('anonymous_blocked') and checks.get('ticket_replay_rejected') and checks.get('sign_in_http') == 200 and checks.get('logout_http') == 200 and checks.get('logged_out_blocked') and all(v.get('http') == 200 for v in checks.values() if isinstance(v, dict)) else 'INCOMPLETE'
+            checks['status'] = 'VERIFIED' if checks.get('anonymous_blocked') and checks.get('ticket_replay_rejected') and checks.get('sign_in_http') == 200 and checks.get('logout_http') == 200 and checks.get('logged_out_blocked') and all(v.get('http') == 200 and v.get('today_only', True) for v in checks.values() if isinstance(v, dict)) else 'INCOMPLETE'
     except Exception as exc:  # noqa: BLE001 -- acceptance boundary records only the redacted error class
         checks.update(status='UNAVAILABLE', error=type(exc).__name__)
     finally:

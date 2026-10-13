@@ -5,6 +5,7 @@ import re
 from zoneinfo import ZoneInfo
 
 from ..discord_daily import sport_label
+from ..daily_scope import eligible_today
 from ..persistence.store import digest
 
 SPORTS = ('MLB', 'NFL', 'CFB', 'NBA', 'NHL', 'WNBA', 'TENNIS', 'SOCCER')
@@ -52,6 +53,8 @@ def allowed_market(r):
 
 
 def project(r, record, now, historical=False):
+    if not historical and not eligible_today(r, now=now):
+        return None
     if not allowed_market(r):
         return None
     label = sport_label(r.get('sport', ''))

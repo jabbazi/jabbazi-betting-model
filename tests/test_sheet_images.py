@@ -113,7 +113,11 @@ def test_games_without_fresh_prices_remain_visible_and_do_not_gain_probabilities
     assert len(blocks) == 2
 
 
-def test_full_slate_is_delivered_without_requesting_extra_pages():
+def test_full_slate_is_delivered_without_requesting_extra_pages(monkeypatch):
+    from datetime import UTC, datetime
+    from jabazi.daily_scope import eligible_today
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    monkeypatch.setattr("jabazi.daily_scope.eligible_today", lambda row: eligible_today(row, now=now))
     import asyncio
     from types import SimpleNamespace
     from jabazi.discord_bot import BotConfig, build_client
@@ -121,7 +125,7 @@ def test_full_slate_is_delivered_without_requesting_extra_pages():
     data = record()
     base = data["payload"]["rows"][0]
     data["payload"]["rows"] = [
-        base | {"event_id": str(i), "event": f"A{i} @ B{i}"} for i in range(27)
+        base | {"event_id": str(i), "event": f"A{i} @ B{i}", "starts_at_utc": "2026-10-13T23:00:00Z"} for i in range(27)
     ]
     sent = []
 

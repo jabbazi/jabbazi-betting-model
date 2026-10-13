@@ -24,7 +24,7 @@ def test_embed_identity_and_discord_added_metadata():
     payload = guide_payload('💎 **VIP**\nUseful text\n\n*JABBAZI GURU · Channel guide*')
     row = {**payload, 'embeds': [{**payload['embeds'][0], 'type': 'rich'}]}
     assert matches_guide(row, payload) and is_introduction(row)
-    assert payload['embeds'][0]['color'] == 0x8B35E8
+    assert payload['embeds'][0]['color'] == 0xFF0A8A
     assert payload['embeds'][0]['description'] == 'Useful text'
     assert not matches_guide({**row, 'content': 'competing text'}, payload)
 

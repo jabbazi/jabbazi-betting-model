@@ -5,6 +5,7 @@ from decimal import Decimal
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 import os
+from .daily_scope import eligible_today
 
 STATUS_COLORS={
     "BET NOW":0x2ECC71,
@@ -28,6 +29,8 @@ def official_pick_embed(payload, *, now=None):
     if decision!="BET NOW" or not stake.is_finite() or stake<=0 or not reliability.get("model_can_influence_cash"):
         return None
     price=payload["price"]
+    if not eligible_today(price, now=now):
+        return None
     if (reliability.get("model_stage") not in {"LIMITED_LIVE", "PRODUCTION_APPROVED"}
         or reliability.get("anomaly_state") in {"QUARANTINED", "EXTREME_DISAGREEMENT"}
         or price.get("stale") or price.get("in_play") or price.get("executable") is not True
@@ -68,8 +71,10 @@ def official_pick_embed(payload, *, now=None):
     }
 
 
-def best_two_embed(candidate):
+def best_two_embed(candidate, *, now=None):
     if not candidate or not candidate.get("legs"):
+        return None
+    if not all(eligible_today(leg, now=now) for leg in candidate["legs"]):
         return None
     status=str(candidate.get("status","WATCH")).replace("_", " ")
     legs=[]

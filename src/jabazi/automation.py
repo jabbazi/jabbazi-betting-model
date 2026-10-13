@@ -449,6 +449,8 @@ class AutomaticScanner:
                         "event_id": price.event_id,
                         "sport": price.sport,
                         "event": price.event,
+                        "starts_at": price.starts_at.isoformat() if price.starts_at else None,
+                        "in_play": price.in_play,
                         "market": price.market,
                         "participant": price.participant,
                         "selection": price.selection,
@@ -460,7 +462,8 @@ class AutomaticScanner:
                         "uncertainty_high": rel.get("uncertainty_high"),
                         "reliability": rel,
                     })
-                candidate = build_best_two(action_rows, source_rows)
+                from .daily_scope import eligible_today
+                candidate = build_best_two([row for row in action_rows if eligible_today(row)], source_rows)
                 best_two = {
                     "status": candidate.status,
                     "method": candidate.method,
@@ -480,6 +483,8 @@ class AutomaticScanner:
                             "event_id": leg.get("event_id"),
                             "sport": leg.get("sport"),
                             "event": leg.get("event"),
+                            "starts_at": leg.get("starts_at"),
+                            "in_play": leg.get("in_play"),
                             "market": leg.get("market"),
                             "participant": leg.get("participant"),
                             "selection": leg.get("selection"),

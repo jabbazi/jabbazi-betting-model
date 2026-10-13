@@ -91,15 +91,18 @@ def test_prefix_vip_sends_ticket_only_by_dm(store):
 
 
 def test_full_frozen_slate_survives_long_render_and_repeated_reads(store):
-    now = datetime.now(UTC)
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
     rows = [{"sport": "baseball_mlb", "event_id": str(i), "event": f"Away {i} @ Home {i}",
-             "selection": f"Home {i}", "market": "h2h", "status": "WATCH", "executable": True}
+             "selection": f"Home {i}", "market": "h2h", "status": "WATCH", "executable": True,
+             "starts_at_utc": (now+timedelta(hours=2)).isoformat(), "market_no_vig_probability": .6}
             for i in range(90)]
-    source = {"id": "source", "payload": {"healthy": True, "completed_at": now.isoformat(), "rows": rows}}
+    source = {"id": "source", "payload": {"healthy": True, "completed_at": now.isoformat(), "rows": rows, "slate_events": rows}}
     assert freeze_daily_moneyline(store, source, now=now)[1]
     first = daily_moneyline(store, now=now)
     text = render_text(first)
-    assert len(text) > 3900 and "Home 89" in text
+    assert len(text) <= 1900
+    assert first["payload"]["row_count"] == 90
+    assert any(row["projected_winner"] == "Home 89" for row in first["payload"]["rows"])
     source["payload"]["rows"] = []
     assert not freeze_daily_moneyline(store, source, now=now)[1]
     assert daily_moneyline(store, now=now) == first
@@ -236,7 +239,7 @@ def test_migration_backs_up_before_changes_reuses_ids_hides_duplicates(tmp_path,
     assert effective_permissions("1", "vip", ["7"], roles, next(c for c in channels if c["id"] == "21"), "2") & VIEW
     assert result["channel_ids"]["tennis"] == "23"
     assert result["channel_ids"]["support"] == "22"
-    assert len(result["channel_ids"]) == 45
+    assert len(result["channel_ids"]) == 46
     assert result["channel_ids"]["vip-lounge"] == "26"
     assert result["channel_ids"]["scanner-status"] != "25"
     assert next(c for c in channels if c["id"] == "25") == original[-1]

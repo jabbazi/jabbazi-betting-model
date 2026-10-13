@@ -11,16 +11,16 @@ def test_jabbazi_crown_blueprint_is_structured_and_keeps_core_surfaces():
     channels = [name for category in categories for name in category["channels"]]
     assert [category["name"] for category in categories] == [
         "👑 WELCOME TO JABBAZI",
-        "🔥 TODAY’S JABBAZI",
-        "🧠 THE LAB",
+        "🏆 VIP PICKS",
         "💎 INNER CIRCLE",
+        "🧠 THE LAB",
         "🏟️ THE LOCKER ROOM",
         "🎓 JABBAZI ACADEMY",
         "📈 THE LEDGER",
         "🛠️ SUPPORT",
         "🔒 JABBAZI HQ",
     ]
-    assert len(channels) == 45
+    assert len(channels) == 46
     assert len(channels) == len(set(channels))
     assert not {"best-two-parlay", "parlays-sgps", "promo-boosts"} & set(channels)
     for required in (
