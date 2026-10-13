@@ -46,11 +46,17 @@ async def welcome_member(client, store, config, member):
     # Never turn such a refresh into a welcome for an old member.
     if datetime.now(UTC) - joined > timedelta(minutes=15):
         return 'STALE_MEMBER_EVENT'
+    from .discord_rules import configuration, ensure_welcome
+    gate = await asyncio.to_thread(configuration, store)
+    if gate:
+        from dataclasses import replace
+        config = replace(config, welcome_channel=int(gate['channels']['welcome']),
+                         guide_channel=int(gate['channels']['guide']), access_channel=int(gate['channels']['access']),
+                         general_channel=int(gate['channels']['general']))
     ids = [config.welcome_channel, config.guide_channel, config.access_channel, config.general_channel]
     if not all(ids) or len(set(ids)) != 4:
         raise ValueError('Welcome navigation is not configured')
-    channels = [await client.checked_public_channel(cid) for cid in ids]
-    channel = channels[0]
+    channel = await client.checked_public_channel(ids[0])
     permissions = channel.permissions_for(channel.guild.default_role).value
     if permissions & (VIEW | READ) != VIEW | READ or permissions & POSTING:
         raise ValueError('Welcome must be publicly readable and read-only')
@@ -63,6 +69,12 @@ async def welcome_member(client, store, config, member):
                f'Start with <#{config.guide_channel}>, visit <#{config.access_channel}> for VIP information, '
                f'and introduce yourself in <#{config.general_channel}>.\n\n'
                'Choose your notifications with **/alerts**.\nNeed help? Use **/support**.\n\nBuilt on Edge. Not Hype.')
+    if gate:
+        guide = await ensure_welcome(client, store, gate)
+        jump = f"https://discord.com/channels/{gate['guild']}/{gate['channels']['welcome']}/{guide['message_id']}"
+        message = (f"👋 **Welcome to JABBAZI 👑, <@{member.id}>!**\n\n"
+                   f"Read our rules in <#{gate['channels']['rules']}>, then use the green **✅ I have read the rules** button in [Start Here]({jump}) to unlock community chats.\n\n"
+                   f"Need help? <#{gate['channels']['support']}>. VIP membership remains separate.")
     # The durable claim deliberately prevents replay after an ambiguous send.
     # A genuine rejoin has a new joined_at and therefore a new claim.
     sent = await channel.send(message, allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=[discord.Object(id=member.id)], replied_user=False), nonce=key[:24])

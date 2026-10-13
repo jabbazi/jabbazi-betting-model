@@ -169,8 +169,14 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
 
 
 
-def member_has_vip(config, member):
+def member_has_vip(config, member, store=None):
     """Manual VIP-family roles and configured viewer roles grant member-app access."""
+    if store is not None:
+        from .discord_rules import configuration, accepted
+        gate = configuration(store)
+        joined = getattr(member, 'joined_at', None)
+        if gate and not accepted(store, gate, member.id, joined.isoformat() if joined else None):
+            return False
     role_ids = {
         int(role.id)
         for role in getattr(member, "roles", [])
@@ -217,10 +223,25 @@ def build_client(config, store):
         async def on_member_join(self, member):
             from .discord_welcome import welcome_member
             try:
+                from .discord_rules import configuration, reconcile_member
+                gate = await asyncio.to_thread(configuration, store)
+                if gate:
+                    await reconcile_member(member, store, gate)
                 await welcome_member(self, store, config, member)
             except Exception as exc:
                 print(f"DISCORD_MEMBER_WELCOME_UNAVAILABLE_{type(exc).__name__}", flush=True)
                 await self.log_operational_failure("member-welcome", exc)
+
+        async def on_member_update(self, before, after):
+            if before.roles == after.roles or after.guild.id != config.guild:
+                return
+            try:
+                from .discord_rules import configuration, reconcile_member
+                gate = await asyncio.to_thread(configuration, store)
+                if gate:
+                    await reconcile_member(after, store, gate)
+            except Exception as exc:
+                await self.log_operational_failure('rules-entitlement', exc)
 
         async def log_operational_failure(self, lane, exc):
             if not config.bot_log_channel:
@@ -331,6 +352,8 @@ def build_client(config, store):
                 print("DISCORD_AVATAR_UNAVAILABLE", flush=True)
 
         async def setup_hook(self):
+            from .discord_rules import rules_view
+            self.add_view(rules_view(store))
             self.tree = discord.app_commands.CommandTree(self)
 
             @self.tree.error
@@ -351,7 +374,7 @@ def build_client(config, store):
                     )
                 await interaction.response.defer(ephemeral=True)
                 member = await interaction.guild.fetch_member(interaction.user.id)
-                if not member_has_vip(config, member):
+                if not member_has_vip(config, member, store):
                     return await interaction.followup.send(
                         f"The daily sheet requires an approved VIP role. See {access_destination(config)}.",
                         ephemeral=True,
@@ -385,7 +408,7 @@ def build_client(config, store):
                     )
                 await interaction.response.defer(ephemeral=True)
                 member = await interaction.guild.fetch_member(interaction.user.id)
-                if not member_has_vip(config, member):
+                if not member_has_vip(config, member, store):
                     return await interaction.followup.send(
                         f"The Main Card requires an approved VIP role. See {access_destination(config)}.",
                         ephemeral=True,
@@ -544,7 +567,7 @@ def build_client(config, store):
                     )
                 await interaction.response.defer(ephemeral=True)
                 member = await interaction.guild.fetch_member(interaction.user.id)
-                allowed = member_has_vip(config, member)
+                allowed = member_has_vip(config, member, store)
                 if not allowed:
                     return await interaction.followup.send(
                         f"VIP access requires an approved role. See {access_destination(config)} or use /support.",
@@ -620,11 +643,14 @@ def build_client(config, store):
                     if is_vip_name(role.get("name")) or is_staff_name(role.get("name"))
                 }
                 document = await get(f"/channels/{channel_id}")
+                from .discord_rules import configuration
+                gate = await asyncio.to_thread(configuration, store)
+                gate_role_ids = [int(gate['paid_role'])] if gate else []
                 validate_target(
                     document,
                     config,
                     self.user.id,
-                    tuple(int(r) for r in member.get("roles", [])) + tuple(vip_alias_ids),
+                    tuple(int(r) for r in member.get("roles", [])) + tuple(vip_alias_ids) + tuple(gate_role_ids),
                 )
             channel = await self.fetch_channel(channel_id)
             return channel
@@ -649,7 +675,10 @@ def build_client(config, store):
                     p for p in document.get("permission_overwrites", [])
                     if int(p["id"]) == config.guild and p["type"] == 0
                 ]
-                if (
+                from .discord_rules import configuration
+                gate = await asyncio.to_thread(configuration, store)
+                gated = bool(gate and any(p['type'] == 0 and str(p['id']) == gate['community_role'] and int(p['allow']) & view for p in document.get('permission_overwrites', [])))
+                if not gated and (
                     len(everyone) != 1
                     or int(everyone[0]["deny"]) & view
                     or not int(everyone[0]["allow"]) & view
@@ -735,7 +764,7 @@ def build_client(config, store):
                 if command[0] == "portal":
                     # Current VIP-family role grants app access; billing is not required.
                     member = await message.guild.fetch_member(message.author.id)
-                    allowed = member_has_vip(config, member)
+                    allowed = member_has_vip(config, member, store)
                     if not allowed:
                         await message.channel.send(
                             "The JABBAZI member app requires an approved VIP role.",
@@ -1081,10 +1110,22 @@ def build_client(config, store):
             from .vip.delivery import deliver_watch_dms
             await deliver_watch_dms(self, store, config)
 
+        async def publish_rules_maintenance_once(self):
+            from .discord_rules import configuration, reconcile_member, ensure_welcome
+            gate = await asyncio.to_thread(configuration, store)
+            if not gate:
+                return
+            guild = self.get_guild(config.guild)
+            if guild is None:
+                return
+            await ensure_welcome(self, store, gate)
+            async for member in guild.fetch_members(limit=None):
+                await reconcile_member(member, store, gate)
+
         async def publish_loop(self):
             await self.wait_until_ready()
             while not self.is_closed():
-                for lane in ("daily", "status", "best_two", "official_picks", "results", "research", "market", "public_preview", "watch_dms"):
+                for lane in ("rules_maintenance", "daily", "status", "best_two", "official_picks", "results", "research", "market", "public_preview", "watch_dms"):
                     try:
                         await getattr(self, f"publish_{lane}_once")()
                     except Exception as exc:

@@ -74,7 +74,7 @@ async def deliver_watch_dms(client, store, config, *, now=None):
             continue
         try:
             member = await guild.fetch_member(int(parts[1]))
-            if not member_has_vip(config, member):
+            if not member_has_vip(config, member, store):
                 continue
             # Final entitlement, schedule and preference checks occur before claim/send.
             prefs = await asyncio.to_thread(read_state, store, 'vip_preferences', owner)

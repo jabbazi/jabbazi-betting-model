@@ -116,6 +116,11 @@ def seed(http, store, *, guild, owner, apply=False):
                 link_lookup[channel_name(alias)] = preferred
     plan = []
     for name, message in content.items():
+        if name == 'welcome':
+            from .discord_rules import configuration
+            if configuration(store):
+                plan.append({'channel': name, 'status': 'MANAGED_BY_RULES_GATE'})
+                continue
         channel = by_name.get(name)
         if channel is None:
             plan.append({'channel': name, 'status': 'MISSING_CHANNEL'})

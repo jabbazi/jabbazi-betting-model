@@ -331,6 +331,21 @@ def worker(*, once=False):
                     audit(store)
             except Exception as exc:
                 print('DISCORD_GATE_AUDIT_UNAVAILABLE_' + type(exc).__name__, flush=True)
+            try:
+                from .discord_rules import install
+                if os.getenv("JABBAZI_RULES_GATE_ENABLED", "false").lower() == "true":
+                    install(store)
+            except Exception as exc:
+                print('DISCORD_RULES_INSTALL_UNAVAILABLE_' + type(exc).__name__, flush=True)
+            try:
+                from .vip.operations import summaries
+                diagnostic = {'scan_interval_seconds': interval, 'startup_scan_delay_seconds': startup_delay,
+                              'research': summaries(store, 'research_sheet', ('completed_at', 'healthy', 'error_count', 'feeds'), entity='latest_scan'),
+                              'scan': summaries(store, 'scan_run', ('completed_at', 'healthy'), limit=1)}
+                store.append('feed_diagnostic', 'worker', diagnostic)
+                print('FEED_FRESHNESS_DIAGNOSTIC ' + json.dumps(diagnostic, default=str), flush=True)
+            except Exception as exc:
+                print('FEED_FRESHNESS_DIAGNOSTIC_UNAVAILABLE_' + type(exc).__name__, flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         if not once:
             from .discord_schedule import daily_loop
