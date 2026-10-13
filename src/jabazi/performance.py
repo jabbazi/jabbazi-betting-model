@@ -82,16 +82,26 @@ def official_periods(rows, settlements, now):
         for parlay in (False, True):
             totals = {"kind": "Parlays" if parlay else "Straights", "settled": 0,
                       "wins": 0, "losses": 0, "pushes_or_voids": 0,
-                      "profit_units": Decimal(0), "profit": Decimal(0), "settled_stake": Decimal(0)}
+                      "profit_units": Decimal(0), "profit": Decimal(0), "settled_stake": Decimal(0),
+                      "unsettled": 0, "unsettled_stake": Decimal(0), "settled_returns": Decimal(0),
+                      "pushes": 0, "voids": 0}
             for row in rows:
                 p = row["payload"]
-                if p.get("origin") != "scanner" or bool(p.get("parlay")) != parlay or row["state"] != "settled" or row["id"] not in settlements:
+                if p.get("origin") != "scanner" or bool(p.get("parlay")) != parlay or row["state"] not in {"placed", "settled"}:
                     continue
                 try:
                     betting_date = date.fromisoformat(p["betting_date"])
                 except (KeyError, ValueError, TypeError):
                     continue
                 if not start <= betting_date <= today:
+                    continue
+                if row["state"] == "placed":
+                    stake = Decimal(p["stake"])
+                    if stake.is_finite() and stake > 0:
+                        totals["unsettled"] += 1
+                        totals["unsettled_stake"] += stake
+                    continue
+                if row["id"] not in settlements:
                     continue
                 outcome = settlements[row["id"]]
                 stake, profit, unit = Decimal(p["stake"]), Decimal(outcome["profit"]), Decimal(p["unit_size"])
@@ -100,6 +110,9 @@ def official_periods(rows, settlements, now):
                 totals["settled"] += 1
                 totals["settled_stake"] += stake
                 totals["profit"] += profit
+                totals["settled_returns"] += stake + profit
+                if outcome.get("result") in {"push", "void"}:
+                    totals["pushes" if outcome["result"] == "push" else "voids"] += 1
                 totals["profit_units"] += profit/unit
                 result_key = {"win": "wins", "loss": "losses", "push": "pushes_or_voids", "void": "pushes_or_voids"}.get(outcome.get("result"))
                 if result_key:

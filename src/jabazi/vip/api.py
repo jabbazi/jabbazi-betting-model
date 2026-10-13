@@ -68,11 +68,11 @@ def home(ctx=Depends(context)):
      })
 
 @router.get('/board')
-def board(sport: str = '', q: str = Query('', max_length=100), market: str = Query('', max_length=80), family: Literal['all', 'props'] = 'all', status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
+def board(sport: str = '', event_id: str = Query('', max_length=160), q: str = Query('', max_length=100), market: str = Query('', max_length=80), family: Literal['all', 'props'] = 'all', status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
     store, _ = ctx
     b = snapshot(store)
     words = data.normalize(q).split()
-    rows = [r for r in b['rows'] if (not sport or r['sport'] == sport.upper()) and (not market or r['market'] == market)
+    rows = [r for r in b['rows'] if (not sport or r['sport'] == sport.upper()) and (not event_id or str(r.get('event_id')) == event_id) and (not market or r['market'] == market)
             and (family == 'all' or str(r['market']).startswith(('player_', 'batter_', 'pitcher_')))
             and (not status or r['status'] == status) and all(w in data.normalize(' '.join(str(r.get(k) or '') for k in ('event', 'player', 'market', 'selection', 'sport', 'book'))) for w in words)]
     rows.sort(key=lambda r: (not r['fresh'], -(r.get('model_probability' if sort == 'model' else 'edge') or 0) if sort != 'time' else (r.get('starts_at') or '9999')))
@@ -458,7 +458,10 @@ def admin(ctx=Depends(context)):
     store, p = ctx
     if not p['admin']:
         raise HTTPException(403, 'Administrator access required.')
-    return response({'flags': data.flags(store), 'audit': [{'at': r['occurred_at'], **r['payload']} for r in store.list_records('vip_admin_audit', 30)],
+    from .operations import health
+    import os
+    is_owner = str(p['member']) == os.getenv('JABBAZI_DISCORD_OWNER_ID', '')
+    return response({'health': health(store) if is_owner else None, 'flags': data.flags(store), 'audit': [{'at': r['occurred_at'], **r['payload']} for r in store.list_records('vip_admin_audit', 30)],
                      'capability': 'Pause current app research and new official Discord publication. This does not stop provider ingestion or erase history.'})
 
 

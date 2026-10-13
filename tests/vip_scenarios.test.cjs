@@ -42,6 +42,16 @@ const assert=require('node:assert/strict');
   await refreshed;
   await page.waitForFunction(()=>document.querySelector('#content').textContent.includes('0 eligible prop rows today'));
   assert(requests.filter(r=>r.includes('family=props')).length>count,'Chicago midnight refreshes daily view');
+  await page.route('**/v1/vip/models',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'Synthetic metadata outage'})}));
+  await page.route('**/v1/vip/slate?*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({games:[]})}));
+  await page.route('**/v1/vip/top10?*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({rows:[]})}));
+  await page.goto('https://jabbazi.test/vip#sport=MLB');
+  await page.getByText('Model evidence could not load',{exact:true}).waitFor();
+  await page.getByRole('heading',{name:'MLB Research Terminal',exact:true}).waitFor();
+  await page.route('**/v1/vip/admin',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({detail:'Administrator access required.'})}));
+  await page.goto('https://jabbazi.test/vip#admin');
+  await page.getByText('This view is unavailable',{exact:true}).waitFor();
+  assert.equal(await page.locator('#login').isVisible(),false,'resource denial preserves member session');
   assert.deepEqual(errors,[]);
   console.log('PASS: private deep link, scenario lines, push display, mobile layout, First TD unavailable');
  }finally{await browser.close();}

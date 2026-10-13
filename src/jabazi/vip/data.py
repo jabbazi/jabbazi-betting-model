@@ -97,7 +97,14 @@ def project(r, record, now, historical=False):
             'status': state, 'anomaly_state': anomaly or None, 'fresh': fresh, 'historical': historical, 'lifecycle': 'INVALIDATED' if invalidated else 'HISTORICAL' if historical else 'EXPIRED' if start and start <= now else 'UPCOMING',
             'price_at': r.get('price_time_utc'), 'model_at': r.get('model_time_utc') or record['payload'].get('completed_at'), 'injury_at': r.get('injury_time_utc'), 'lineup_at': r.get('lineup_time_utc'), 'weather_at': r.get('weather_time_utc'), 'starts_at': r.get('starts_at_utc'), 'snapshot_at': record['payload'].get('completed_at', record['payload'].get('generated_at')),
             'data_health': r.get('data_health', 'UNKNOWN'), 'approved_for_betting': False,
-            'why': 'Historical research snapshot; recheck current evidence.' if historical else 'Price requires a fresh check.' if not fresh else 'Research estimate compared with observed market consensus; not an official wager.',
+            'why': ('Historical research snapshot; recheck current evidence.' if historical else
+                    'This market is quarantined pending review.' if quarantined else
+                    'The research feed is unhealthy; current inputs need verification.' if not record['payload'].get('healthy') else
+                    'The research snapshot is stale; waiting for a successful refresh.' if not age_ok(record['payload'].get('completed_at'), now, 10800) else
+                    'The sportsbook price needs a fresh check.' if not fresh else
+                    'No independent model estimate is available for this exact market and line.' if p is None else
+                    'The model is still being evaluated; this is research only.' if r.get('model_stage') == 'VALIDATING' else
+                    'Research estimate compared with observed market consensus; not an official wager.'),
             'risks': ['Model estimates may be experimental.', 'Lineup, injury and weather confirmation are not included unless explicitly sourced.'], 'key_factors': list(r.get('key_factors') or [])[:8], 'role_context': r.get('role_context') or {},
             'other_prices': sorted(books, key=lambda b: -b['decimal'])}
 
@@ -106,7 +113,7 @@ def board(store, *, now=None, record=None, historical=False):
     now = now or datetime.now(UTC)
     rows = store.list_records('research_sheet', 1, entity='latest_scan') if record is None else [record]
     if not rows:
-        return {'state': 'UNAVAILABLE', 'rows': [], 'snapshot_id': None, 'snapshot_at': None}
+        return {'state': 'UNAVAILABLE', 'rows': [], 'snapshot_id': None, 'snapshot_at': None, 'reason': 'No research snapshot has been recorded yet.'}
     record = rows[0]
     output = [project(r, record, now, historical) for r in record['payload'].get('rows', [])[:10000]]
     controls = flags(store)
@@ -115,7 +122,10 @@ def board(store, *, now=None, record=None, historical=False):
             r.update(status='QUARANTINED', fresh=False, why='Publishing paused by an administrator.')
     return {'state': 'HEALTHY' if record['payload'].get('healthy') and age_ok(record['payload'].get('completed_at'), now, 10800) else 'DEGRADED',
             'rows': list({r['id']: r for r in output if r}.values()), 'snapshot_id': record['id'], 'snapshot_at': record['payload'].get('completed_at'),
-            'partial': bool(record['payload'].get('truncated')), 'server_time': now.isoformat()}
+            'partial': bool(record['payload'].get('truncated')), 'server_time': now.isoformat(),
+            'reason': ('The latest scan is unhealthy; coverage may be incomplete.' if not record['payload'].get('healthy') else
+                       'The research snapshot is stale; waiting for a successful refresh.' if not age_ok(record['payload'].get('completed_at'), now, 10800) else
+                       'No eligible upcoming research rows remain today.' if not any(output) else None)}
 
 
 def preference(store, principal):
