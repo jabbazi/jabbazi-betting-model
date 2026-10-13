@@ -12,7 +12,6 @@ import json
 import os
 import re
 import time
-from pathlib import Path
 
 import httpx
 from PIL import Image, ImageDraw, ImageFont
