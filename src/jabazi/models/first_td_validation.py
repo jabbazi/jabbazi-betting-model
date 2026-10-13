@@ -7,7 +7,7 @@ when applicable. Missing events are not counted as losses or zero probabilities.
 from __future__ import annotations
 
 from datetime import datetime
-from math import isfinite, log, sqrt
+from math import isfinite, log
 
 
 class FirstTDValidationError(ValueError):
@@ -62,7 +62,7 @@ def evaluate_frozen_forecasts(records, *, minimum_games=100):
         if _instant(row.get("forecast_at")) >= _instant(row.get("starts_at")):
             raise FirstTDValidationError("Forecast must be frozen before kickoff")
         probabilities = row.get("probabilities")
-        if not isinstance(probabilities, dict) or len(probabilities) < 3 or "NO_TD" not in probabilities:
+        if not isinstance(probabilities, dict) or len(probabilities) < 3 or "NO_TD" not in probabilities or "OTHER_OR_DEFENSE_ST" not in probabilities:
             raise FirstTDValidationError("Complete categorical outcomes including NO_TD required")
         if not all(isinstance(key, str) and key for key in probabilities):
             raise FirstTDValidationError("Invalid outcome identity")
