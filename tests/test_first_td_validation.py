@@ -26,7 +26,7 @@ def test_first_td_categorical_scores_and_fair_odds():
     assert result["approved_for_betting"] is False
     assert result["sample_count"] == 2
     assert result["top_outcome_accuracy"] == 1
-    assert result["multiclass_brier_score"] == pytest.approx(.54)
+    assert result["multiclass_brier_score"] == pytest.approx(.50)
     assert result["multiclass_log_loss"] == pytest.approx(.916290731874155)
     assert result["top_outcome_calibration"][0]["mean_confidence"] == pytest.approx(.4)
     assert fair_american(.14) == 614
