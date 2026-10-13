@@ -983,7 +983,14 @@ def build_client(config, store):
                 store.append, "discord_results_claim", str(config.results_channel), {}, key
             ):
                 return
-            await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+            try:
+                message = await channel.send(text, allowed_mentions=discord.AllowedMentions.none())
+                await asyncio.to_thread(store.append, 'discord_results_receipt', key,
+                    {'state':'SENT', 'message_id':str(message.id), 'at':datetime.now(UTC).isoformat()})
+            except Exception as exc:
+                await asyncio.to_thread(store.append, 'discord_results_receipt', key,
+                    {'state':'FAILED_OR_UNKNOWN', 'error_type':type(exc).__name__, 'at':datetime.now(UTC).isoformat()})
+                raise
 
         async def publish_once(self):
             """Legacy research-sheet publisher retained for explicit/manual use only."""
@@ -1070,10 +1077,14 @@ def build_client(config, store):
             from .discord_community import publish_public_preview
             return await publish_public_preview(self, store, config)
 
+        async def publish_watch_dms_once(self):
+            from .vip.delivery import deliver_watch_dms
+            await deliver_watch_dms(self, store, config)
+
         async def publish_loop(self):
             await self.wait_until_ready()
             while not self.is_closed():
-                for lane in ("daily", "status", "best_two", "official_picks", "results", "research", "market", "public_preview"):
+                for lane in ("daily", "status", "best_two", "official_picks", "results", "research", "market", "public_preview", "watch_dms"):
                     try:
                         await getattr(self, f"publish_{lane}_once")()
                     except Exception as exc:

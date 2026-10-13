@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .. import member_api
 from ..persistence.store import digest
@@ -66,6 +66,19 @@ def home(ctx=Depends(context)):
         'frozen_available': False,
         'load_strategy': 'on_demand',
      })
+
+@router.get('/today')
+def today(ctx=Depends(context)):
+    from .game_research import matchups as list_matchups
+    from ..performance import report
+    b = snapshot(ctx[0])
+    issued = {r['entity'] for r in ctx[0].list_records('official_pick_issued', 500) if r['payload'].get('message_id')}
+    official = [r for r in data.official(ctx[0]) if r['id'] in issued]
+    return response({'games': list_matchups(b['rows']), 'research': b['rows'][:8],
+                     'official': official, 'recap': report(ctx[0])['official_periods'][0],
+                     'state': b['state'], 'snapshot_at': b.get('snapshot_at'),
+                     'reason': b.get('reason'), 'live_notice': 'Live recommendations are not connected to this pregame board.'})
+
 
 @router.get('/board')
 def board(sport: str = '', event_id: str = Query('', max_length=160), q: str = Query('', max_length=100), market: str = Query('', max_length=80), family: Literal['all', 'props'] = 'all', status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
@@ -216,7 +229,13 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
     result = matchup_detail(b['rows'], sport.upper(), event_id)
     if result is None:
         raise HTTPException(404, 'No observed research for this matchup.')
-    return response({**result, 'snapshot_at': b.get('snapshot_at'),
+    issued = {r['entity'] for r in ctx[0].list_records('official_pick_issued', 500) if r['payload'].get('message_id')}
+    official = [r for r in data.official(ctx[0]) if r['id'] in issued and r['sport'] == sport.upper() and str(r['event_id']) == event_id]
+    sheet = data.frozen(ctx[0])
+    sheet_card = next((r for r in sheet['rows'] if r['sport'] == sport.upper() and str(r['event_id']) == event_id), None)
+    return response({**result, 'snapshot_at': b.get('snapshot_at'), 'official': official,
+                     'cheatsheet_available': sheet_card is not None,
+                     'lineup_notice': 'Confirmed injury and lineup evidence is not supplied by this matchup summary. Check individual research provenance; missing evidence remains unavailable.',
                      'notice': 'Projections and market observations are research only. Do not treat these as issued bets.'})
 
 
@@ -326,6 +345,18 @@ class Preferences(BaseModel):
     books: list[str] = Field(default_factory=list, max_length=20)
     teams: list[str] = Field(default_factory=list, max_length=30)
     notifications: bool = True
+    discord_dm: bool = False
+    alert_categories: list[Literal['price', 'status']] = Field(default_factory=lambda: ['price', 'status'], max_length=2)
+    quiet_start: int | None = Field(None, ge=0, le=23)
+    quiet_end: int | None = Field(None, ge=0, le=23)
+
+    @model_validator(mode='after')
+    def quiet_pair(self):
+        if (self.quiet_start is None) != (self.quiet_end is None):
+            raise ValueError('Set both quiet-hour boundaries or neither')
+        if self.quiet_start is not None and self.quiet_start == self.quiet_end:
+            raise ValueError('Quiet-hour boundaries must differ; disable notifications to mute all day')
+        return self
 
 
 @router.put('/preferences')

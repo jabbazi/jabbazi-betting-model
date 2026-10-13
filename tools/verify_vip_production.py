@@ -21,7 +21,7 @@ def main():
     guild = os.environ['JABBAZI_DISCORD_GUILD_ID']
     owner = os.environ['JABBAZI_DISCORD_OWNER_ID']
     store = Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
-    checks = {'verification_version': 6}
+    checks = {'verification_version': 7}
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + os.environ['JABBAZI_DISCORD_BOT_TOKEN']}, timeout=20) as discord:
             info = discord.get(f'/guilds/{guild}')
@@ -36,7 +36,7 @@ def main():
             checks['sign_in_http'] = signed.status_code
             if signed.status_code == 200:
                 try:
-                    for path in ('me', 'home', 'matchups', 'playoftheday', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'board?sport=NBA', 'board?sport=NHL', 'board?family=props', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
+                    for path in ('me', 'home', 'today', 'matchups', 'playoftheday', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'board?sport=NBA', 'board?sport=NHL', 'board?family=props', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
                         started = time.monotonic()
                         try:
                             result = client.get('/v1/vip/' + path)
@@ -54,6 +54,7 @@ def main():
                                             checks[path]['scope_error'] = 'OUT_OF_DATE_EVENT'
                                 if path == 'admin':
                                     checks[path]['owner_health_available'] = bool(body.get('health', {}).get('api', {}).get('commit')) if body.get('health') else False
+                                    checks[path]['health_queries_complete'] = body.get('health') is not None and not body['health'].get('query_failures')
                                 if 'state' in body:
                                     checks[path]['state'] = body['state']
                         except httpx.HTTPError as exc:
@@ -100,7 +101,7 @@ def main():
                     checks['logout_http'] = client.post('/v1/member/logout', headers={'Origin': origin}).status_code
                 checks['logged_out_blocked'] = client.get('/v1/vip/home').status_code == 401
             checks['scope'] = 'AUTH_AND_ENDPOINT_TRANSPORT_ONLY_NOT_MODEL_VALIDATION'
-            checks['status'] = 'VERIFIED' if checks.get('anonymous_blocked') and checks.get('ticket_replay_rejected') and checks.get('sign_in_http') == 200 and checks.get('logout_http') == 200 and checks.get('logged_out_blocked') and all((v.get('http') == 200 or v.get('skipped') == 'NO_ELIGIBLE_GAMES') and v.get('today_only', True) and v.get('props_only', True) and v.get('png_signature', True) and v.get('owner_health_available', True) for v in checks.values() if isinstance(v, dict)) else 'INCOMPLETE'
+            checks['status'] = 'VERIFIED' if checks.get('anonymous_blocked') and checks.get('ticket_replay_rejected') and checks.get('sign_in_http') == 200 and checks.get('logout_http') == 200 and checks.get('logged_out_blocked') and all((v.get('http') == 200 or v.get('skipped') == 'NO_ELIGIBLE_GAMES') and v.get('today_only', True) and v.get('props_only', True) and v.get('png_signature', True) and v.get('owner_health_available', True) and v.get('health_queries_complete', True) for v in checks.values() if isinstance(v, dict)) else 'INCOMPLETE'
     except Exception as exc:  # noqa: BLE001 -- acceptance boundary records only the redacted error class
         checks.update(status='UNAVAILABLE', error=type(exc).__name__)
     finally:

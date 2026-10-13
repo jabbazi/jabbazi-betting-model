@@ -24,6 +24,8 @@ const assert=require('node:assert/strict');
   await page.goto('https://jabbazi.test/vip#access=synthetic&view=sim');
   await page.getByRole('heading',{name:'Game simulator',exact:true}).waitFor();
   assert.equal(new URL(page.url()).hash,'#sim');
+  await page.goto('https://jabbazi.test/vip#home');
+  await page.getByRole('heading',{name:'Today in America/Chicago',exact:true}).waitFor();
   await page.goto('https://jabbazi.test/vip#simdetail=NFL|test');
   await page.getByLabel('Home spread (scenario)').fill('0');
   await page.getByLabel('Game total (scenario)').fill('45');

@@ -45,7 +45,7 @@ def check_watches(store, owner, board):
         scope = r or w
         if old and old['state'] != state and prefs.get('notifications', True) and eligible_today(scope):
             key = digest(['vip_alert', owner, w['id'], board.get('snapshot_id'), old['state'], state])
-            store.append('vip_notification', owner, {'id': w['id'], 'event': w['event'], 'selection': w['selection'], 'before': old['state'], 'state': state,
+            store.append('vip_notification', owner, {'id': w['id'], 'event': w['event'], 'selection': w['selection'], 'sport': w.get('sport'), 'before': old['state'], 'state': state,
                                                    'price': r.get('decimal') if r else None, 'at': datetime.now(UTC).isoformat(), 'starts_at': scope.get('starts_at'),
                                                    'notice': 'Research alert, not betting approval.'}, key)
     if previous != current:

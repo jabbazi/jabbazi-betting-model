@@ -13,6 +13,8 @@ def main():
     store = Store(url)
     try:
         store.migrate()
+        from .lookup_indexes import ensure_lookup_indexes
+        ensure_lookup_indexes(store)
         if not store.ready():
             raise RuntimeError("Schema verification failed")
         print("Platform schema version 1 ready")
