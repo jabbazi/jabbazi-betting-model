@@ -1,8 +1,7 @@
 """Event-level VIP research. No model estimates or wagering approvals are invented."""
 from __future__ import annotations
 
-from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime
 import math
 
 
