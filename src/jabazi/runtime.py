@@ -325,6 +325,12 @@ def worker(*, once=False):
                         "JABBAZI_NATIVE_SAFETY_SETUP_UNAVAILABLE_" + type(exc).__name__,
                         flush=True,
                     )
+            try:
+                from .discord_gate_audit import audit, VERSION
+                if not store.list_records('discord_gate_audit_result', 1, entity=VERSION):
+                    audit(store)
+            except Exception as exc:
+                print('DISCORD_GATE_AUDIT_UNAVAILABLE_' + type(exc).__name__, flush=True)
             discord_process = subprocess.Popen([sys.executable, "-m", "jabazi.discord_bot"])
         if not once:
             from .discord_schedule import daily_loop

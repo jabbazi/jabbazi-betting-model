@@ -59,10 +59,10 @@ async def welcome_member(client, store, config, member):
                                       {'guild_id': str(config.guild), 'member_id': str(member.id), 'joined_at': joined.isoformat(), 'status': 'CLAIMED'}, key)
     if not claimed:
         return 'DUPLICATE'
-    message = (f'👋 **Welcome to JABBAZI GURU, <@{member.id}>!**\n\n'
+    message = (f'👋 **Welcome to JABBAZI 👑, <@{member.id}>!**\n\n'
                f'Start with <#{config.guide_channel}>, visit <#{config.access_channel}> for VIP information, '
                f'and introduce yourself in <#{config.general_channel}>.\n\n'
-               'Choose your notifications with **/alerts**.\nNeed help? Use **/support**.\n\nGlad to have you here! 🟣')
+               'Choose your notifications with **/alerts**.\nNeed help? Use **/support**.\n\nBuilt on Edge. Not Hype.')
     # The durable claim deliberately prevents replay after an ambiguous send.
     # A genuine rejoin has a new joined_at and therefore a new claim.
     sent = await channel.send(message, allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=[discord.Object(id=member.id)], replied_user=False), nonce=key[:24])
