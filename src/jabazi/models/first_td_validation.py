@@ -87,6 +87,8 @@ def evaluate_frozen_forecasts(records, *, minimum_games=100):
         buckets[bucket]["n"] += 1
         buckets[bucket]["sum_p"] += confidence
         buckets[bucket]["hits"] += hit
+    if len(versions) > 1:
+        raise FirstTDValidationError("Different model versions must be evaluated separately")
     n = len(records)
     calibration = [
         {"bucket": i, "count": v["n"],
