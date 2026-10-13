@@ -54,3 +54,9 @@ def test_first_td_rejects_duplicate_games_and_missing_history():
     assert empty["state"] == "INSUFFICIENT_SAMPLE"
     assert empty["multiclass_log_loss"] is None
     assert empty["approved_for_betting"] is False
+
+
+def test_first_td_model_versions_cannot_be_combined():
+    second = {**_record(2), "model_version": "DIFFERENT_VERSION"}
+    with pytest.raises(FirstTDValidationError, match="versions"):
+        evaluate_frozen_forecasts([_record(1), second])
