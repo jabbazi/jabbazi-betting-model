@@ -46,3 +46,9 @@ Initial v6 acceptance caught a 12-second Operations timeout. Health queries were
 changed to extract only summary JSON fields in SQL, avoiding transfer of large
 scan coverage payloads. A regression forbids full-record loading for this path.
 The live acceptance check must pass after redeployment.
+
+A second live check still timed out. Diagnostic queries now enforce a PostgreSQL
+1.5-second statement deadline, rollback independently, and expose unavailable
+observations instead of blocking Operations. Sanitized per-query timings identify
+slow queries without logging payloads or credentials. Underlying database query
+performance remains a separate operational issue when a deadline is exceeded.

@@ -74,3 +74,15 @@ def test_operations_never_loads_complete_scan_payload(portal, monkeypatch):
     store.append('scan_run', 'large', {'healthy':True, 'completed_at':datetime.now(UTC).isoformat(), 'coverage':'x'*1000000})
     monkeypatch.setattr(store, 'list_records', lambda *a, **k: (_ for _ in ()).throw(AssertionError('Full payload read forbidden')))
     assert health(store)['scan']['state'] == 'CURRENT'
+
+
+def test_health_query_failure_is_bounded_and_redacted(portal, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+    from jabazi.vip.operations import summaries
+    store, _ = portal
+    def unavailable():
+        raise OperationalError('SECRET', {}, Exception('SECRET'))
+    monkeypatch.setattr(store.engine, 'begin', unavailable)
+    failures = []
+    assert summaries(store, 'scan_run', ('healthy',), failures=failures) == []
+    assert failures == ['scan_run']

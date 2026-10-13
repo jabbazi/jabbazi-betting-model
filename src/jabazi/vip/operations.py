@@ -2,8 +2,11 @@
 from datetime import UTC, datetime
 import os
 import re
+import logging
+import time
 
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 from ..persistence.store import events
 
 from .data import timestamp
@@ -20,23 +23,34 @@ def observed(record, now, max_age):
 
 
 
-def summaries(store, kind, fields, limit=1, entity=None):
+def summaries(store, kind, fields, limit=1, entity=None, failures=None):
     # Scan payloads contain large coverage trees. Never transfer/decode those
     # trees just to display a heartbeat or the last successful scan timestamp.
     query = select(events.c.occurred_at, *((events.c.payload[key].as_boolean() if key == 'healthy' else events.c.payload[key]).label(key) for key in fields)).where(events.c.kind == kind)
     if entity:
         query = query.where(events.c.entity == entity)
     query = query.order_by(events.c.occurred_at.desc(), events.c.id).limit(limit)
-    with store.engine.connect() as conn:
-        return [{'occurred_at': row['occurred_at'], 'payload': {key: row[key] for key in fields}}
-                for row in conn.execute(query).mappings()]
+    started = time.monotonic()
+    try:
+        with store.engine.begin() as conn:
+            if conn.dialect.name == 'postgresql':
+                conn.execute(text("SET LOCAL statement_timeout = '1500ms'"))
+            return [{'occurred_at': row['occurred_at'], 'payload': {key: row[key] for key in fields}}
+                    for row in conn.execute(query).mappings()]
+    except SQLAlchemyError:
+        if failures is not None:
+            failures.append(kind)
+        return []
+    finally:
+        logging.getLogger(__name__).warning('VIP_HEALTH_QUERY kind=%s elapsed_ms=%s', kind, round((time.monotonic()-started)*1000))
 
 
 def health(store, now=None):
     now = now or datetime.now(UTC)
-    heartbeats = summaries(store, 'worker_heartbeat', ('status', 'completed_at'), entity='research_worker')
-    scans = summaries(store, 'scan_run', ('healthy', 'completed_at', 'errors'), limit=20)
-    acceptances = summaries(store, 'vip_acceptance', ('status',), entity='terminal-v1')
+    failures = []
+    heartbeats = summaries(store, 'worker_heartbeat', ('status', 'completed_at'), entity='research_worker', failures=failures)
+    scans = summaries(store, 'scan_run', ('healthy', 'completed_at', 'errors'), limit=20, failures=failures)
+    acceptances = summaries(store, 'vip_acceptance', ('status',), entity='terminal-v1', failures=failures)
     heartbeat = heartbeats[0] if heartbeats else None
     latest = scans[0] if scans else None
     successful = next((r for r in scans if r['payload'].get('healthy') is True), None)
@@ -53,8 +67,8 @@ def health(store, now=None):
     commit = os.getenv('RENDER_GIT_COMMIT', '')
     commit = commit if re.fullmatch(r'[a-f0-9]{40}', commit) else None
     acceptance = acceptances[0] if acceptances else None
-    return {'observed_at': now.isoformat(), 'api': {'state': 'RESPONDING', 'commit': commit},
-            'database': {'state': 'READ_SUCCEEDED', 'pool': pool_metrics, 'scope': 'This API process only; not database-wide utilization.'},
+    return {'query_failures': failures, 'observed_at': now.isoformat(), 'api': {'state': 'RESPONDING', 'commit': commit},
+            'database': {'state': 'DIAGNOSTICS_LIMITED' if failures else 'READ_SUCCEEDED', 'pool': pool_metrics, 'scope': 'This API process only; not database-wide utilization.'},
             'worker': worker, 'scan': scan,
             'authentication_check': {**observed(acceptance, now, 86400),
                 'passed': acceptance['payload'].get('status') == 'VERIFIED' if acceptance else None,
