@@ -666,10 +666,12 @@ def build_client(config, store):
                     "DATA UNHEALTHY — latest scan failed checks. "
                     "No research sheets published for this scan."
                 )
-            from .daily_scope import eligible_today
+            from .daily_scope import eligible_today, delivery_eligible
             record = {**record, "payload": {**payload, "rows": [
                 row for row in payload.get("rows", []) if eligible_today(row)
             ], "slate_events": [event for event in payload.get("slate_events", []) if eligible_today(event)]}}
+            if not await asyncio.to_thread(delivery_eligible, store, record['payload']['slate_events']):
+                return await channel.send('TODAY’S SHEETS UNAVAILABLE — a fresh matching game schedule is required.')
             last_message = None
             for sport in sports:
                 files = []
@@ -688,9 +690,13 @@ def build_client(config, store):
                         filename = f"jabbazi-{sport}-{group + 1}-page-{number}.png"
                         files.append(discord.File(io.BytesIO(data), filename=filename))
                         if len(files) == 10:
+                            if not await asyncio.to_thread(delivery_eligible, store, record['payload']['slate_events']):
+                                return last_message
                             last_message = await channel.send(files=files)
                             files = []
                 if files:
+                    if not await asyncio.to_thread(delivery_eligible, store, record['payload']['slate_events']):
+                        return last_message
                     last_message = await channel.send(files=files)
             return last_message
 
@@ -864,8 +870,9 @@ def build_client(config, store):
             if candidate is None:
                 return
             from .discord_content import best_two_embed
+            from .daily_scope import delivery_eligible
             payload = best_two_embed(candidate)
-            if payload is None:
+            if payload is None or not await asyncio.to_thread(delivery_eligible, store, candidate['legs']):
                 return
             channel = await self.checked_channel(config.best_two_channel)
             legs = [[leg.get(field) for field in ("event", "market", "selection", "participant", "line")] for leg in candidate["legs"]]
@@ -875,7 +882,7 @@ def build_client(config, store):
             ):
                 return
             payload = best_two_embed(candidate)
-            if payload is None:
+            if payload is None or not await asyncio.to_thread(delivery_eligible, store, candidate['legs']):
                 return
             await channel.send(
                 embed=discord.Embed.from_dict(payload),
@@ -886,6 +893,7 @@ def build_client(config, store):
             if not config.main_card_channel:
                 return
             from .discord_content import official_pick_embed
+            from .daily_scope import delivery_eligible
             rows = await asyncio.to_thread(store.list_records, "candidate", 100)
             channel = await self.checked_channel(config.main_card_channel)
             for row in reversed(rows):
@@ -899,6 +907,8 @@ def build_client(config, store):
                 from .member_access import portal_origin
                 payload["url"] = portal_origin() + "/vip#detail=" + row["id"]
                 price = row["payload"].get("price") or {}
+                if not await asyncio.to_thread(delivery_eligible, store, [price]):
+                    continue
                 key = digest([
                     "discord_official_pick", config.guild,
                     price.get("event_id"), price.get("market"), price.get("participant"),
@@ -909,10 +919,16 @@ def build_client(config, store):
                     store.append, "discord_official_pick_claim", str(channel.id), {}, key
                 ):
                     continue
-                await channel.send(
+                if not await asyncio.to_thread(delivery_eligible, store, [price]) or official_pick_embed(row['payload']) is None:
+                    continue
+                sent = await channel.send(
                     embed=discord.Embed.from_dict(payload),
                     **self.alert_delivery("Main Card Alerts", row["payload"].get("price", {}).get("sport")),
                 )
+                await asyncio.to_thread(store.append, 'official_pick_issued', row['id'],
+                                        {'candidate_id': row['id'], 'channel_id': str(channel.id),
+                                         'message_id': str(sent.id), 'issued_at': datetime.now(UTC).isoformat()},
+                                        digest(['official_pick_issued', row['id'], str(sent.id)]))
 
         def alert_delivery(self, name, sport=None):
             from .discord_daily import sport_label
@@ -944,13 +960,13 @@ def build_client(config, store):
                 return
             channel = await self.checked_channel(channel_id)
             for update in updates:
-                from .daily_scope import eligible_today
-                if not eligible_today(update["event_scope"]):
+                from .daily_scope import delivery_eligible
+                if not await asyncio.to_thread(delivery_eligible, store, [update['event_scope']]):
                     continue
                 key = digest(["discord_observation", config.guild, lane, update["identity"]])
                 if not await asyncio.to_thread(store.append, "discord_observation_claim", str(channel_id), {}, key):
                     continue
-                if not eligible_today(update["event_scope"]):
+                if not await asyncio.to_thread(delivery_eligible, store, [update['event_scope']]):
                     continue
                 await channel.send(embed=discord.Embed.from_dict(update["embed"]), allowed_mentions=discord.AllowedMentions.none())
 
@@ -994,10 +1010,12 @@ def build_client(config, store):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
                 return
-            from .daily_scope import eligible_today, CENTRAL
+            from .daily_scope import eligible_today, delivery_eligible, CENTRAL
             if record['payload']['date'] != datetime.now(CENTRAL).date().isoformat():
                 return
             cards = [row for row in record['payload'].get('rows', []) if eligible_today(row)]
+            if cards and not await asyncio.to_thread(delivery_eligible, store, cards):
+                return
             record = {**record, 'payload': {**record['payload'], 'rows': cards,
                        'eligible_game_count': len(cards), 'row_count': len(cards)}}
             channel = await self.checked_channel(config.sheets_channel)
@@ -1029,7 +1047,7 @@ def build_client(config, store):
                         )
                         rendered_count += 1
                     if files:
-                        if not all(eligible_today(row) for row in cards[offset:offset + 10]):
+                        if not await asyncio.to_thread(delivery_eligible, store, cards[offset:offset + 10]):
                             raise RuntimeError("Daily game eligibility changed before delivery")
                         sent = await channel.send(files=files, allowed_mentions=discord.AllowedMentions.none())
                         message_ids.append(str(sent.id))

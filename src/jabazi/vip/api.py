@@ -68,11 +68,12 @@ def home(ctx=Depends(context)):
      })
 
 @router.get('/board')
-def board(sport: str = '', q: str = Query('', max_length=100), market: str = Query('', max_length=80), status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
+def board(sport: str = '', q: str = Query('', max_length=100), market: str = Query('', max_length=80), family: Literal['all', 'props'] = 'all', status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
     store, _ = ctx
     b = snapshot(store)
     words = data.normalize(q).split()
     rows = [r for r in b['rows'] if (not sport or r['sport'] == sport.upper()) and (not market or r['market'] == market)
+            and (family == 'all' or str(r['market']).startswith(('player_', 'batter_', 'pitcher_')))
             and (not status or r['status'] == status) and all(w in data.normalize(' '.join(str(r.get(k) or '') for k in ('event', 'player', 'market', 'selection', 'sport', 'book'))) for w in words)]
     rows.sort(key=lambda r: (not r['fresh'], -(r.get('model_probability' if sort == 'model' else 'edge') or 0) if sort != 'time' else (r.get('starts_at') or '9999')))
     return response({**{k: v for k, v in b.items() if k != 'rows'}, 'rows': rows[offset:offset+50], 'total': len(rows), 'next': offset+50 if len(rows) > offset+50 else None})
@@ -93,7 +94,11 @@ def detail(candidate_id: str, ctx=Depends(context)):
 
 @router.get('/picks')
 def picks(ctx=Depends(context)):
-    return response({'rows': data.official(ctx[0]), 'notice': 'Only the same current official candidates eligible for the Discord Main Card. Sprinkles and community bets are excluded.'})
+    rows = data.official(ctx[0])
+    issued = {r['entity'] for r in ctx[0].list_records('official_pick_issued', 500) if r['payload'].get('message_id')}
+    for row in rows:
+        row['graphic_available'] = row['id'] in issued
+    return response({'rows': rows, 'notice': 'Current qualified Main Card candidates. Official graphics require recorded issuance; sprinkles and community bets are excluded.'})
 
 
 @router.get('/playoftheday')
@@ -120,6 +125,36 @@ def sheets(day: date | None = None, sport: str = '', ctx=Depends(context)):
     if sport:
         result['rows'] = [r for r in result['rows'] if r['sport'] == sport.upper()]
     return response(result)
+
+
+@router.get('/pick-graphic/{candidate_id}')
+def pick_graphic(candidate_id: str, kind: Literal['official', 'playoftheday'] = 'official', ctx=Depends(context)):
+    from fastapi.responses import Response
+    from ..daily_scope import CENTRAL
+    from .graphics import approved_logo_path, render_research_card
+    store, _ = ctx
+    row = next((r for r in data.official(store) if r['id'] == candidate_id), None)
+    if row is None:
+        raise HTTPException(404, 'No current qualified official candidate for this graphic.')
+    if kind == 'playoftheday':
+        issued = store.list_records('play_of_day', 1, entity=datetime.now(CENTRAL).date().isoformat())
+        verified = bool(issued and issued[0]['payload'].get('candidate_id') == candidate_id)
+    else:
+        issued = store.list_records('official_pick_issued', 1, entity=candidate_id)
+        verified = bool(issued and issued[0]['payload'].get('message_id'))
+    if not verified:
+        raise HTTPException(409, 'Official issuance evidence is required. Research candidates cannot be exported as official picks.')
+    lines = [row['event'], f"{row['selection']} {row.get('line') if row.get('line') is not None else ''}",
+             'Market: '+str(row['market']), 'Start: '+str(row['starts_at']),
+             f"Observed decimal odds: {row['decimal']} • {row['book']}",
+             'Price observed: '+str(row['price_at']), 'Model: '+str(row['model_version']),
+             'Status: '+str(row['model_stage']), 'Issued: '+str(issued[0]['occurred_at'])]
+    try:
+        png = render_research_card('PLAY OF THE DAY' if kind == 'playoftheday' else 'OFFICIAL JABBAZI PICK',
+                                  lines, approved_logo_path(), notice='OFFICIALLY ISSUED • SNAPSHOT PRICE • RECHECK BEFORE USE')
+    except (OSError, ValueError):
+        raise HTTPException(503, 'Approved brand asset unavailable.')
+    return Response(png, media_type='image/png', headers={'Cache-Control': 'private, no-store'})
 
 
 @router.get('/archive')
@@ -194,6 +229,8 @@ def matchup_graphic(sport: str, event_id: str,
     from .graphics import render_matchup, render_research_card
     b = snapshot(ctx[0])
     detail = matchup_detail(b['rows'], sport.upper(), event_id)
+    if detail:
+        detail['snapshot_at'] = b.get('snapshot_at')
     if detail is None and kind != 'cheatsheet':
         raise HTTPException(404, 'No observed research for this matchup.')
     from .graphics import approved_logo_path
@@ -308,12 +345,13 @@ class Watch(BaseModel):
 
 @router.get('/watchlist')
 def watchlist(ctx=Depends(context)):
+    from ..daily_scope import eligible_today
     store, p = ctx
     b = snapshot(store)
     check_watches(store, owner_key(p), b)
     watched = read_state(store, 'vip_watchlist', owner_key(p)).get('items', [])
     index = {r['id']: r for r in b['rows']}
-    return response({'items': [{**w, 'current': index.get(w['id'])} for w in watched], 'alerts': [r['payload'] for r in store.list_records('vip_notification', 30, entity=owner_key(p))], 'delivery': 'Private in-app inbox. Browser push is not enabled.'})
+    return response({'items': [{**w, 'current': index.get(w['id'])} for w in watched], 'alerts': [r['payload'] for r in store.list_records('vip_notification', 30, entity=owner_key(p)) if eligible_today(r['payload'])], 'delivery': 'Private in-app inbox for today’s upcoming games. Historical records are retained; browser push is not enabled.'})
 
 
 @router.post('/watchlist')
@@ -406,7 +444,7 @@ def models(ctx=Depends(context)):
         return response({'state': current['state'], 'models': [], 'has_errors': True, 'controls': {},
                          'notice': 'Model evidence is refreshing in the background. No unverified model probability is shown. Reopen this view shortly.'})
     result = current['data']
-    return response({'state': 'READY', 'models': [{k: r.get(k) for k in ('sport', 'version', 'status', 'supported_markets', 'player_status', 'player_supported_markets', 'state_refreshed_at', 'market_buckets', 'player_market_buckets')} for r in result['models']], 'has_errors': bool(result.get('errors')), 'controls': data.flags(ctx[0]), 'notice': 'Model readiness is separate from current odds freshness. Model stages are never upgraded by this app.'})
+    return response({'state': 'READY', 'models': [{**{k: r.get(k) for k in ('sport', 'version', 'status', 'supported_markets', 'player_status', 'player_supported_markets', 'state_refreshed_at', 'market_buckets', 'player_market_buckets')}, 'sport': data.sport_label(r.get('sport', ''))} for r in result['models']], 'has_errors': bool(result.get('errors')), 'controls': data.flags(ctx[0]), 'notice': 'Model readiness is separate from current odds freshness. Model stages are never upgraded by this app.'})
 
 
 class Control(BaseModel):

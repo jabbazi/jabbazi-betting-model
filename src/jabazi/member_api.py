@@ -203,6 +203,17 @@ def public_row(block):
     }
 
 
+def daily_record(record, *, now=None):
+    from .daily_scope import eligible_today, reconciled_event
+    now = now or datetime.now(UTC)
+    payload = record['payload']
+    events = payload.get('slate_events')
+    rows = [r for r in payload.get('rows', []) if eligible_today(r, now=now)
+            and (events is None or reconciled_event(r, events, now=now))]
+    return {**record, 'payload': {**payload, 'rows': rows,
+            'slate_events': [e for e in events or [] if eligible_today(e, now=now)]}}
+
+
 @router.get("/v1/member/sheets", include_in_schema=False)
 def sheets(
     request: Request,
@@ -229,6 +240,7 @@ def sheets(
             )
         if len(market) > 80:
             raise HTTPException(422, "Invalid market")
+        record = daily_record(record, now=now)
         groups = (
             [0]
             if tab in ("sheets", "moneylines")
@@ -293,6 +305,7 @@ def image(
         record = latest_sheet(store)
         if not record or not record["payload"]["healthy"] or group not in (0, 1, 2) or page < 1:
             raise HTTPException(404, "Sheet unavailable")
+        record = daily_record(record)
         # The member endpoint always uses the short card, even for older links
         # with featured=false. Discord archives retain their full-slate renderer.
         selected = featured_rows(record, sport, group)

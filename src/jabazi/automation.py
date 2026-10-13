@@ -219,6 +219,7 @@ class AutomaticScanner:
                         "event_id": str(event["id"]),
                         "event": f"{event.get('away_team', '?')} @ {event.get('home_team', '?')}",
                         "starts_at_utc": event.get("commence_time", ""),
+                        "event_status": "completed" if event.get("completed") else event.get("status", "scheduled"),
                     }
                 from .reliability.integrity import duplicate_event_ids
                 duplicate_ids = duplicate_event_ids(batch.quotes)

@@ -115,9 +115,10 @@ def test_games_without_fresh_prices_remain_visible_and_do_not_gain_probabilities
 
 def test_full_slate_is_delivered_without_requesting_extra_pages(monkeypatch):
     from datetime import UTC, datetime
-    from jabazi.daily_scope import eligible_today
+    from jabazi.daily_scope import eligible_today, delivery_eligible
     now = datetime(2026, 10, 13, 17, tzinfo=UTC)
-    monkeypatch.setattr("jabazi.daily_scope.eligible_today", lambda row: eligible_today(row, now=now))
+    monkeypatch.setattr("jabazi.daily_scope.eligible_today", lambda row, **kw: eligible_today(row, now=now))
+    monkeypatch.setattr("jabazi.daily_scope.delivery_eligible", lambda store, rows: delivery_eligible(store, rows, now=now))
     import asyncio
     from types import SimpleNamespace
     from jabazi.discord_bot import BotConfig, build_client
@@ -127,10 +128,15 @@ def test_full_slate_is_delivered_without_requesting_extra_pages(monkeypatch):
     data["payload"]["rows"] = [
         base | {"event_id": str(i), "event": f"A{i} @ B{i}", "starts_at_utc": "2026-10-13T23:00:00Z"} for i in range(27)
     ]
+    data['payload']['completed_at'] = now.isoformat()
+    data['payload']['slate_events'] = [dict(r) for r in data['payload']['rows']]
+    from unittest.mock import Mock
+    store = Mock()
+    store.list_records.return_value = [data]
     sent = []
 
     async def exercise():
-        client = build_client(BotConfig(1, 2, 3, 4, frozenset()), None)
+        client = build_client(BotConfig(1, 2, 3, 4, frozenset()), store)
 
         async def send(**kwargs):
             sent.extend(f.filename for f in kwargs["files"])

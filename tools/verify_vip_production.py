@@ -21,7 +21,7 @@ def main():
     guild = os.environ['JABBAZI_DISCORD_GUILD_ID']
     owner = os.environ['JABBAZI_DISCORD_OWNER_ID']
     store = Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
-    checks = {'verification_version': 4}
+    checks = {'verification_version': 5}
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + os.environ['JABBAZI_DISCORD_BOT_TOKEN']}, timeout=20) as discord:
             info = discord.get(f'/guilds/{guild}')
@@ -36,7 +36,7 @@ def main():
             checks['sign_in_http'] = signed.status_code
             if signed.status_code == 200:
                 try:
-                    for path in ('me', 'home', 'matchups', 'playoftheday', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
+                    for path in ('me', 'home', 'matchups', 'playoftheday', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'board?sport=NBA', 'board?sport=NHL', 'board?family=props', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
                         started = time.monotonic()
                         try:
                             result = client.get('/v1/vip/' + path)
@@ -48,6 +48,8 @@ def main():
                                     if path.startswith('board'):
                                         from jabazi.daily_scope import eligible_today
                                         checks[path]['today_only'] = all(eligible_today(row) for row in body['rows'])
+                                        if path == 'board?family=props':
+                                            checks[path]['props_only'] = all(str(row.get('market', '')).startswith(('player_', 'pitcher_', 'batter_')) for row in body['rows'])
                                         if not checks[path]['today_only']:
                                             checks[path]['scope_error'] = 'OUT_OF_DATE_EVENT'
                                 if 'state' in body:
@@ -87,8 +89,8 @@ def main():
                             checks['approved_logo'] = {'http': brand.status_code,
                                 'png_signature': brand.content.startswith(b'\x89PNG\r\n\x1a\n')}
                         else:
-                            checks['matchup_detail'] = {'state': 'NO_ELIGIBLE_GAMES'}
-                            checks['game_sim'] = {'state': 'NO_ELIGIBLE_GAMES'}
+                            checks['matchup_detail'] = {'skipped': 'NO_ELIGIBLE_GAMES'}
+                            checks['game_sim'] = {'skipped': 'NO_ELIGIBLE_GAMES'}
                     except (ValueError, KeyError, TypeError) as exc:
                         checks['matchup_smoke_error'] = type(exc).__name__
                     checks['ticket_replay_rejected'] = client.post('/v1/member/session', json={'ticket': ticket}, headers={'Origin': origin}).status_code == 401
@@ -96,7 +98,7 @@ def main():
                     checks['logout_http'] = client.post('/v1/member/logout', headers={'Origin': origin}).status_code
                 checks['logged_out_blocked'] = client.get('/v1/vip/home').status_code == 401
             checks['scope'] = 'AUTH_AND_ENDPOINT_TRANSPORT_ONLY_NOT_MODEL_VALIDATION'
-            checks['status'] = 'VERIFIED' if checks.get('anonymous_blocked') and checks.get('ticket_replay_rejected') and checks.get('sign_in_http') == 200 and checks.get('logout_http') == 200 and checks.get('logged_out_blocked') and all(v.get('http') == 200 and v.get('today_only', True) for v in checks.values() if isinstance(v, dict)) else 'INCOMPLETE'
+            checks['status'] = 'VERIFIED' if checks.get('anonymous_blocked') and checks.get('ticket_replay_rejected') and checks.get('sign_in_http') == 200 and checks.get('logout_http') == 200 and checks.get('logged_out_blocked') and all((v.get('http') == 200 or v.get('skipped') == 'NO_ELIGIBLE_GAMES') and v.get('today_only', True) and v.get('props_only', True) and v.get('png_signature', True) for v in checks.values() if isinstance(v, dict)) else 'INCOMPLETE'
     except Exception as exc:  # noqa: BLE001 -- acceptance boundary records only the redacted error class
         checks.update(status='UNAVAILABLE', error=type(exc).__name__)
     finally:

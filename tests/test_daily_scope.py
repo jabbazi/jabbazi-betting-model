@@ -63,3 +63,50 @@ def test_daily_card_does_not_select_quarantined_model():
     assert card['projection_source'] == 'MARKET CONSENSUS'
     assert card['model_probability'] is None
     assert card['model_stage'] == 'UNAVAILABLE'
+
+
+@pytest.mark.parametrize('change', ['rescheduled', 'missing', 'cancelled', 'old_scan', 'unhealthy', 'truncated'])
+def test_queued_delivery_reconciles_latest_provider_observation(change):
+    from jabazi.daily_scope import delivery_eligible
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    queued = {'sport': 'baseball_mlb', 'event_id': 'g1', 'starts_at': '2026-10-13T23:00:00Z'}
+    event = dict(queued)
+    payload = {'healthy': True, 'completed_at': now.isoformat(), 'slate_events': [event]}
+    store = Mock()
+    store.list_records.return_value = [{'payload': payload}]
+    assert delivery_eligible(store, [queued], now=now)
+    if change == 'rescheduled':
+        event['starts_at'] = '2026-10-14T23:00:00Z'
+    elif change == 'missing':
+        payload['slate_events'] = []
+    elif change == 'cancelled':
+        event['event_status'] = 'cancelled'
+    elif change == 'old_scan':
+        payload['completed_at'] = (now-timedelta(minutes=16)).isoformat()
+    elif change == 'unhealthy':
+        payload['healthy'] = False
+    else:
+        payload['truncated'] = True
+    assert not delivery_eligible(store, [queued], now=now)
+    assert queued['starts_at'] == '2026-10-13T23:00:00Z'
+
+
+def test_delivery_does_not_merge_doubleheader_event_identities():
+    from jabazi.daily_scope import delivery_eligible
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    first = {'sport': 'baseball_mlb', 'event_id': 'g1', 'starts_at': '2026-10-13T23:00:00Z'}
+    second = {**first, 'event_id': 'g2', 'starts_at': '2026-10-14T02:00:00Z'}
+    store = Mock()
+    store.list_records.return_value = [{'payload': {'healthy': True, 'completed_at': now.isoformat(), 'slate_events': [first, second]}}]
+    assert delivery_eligible(store, [first, second], now=now)
+    assert not delivery_eligible(store, [first, {**second, 'event_id': 'unknown'}], now=now)
+
+
+def test_legacy_member_sheet_also_excludes_tomorrow_without_rewriting_history():
+    from jabazi.member_api import daily_record
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    today = {'starts_at_utc': '2026-10-13T23:00:00Z'}
+    future = {'starts_at_utc': '2026-10-14T23:00:00Z'}
+    record = {'payload': {'rows': [today, future]}}
+    assert daily_record(record, now=now)['payload']['rows'] == [today]
+    assert record['payload']['rows'] == [today, future]

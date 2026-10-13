@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from ..persistence.store import events, digest
+from ..daily_scope import eligible_today
 
 
 def owner_key(principal):
@@ -22,7 +23,7 @@ def change_watch(store, owner, candidate, remove=False, threshold=None):
         if not remove:
             if len(items) >= 100:
                 raise ValueError('Watchlist is limited to 100 opportunities.')
-            items.append({'id': candidate['id'], 'event': candidate['event'], 'selection': candidate['selection'], 'sport': candidate['sport'], 'threshold': threshold, 'added_at': datetime.now(UTC).isoformat()})
+            items.append({'id': candidate['id'], 'event': candidate['event'], 'selection': candidate['selection'], 'sport': candidate['sport'], 'starts_at': candidate.get('starts_at'), 'threshold': threshold, 'added_at': datetime.now(UTC).isoformat()})
         value = {'items': items}
         store._append(conn, 'vip_watchlist', owner, value, digest(['vip_watchlist', owner, value, datetime.now(UTC).isoformat()]))
     return value
@@ -41,10 +42,11 @@ def check_watches(store, owner, board):
             state = 'PRICE TARGET MET' if r['decimal'] and r['decimal'] >= w['threshold'] else 'BELOW PRICE TARGET'
         current[w['id']] = {'state': state, 'price': r.get('decimal') if r else None}
         old = previous.get(w['id'])
-        if old and old['state'] != state and prefs.get('notifications', True):
+        scope = r or w
+        if old and old['state'] != state and prefs.get('notifications', True) and eligible_today(scope):
             key = digest(['vip_alert', owner, w['id'], board.get('snapshot_id'), old['state'], state])
             store.append('vip_notification', owner, {'id': w['id'], 'event': w['event'], 'selection': w['selection'], 'before': old['state'], 'state': state,
-                                                   'price': r.get('decimal') if r else None, 'at': datetime.now(UTC).isoformat(),
+                                                   'price': r.get('decimal') if r else None, 'at': datetime.now(UTC).isoformat(), 'starts_at': scope.get('starts_at'),
                                                    'notice': 'Research alert, not betting approval.'}, key)
     if previous != current:
         store.append('vip_watch_state', owner, {'items': current}, digest(['watch_state', owner, current, datetime.now(UTC).isoformat()]))

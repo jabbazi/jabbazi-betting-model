@@ -53,7 +53,9 @@ def text_fit(draw, position, text, *, max_width, size, fill=WHITE, bold=False):
     while size > 14 and draw.textbbox((0, 0), value, font=f)[2] > max_width:
         size -= 2
         f = font(size, bold)
-    draw.text(position, value[:120], font=f, fill=fill)
+    while value and draw.textbbox((0, 0), value, font=f)[2] > max_width:
+        value = value[:-2].rstrip('…') + '…'
+    draw.text(position, value, font=f, fill=fill)
 
 
 def render_matchup(detail, logo_file):
@@ -69,6 +71,8 @@ def render_matchup(detail, logo_file):
     image.paste(logo, (42, 24))
     draw.text((430, 54), "JABBAZI MATCHUP RESEARCH", font=font(30, True), fill=PINK)
     draw.text((432, 110), str(detail.get("sport") or "SPORT"), font=font(18, True), fill=MUTED)
+    text_fit(draw, (432, 145), 'Start: '+str(detail.get('starts_at') or 'Unavailable'), max_width=710, size=18, fill=MUTED)
+    text_fit(draw, (432, 175), 'Model: '+str(detail.get('projection', {}).get('model_stage') or 'UNAVAILABLE'), max_width=710, size=16, fill=MUTED)
     draw.line((45, 207, 1155, 207), fill=PINK, width=3)
     text_fit(draw, (52, 245), detail.get("event"), max_width=1080, size=52, bold=True)
     draw.rounded_rectangle((46, 350, 1154, 555), radius=16, fill=PANEL)
@@ -81,7 +85,7 @@ def render_matchup(detail, logo_file):
     value = f"Independent model: {probability*100:.1f}%" if probability is not None else "Independent model: unavailable"
     text_fit(draw, (630, 464), value, max_width=475, size=19, fill=MUTED)
     draw.text((53, 586), "RESEARCH ONLY  •  NOT AN OFFICIAL BET", font=font(19, True), fill=PINK)
-    draw.text((53, 621), "Source: verified JABBAZI research snapshot; always recheck prices and availability.", font=font(14), fill=MUTED)
+    text_fit(draw, (53, 621), 'Snapshot: '+str(detail.get('snapshot_at') or 'Unavailable')+' • Recheck prices and availability.', max_width=1090, size=14, fill=MUTED)
     out = BytesIO()
     image.save(out, "PNG", optimize=True)
     return out.getvalue()

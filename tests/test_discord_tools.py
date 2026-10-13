@@ -234,7 +234,12 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
     pytest.importorskip("discord")
     from jabazi.discord_bot import build_client
 
-    archive_sheets(store, result([action()]))
+    item = action()
+    item.price.event_id = 'fixture-game'
+    scan = result([item])
+    scan.slate_events = ({'sport': item.price.sport, 'event_id': item.price.event_id,
+                          'event': item.price.event, 'starts_at_utc': item.price.starts_at.isoformat()},)
+    archive_sheets(store, scan)
     # An old deployment may claim the fresh sheet during a rolling release.
     # Its first-page-only delivery must not suppress the corrected full slate.
     from jabazi.persistence.store import digest

@@ -162,3 +162,50 @@ def test_personal_unit_validation_and_promo_math(portal):
     assert Decimal(str(result['boosted_decimal'])) == Decimal('3.6')
     assert result['boosted_ev'] == pytest.approx(.08)
     assert result['probability_source'] == 'USER_INPUT_NOT_JABBAZI_MODEL'
+
+
+def test_props_filter_precedes_pagination_and_preserves_exact_line(portal):
+    store, client = portal
+    row = seed(store)
+    record = store.list_records('research_sheet', 1, entity='latest_scan')[0]['payload']
+    record['rows'] = [{**row, 'event_id': f'game-{i}', 'market': 'h2h'} for i in range(60)] + [row]
+    store.append('research_sheet', 'latest_scan', record)
+    sign_in(store, client)
+    result = client.get('/v1/vip/board?family=props').json()
+    assert result['total'] == 1
+    assert result['rows'][0]['market'] == 'batter_home_runs'
+    assert result['rows'][0]['line'] == '0.5'
+    assert result['next'] is None
+    assert client.get('/v1/vip/board?family=unknown').status_code == 422
+
+
+def test_model_workspace_uses_same_sport_labels_as_board(portal, monkeypatch):
+    store, client = portal
+    sign_in(store, client)
+    monkeypatch.setattr('jabazi.vip.model_cache.status', lambda _: {'data': {'models': [{'sport': 'americanfootball_nfl', 'status': 'SHADOW_ONLY', 'version': 'test'}]}})
+    model = client.get('/v1/vip/models').json()['models'][0]
+    assert model['sport'] == 'NFL'
+    assert model['status'] == 'SHADOW_ONLY'
+
+
+def test_old_watch_notifications_stay_in_history_not_today_inbox(portal):
+    store, client = portal
+    sign_in(store, client)
+    store.append('vip_notification', '1:2', {'id': 'old', 'starts_at': '2026-01-01T10:00:00Z'})
+    assert client.get('/v1/vip/watchlist').json()['alerts'] == []
+    assert store.list_records('vip_notification', 1, entity='1:2')
+
+
+def test_official_graphic_requires_issuance_evidence(portal, monkeypatch):
+    store, client = portal
+    row = {'id': 'test', 'event': 'Fixture A @ B', 'selection': 'B', 'line': None,
+           'market': 'h2h', 'starts_at': 'fixture', 'decimal': 2, 'book': 'fixture',
+           'price_at': 'fixture', 'model_version': 'fixture', 'model_stage': 'PRODUCTION_APPROVED'}
+    monkeypatch.setattr(data, 'official', lambda _: [row])
+    assert client.get('/v1/vip/pick-graphic/test').status_code == 401
+    sign_in(store, client)
+    assert client.get('/v1/vip/pick-graphic/test').status_code == 409
+    store.append('official_pick_issued', 'test', {'message_id': 'fixture', 'candidate_id': 'test'})
+    graphic = client.get('/v1/vip/pick-graphic/test')
+    assert graphic.status_code == 200 and graphic.content.startswith(b'\x89PNG')
+    assert client.get('/v1/vip/pick-graphic/test?kind=playoftheday').status_code == 409

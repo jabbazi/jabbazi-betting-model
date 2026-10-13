@@ -85,6 +85,7 @@ jobs:
           PYTHONPATH=src python tests/vip_staging_server.py > /tmp/vip-staging.log 2>&1 &
           for attempt in $(seq 1 30); do curl -kfsS https://127.0.0.1:8765/vip > /dev/null && break; sleep 1; done
       - run: node tests/vip_ui_test.cjs
+      - run: node tests/vip_scenarios.test.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

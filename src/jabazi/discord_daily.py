@@ -238,10 +238,11 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
         raise ValueError("A fresh dedicated scan is required for the daily freeze")
 
     allowed = set(configured_daily_sports())
+    from .daily_scope import eligible_today
     events = {}
     for event in payload.get("slate_events", []):
         label = sport_label(event.get("sport"))
-        if label not in allowed or not _on_local_date(event.get("starts_at_utc"), date, timezone):
+        if label not in allowed or not _on_local_date(event.get("starts_at_utc"), date, timezone) or not eligible_today(event, now=now):
             continue
         start = _aware(event.get("starts_at_utc"))
         if start is None or start <= now:
@@ -255,6 +256,7 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
             "event_id": key[1],
             "event": event.get("event") or key[1],
             "starts_at_utc": event.get("starts_at_utc"),
+            "event_status": event.get("event_status", "scheduled"),
         }
 
     rows_by_event = {key: [] for key in events}
