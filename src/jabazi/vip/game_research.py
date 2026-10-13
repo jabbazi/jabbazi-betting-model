@@ -207,7 +207,11 @@ def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, to
             model = ScoreDistributionModel(artifact)
         for row in rows:
             if (row.get("sport") != sport or str(row.get("event_id")) != event_id
-                    or row.get("market") != "h2h" or not row.get("fresh")):
+                    or row.get("market") != "h2h" or not row.get("fresh")
+                    or row.get("lifecycle") != "UPCOMING"
+                    or row.get("data_health") != "HEALTHY"
+                    or row.get("status") in {"QUARANTINED", "INVALIDATED"}
+                    or row.get("model_stage") in {"QUARANTINED", "UNAVAILABLE"}):
                 continue
             observed = datetime.fromisoformat(str(row["price_at"]).replace("Z", "+00:00"))
             start = datetime.fromisoformat(str(row["starts_at"]).replace("Z", "+00:00"))
