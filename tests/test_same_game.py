@@ -268,6 +268,8 @@ def test_retrieved_candidates_expire_without_mutating_archive():
     from jabazi.chatgpt_api import present_coverage
 
     r = evaluate()
+    for leg in r['legs']:
+        leg['starts_at'] = (NOW+timedelta(hours=2)).isoformat()
     coverage = {"same_game_parlays": {"candidates": [r]}}
     shown = present_coverage(coverage, NOW + timedelta(seconds=121))
     assert shown["same_game_parlays"]["candidates"][0]["status"] == "STALE_DATA"

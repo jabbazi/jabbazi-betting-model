@@ -98,6 +98,8 @@ def evaluate_same_game(prices, model, *, now, offer=None, player_models=None, jo
                 "event_id": p.event_id,
                 "sport": p.sport,
                 "event": p.event,
+                "starts_at": p.starts_at.isoformat() if p.starts_at else None,
+                "in_play": p.in_play,
                 "market": p.market,
                 "participant": p.participant,
                 "selection": p.selection,

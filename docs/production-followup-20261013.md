@@ -22,6 +22,15 @@ roles, billing settings, historical snapshots, or model approval gates.
 
 ## Model evidence observed during this follow-up
 
+One real verification scan (`69fd523f-9ce5-446a-9c94-e553d244d827`) completed
+2026-10-13 at 17:49:51 UTC: 10 feeds, 4,973 archived quotes, no scan errors,
+724 modeled actions, zero production-approved actions. The service used its
+configured 30-credit cap (the connector's 15-credit description is stale).
+All 11 retained result pages were read. Only 50 of 260 retained rows were for
+today, exposing a separate ChatGPT result-scope gap. Follow-up filtering now
+occurs before retention and again at retrieval; stored history is unchanged.
+Undated/future parlay candidates are suppressed, and new SGP legs retain dates.
+
 Live model-status response: MLB/NFL/NHL/NBA game models SHADOW_ONLY, CFB
 VALIDATING. Game adapters cover moneylines, spreads, totals, team totals and
 alternate lines conditionally. Player-model buckets remain VALIDATING.

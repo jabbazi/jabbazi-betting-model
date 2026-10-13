@@ -24,6 +24,7 @@ from sqlalchemy import select
 
 from .config import Settings
 from .persistence.store import events, digest, utc
+from .daily_scope import eligible_today
 
 router = APIRouter()
 ORIGIN = "https://jabbazi-research-api.onrender.com"
@@ -154,12 +155,20 @@ def record(conn, kind, scan_id):
 
 
 def present_coverage(coverage, now):
-    if not coverage or "same_game_parlays" not in coverage:
+    if not coverage:
         return coverage
     from copy import deepcopy
     from .models.team_elo import timestamp
     coverage = deepcopy(coverage)
-    for candidate in coverage["same_game_parlays"].get("candidates", []):
+    best = coverage.get('best_two_sheet_candidate')
+    if best and (not best.get('legs') or not all(eligible_today(leg, now=now) for leg in best['legs'])):
+        coverage['best_two_sheet_candidate'] = None
+    if 'same_game_parlays' not in coverage:
+        return coverage
+    candidates = [c for c in coverage['same_game_parlays'].get('candidates', [])
+                  if c.get('legs') and all(eligible_today(leg, now=now) for leg in c['legs'])]
+    coverage['same_game_parlays']['candidates'] = candidates
+    for candidate in candidates:
         try:
             fresh = 0 <= (now - timestamp(candidate["expires_from"])).total_seconds() <= 120
         except (KeyError, ValueError, TypeError):
@@ -250,6 +259,7 @@ def run_background(scan_id):
                 result = perform_scan(
                     ScanRequest(mode="full", credit_reserve=50, max_credits=max_credits),
                     model_first=True,
+                    daily_only=True,
                     progress_callback=on_progress,
                 )
                 break
@@ -350,7 +360,8 @@ def scan_page(store, scan_id, page=1, now=None):
     expired = (now - utc(request["occurred_at"])).total_seconds() >= JOB_SECONDS
     payload = result["payload"] if result else {}
     progress = progress_record["payload"] if progress_record else {}
-    rows = payload.get("actions", [])
+    stored_rows = payload.get("actions", [])
+    rows = [r for r in stored_rows if eligible_today(r, now=now)]
     if page > max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE):
         raise HTTPException(404, "Result page not found")
     status = payload.get("status", "EXPIRED" if expired else "RUNNING")
@@ -365,7 +376,7 @@ def scan_page(store, scan_id, page=1, now=None):
         page=page, page_action_count=len(page_rows),
         total_pages=max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE),
         next_page=page + 1 if page * PAGE_SIZE < len(rows) else None,
-        total_returned_actions=len(rows), total_actions=total, truncated=total > len(rows),
+        total_returned_actions=len(rows), total_actions=total, truncated=total > len(stored_rows),
         feeds_scanned=payload.get("feeds_scanned", progress.get("feeds_scanned", 0)),
         quotes_archived=payload.get("quotes_archived", progress.get("quotes_archived", 0)),
         credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
@@ -379,6 +390,8 @@ def scan_page(store, scan_id, page=1, now=None):
             f"Full scan of active configured feeds within a "
             f"{request['payload'].get('max_credits', scan_credit_budget())}-credit budget; "
             "NFL, MLB, CFB, NHL first. Odds coverage is not trained-model coverage. "
+            "Returned actions and parlay candidates are today’s upcoming games in America/Chicago only. "
+            "Archive counts and model coverage describe the underlying scan, including retained history. "
             "Research only; no bets or Discord posts."
         ),
     )

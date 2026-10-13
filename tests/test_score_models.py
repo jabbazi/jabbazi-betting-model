@@ -213,6 +213,16 @@ def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, 
     monkeypatch.setenv("JABAZI_ODDS_API_KEY", "test-only")
     a = artifact(short)
     p = card(a)
+    # Keep this historical inference fixture on its event's local day. Production
+    # date filtering is independently exercised with real midnight boundaries.
+    fixture_now = p.starts_at - timedelta(minutes=1)
+    a['state_refreshed_at'] = (fixture_now-timedelta(seconds=1)).isoformat()
+    p = replace(p, observed_at=fixture_now, source_timestamp=fixture_now)
+    class FixtureClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixture_now.astimezone(tz) if tz else fixture_now.replace(tzinfo=None)
+    monkeypatch.setattr('jabazi.daily_scope.datetime', FixtureClock)
     from jabazi.models.nhl_goals import NHLGoalsModel
     estimate = (NHLGoalsModel(a) if short == "nhl" else ScoreDistributionModel(a)).estimate(p)
     s = Store("sqlite:///" + str(tmp_path / "chat-model.db"), initialize=True)
@@ -225,6 +235,8 @@ def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, 
         replace(p, sport="basketball_nba", event_id=f"other-{i}", market_relative_ev=D(".9"))
         for i in range(270)
     ]
+    unmodeled.append(replace(p, sport='basketball_nba', event_id='tomorrow',
+                            starts_at=p.starts_at+timedelta(days=1), market_relative_ev=D('2')))
     batch = ProviderBatch("TEST_ONLY", p.observed_at, b"{}", (), requests_remaining=100)
     try:
         with (

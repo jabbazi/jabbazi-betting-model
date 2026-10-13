@@ -48,6 +48,30 @@ def finish(store, scan_id, now, count=1, **changes):
                  digest(["chatgpt_scan_result", scan_id]))
 
 
+def test_scan_pages_are_today_only_and_expire_at_chicago_midnight(setup):
+    _, store, _ = setup
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    scan_id = request(store, now=now)
+    today = {'starts_at': '2026-10-14T04:00:00Z', 'event': 'Tonight'}
+    future = {'starts_at': '2026-10-14T23:00:00Z', 'event': 'Tomorrow'}
+    finish(store, scan_id, now, actions=[today, future], total_actions=2)
+    page = bridge.scan_page(store, scan_id, now=now)
+    assert [a['event'] for a in page.actions] == ['Tonight']
+    assert not page.truncated
+    assert bridge.scan_page(store, scan_id, now=datetime(2026, 10, 14, 5, tzinfo=UTC)).actions == [bridge.present_action(future, datetime(2026, 10, 14, 5, tzinfo=UTC))]
+    archived = store.list_records('chatgpt_scan_result', 1, entity=scan_id)[0]['payload']
+    assert len(archived['actions']) == 2
+
+
+def test_parlay_coverage_drops_future_and_undated_legs():
+    now = datetime(2026, 10, 13, 17, tzinfo=UTC)
+    today = {'legs': [{'starts_at': '2026-10-13T23:00:00Z'}], 'expires_from': now.isoformat()}
+    future = {'legs': [{'starts_at': '2026-10-14T23:00:00Z'}]}
+    result = bridge.present_coverage({'best_two_sheet_candidate': future, 'same_game_parlays': {'candidates': [today, future, {'legs': [{}]}]}}, now)
+    assert result['best_two_sheet_candidate'] is None
+    assert result['same_game_parlays']['candidates'] == [today]
+
+
 def test_scoped_auth_and_admin_isolation(setup, monkeypatch):
     client, store, headers = setup
     with patch.object(bridge, "run_background") as worker:

@@ -411,7 +411,7 @@ def run_scan(
     return perform_scan(body)
 
 
-def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callback=None) -> dict:
+def perform_scan(body: ScanRequest, *, model_first: bool = False, daily_only: bool = False, progress_callback=None) -> dict:
     """Shared scanner execution; callers must authorize before invoking."""
     from .research.external_sources import external_research_sources
 
@@ -428,8 +428,11 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callb
             max_credits_per_run=body.max_credits,
             progress_callback=progress_callback,
         ).run(body.mode)
+        from .daily_scope import eligible_today
+        eligible_actions = [a for a in result.actions if not daily_only or eligible_today(
+            {'starts_at': a.price.starts_at, 'in_play': a.price.in_play})]
         actions = sorted(
-            result.actions,
+            eligible_actions,
             # The chat has a bounded response: retain fitted model estimates
             # before market-only rows. This is coverage ordering, not bet ranking.
             key=lambda item: (
@@ -466,7 +469,7 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, progress_callb
             },
             "result_ordering": "model_coverage_first" if model_first else "market_relative_ev",
             "actions": [_action(action) for action in actions],
-            "total_actions": len(result.actions),
+            "total_actions": len(eligible_actions),
             "returned_actions": len(actions),
             "arbitrages": _json([asdict(item) for item in result.arbitrages]),
             "disclaimer": "No wagers were placed. Market-only signals cannot become BET_NOW.",
