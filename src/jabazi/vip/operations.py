@@ -3,6 +3,9 @@ from datetime import UTC, datetime
 import os
 import re
 
+from sqlalchemy import select
+from ..persistence.store import events
+
 from .data import timestamp
 
 
@@ -16,11 +19,24 @@ def observed(record, now, max_age):
             'age_seconds': round(age) if age is not None and age >= 0 else None}
 
 
+
+def summaries(store, kind, fields, limit=1, entity=None):
+    # Scan payloads contain large coverage trees. Never transfer/decode those
+    # trees just to display a heartbeat or the last successful scan timestamp.
+    query = select(events.c.occurred_at, *((events.c.payload[key].as_boolean() if key == 'healthy' else events.c.payload[key]).label(key) for key in fields)).where(events.c.kind == kind)
+    if entity:
+        query = query.where(events.c.entity == entity)
+    query = query.order_by(events.c.occurred_at.desc(), events.c.id).limit(limit)
+    with store.engine.connect() as conn:
+        return [{'occurred_at': row['occurred_at'], 'payload': {key: row[key] for key in fields}}
+                for row in conn.execute(query).mappings()]
+
+
 def health(store, now=None):
     now = now or datetime.now(UTC)
-    heartbeats = store.list_records('worker_heartbeat', 1, entity='research_worker')
-    scans = store.list_records('scan_run', 20)
-    acceptances = store.list_records('vip_acceptance', 1, entity='terminal-v1')
+    heartbeats = summaries(store, 'worker_heartbeat', ('status', 'completed_at'), entity='research_worker')
+    scans = summaries(store, 'scan_run', ('healthy', 'completed_at', 'errors'), limit=20)
+    acceptances = summaries(store, 'vip_acceptance', ('status',), entity='terminal-v1')
     heartbeat = heartbeats[0] if heartbeats else None
     latest = scans[0] if scans else None
     successful = next((r for r in scans if r['payload'].get('healthy') is True), None)

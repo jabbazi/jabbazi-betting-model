@@ -39,3 +39,10 @@ and production model approval remain separate requirements.
 
 Rollback: redeploy prior commit 4fe9192 on affected services. No migration rollback
 is needed. Deployment and live verification must be checked separately from this file.
+
+## Live correction
+
+Initial v6 acceptance caught a 12-second Operations timeout. Health queries were
+changed to extract only summary JSON fields in SQL, avoiding transfer of large
+scan coverage payloads. A regression forbids full-record loading for this path.
+The live acceptance check must pass after redeployment.

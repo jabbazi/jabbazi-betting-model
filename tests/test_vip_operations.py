@@ -67,3 +67,10 @@ def test_recap_separates_pending_and_excludes_member_and_reserved():
     assert totals['losses'] == 1 and totals['unsettled'] == 1
     assert totals['unsettled_stake'] == 30
     assert totals['settled_returns'] == 0 and totals['roi'] == -1
+
+
+def test_operations_never_loads_complete_scan_payload(portal, monkeypatch):
+    store, _ = portal
+    store.append('scan_run', 'large', {'healthy':True, 'completed_at':datetime.now(UTC).isoformat(), 'coverage':'x'*1000000})
+    monkeypatch.setattr(store, 'list_records', lambda *a, **k: (_ for _ in ()).throw(AssertionError('Full payload read forbidden')))
+    assert health(store)['scan']['state'] == 'CURRENT'
