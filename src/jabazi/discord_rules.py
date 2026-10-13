@@ -41,8 +41,9 @@ def may_issue_ticket(store, guild, member):
     return not config or (str(guild) == config['guild'] and accepted(store, config, member))
 
 
-def planned_overwrites(channel, *, guild, source_vip, trusted, community, paid, exempt):
+def planned_overwrites(channel, *, guild, source_vip, trusted, community, paid, exempt, paid_roles=None):
     """Move existing role grants to gated roles; retain bot/staff/member exceptions."""
+    paid_roles = paid_roles or {source:paid for source in source_vip}
     rows = [dict(r) for r in channel.get('permission_overwrites', [])]
     if str(channel['id']) in exempt:
         return rows
@@ -54,14 +55,15 @@ def planned_overwrites(channel, *, guild, source_vip, trusted, community, paid, 
     public_allow = int(everyone['allow'])
     public_deny = int(everyone['deny'])
     everyone.update(allow=str(public_allow & ~VIEW), deny=str(public_deny | VIEW))
-    vip_allow = vip_deny = 0
+    gated_rows = {}
     for row in rows:
         rid = str(row['id'])
         if row['type'] == 0 and rid in source_vip:
-            vip_allow |= int(row['allow'])
-            vip_deny |= int(row['deny'])
+            target=paid_roles[rid]
+            allow,deny=gated_rows.get(target,(0,0))
+            gated_rows[target]=(allow|int(row['allow']),deny|int(row['deny']))
             row.update(allow=str(int(row['allow']) & ~VIEW), deny=str(int(row['deny']) | VIEW))
-        elif row['type'] == 0 and rid not in {guild, community, paid} | trusted and int(row['allow']) & VIEW:
+        elif row['type'] == 0 and rid not in {guild, community, paid} | set(paid_roles.values()) | trusted and int(row['allow']) & VIEW:
             raise ValueError('Unreviewed role grant in gate scope')
     def upsert(rid, allow, deny):
         nonlocal rows
@@ -69,8 +71,8 @@ def planned_overwrites(channel, *, guild, source_vip, trusted, community, paid, 
         rows.append({'id':rid,'type':0,'allow':str(allow),'deny':str(deny & ~allow)})
     if was_public:
         upsert(community, public_allow | VIEW | READ, public_deny)
-    if vip_allow & VIEW:
-        upsert(paid, vip_allow, vip_deny)
+    for target,(allow,deny) in gated_rows.items():
+        upsert(target, allow, deny)
     return rows
 
 
@@ -126,6 +128,16 @@ def install(store):
                 raise ValueError('Gate role is not least privilege')
             gate_roles[name]=str(role['id'])
         community,paid=gate_roles[COMMUNITY_NAME],gate_roles[PAID_NAME]
+        # Separate derived roles preserve all original paid tier distinctions.
+        paid_roles={}
+        for source in sorted(source_vip):
+            name='JABBAZI VERIFIED '+source
+            matches=[r for r in roles if r['name']==name]
+            if len(matches)>1: raise ValueError('Duplicate paid gate roles')
+            role=matches[0] if matches else request(http,'POST',f'/guilds/{guild}/roles','RULES_CREATE_TIER_ROLE',json={'name':name,'permissions':'0','mentionable':False,'hoist':False})
+            if role.get('managed') or int(role['permissions']) or str(role['id']) in source_vip:
+                raise ValueError('Paid gate role is not least privilege')
+            paid_roles[source]=str(role['id'])
         # Trust staff and integration bot roles already present; do not grant new privileges.
         trusted={str(r['id']) for r in roles if r.get('managed') or is_staff_name(r['name']) or str(r['id']) in bm['roles']}
         exempt={ids[k] for k in ('welcome','rules','guide','support','access','category')}
@@ -135,45 +147,46 @@ def install(store):
             perms=channel.get('permission_overwrites',[])
             affected=any(r['type']==0 and str(r['id']) in {guild}|source_vip and int(r['allow'])&VIEW for r in perms)
             if affected and str(channel['id']) not in exempt:
-                changes=planned_overwrites(channel,guild=guild,source_vip=source_vip,trusted=trusted,community=community,paid=paid,exempt=exempt)
+                changes=planned_overwrites(channel,guild=guild,source_vip=source_vip,trusted=trusted,community=community,paid=paid,exempt=exempt,paid_roles=paid_roles)
                 plans.append((channel,changes))
         # Preserve the exact pre-rollout joins, including reruns after a partial apply.
         prior=store.list_records('discord_rules_rollout',1,entity=CONFIG_KEY)
         grandfathered=prior[0]['payload']['grandfathered'] if prior else {str(m['user']['id']):m['joined_at'] for m in members if not m['user'].get('bot')}
         config={'status':'ACTIVE','guild':guild,'owner':owner,'version':VERSION,'community_role':community,'paid_role':paid,
-                'source_vip':sorted(source_vip),'grandfathered':grandfathered,'channels':ids,'backup_id':key}
+                'source_vip':sorted(source_vip),'paid_roles':paid_roles,'grandfathered':grandfathered,'channels':ids,'backup_id':key}
         if not prior: store.append('discord_rules_rollout',CONFIG_KEY,config)
         for member in members:
             mid=str(member['user']['id'])
             if mid not in grandfathered or member.get('joined_at')!=grandfathered[mid]: continue
-            for rid in [community]+([paid] if set(member['roles'])&source_vip else []):
+            for rid in [community]+[paid_roles[source] for source in set(member['roles'])&source_vip]:
                 if rid not in member['roles']:
                     request(http,'PUT',f'/guilds/{guild}/members/{mid}/roles/{rid}','RULES_PRESERVE_MEMBER')
             current=request(http,'GET',f'/guilds/{guild}/members/{mid}','RULES_VERIFY_MEMBER')
-            if community not in current['roles'] or (set(member['roles'])&source_vip and paid not in current['roles']):
+            if community not in current['roles'] or any(paid_roles[source] not in current['roles'] for source in set(member['roles'])&source_vip):
                 raise RuntimeError('Existing member access preservation failed')
         # Audit new unpaid/paid and accepted unpaid/paid effective visibility before apply.
-        virtual_roles=roles+[{'id':community,'permissions':'0'},{'id':paid,'permissions':'0'}]
+        virtual_roles=roles+[{'id':rid,'permissions':'0'} for rid in [community,paid,*paid_roles.values()]]
         for channel,changes in plans:
             proposed={**channel,'permission_overwrites':changes}
             for held in ([],list(source_vip)):
                 if effective_permissions(guild,'0',held,virtual_roles,proposed,owner)&VIEW:
                     raise ValueError('Unaccepted member would retain access')
-            # A shared paid gate is safe only if source tiers already have
-            # equivalent access. Refuse to broaden a narrower paid tier.
+            # Verify each source tier independently; never broaden its grants.
             for source in source_vip:
                 before=effective_permissions(guild,'0',[source],roles,channel,owner)
-                after_paid=effective_permissions(guild,'0',[source,community,paid],virtual_roles,proposed,owner)
+                after_paid=effective_permissions(guild,'0',[source,community,paid_roles[source]],virtual_roles,proposed,owner)
                 if after_paid & VIEW and (not before & VIEW or after_paid & ~before):
-                    raise ValueError('Paid tier permissions differ; separate derived roles required')
+                    print('DISCORD_RULES_TIER_MISMATCH '+json.dumps({'channel':channel['id'],'source_role':source,'before':before,'after':after_paid}),flush=True)
+                    raise ValueError('Paid tier permission preservation failed')
             for member in members:
                 if member['user'].get('bot'): continue
                 mid=str(member['user']['id']); old=member['roles']
-                extra=[community]+([paid] if set(old)&source_vip else [])
+                extra=[community]+[paid_roles[source] for source in set(old)&source_vip]
                 before=effective_permissions(guild,mid,old,roles,channel,owner)
                 after_perms=effective_permissions(guild,mid,old+extra,virtual_roles,proposed,owner)
                 if before&VIEW and not after_perms&VIEW:
                     raise ValueError('Existing member visibility would regress')
+        print('DISCORD_RULES_PREFLIGHT_PASSED '+json.dumps({'channels':len(plans),'paid_tiers':len(paid_roles)}),flush=True)
         # Disabled native onboarding still constrains referenced channels. Preserve
         # its state and prompts while removing references to channels being gated.
         gated={str(channel['id']) for channel,_ in plans}
@@ -227,7 +240,13 @@ async def reconcile_member(member, store, config):
     okay=await asyncio.to_thread(accepted,store,config,member.id,joined)
     held={str(r.id) for r in member.roles}
     is_paid=bool(held & set(config['source_vip']))
-    for rid,wanted in ((config['community_role'],okay),(config['paid_role'],okay and is_paid)):
+    targets=[(config['community_role'],okay)]
+    if config.get('paid_roles'):
+        targets.extend((rid,okay and source in held) for source,rid in config['paid_roles'].items())
+        targets.append((config['paid_role'],False))  # Retire our unused shared gate.
+    else:
+        targets.append((config['paid_role'],okay and is_paid))
+    for rid,wanted in targets:
         role=member.guild.get_role(int(rid))
         if role is None or role.permissions.value or role.managed:
             raise ValueError('Configured gate role invalid')

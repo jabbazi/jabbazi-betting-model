@@ -150,7 +150,35 @@ def test_installer_preserves_members_and_verifies_live_permissions(store, monkey
     assert result['status']=='ACTIVE'
     assert '2' in members['9']['roles']
     assert result['community_role'] in members['9']['roles']
-    assert result['paid_role'] in members['9']['roles']
+    assert result['paid_roles']['2'] in members['9']['roles']
     assert info['system_channel_id']==ids[0] and info['system_channel_flags']&1
     assert not effective_permissions('1','99',['2'],roles,channels['11'],'100')&VIEW
     assert install(store)['status']=='ALREADY_ACTIVE'
+
+
+def test_separate_paid_tiers_never_expand_inner_circle_access():
+    roles=[{'id':str(i),'permissions':'0'} for i in (1,2,3,4,5,6,7)]
+    channel={'id':'99','permission_overwrites':[
+        {'id':'1','type':0,'allow':'0','deny':str(VIEW)},
+        {'id':'2','type':0,'allow':str(VIEW|READ),'deny':str(SEND)},
+        {'id':'3','type':0,'allow':str(VIEW|READ|SEND),'deny':'0'}]}
+    changed={**channel,'permission_overwrites':planned_overwrites(channel,guild='1',source_vip={'2','3'},trusted=set(),community='4',paid='5',exempt=set(),paid_roles={'2':'6','3':'7'})}
+    ordinary=effective_permissions('1','100',['2','4','6'],roles,changed,'999')
+    inner=effective_permissions('1','100',['3','4','7'],roles,changed,'999')
+    assert ordinary&VIEW and not ordinary&SEND
+    assert inner&VIEW and inner&SEND
+    for held in (['2'],['3']):
+        assert not effective_permissions('1','100',held,roles,changed,'999')&VIEW
+
+
+def test_separate_paid_tier_reconciliation_preserves_source_roles(store):
+    async def run():
+        conf=gate_config();conf['paid_roles']={'2':'6','5':'7'}
+        role=lambda rid:NS(id=rid,permissions=NS(value=0),managed=False)
+        guild=NS(id=1,get_role=lambda rid:role(rid))
+        member=NS(id=9,bot=False,guild=guild,joined_at=datetime.now(UTC),roles=[role(2),role(3),role(7)],add_roles=AsyncMock(),remove_roles=AsyncMock())
+        store.append('discord_rules_acceptance','1:9',{'version':'v1','joined_at':member.joined_at.isoformat()})
+        await reconcile_member(member,store,conf)
+        assert [c.args[0].id for c in member.add_roles.call_args_list]==[6]
+        assert [c.args[0].id for c in member.remove_roles.call_args_list]==[7]
+    asyncio.run(run())

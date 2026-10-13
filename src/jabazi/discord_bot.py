@@ -645,7 +645,7 @@ def build_client(config, store):
                 document = await get(f"/channels/{channel_id}")
                 from .discord_rules import configuration
                 gate = await asyncio.to_thread(configuration, store)
-                gate_role_ids = [int(gate['paid_role'])] if gate else []
+                gate_role_ids = [int(rid) for rid in (gate.get('paid_roles') or {'legacy':gate['paid_role']}).values()] if gate else []
                 validate_target(
                     document,
                     config,

@@ -73,3 +73,9 @@ restoring channel visibility during rollback.
 Manual API/MCP scans now archive their full research result before truncating the
 chat response. `vip_snapshot_status` distinguishes successful archive writes from
 storage failures; a successful provider scan alone no longer implies publication.
+
+Live preflight found different paid-tier permissions and correctly stopped before
+channel edits. The revised rollout creates a zero-global-permission derived role
+for each original source VIP role, copying its own channel grants independently.
+Reconciliation grants that derived role only after acceptance and while its
+specific source role remains present. Playbook source roles remain untouched.
