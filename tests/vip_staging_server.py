@@ -1,5 +1,10 @@
 """Isolated local browser fixture; never imported by production."""
 import os
+from time_machine import travel
+
+# Test server only: keep relative games on the same Chicago date at any CI hour.
+fixture_clock = travel("2026-10-13T17:00:00Z", tick=True)
+fixture_clock.start()
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 

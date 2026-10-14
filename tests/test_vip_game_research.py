@@ -221,3 +221,17 @@ def test_graphics_auth_and_unavailable_simulation(portal, monkeypatch):
     assert client.get('/v1/vip/graphic/NFL/g1?kind=cheatsheet&day=2000-01-01').status_code == 404
     assert client.get('/vip/jabbazi-approved.png').status_code == 200
     assert client.get('/v1/vip/performance-graphic').status_code == 503
+
+
+def test_daily_rankings_requires_membership_and_returns_scoped_contract(portal):
+    from test_member_portal import sign_in
+    store, client = portal
+    assert client.get('/v1/vip/rankings?sport=NFL').status_code == 401
+    sign_in(store, client)
+    response = client.get('/v1/vip/rankings?sport=NFL')
+    assert response.status_code == 200
+    body = response.json()
+    assert body['sport'] == 'NFL'
+    assert body['timezone'] == 'America/Chicago'
+    assert len(body['anytime_td']) <= 10
+    assert body['receiving_totals'] == []

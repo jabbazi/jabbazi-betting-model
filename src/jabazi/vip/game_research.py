@@ -174,6 +174,29 @@ def first_td_distribution(*, team_first_td_probabilities, scorer_shares, no_td_p
             "no_td_probability": no_td, "method": "supplied_conditional_first_touchdown_hazards"}
 
 
+def score_histograms(distribution):
+    """Compact probability histograms computed from the exact underlying measure."""
+    from collections import defaultdict
+    if hasattr(distribution, 'grid'):
+        pairs = distribution.grid.items()
+    else:
+        pairs = [(pair, 1 / len(distribution.samples)) for pair in distribution.samples]
+    masses = {'margin': defaultdict(float), 'total': defaultdict(float)}
+    for (home, away), probability in pairs:
+        masses['margin'][home-away] += probability
+        masses['total'][home+away] += probability
+    output = {}
+    for name, mass in masses.items():
+        lo, hi = min(mass), max(mass)
+        width = max(1, math.ceil((hi-lo+1)/20))
+        bins = defaultdict(float)
+        for value, probability in mass.items():
+            bins[int((value-lo)//width)] += probability
+        output[name] = [{'low': lo+i*width, 'high': min(hi, lo+(i+1)*width-1), 'probability': p}
+                        for i, p in sorted(bins.items())]
+    return output
+
+
 def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, total_line=None):
     """Reuse the canonical fitted score model and its strict identity/freshness gates.
 
@@ -194,10 +217,10 @@ def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, to
     model_sport = SPORTS[sport.lower()]
     artifacts = store.list_records("game_model", 1, entity=model_sport)
     if not artifacts:
-        return unavailable
+        return {**unavailable, "reason": "No fitted score-model artifact has been saved for this sport."}
     artifact = artifacts[0]["payload"]
     if artifact.get("status") in {"UNAVAILABLE", "QUARANTINED"}:
-        return {**unavailable, "state": artifact["status"]}
+        return {**unavailable, "state": artifact["status"], "reason": "The score model is " + artifact["status"] + "; its validation or inputs must be resolved before simulation."}
     try:
         if sport == "NHL":
             from ..models.nhl_goals import NHLGoalsModel
@@ -248,6 +271,9 @@ def simulate_current_event(store, *, sport, event_id, rows, spread_line=None, to
                 "model_snapshot_id": estimate.feature_snapshot["snapshot_id"],
                 "home": home, "away": away,
                 "summary": summary,
+                "histograms": score_histograms(distribution),
+                "input_observed_at": observed.isoformat(),
+                "scenario_basis": "Baseline model distribution evaluated at user-selected lines; no roster or scoring assumptions are changed.",
                 "home_win": distribution.outcome("h2h", home, None, home, away),
                 "away_win": distribution.outcome("h2h", away, None, home, away),
                 "spread": ({"home_line": spread_line, **distribution.outcome("spreads", home, spread_line, home, away)}

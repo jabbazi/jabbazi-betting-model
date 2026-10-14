@@ -231,12 +231,34 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
         raise HTTPException(404, 'No observed research for this matchup.')
     issued = {r['entity'] for r in ctx[0].list_records('official_pick_issued', 500) if r['payload'].get('message_id')}
     official = [r for r in data.official(ctx[0]) if r['id'] in issued and r['sport'] == sport.upper() and str(r['event_id']) == event_id]
+    from .rankings import research_hub
+    hub = research_hub(b['rows'], sport=sport.upper(), event_id=event_id,
+                       source_picks=ctx[0].list_records('source_pick', 200))
+    if not result['projection']['selection'] and hub['web_leans']:
+        result['projection'].update(selection=hub['web_leans'][0]['selection'], source='WEB-RESEARCH LEAN')
+    result['research_evidence'] = hub['web_leans']
+    result['research_conflicts'] = hub['conflicting_events']
     sheet = data.frozen(ctx[0])
     sheet_card = next((r for r in sheet['rows'] if r['sport'] == sport.upper() and str(r['event_id']) == event_id), None)
     return response({**result, 'snapshot_at': b.get('snapshot_at'), 'official': official,
                      'cheatsheet_available': sheet_card is not None,
                      'lineup_notice': 'Confirmed injury and lineup evidence is not supplied by this matchup summary. Check individual research provenance; missing evidence remains unavailable.',
                      'notice': 'Projections and market observations are research only. Do not treat these as issued bets.'})
+
+
+@router.get('/slate.png')
+def slate_graphic(ctx=Depends(context)):
+    from fastapi.responses import Response
+    from ..discord_daily import daily_moneyline, render_slate
+    from ..daily_scope import eligible_today, delivery_eligible
+    record = daily_moneyline(ctx[0])
+    if record is None:
+        raise HTTPException(404, 'Today’s daily slate has not been generated yet.')
+    rows = [r for r in record['payload'].get('rows', []) if eligible_today(r)]
+    if rows and not delivery_eligible(ctx[0], rows):
+        raise HTTPException(409, 'The game schedule changed. A fresh matching slate is required.')
+    record = {**record, 'payload': {**record['payload'], 'rows': rows, 'row_count': len(rows)}}
+    return Response(render_slate(record), media_type='image/png', headers=member_api.HEADERS)
 
 
 @router.get('/graphic/{sport}/{event_id}')
@@ -316,6 +338,15 @@ def firsttd(event_id: str, ctx=Depends(context)):
     return response({'event': result['event'], 'event_id': event_id,
                      **result['first_td'],
                      'notice': 'First touchdown is distinct from anytime touchdown. No unsupported rankings are displayed.'})
+
+
+@router.get('/rankings')
+def rankings(sport: str = Query('', max_length=12), event_id: str = Query('', max_length=160), ctx=Depends(context)):
+    from .rankings import research_hub
+    b = snapshot(ctx[0])
+    return response({**research_hub(b['rows'], sport=sport, event_id=event_id,
+                                   source_picks=ctx[0].list_records('source_pick', 200)),
+                     'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
 
 
 @router.get('/top10')

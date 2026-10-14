@@ -21,7 +21,7 @@ def main():
     guild = os.environ['JABBAZI_DISCORD_GUILD_ID']
     owner = os.environ['JABBAZI_DISCORD_OWNER_ID']
     store = Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
-    checks = {'verification_version': 7}
+    checks = {'verification_version': 8}
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + os.environ['JABBAZI_DISCORD_BOT_TOKEN']}, timeout=20) as discord:
             info = discord.get(f'/guilds/{guild}')
@@ -36,7 +36,7 @@ def main():
             checks['sign_in_http'] = signed.status_code
             if signed.status_code == 200:
                 try:
-                    for path in ('me', 'home', 'today', 'matchups', 'playoftheday', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'board?sport=NBA', 'board?sport=NHL', 'board?family=props', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'watchlist', 'performance', 'models', 'admin'):
+                    for path in ('me', 'home', 'today', 'matchups', 'playoftheday', 'board?sport=MLB', 'board?sport=NFL', 'board?sport=CFB', 'board?sport=NBA', 'board?sport=NHL', 'board?family=props', 'search?q=KC', 'sheets', 'top10?kind=hr', 'top10?kind=td', 'rankings?sport=NFL', 'rankings?sport=NBA', 'rankings?sport=NHL', 'rankings?sport=MLB', 'watchlist', 'performance', 'models', 'admin'):
                         started = time.monotonic()
                         try:
                             result = client.get('/v1/vip/' + path)
@@ -52,6 +52,14 @@ def main():
                                             checks[path]['props_only'] = all(str(row.get('market', '')).startswith(('player_', 'pitcher_', 'batter_')) for row in body['rows'])
                                         if not checks[path]['today_only']:
                                             checks[path]['scope_error'] = 'OUT_OF_DATE_EVENT'
+                                if path.startswith('rankings'):
+                                    from jabazi.vip.rankings import current
+                                    from datetime import UTC, datetime
+                                    now = datetime.now(UTC)
+                                    ranked = [r for key in ('moneyline_likely','moneyline_value','anytime_td','receiving_overs') for r in body.get(key, [])]
+                                    checks[path]['today_only'] = all(current(r, now) for r in ranked)
+                                    checks[path]['ranked_rows'] = len(ranked)
+                                    checks[path]['web_research_state'] = body.get('web_research_state')
                                 if path == 'admin':
                                     checks[path]['owner_health_available'] = bool(body.get('health', {}).get('api', {}).get('commit')) if body.get('health') else False
                                     checks[path]['health_queries_complete'] = body.get('health') is not None and not body['health'].get('query_failures')

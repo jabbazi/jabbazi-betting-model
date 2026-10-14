@@ -15,3 +15,5 @@
 .simulation-bar{display:flex;overflow:hidden;height:20px;border-radius:999px;background:#363036}
 .simulation-home{background:#FF0A8A;min-width:0}
 .simulation-away{background:#D9D9D9;min-width:0}
+
+.distribution-table{width:100%;border-collapse:collapse;margin-bottom:24px}.distribution-table th,.distribution-table td{padding:8px;text-align:left;border-bottom:1px solid #34343c}.distribution-table progress{width:100%;accent-color:#FF0A8A}.distribution-table caption{text-align:left;color:#aaa;padding:8px 0}

@@ -357,7 +357,7 @@ def worker(*, once=False):
                 if os.getenv("JABBAZI_DISCORD_COMMANDS_ENABLED", "false").lower() == "true":
                     try:
                         checked = store.list_records("vip_acceptance", 1, entity="terminal-v1")
-                        if os.getenv("JABBAZI_VIP_ACCEPTANCE_FORCE_ON_START", "false").lower() == "true" or not checked or checked[0]["payload"].get("status") != "VERIFIED" or checked[0]["payload"].get("verification_version", 0) < 7:
+                        if os.getenv("JABBAZI_VIP_ACCEPTANCE_FORCE_ON_START", "false").lower() == "true" or not checked or checked[0]["payload"].get("status") != "VERIFIED" or checked[0]["payload"].get("verification_version", 0) < 8:
                             check = subprocess.run([sys.executable, "tools/verify_vip_production.py"], capture_output=True, text=True, timeout=300)
                             for line in check.stdout.splitlines():
                                 if line.startswith("VIP_ACCEPTANCE_VERIFICATION "):
