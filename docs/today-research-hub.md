@@ -47,3 +47,18 @@ scope and logout using the verified owner account. It does not constitute an
 ordinary-member walkthrough or model validation. Full predictive evaluation,
 actual Discord attachments, production restore testing, and automated source
 collection require separate verification.
+
+## 11 PM browsing rollover
+
+The VIP app now defaults to the next calendar day at 23:00 America/Chicago.
+Its date selector permits returning to the current day or choosing tomorrow.
+GET requests carry `slate_date`; requests without a date use the same server-side
+23:00 rule. Prices still age against actual time, never a shifted clock. Snapshot
+reconciliation still rejects moved, canceled, completed, or mismatched events.
+The app checks the rollover within its existing 30-second session poll and labels
+next-day previews. Midnight refreshes the current-day recap without skipping a slate.
+
+This is a browsing policy, not an alert policy. Worker and Discord delivery guards
+still default to the actual Central calendar day. Missing next-day provider inputs
+remain unavailable; no synthetic research is created. The frozen morning graphic
+may not exist for a next-day preview; it must not return the prior day's image.

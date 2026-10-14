@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .. import member_api
+from ..daily_scope import CENTRAL
 from ..persistence.store import digest
 from . import data
 from .state import change_watch, check_watches, owner_key, read_state
@@ -15,10 +16,13 @@ from .state import change_watch, check_watches, owner_key, read_state
 router = APIRouter(prefix='/v1/vip')
 
 
-def context(request: Request):
+def context(request: Request, slate_date: date | None = Query(None)):
+    from .slate_clock import default_slate_date
     store = member_api.store_for_request()
     try:
         principal = member_api.require_member(request, store)
+        if request.method in {'GET', 'HEAD'}:
+            store.vip_slate_date = slate_date or default_slate_date()
         if request.method not in {'GET', 'HEAD'}:
             member_api.same_origin(request)
         yield store, principal
@@ -31,7 +35,8 @@ def response(value):
 
 
 def snapshot(store):
-    b = data.board(store)
+    b = data.board(store, slate_date=getattr(store, 'vip_slate_date', None))
+    b['date'] = str(getattr(store, 'vip_slate_date', datetime.now(UTC).date()))
     controls = data.flags(store)
     for r in b['rows']:
         if controls.get('pause_all') or controls.get('pause_' + r['sport'].lower()):
@@ -117,7 +122,7 @@ def picks(ctx=Depends(context)):
 @router.get('/playoftheday')
 def play_of_the_day(ctx=Depends(context)):
     from zoneinfo import ZoneInfo
-    today = datetime.now(UTC).astimezone(ZoneInfo('America/Chicago')).date().isoformat()
+    today = getattr(ctx[0], 'vip_slate_date', datetime.now(UTC).astimezone(ZoneInfo('America/Chicago')).date()).isoformat()
     issued = ctx[0].list_records('play_of_day', 1, entity=today)
     if not issued:
         return response({'date': today, 'state': 'PASS', 'play': None,
@@ -233,7 +238,7 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
     official = [r for r in data.official(ctx[0]) if r['id'] in issued and r['sport'] == sport.upper() and str(r['event_id']) == event_id]
     from .rankings import research_hub
     hub = research_hub(b['rows'], sport=sport.upper(), event_id=event_id,
-                       source_picks=ctx[0].list_records('source_pick', 200))
+                       slate_date=getattr(ctx[0], 'vip_slate_date', None), source_picks=ctx[0].list_records('source_pick', 200))
     if not result['projection']['selection'] and hub['web_leans']:
         result['projection'].update(selection=hub['web_leans'][0]['selection'], source='WEB-RESEARCH LEAN')
         from .game_research import projection_reason
@@ -253,6 +258,8 @@ def slate_graphic(ctx=Depends(context)):
     from fastapi.responses import Response
     from ..discord_daily import daily_moneyline, render_slate
     from ..daily_scope import eligible_today, delivery_eligible
+    if getattr(ctx[0], 'vip_slate_date', None) != datetime.now(CENTRAL).date():
+        raise HTTPException(404, 'The selected date’s complete slate graphic is not available yet. Research previews remain available.')
     record = daily_moneyline(ctx[0])
     if record is None:
         raise HTTPException(404, 'Today’s daily slate has not been generated yet.')
@@ -347,7 +354,7 @@ def rankings(sport: str = Query('', max_length=12), event_id: str = Query('', ma
     from .rankings import research_hub
     b = snapshot(ctx[0])
     return response({**research_hub(b['rows'], sport=sport, event_id=event_id,
-                                   source_picks=ctx[0].list_records('source_pick', 200)),
+                                   slate_date=getattr(ctx[0], 'vip_slate_date', None), source_picks=ctx[0].list_records('source_pick', 200)),
                      'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
 
 

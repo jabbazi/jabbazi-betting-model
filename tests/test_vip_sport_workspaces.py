@@ -42,11 +42,11 @@ def test_terminal_includes_evidence_grounded_ask_jabbazi():
     assert "ask?" in js
 
 
-def test_session_poll_only_rerenders_at_chicago_date_rollover():
+def test_session_poll_only_rerenders_at_slate_or_calendar_rollover():
     js = (STATIC / "terminal.js").read_text()
     poll = js.split("setInterval(()=>", 1)[1].split("},30000);", 1)[0]
     assert "get('me')" in poll
-    assert "if(renderedDate!==chicagoDate()){++serial;$('content').replaceChildren();render();}" in poll
+    assert "if(renderedDate!==slateKey()){++serial;$('content').replaceChildren();render();}" in poll
     assert poll.count('render()') == 1
 
 

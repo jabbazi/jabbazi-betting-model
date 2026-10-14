@@ -21,7 +21,7 @@ def main():
     guild = os.environ['JABBAZI_DISCORD_GUILD_ID']
     owner = os.environ['JABBAZI_DISCORD_OWNER_ID']
     store = Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
-    checks = {'verification_version': 8}
+    checks = {'verification_version': 9}
     try:
         with httpx.Client(base_url='https://discord.com/api/v10', headers={'Authorization': 'Bot ' + os.environ['JABBAZI_DISCORD_BOT_TOKEN']}, timeout=20) as discord:
             info = discord.get(f'/guilds/{guild}')
@@ -47,17 +47,19 @@ def main():
                                     checks[path]['rows'] = len(body['rows'])
                                     if path.startswith('board'):
                                         from jabazi.daily_scope import eligible_today
-                                        checks[path]['today_only'] = all(eligible_today(row) for row in body['rows'])
+                                        from datetime import date
+                                        checks[path]['slate_date'] = body.get('date')
+                                        checks[path]['today_only'] = all(eligible_today(row, slate_date=date.fromisoformat(body['date'])) for row in body['rows'])
                                         if path == 'board?family=props':
                                             checks[path]['props_only'] = all(str(row.get('market', '')).startswith(('player_', 'pitcher_', 'batter_')) for row in body['rows'])
                                         if not checks[path]['today_only']:
                                             checks[path]['scope_error'] = 'OUT_OF_DATE_EVENT'
                                 if path.startswith('rankings'):
                                     from jabazi.vip.rankings import current
-                                    from datetime import UTC, datetime
+                                    from datetime import UTC, date, datetime
                                     now = datetime.now(UTC)
                                     ranked = [r for key in ('moneyline_likely','moneyline_value','anytime_td','receiving_overs') for r in body.get(key, [])]
-                                    checks[path]['today_only'] = all(current(r, now) for r in ranked)
+                                    checks[path]['today_only'] = all(current(r, now, date.fromisoformat(body['date'])) for r in ranked)
                                     checks[path]['ranked_rows'] = len(ranked)
                                     checks[path]['web_research_state'] = body.get('web_research_state')
                                 if path == 'admin':

@@ -255,3 +255,25 @@ def test_reviewed_pick_explanation_remains_qualitative():
     explanation = projection_reason({'selection':'Home'}, evidence={'source':'Reviewed publisher', 'retrieved_at':'2026-10-13T17:00:00Z'})
     assert explanation['reason'] == 'Reviewed publisher supports Home in the current reviewed research.'
     assert 'probability and betting edge are unavailable' in explanation['caution']
+
+
+def test_api_11pm_default_and_explicit_current_day(portal):
+    import time_machine
+    from test_member_portal import sign_in
+    store, client = portal
+    with time_machine.travel('2026-10-14T04:10:00Z', tick=False):
+        sign_in(store, client)
+        rows = [{'sport':'baseball_mlb', 'event_id':event, 'event':'Away @ Home',
+                 'market':'h2h','selection':'Home','starts_at_utc':start,
+                 'price_time_utc':'2026-10-14T04:10:00Z','decimal_odds':2,
+                 'market_no_vig_probability':.6,'executable':True}
+                for event,start in [('tonight','2026-10-14T04:45:00Z'),('tomorrow','2026-10-14T20:00:00Z')]]
+        store.append('research_sheet','latest_scan',{'healthy':True,'completed_at':'2026-10-14T04:10:00Z','rows':rows,'slate_events':rows})
+        automatic = client.get('/v1/vip/board?sport=MLB').json()
+        assert automatic['date'] == '2026-10-14'
+        assert [r['event_id'] for r in automatic['rows']] == ['tomorrow']
+        current = client.get('/v1/vip/board?sport=MLB&slate_date=2026-10-13').json()
+        assert [r['event_id'] for r in current['rows']] == ['tonight']
+        rankings = client.get('/v1/vip/rankings?sport=MLB').json()
+        assert [r['event_id'] for r in rankings['moneyline_likely']] == ['tomorrow']
+        assert client.get('/v1/vip/board?slate_date=invalid').status_code == 422

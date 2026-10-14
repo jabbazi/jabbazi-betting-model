@@ -8,10 +8,10 @@ from ..discord_daily import sport_label
 from .game_research import _usable_model, _valid_probability
 
 
-def current(row, now):
+def current(row, now, slate_date=None):
     start = timestamp(row.get('starts_at'))
     return bool(start and start > now and start.astimezone(ZoneInfo('America/Chicago')).date()
-                == now.astimezone(ZoneInfo('America/Chicago')).date()
+                == (slate_date or now.astimezone(ZoneInfo('America/Chicago')).date())
                 and row.get('lifecycle') == 'UPCOMING'
                 and row.get('status') not in {'INVALIDATED', 'QUARANTINED', 'SAFETY REVIEW'})
 
@@ -46,10 +46,10 @@ def ranked(rows, *, event_only=False, value=False):
     return result[:10]
 
 
-def research_hub(rows, *, sport='', event_id='', now=None, source_picks=()):
+def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slate_date=None):
     now = now or datetime.now(UTC)
-    today = now.astimezone(ZoneInfo('America/Chicago')).date().isoformat()
-    scoped = [r for r in rows if current(r, now) and (not sport or r['sport'] == sport.upper())
+    today = (slate_date or now.astimezone(ZoneInfo('America/Chicago')).date()).isoformat()
+    scoped = [r for r in rows if current(r, now, slate_date) and (not sport or r['sport'] == sport.upper())
               and (not event_id or str(r['event_id']) == event_id)]
     fresh = [r for r in scoped if r.get('fresh') and age_ok(r.get('price_at'), now, 300)]
     candidates = [c for r in fresh if (c := candidate(r)) is not None]
@@ -110,4 +110,4 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=()):
             'web_leans': evidence[:10], 'conflicting_events': conflicts,
             'web_research_state': 'REVIEWED_EVIDENCE' if evidence else 'UNAVAILABLE',
             'web_research_notice': 'Uses timestamped, independently reviewed source records. Automated web search is not configured; no background browsing is implied.',
-            'notice': 'Today only. Up to ten supported entries per list. Probability bases may differ; read each source label. Value requires a production-approved model and a fresh exact price. No list automatically issues a wager.'}
+            'notice': 'Selected slate only. Up to ten supported entries per list. Probability bases may differ; read each source label. Value requires a production-approved model and a fresh exact price. No list automatically issues a wager.'}

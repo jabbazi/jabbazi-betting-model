@@ -52,10 +52,10 @@ def allowed_market(r):
     return True
 
 
-def project(r, record, now, historical=False):
-    if not historical and not eligible_today(r, now=now):
+def project(r, record, now, historical=False, slate_date=None):
+    if not historical and not eligible_today(r, now=now, slate_date=slate_date):
         return None
-    if not historical and 'slate_events' in record['payload'] and not reconciled_event(r, record['payload']['slate_events'], now=now):
+    if not historical and 'slate_events' in record['payload'] and not reconciled_event(r, record['payload']['slate_events'], now=now, slate_date=slate_date):
         return None
     if not allowed_market(r):
         return None
@@ -109,13 +109,13 @@ def project(r, record, now, historical=False):
             'other_prices': sorted(books, key=lambda b: -b['decimal'])}
 
 
-def board(store, *, now=None, record=None, historical=False):
+def board(store, *, now=None, record=None, historical=False, slate_date=None):
     now = now or datetime.now(UTC)
     rows = store.list_records('research_sheet', 1, entity='latest_scan') if record is None else [record]
     if not rows:
         return {'state': 'UNAVAILABLE', 'rows': [], 'snapshot_id': None, 'snapshot_at': None, 'reason': 'No research snapshot has been recorded yet.'}
     record = rows[0]
-    output = [project(r, record, now, historical) for r in record['payload'].get('rows', [])[:10000]]
+    output = [project(r, record, now, historical, slate_date) for r in record['payload'].get('rows', [])[:10000]]
     controls = flags(store)
     for r in output:
         if r and (controls.get('pause_all') or controls.get('pause_' + r['sport'].lower())):
@@ -125,7 +125,7 @@ def board(store, *, now=None, record=None, historical=False):
             'partial': bool(record['payload'].get('truncated')), 'server_time': now.isoformat(),
             'reason': ('The latest scan is unhealthy; coverage may be incomplete.' if not record['payload'].get('healthy') else
                        'The research snapshot is stale; waiting for a successful refresh.' if not age_ok(record['payload'].get('completed_at'), now, 10800) else
-                       'No eligible upcoming research rows remain today.' if not any(output) else None)}
+                       'No eligible upcoming research rows are available for the selected date.' if not any(output) else None)}
 
 
 def preference(store, principal):
@@ -163,11 +163,12 @@ def official(store, now=None):
         if item:
             item.update(id=row['id'], status='BET NOW', approved_for_betting=True, why=str(p.get('reason') or 'Cleared shared cash-authority gates.')[:500])
             output.append(item)
-    return output
+    selected = getattr(store, 'vip_slate_date', None)
+    return [r for r in output if selected is None or timestamp(r.get('starts_at')).astimezone(ZoneInfo('America/Chicago')).date() == selected]
 
 
 def frozen(store, date=None):
-    date = date or datetime.now(UTC).astimezone(ZoneInfo('America/Chicago')).date().isoformat()
+    date = date or (getattr(store, 'vip_slate_date', None).isoformat() if getattr(store, 'vip_slate_date', None) else None) or datetime.now(UTC).astimezone(ZoneInfo('America/Chicago')).date().isoformat()
     records = store.list_records('daily_moneyline_sheet', 1, entity=date)
     if not records:
         return {'state': 'UNAVAILABLE', 'date': date, 'rows': [], 'notice': 'The healthy 9 AM CT moneyline sheet has not been published for this date.'}
