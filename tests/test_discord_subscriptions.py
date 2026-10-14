@@ -10,7 +10,8 @@ import pytest
 from jabazi.discord_bot import BotConfig, member_has_vip
 from jabazi.discord_rules import CONFIG_KEY, configuration, reconcile_member
 from jabazi.discord_subscriptions import (WHOP_ALLOWED_PERMISSIONS, WHOP_BOT_ID,
-    WHOP_SOURCE_NAME, install_whop_source, paid_source_roles, subscription_sources)
+    WHOP_SOURCE_NAME, WhopSetupError, install_whop_source, paid_source_roles,
+    role_below, subscription_sources)
 from jabazi.persistence.store import Store
 
 
@@ -90,6 +91,37 @@ def test_unsafe_roles_never_activate_a_subscription_mapping(setup, defect):
 def test_disabled_setup_has_no_side_effects(setup, monkeypatch):
     monkeypatch.delenv('JABBAZI_WHOP_SETUP_ENABLED')
     assert install_whop_source(setup.store) == {'status':'DISABLED'}
+    assert setup.writes == []
+
+
+def test_equal_positions_follow_discord_id_tiebreak_and_preserve_scope(setup):
+    # Discord can insert a new role without incrementing the bot's position.
+    setup.roles.append({'id':'20','name':WHOP_SOURCE_NAME,'permissions':'0','position':1})
+    assert install_whop_source(setup.store)['source_role'] == '20'
+    assert setup.writes == []
+
+
+@pytest.mark.parametrize('role_id,expected', [('7',False),('9',False),('20',True)])
+def test_same_position_role_order(role_id, expected):
+    assert role_below({'id':role_id,'position':1}, {'id':'9','position':1}, '1') is expected
+    assert role_below({'id':'1','position':0}, {'id':role_id,'position':0}, '1')
+    assert not role_below({'id':role_id,'position':0}, {'id':'1','position':0}, '1')
+
+
+@pytest.mark.parametrize('defect,code', [
+    ('source_above','SOURCE_NOT_BELOW_WHOP'),
+    ('unrelated_below','UNRELATED_ROLE_BELOW_WHOP'),
+])
+def test_tied_positions_still_reject_unsafe_hierarchy(setup, defect, code):
+    setup.roles.append({'id':'20','name':WHOP_SOURCE_NAME,'permissions':'0','position':1})
+    if defect == 'source_above':
+        setup.roles[-1]['id'] = '7'
+    else:
+        setup.roles.append({'id':'21','name':'unrelated','permissions':'0','position':1})
+    with pytest.raises(WhopSetupError) as error:
+        install_whop_source(setup.store)
+    assert error.value.safe_code == code
+    assert configuration(setup.store) == setup.gate
     assert setup.writes == []
 
 
