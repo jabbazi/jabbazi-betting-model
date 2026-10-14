@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "provider": "Retrosheet",
+  "seasons": [2021, 2022, 2023, 2024, 2025],
+  "purpose": "Bounded historical pitching staging; no pregame timestamp or production model claims",
+  "source": "https://www.retrosheet.org/downloads/csvdownloads.html"
+}

@@ -1,0 +1,488 @@
+"""Date-scoped JABBAZI daily game winner sheets.
+
+The scheduled sheet is intentionally different from the Main Card:
+- one verified pregame event on the requested Central-time date = one game card;
+- every card has a researched projected winner when sufficient evidence exists;
+- a projected winner is never promoted into an official wager by this module.
+"""
+from __future__ import annotations
+
+import io
+import math
+import os
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
+from .persistence.store import digest
+
+MONEYLINE_MARKET = "h2h"
+FORMAT_VERSION = 4
+DEFAULT_DAILY_SPORTS = ("NFL", "CFB", "NBA", "WNBA", "MLB", "NHL")
+VALID_STATUSES = {"BET NOW", "WATCH", "PASS", "PRICE CHECK", "UNAVAILABLE", "QUARANTINED"}
+HOT_PINK = "#FF0A8A"
+NEON_PINK = "#FF1493"
+MAGENTA = "#D90068"
+BLACK = "#090909"
+CHARCOAL = "#121212"
+GRAPHITE = "#1A1A1F"
+SILVER = "#D9D9D9"
+WHITE = "#FFFFFF"
+
+
+def sport_label(sport):
+    from .catalog import SPORTS
+    for label, patterns in SPORTS.items():
+        if any(
+            sport == pattern
+            or (pattern.endswith("*") and sport.startswith(pattern[:-1]))
+            for pattern in patterns
+        ):
+            return "CFB" if label == "NCAAF" else label
+    return None
+
+
+def configured_daily_sports():
+    raw = os.getenv("JABBAZI_DAILY_SPORTS", ",".join(DEFAULT_DAILY_SPORTS))
+    allowed = tuple(dict.fromkeys(x.strip().upper() for x in raw.split(",") if x.strip()))
+    return allowed or DEFAULT_DAILY_SPORTS
+
+
+def _aware(value):
+    if not value:
+        return None
+    try:
+        result = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return result if result.tzinfo is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _number(value):
+    try:
+        value = float(value)
+        return value if math.isfinite(value) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _on_local_date(value, date, timezone):
+    stamp = _aware(value)
+    return bool(stamp and stamp.astimezone(ZoneInfo(timezone)).date().isoformat() == date)
+
+
+def _normalize_status(value, row, *, projection_source):
+    status = str(value or "WATCH").replace("_", " ").upper()
+    if status not in VALID_STATUSES:
+        status = "WATCH"
+    if row.get("price_stale") or row.get("executable") is not True:
+        return "PRICE CHECK" if status != "QUARANTINED" else status
+    if status == "BET NOW" and (
+        projection_source != "MODEL"
+        or row.get("model_can_influence_cash") is not True
+    ):
+        return "WATCH"
+    return status
+
+
+def _confidence(probability, *, source, agreement=True):
+    p = probability if probability is not None else 0.5
+    if source == "MODEL":
+        if p >= 0.62 and agreement:
+            return "A — Strong Projection"
+        if p >= 0.57:
+            return "B — Solid Lean"
+        if p >= 0.53:
+            return "C — Slight Lean"
+        return "D — Near Coin Flip"
+    if p >= 0.62:
+        return "B — Solid Lean"
+    if p >= 0.55:
+        return "C — Slight Lean"
+    return "D — Near Coin Flip"
+
+
+def _best_market_row(rows):
+    candidates = [
+        row for row in rows
+        if row.get("executable") is True
+        and not row.get("price_stale")
+        and (_number(row.get("market_no_vig_probability")) or 0) > 0
+    ]
+    return max(
+        candidates,
+        key=lambda row: (
+            _number(row.get("market_no_vig_probability")) or 0,
+            int(row.get("book_count") or 0),
+            _number(row.get("decimal_odds")) or 0,
+        ),
+        default=None,
+    )
+
+
+def _best_model_row(rows):
+    candidates = [
+        row for row in rows
+        if row.get("model_version")
+        and row.get("data_health") == "HEALTHY"
+        and row.get("model_stage") in {"SHADOW_ONLY", "LIMITED_LIVE", "PRODUCTION_APPROVED"}
+        and row.get("status") != "QUARANTINED"
+        and row.get("anomaly_state") != "QUARANTINED"
+        and 0 < (_number(row.get("model_probability")) or 0) < 1
+    ]
+    return max(
+        candidates,
+        key=lambda row: (
+            _number(row.get("model_probability")) or 0,
+            -(_number(row.get("uncertainty")) or 0),
+            int(row.get("book_count") or 0),
+        ),
+        default=None,
+    )
+
+
+def _projection(event, rows):
+    model = _best_model_row(rows)
+    market = _best_market_row(rows)
+    if model is not None and (_number(model.get("model_probability")) or 0) >= 0.5:
+        chosen, source = model, "MODEL"
+        probability = _number(model.get("model_probability"))
+    elif market is not None and (_number(market.get("market_no_vig_probability")) or 0) >= 0.5:
+        chosen, source = market, "MARKET CONSENSUS"
+        probability = _number(market.get("market_no_vig_probability"))
+    else:
+        chosen = source = probability = None
+
+    if chosen is None:
+        return {
+            **event,
+            "projected_winner": "UNAVAILABLE — insufficient verified data",
+            "projection_source": "UNAVAILABLE",
+            "confidence": "—",
+            "model_probability": None,
+            "model_version": None,
+            "market_no_vig_probability": None,
+            "book": None,
+            "decimal_odds": None,
+            "status": "PASS",
+            "why": ["No fresh comparable moneyline evidence was available."],
+            "risk": ["No winner was guessed or fabricated."],
+            "data_health": "UNAVAILABLE",
+        }
+
+    market_favorite = market.get("selection") if market else None
+    agreement = market_favorite in {None, chosen.get("selection")}
+    chosen_market = _number(chosen.get("market_no_vig_probability"))
+    why = []
+    if source == "MODEL":
+        why.append("Independent JABBAZI model favors this side.")
+        if market and agreement:
+            why.append("Model and no-vig market favorite agree.")
+        elif market and not agreement:
+            why.append("Model disagrees with the current market favorite.")
+    else:
+        why.append("Independent production model probability is unavailable.")
+        why.append("Projected winner follows current no-vig market consensus.")
+    reason = str(chosen.get("reason") or "").strip()
+    if reason and reason.lower() not in {"market only", "test"}:
+        why.append(reason[:180])
+
+    risk = []
+    uncertainty = _number(chosen.get("uncertainty"))
+    if source != "MODEL":
+        risk.append("Market-based projection; no independent model probability.")
+    if not agreement:
+        risk.append("Model/market disagreement increases uncertainty.")
+    if probability is not None and probability < 0.55:
+        risk.append("Small separation from a coin flip.")
+    if uncertainty is not None and uncertainty >= 0.10:
+        risk.append("Model uncertainty is elevated.")
+    if not risk:
+        risk.append("Single-game variance remains material.")
+
+    return {
+        **event,
+        "projected_winner": str(chosen.get("selection") or "UNAVAILABLE"),
+        "projection_source": source,
+        "confidence": _confidence(probability, source=source, agreement=agreement),
+        "model_probability": _number(chosen.get("model_probability")) if source == "MODEL" else None,
+        "model_version": chosen.get("model_version") if source == "MODEL" else None,
+        "model_stage": chosen.get("model_stage", "UNAVAILABLE") if source == "MODEL" else "UNAVAILABLE",
+        "market_no_vig_probability": chosen_market,
+        "book": chosen.get("book"),
+        "decimal_odds": _number(chosen.get("decimal_odds")),
+        "status": _normalize_status(chosen.get("status"), chosen, projection_source=source),
+        "why": why[:5],
+        "risk": risk[:5],
+        "data_health": chosen.get("data_health", "UNKNOWN"),
+        "price_time_utc": chosen.get("price_time_utc"),
+        "edge": _number(chosen.get("edge")),
+    }
+
+
+def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America/Chicago"):
+    now = now or datetime.now(UTC)
+    if now.tzinfo is None:
+        raise ValueError("Aware freeze time required")
+    local = now.astimezone(ZoneInfo(timezone))
+    date = local.date().isoformat()
+    existing = store.list_records("daily_moneyline_sheet", 10, entity=date)
+    current = next((row for row in existing if row.get("payload", {}).get("format_version") == FORMAT_VERSION), None)
+    if current:
+        return current["id"], False
+
+    payload = research_sheet["payload"]
+    if not payload.get("healthy") or payload.get("truncated"):
+        raise ValueError("Cannot freeze an unhealthy research sheet")
+    completed = _aware(payload.get("completed_at"))
+    if completed is None or not 0 <= (now - completed).total_seconds() <= 900:
+        raise ValueError("A fresh dedicated scan is required for the daily freeze")
+
+    allowed = set(configured_daily_sports())
+    from .daily_scope import eligible_today
+    events = {}
+    for event in payload.get("slate_events", []):
+        label = sport_label(event.get("sport"))
+        if label not in allowed or not _on_local_date(event.get("starts_at_utc"), date, timezone) or not eligible_today(event, now=now):
+            continue
+        start = _aware(event.get("starts_at_utc"))
+        if start is None or start <= now:
+            continue
+        key = (event.get("sport"), str(event.get("event_id") or ""))
+        if not key[1]:
+            continue
+        events[key] = {
+            "sport": event.get("sport"),
+            "sport_label": label,
+            "event_id": key[1],
+            "event": event.get("event") or key[1],
+            "starts_at_utc": event.get("starts_at_utc"),
+            "event_status": event.get("event_status", "scheduled"),
+        }
+
+    rows_by_event = {key: [] for key in events}
+    for row in payload.get("rows", []):
+        if row.get("market") != MONEYLINE_MARKET:
+            continue
+        key = (row.get("sport"), str(row.get("event_id") or ""))
+        if key not in events or not _on_local_date(row.get("starts_at_utc"), date, timezone):
+            continue
+        rows_by_event[key].append({
+            **row,
+            "model_probability": row.get("research_probability"),
+            "edge": row.get("probability_edge"),
+        })
+
+    cards = [_projection(events[key], rows_by_event.get(key, [])) for key in sorted(
+        events,
+        key=lambda k: (_aware(events[k]["starts_at_utc"]) or now, events[k]["sport_label"], events[k]["event"]),
+    )]
+
+    if len(cards) != len(events):
+        raise RuntimeError("Daily slate count verification failed")
+    if any(not _on_local_date(card.get("starts_at_utc"), date, timezone) for card in cards):
+        raise RuntimeError("Out-of-date game leaked into daily sheet")
+
+    frozen = {
+        "format_version": FORMAT_VERSION,
+        "date": date,
+        "timezone": timezone,
+        "generated_at": now.isoformat(),
+        "source_research_sheet_id": research_sheet["id"],
+        "source_scan_completed_at": payload.get("completed_at"),
+        "data_freshness": "snapshot",
+        "sports": sorted(allowed),
+        "notice": "Projected winner is research, not automatically an official JABBAZI wager.",
+        "rows": cards,
+        "row_count": len(cards),
+        "eligible_game_count": len(events),
+        "verified_count_match": len(cards) == len(events),
+    }
+    key = digest(["daily_moneyline_sheet", date, FORMAT_VERSION, frozen])
+    if not store.append("daily_moneyline_sheet", date, frozen, key):
+        return key, False
+    return key, True
+
+
+def daily_moneyline(store, *, now=None, timezone="America/Chicago"):
+    now = now or datetime.now(UTC)
+    date = now.astimezone(ZoneInfo(timezone)).date().isoformat()
+    rows = store.list_records("daily_moneyline_sheet", 20, entity=date)
+    return next((row for row in rows if row.get("payload", {}).get("format_version") == FORMAT_VERSION), None)
+
+
+def _odds(value):
+    if value is None:
+        return "—"
+    return f"{(value - 1) * 100:+.0f}" if value >= 2 else f"{-100 / (value - 1):+.0f}"
+
+
+def _pct(value):
+    return "Unavailable" if value is None else f"{value:.1%}"
+
+
+def render_text(record):
+    if record is None:
+        return "Today's JABBAZI game cheat sheets are not available yet."
+    p = record["payload"]
+    count = len(p.get("rows", []))
+    return "\n".join([
+        "**JABBAZI — DAILY WINNER BOARD**",
+        f"**{p['date']} • America/Chicago**",
+        f"{count} eligible games • one complete slate sheet",
+        "Projected winners and evidence sources are listed on the attached sheet.",
+        "Market-consensus leans are labeled when an independent model is unavailable.",
+        "Research only. Projected winner does not mean an official wager.",
+    ])
+
+
+def _font(size, bold=False):
+    from PIL import ImageFont
+    name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+    try:
+        return ImageFont.truetype(name, size)
+    except OSError:
+        return ImageFont.load_default(size=size)
+
+
+def _wrapped(draw, text, face, width):
+    words = str(text or "").split()
+    lines, current = [], ""
+    for word in words:
+        trial = (current + " " + word).strip()
+        if draw.textlength(trial, font=face) <= width:
+            current = trial
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines or ["—"]
+
+
+def render_game_card(record, row):
+    """Editorial game card: original logo, flat surfaces, real frozen evidence."""
+    from PIL import Image, ImageDraw, ImageOps
+    from .vip.graphics import approved_logo_path, text_fit
+
+    p = record["payload"]
+    image = Image.new("RGB", (1200, 900), BLACK)
+    draw = ImageDraw.Draw(image)
+    muted = "#A8A8B3"
+    rule = "#34343C"
+    with Image.open(approved_logo_path()) as original:
+        logo = ImageOps.contain(original.convert("RGBA"), (140, 140), Image.Resampling.LANCZOS)
+    image.paste(logo, (48, 28), logo)
+    draw.text((218, 48), "DAILY CHEAT SHEET", font=_font(32, True), fill=WHITE)
+    draw.text((218, 96), str(p["date"]) + "  /  AMERICA/CHICAGO", font=_font(20), fill=muted)
+    draw.rectangle((48, 190, 112, 194), fill=HOT_PINK)
+    draw.line((128, 192, 1152, 192), fill=rule, width=1)
+
+    start = _aware(row.get("starts_at_utc"))
+    time_text = start.astimezone(ZoneInfo(p["timezone"])).strftime("%b %d / %I:%M %p CT") if start else "Time unavailable"
+    text_fit(draw, (48, 214), f"{row['sport_label']}  /  {time_text}", max_width=1104, size=21, fill=muted)
+    text_fit(draw, (48, 255), row.get("event") or row.get("event_id"), max_width=1104, size=40, bold=True)
+
+    draw.rectangle((48, 328, 1152, 456), fill=GRAPHITE)
+    draw.rectangle((48, 328, 52, 456), fill=HOT_PINK)
+    draw.text((76, 348), "PROJECTED WINNER", font=_font(18, True), fill=muted)
+    text_fit(draw, (76, 380), row.get("projected_winner") or "UNAVAILABLE", max_width=1036, size=38, bold=True)
+
+    draw.text((48, 480), "CONFIDENCE", font=_font(17, True), fill=muted)
+    text_fit(draw, (48, 508), row.get("confidence") or "Unavailable", max_width=510, size=27, bold=True)
+    draw.text((626, 480), "RESEARCH STATUS", font=_font(17, True), fill=muted)
+    text_fit(draw, (626, 508), row.get("status") or "PASS", max_width=526, size=27, bold=True)
+    draw.line((48, 553, 1152, 553), fill=rule, width=1)
+    draw.line((590, 580, 590, 806), fill=rule, width=1)
+
+    price = (str(row.get("book")) + " " + _odds(row.get("decimal_odds"))) if row.get("book") else "Unavailable"
+    facts = [
+        ("MODEL", _pct(row.get("model_probability"))),
+        ("MARKET NO-VIG", _pct(row.get("market_no_vig_probability"))),
+        ("OBSERVED PRICE", price),
+        ("SOURCE", row.get("projection_source") or "Unavailable"),
+        ("MODEL STATUS", row.get("model_stage") or "UNAVAILABLE"),
+    ]
+    for index, (label, value) in enumerate(facts):
+        y = 581 + index * 44
+        draw.text((48, y), label, font=_font(16, True), fill=muted)
+        text_fit(draw, (242, y-2), value, max_width=324, size=21, fill=WHITE)
+
+    def notes(label, items, top, max_lines):
+        draw.text((626, top), label, font=_font(17, True), fill=HOT_PINK)
+        face = _font(20)
+        lines = _wrapped(draw, " • ".join(str(item) for item in items) or "Unavailable", face, 520)
+        visible = lines[:max_lines]
+        if len(lines) > max_lines:
+            visible[-1] = visible[-1].rstrip(" .") + "…"
+        for index, line in enumerate(visible):
+            text_fit(draw, (626, top+29+index*27), line, max_width=520, size=20)
+
+    notes("RESEARCH NOTES", row.get("why") or [], 581, 3)
+    notes("KEY RISK", row.get("risk") or [], 706, 2)
+    draw.line((48, 823, 1152, 823), fill=rule, width=1)
+    draw.text((48, 843), "RESEARCH ONLY / NOT AN OFFICIAL WAGER", font=_font(18, True), fill=WHITE)
+    generated = _aware(p.get("generated_at"))
+    stamp = generated.astimezone(ZoneInfo("America/Chicago")).strftime("%b %d, %I:%M %p CT") if generated else "Unavailable"
+    text_fit(draw, (48, 874), "Snapshot: " + stamp + "  /  Prices may have changed.", max_width=1104, size=15, fill=muted)
+    output = io.BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    return output.getvalue()
+
+
+def render_slate(record):
+    """One scrolling PNG containing every eligible row, with no silent truncation."""
+    from PIL import Image, ImageDraw, ImageOps
+    from .vip.graphics import approved_logo_path, text_fit
+
+    p = record["payload"]
+    rows = p.get("rows", [])
+    if len(rows) != int(p.get("row_count", len(rows))):
+        raise ValueError("Slate row count mismatch")
+    row_height = 142
+    height = 340 + max(1, len(rows)) * row_height
+    image = Image.new("RGB", (1200, height), BLACK)
+    draw = ImageDraw.Draw(image)
+    muted, rule = "#A8A8B3", "#34343C"
+    with Image.open(approved_logo_path()) as original:
+        logo = ImageOps.contain(original.convert("RGBA"), (132, 132), Image.Resampling.LANCZOS)
+    image.paste(logo, (40, 24), logo)
+    draw.text((202, 40), "DAILY WINNER BOARD", font=_font(36, True), fill=WHITE)
+    draw.text((202, 94), f"{p['date']} / {len(rows)} GAMES / AMERICA/CHICAGO", font=_font(21), fill=muted)
+    draw.rectangle((40, 183, 106, 187), fill=HOT_PINK)
+    draw.line((122, 185, 1160, 185), fill=rule, width=1)
+    draw.text((40, 211), "GAME / START TIME", font=_font(18, True), fill=muted)
+    draw.text((662, 211), "PROJECTED WINNER / EVIDENCE", font=_font(18, True), fill=muted)
+    for index, row in enumerate(rows):
+        top = 254 + index * row_height
+        if index % 2 == 0:
+            draw.rectangle((24, top-8, 1176, top+row_height-9), fill=GRAPHITE)
+        start = _aware(row.get("starts_at_utc"))
+        time_text = start.astimezone(ZoneInfo(p.get("timezone", "America/Chicago"))).strftime("%I:%M %p CT") if start else "Time unavailable"
+        text_fit(draw, (40, top+4), f"{index+1:02d} / {row.get('sport_label', 'SPORT')} / {time_text}", max_width=584, size=18, fill=muted)
+        event_lines = _wrapped(draw, row.get("event") or row.get("event_id"), _font(25, True), 584)
+        for offset, line in enumerate(event_lines[:2]):
+            if offset == 1 and len(event_lines) > 2:
+                line += "…"
+            text_fit(draw, (40, top+39+offset*32), line, max_width=584, size=25, bold=True)
+        winner = row.get("projected_winner") or "UNAVAILABLE — insufficient verified data"
+        text_fit(draw, (662, top+4), winner, max_width=498, size=27, bold=True)
+        source = row.get("projection_source") or "UNAVAILABLE"
+        if source == "MARKET CONSENSUS":
+            source = "MARKET-CONSENSUS LEAN"
+        text_fit(draw, (662, top+46), source, max_width=498, size=18, fill=HOT_PINK)
+        text_fit(draw, (662, top+78), f"{row.get('confidence') or 'Unrated'} / {row.get('status') or 'PASS'}", max_width=498, size=19, fill=muted)
+        if row.get("model_stage") and row.get("projection_source") == "MODEL":
+            text_fit(draw, (662, top+105), row['model_stage'], max_width=498, size=15, fill=muted)
+    if not rows:
+        draw.text((40, 286), "No eligible games remain on today's slate.", font=_font(27), fill=WHITE)
+    draw.line((40, height-78, 1160, height-78), fill=rule, width=1)
+    draw.text((40, height-59), "RESEARCH ONLY / PROJECTED WINNER IS NOT AN OFFICIAL WAGER", font=_font(19, True), fill=WHITE)
+    generated = _aware(p.get("generated_at"))
+    stamp = generated.astimezone(ZoneInfo("America/Chicago")).strftime("%b %d, %I:%M %p CT") if generated else "Unavailable"
+    draw.text((40, height-29), "Snapshot: " + stamp + " / Open the full image to read every game.", font=_font(16), fill=muted)
+    output = io.BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    if output.tell() > 7_000_000:
+        raise ValueError("Complete slate exceeds safe attachment size; no partial slate sent")
+    return output.getvalue()

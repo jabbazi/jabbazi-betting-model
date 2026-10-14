@@ -1,0 +1,131 @@
+{
+  "evidence_method": "Summary JSON extracted from successful GitHub Actions job logs; artifacts and digests confirmed by upload logs and artifact API. ZIP contents were not downloaded into the local workspace.",
+  "model_deployed": false,
+  "run_url": "https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35925101387",
+  "code_sha": "21a791d27dee3e68720f752bb51cb39846d04b08",
+  "job_id": 107398186413,
+  "per_season": [
+    {
+      "season": 2021,
+      "pitcher_game_rows": 21964,
+      "games": 2467,
+      "pitchers": 909,
+      "actual_starts": 4934,
+      "gametypes": {
+        "regular": 21541,
+        "allstar": 19,
+        "wildcard": 21,
+        "divisionseries": 179,
+        "lcs": 138,
+        "worldseries": 66
+      },
+      "missing_counts": {},
+      "excluded": {}
+    },
+    {
+      "season": 2022,
+      "pitcher_game_rows": 21279,
+      "games": 2471,
+      "pitchers": 871,
+      "actual_starts": 4942,
+      "gametypes": {
+        "regular": 20878,
+        "allstar": 20,
+        "wildcard": 86,
+        "divisionseries": 160,
+        "lcs": 77,
+        "worldseries": 58
+      },
+      "missing_counts": {},
+      "excluded": {}
+    },
+    {
+      "season": 2023,
+      "pitcher_game_rows": 21062,
+      "games": 2472,
+      "pitchers": 863,
+      "actual_starts": 4944,
+      "gametypes": {
+        "regular": 20630,
+        "allstar": 20,
+        "wildcard": 77,
+        "divisionseries": 143,
+        "lcs": 142,
+        "worldseries": 50
+      },
+      "missing_counts": {},
+      "excluded": {}
+    },
+    {
+      "season": 2024,
+      "pitcher_game_rows": 21164,
+      "games": 2473,
+      "pitchers": 855,
+      "actual_starts": 4946,
+      "gametypes": {
+        "regular": 20693,
+        "allstar": 20,
+        "wildcard": 88,
+        "divisionseries": 188,
+        "lcs": 115,
+        "worldseries": 60
+      },
+      "missing_counts": {},
+      "excluded": {}
+    },
+    {
+      "season": 2025,
+      "pitcher_game_rows": 21368,
+      "games": 2478,
+      "pitchers": 873,
+      "actual_starts": 4956,
+      "gametypes": {
+        "regular": 20868,
+        "allstar": 24,
+        "wildcard": 109,
+        "divisionseries": 195,
+        "lcs": 100,
+        "worldseries": 72
+      },
+      "missing_counts": {},
+      "excluded": {}
+    }
+  ],
+  "summary": {
+    "captured_at": "2026-09-23T21:53:14.588936+00:00",
+    "provider": "Retrosheet",
+    "pitcher_game_rows": 106837,
+    "status": "STAGING_ONLY",
+    "model_fitted": false,
+    "approved_for_betting": false,
+    "limitations": [
+      "No original pregame announcement timestamps",
+      "Historical actual starter is not a pregame confirmed starter",
+      "Pitch-count workload absent from this pitching schema; never imputed as zero",
+      "Canonical mapping to live MLB/odds player and event IDs still required",
+      "Dates are retained as dates; no kickoff time or timezone invented",
+      "Includes listed game types; filter and reconcile before model admission",
+      "No 2026 coverage; archives end in 2025",
+      "Raw Actions artifacts expire after 90 days; preserve before expiry"
+    ],
+    "attribution_reference": "raw/RETROSHEET-SOURCE-AND-TERMS.html"
+  },
+  "artifacts": [
+    {
+      "id": 10779041048,
+      "name": "mlb-history-capture",
+      "size_in_bytes": 1609449,
+      "expires_at": "2026-12-22T21:52:44Z",
+      "expired": false,
+      "sha256": "fe0bba3f555b0cce57a8c36acbada0a1e5caa86a9fac9b1be255199c446bbb35"
+    },
+    {
+      "id": 10779006149,
+      "name": "mlb-source-archives",
+      "size_in_bytes": 49572376,
+      "expires_at": "2026-12-22T21:52:44Z",
+      "expired": false,
+      "sha256": "2ac15a6c40eba53e24f8ecbe4445370413b7034bfb6b46044a7c48f8ecc5601d"
+    }
+  ]
+}

@@ -1,0 +1,576 @@
+{
+  "roles": [
+    {
+      "name": "JABBAZI TEAM",
+      "color": 14221416,
+      "hoist": true
+    },
+    {
+      "name": "MODERATOR",
+      "color": 14277081,
+      "hoist": true
+    },
+    {
+      "name": "VIP",
+      "color": 16714378,
+      "hoist": true
+    },
+    {
+      "name": "FREE MEMBER",
+      "color": 9474202,
+      "hoist": false
+    },
+    {
+      "name": "FOUNDING VIP",
+      "color": 16716947,
+      "hoist": true
+    },
+    {
+      "name": "TRIAL VIP",
+      "color": 7041664,
+      "hoist": false
+    },
+    {
+      "name": "NFL Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "CFB Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "MLB Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "NBA Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "NHL Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Soccer Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Tennis Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Combat Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Parlay Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Main Card Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Live Alerts",
+      "color": 0,
+      "hoist": false
+    },
+    {
+      "name": "Cheat Sheet Alerts",
+      "color": 0,
+      "hoist": false
+    }
+  ],
+  "categories": [
+    {
+      "name": "👑 WELCOME TO JABBAZI",
+      "access": "public",
+      "channels": [
+        "welcome",
+        "the-code",
+        "how-jabbazi-works",
+        "get-access",
+        "choose-alerts",
+        "announcements"
+      ]
+    },
+    {
+      "name": "🏆 VIP PICKS",
+      "access": "vip",
+      "channels": [
+        "main-card"
+      ]
+    },
+    {
+      "name": "💎 INNER CIRCLE",
+      "access": "vip",
+      "channels": [
+        "vip-lounge",
+        "sprinkles",
+        "parlays",
+        "member-plays",
+        "vip-requests",
+        "winning-tickets"
+      ]
+    },
+    {
+      "name": "🧠 THE LAB",
+      "access": "vip",
+      "channels": [
+        "research-desk",
+        "model-room",
+        "cheat-sheets",
+        "market-watch",
+        "live-watch",
+        "line-moves",
+        "edge-board",
+        "scanner-status"
+      ]
+    },
+    {
+      "name": "🏟️ THE LOCKER ROOM",
+      "access": "public",
+      "channels": [
+        "general",
+        "football",
+        "basketball",
+        "baseball",
+        "hockey",
+        "soccer",
+        "tennis",
+        "combat"
+      ]
+    },
+    {
+      "name": "🎓 JABBAZI ACADEMY",
+      "access": "public",
+      "channels": [
+        "academy",
+        "betting-101",
+        "betting-math",
+        "edge-and-clv",
+        "bankroll",
+        "model-school"
+      ]
+    },
+    {
+      "name": "📈 THE LEDGER",
+      "access": "public",
+      "channels": [
+        "results",
+        "performance",
+        "clv-tracker",
+        "bet-history"
+      ]
+    },
+    {
+      "name": "🛠️ SUPPORT",
+      "access": "public",
+      "channels": [
+        "support",
+        "faq"
+      ]
+    },
+    {
+      "name": "🔒 JABBAZI HQ",
+      "access": "staff",
+      "channels": [
+        "staff-room",
+        "bot-log",
+        "model-review",
+        "content-room",
+        "operations"
+      ]
+    }
+  ],
+  "deprecated_channels": [
+    "best-two-parlay",
+    "best-two-research",
+    "bet-talk",
+    "billing-log",
+    "billing-support",
+    "bookie-sheet-research",
+    "cfb-research",
+    "cheat-sheet-archive",
+    "choose-your-roles",
+    "college-football",
+    "daily-results",
+    "daily-schedule",
+    "football-talk",
+    "how-to-read-cheat-sheets",
+    "how-to-use-the-picks",
+    "injury-news",
+    "line-shopping",
+    "memes",
+    "mlb",
+    "mlb-research",
+    "model-performance",
+    "model-updates",
+    "moderation-log",
+    "monthly-results",
+    "nba",
+    "nba-research",
+    "nfl",
+    "nfl-research",
+    "nhl",
+    "nhl-research",
+    "odds-shopping",
+    "open-a-ticket",
+    "other-sports",
+    "parlays-and-correlation",
+    "promo-boosts",
+    "promo-tracker",
+    "research-tools",
+    "rules",
+    "scanner-errors",
+    "suggestions",
+    "system-status",
+    "technical-support",
+    "tennis-talk",
+    "upgrade-to-vip",
+    "vip-benefits",
+    "vip-longshots",
+    "vip-parlays",
+    "vip-sgps",
+    "vip-straights",
+    "weekly-results",
+    "welcome-and-rules",
+    "alerts-and-support",
+    "daily-moneyline-cheat-sheet",
+    "vip-research",
+    "jabbazi-main-card",
+    "sports-talk",
+    "staff-chat",
+    "jabbazi-desk"
+  ],
+  "channel_aliases": {
+    "welcome": [
+      "welcome-and-rules"
+    ],
+    "the-code": [],
+    "how-jabbazi-works": [
+      "how-to-use-jabbazi",
+      "vip-guide",
+      "learn-how-to",
+      "how-jabbazi-works"
+    ],
+    "get-access": [
+      "vip-access",
+      "vip-membership",
+      "upgrade-to-vip"
+    ],
+    "choose-alerts": [
+      "alerts-and-support",
+      "choose-your-roles",
+      "choose-your-alerts"
+    ],
+    "main-card": [
+      "jabbazi-main-card",
+      "daily-card",
+      "jabbazi-picks",
+      "jabbazi",
+      "main-card"
+    ],
+    "live-watch": [
+      "live-game-chat",
+      "pick-updates"
+    ],
+    "sprinkles": [
+      "jabbazi-sprinkles"
+    ],
+    "parlays": [
+      "parlays-and-alts",
+      "parlays-sgps",
+      "vip-parlays",
+      "vip-sgps"
+    ],
+    "line-moves": [
+      "line-movement",
+      "pick-updates"
+    ],
+    "research-desk": [
+      "vip-research",
+      "best-two-research"
+    ],
+    "model-room": [
+      "model-updates",
+      "jabbazi-models-explained"
+    ],
+    "cheat-sheets": [
+      "daily-moneyline-cheat-sheet",
+      "cheat-sheets",
+      "cheat-sheet-archive"
+    ],
+    "market-watch": [
+      "line-movement",
+      "odds-shopping"
+    ],
+    "edge-board": [
+      "model-edges",
+      "best-two-parlay"
+    ],
+    "scanner-status": [
+      "system-status"
+    ],
+    "vip-lounge": [
+      "vip-chat"
+    ],
+    "vip-requests": [
+      "member-bets"
+    ],
+    "winning-tickets": [
+      "member-wins"
+    ],
+    "general": [
+      "guru-lounge"
+    ],
+    "football": [
+      "nfl-chat",
+      "cfb-chat",
+      "football-talk"
+    ],
+    "basketball": [
+      "nba-wnba-chat",
+      "nba"
+    ],
+    "baseball": [
+      "mlb-chat",
+      "mlb"
+    ],
+    "hockey": [
+      "nhl-chat",
+      "nhl"
+    ],
+    "soccer": [
+      "soccer-chat"
+    ],
+    "tennis": [
+      "tennis-chat",
+      "tennis-talk"
+    ],
+    "combat": [
+      "ufc-boxing-chat"
+    ],
+    "academy": [],
+    "betting-101": [
+      "betting-basics",
+      "understanding-odds"
+    ],
+    "betting-math": [
+      "ev-and-vig"
+    ],
+    "edge-and-clv": [
+      "clv-tracking"
+    ],
+    "bankroll": [
+      "units-bankroll",
+      "how-units-work"
+    ],
+    "model-school": [
+      "jabbazi-models-explained"
+    ],
+    "results": [
+      "results-and-clv",
+      "daily-results"
+    ],
+    "performance": [
+      "weekly-results",
+      "monthly-results"
+    ],
+    "clv-tracker": [
+      "clv-tracking"
+    ],
+    "bet-history": [],
+    "support": [
+      "open-a-ticket"
+    ],
+    "faq": [],
+    "staff-room": [
+      "staff-chat",
+      "admins-and-mods"
+    ],
+    "bot-log": [
+      "scanner-errors"
+    ],
+    "model-review": [],
+    "content-room": [
+      "content-planning"
+    ],
+    "operations": [],
+    "member-plays": [
+      "jabbazi-desk",
+      "member-bets"
+    ],
+    "announcements": [
+      "announcements"
+    ]
+  },
+  "channel_topics": {
+    "welcome": "Start here. Welcome to JABBAZI 👑 — Built on Edge. Not Hype.",
+    "the-code": "The JABBAZI principles: price, edge, discipline, process and no forced plays.",
+    "how-jabbazi-works": "How BET NOW, WATCH, PRICE CHECK, PASS, QUARANTINED, units and play-to prices work.",
+    "get-access": "VIP access and private JABBAZI member-app entry points.",
+    "choose-alerts": "Choose sport, Main Card, parlay, live and cheat-sheet notifications.",
+    "main-card": "Official JABBAZI capper picks inside VIP PICKS. Verify current price and respect the posted play-to number.",
+    "live-watch": "Post-publication injuries, lineups, weather, price changes and do-not-chase updates.",
+    "sprinkles": "Lower-priority JABBAZI ideas kept separate from the official Main Card.",
+    "parlays": "Approved JABBAZI parlays and SGPs only; exact combined price and correlation matter.",
+    "line-moves": "Meaningful price improvement, deterioration, CLV and play-to alerts.",
+    "research-desk": "Consolidated JABBAZI research before a candidate earns Main Card status.",
+    "model-room": "Member-safe model methodology, status and meaningful model updates.",
+    "cheat-sheets": "Frozen JABBAZI research sheets. Research is not automatically an official wager.",
+    "market-watch": "Best prices, market movement, no-vig context, deterioration and CLV.",
+    "edge-board": "Fresh, supported model-versus-market opportunities awaiting final betting approval.",
+    "scanner-status": "Compact member-facing scanner, provider and model-health status.",
+    "vip-lounge": "Private VIP conversation. Member opinions are separate from official JABBAZI plays.",
+    "vip-requests": "VIP questions and requested research; responses are not automatically official plays.",
+    "winning-tickets": "Member-submitted wins, kept separate from official JABBAZI performance.",
+    "general": "The JABBAZI community locker room.",
+    "football": "NFL and college-football discussion. Use threads for specific games.",
+    "basketball": "NBA, WNBA and basketball discussion.",
+    "baseball": "MLB and baseball discussion.",
+    "hockey": "NHL and hockey discussion.",
+    "soccer": "Soccer discussion.",
+    "tennis": "Tennis discussion.",
+    "combat": "UFC, boxing and combat-sports discussion.",
+    "academy": "JABBAZI Academy: probability, price, EV, risk and evidence.",
+    "betting-101": "Sportsbooks, markets, odds, bet types and foundational betting concepts.",
+    "betting-math": "Implied probability, break-even rate, fair odds, vig, no-vig and EV.",
+    "edge-and-clv": "Edge, expected value, line shopping and closing-line value.",
+    "bankroll": "Unit sizing, variance, drawdowns and bankroll discipline.",
+    "model-school": "Calibration, backtesting, sample size, uncertainty and model evaluation.",
+    "results": "Authentic issued-play results. Wins and losses remain recorded.",
+    "performance": "Official JABBAZI performance summaries by units, ROI, sport and market where supported.",
+    "clv-tracker": "Closing-line value for issued JABBAZI positions where reliable closing prices exist.",
+    "bet-history": "Historical official JABBAZI positions and settled records.",
+    "support": "Use /support for private VIP, billing, role and technical help.",
+    "faq": "Frequently asked JABBAZI access, betting-format and community questions.",
+    "staff-room": "Private staff coordination for moderation, support and operations.",
+    "bot-log": "Private sanitized operational diagnostics. Never post credentials.",
+    "model-review": "Private staff model-quality and release review.",
+    "content-room": "Private JABBAZI content planning and publishing coordination.",
+    "operations": "Private operational checklists, integrations and launch coordination.",
+    "member-plays": "VIP member-posted plays and tickets. These are separate from the official JABBAZI Main Card.",
+    "announcements": "Official JABBAZI news, product updates, events and major community announcements."
+  },
+  "category_aliases": {
+    "👑 WELCOME TO JABBAZI": [
+      "👋 START HERE",
+      "━━ START HERE ━━"
+    ],
+    "🔥 TODAY’S JABBAZI": [
+      "━━ TODAY’S JABBAZI ━━"
+    ],
+    "🧠 THE LAB": [
+      "💎 VIP LOUNGE & RESEARCH",
+      "🧠 VIP RESEARCH",
+      "━━ VIP RESEARCH ━━"
+    ],
+    "💎 INNER CIRCLE": [],
+    "🏟️ THE LOCKER ROOM": [
+      "💬 COMMUNITY",
+      "━━ COMMUNITY ━━"
+    ],
+    "🎓 JABBAZI ACADEMY": [],
+    "📈 THE LEDGER": [
+      "📈 RESULTS & SUPPORT",
+      "━━ RESULTS & SUPPORT ━━"
+    ],
+    "🛠️ SUPPORT": [],
+    "🔒 JABBAZI HQ": [
+      "🔒 STAFF ONLY",
+      "━━ STAFF ONLY ━━",
+      "╰➤ 🔒 STAFF HQ"
+    ],
+    "🏆 VIP PICKS": [
+      "🔥 TODAY’S JABBAZI"
+    ]
+  },
+  "channel_display_names": {
+    "welcome": "👋│welcome",
+    "the-code": "📜│the-code",
+    "how-jabbazi-works": "📖│how-jabbazi-works",
+    "get-access": "🔑│get-access",
+    "choose-alerts": "🔔│choose-alerts",
+    "main-card": "👑│jabbazi",
+    "live-watch": "⚡│live-watch",
+    "sprinkles": "🧩│sprinkles",
+    "parlays": "🎲│parlays",
+    "line-moves": "🚨│line-moves",
+    "research-desk": "🔬│research-desk",
+    "model-room": "🤖│model-room",
+    "cheat-sheets": "📊│cheat-sheets",
+    "market-watch": "📈│market-watch",
+    "edge-board": "🎯│edge-board",
+    "scanner-status": "🛰️│scanner-status",
+    "vip-lounge": "💎│vip-lounge",
+    "vip-requests": "📝│vip-requests",
+    "winning-tickets": "🏆│winning-tickets",
+    "general": "💬│general",
+    "football": "🏈│football",
+    "basketball": "🏀│basketball",
+    "baseball": "⚾│baseball",
+    "hockey": "🏒│hockey",
+    "soccer": "⚽│soccer",
+    "tennis": "🎾│tennis",
+    "combat": "🥊│combat",
+    "academy": "🎓│academy",
+    "betting-101": "📚│betting-101",
+    "betting-math": "🧮│betting-math",
+    "edge-and-clv": "📈│edge-and-clv",
+    "bankroll": "💰│bankroll",
+    "model-school": "🧠│model-school",
+    "results": "✅│results",
+    "performance": "📊│performance",
+    "clv-tracker": "📉│clv-tracker",
+    "bet-history": "🧾│bet-history",
+    "support": "🛟│support",
+    "faq": "❓│faq",
+    "staff-room": "🛡️│staff-room",
+    "bot-log": "🤖│bot-log",
+    "model-review": "🧪│model-review",
+    "content-room": "📣│content-room",
+    "operations": "⚙️│operations",
+    "member-plays": "🎟️│member-plays",
+    "announcements": "📣│announcements"
+  },
+  "read_only_channels": [
+    "welcome",
+    "the-code",
+    "how-jabbazi-works",
+    "get-access",
+    "choose-alerts",
+    "main-card",
+    "line-moves",
+    "research-desk",
+    "model-room",
+    "cheat-sheets",
+    "market-watch",
+    "edge-board",
+    "scanner-status",
+    "academy",
+    "betting-101",
+    "betting-math",
+    "edge-and-clv",
+    "bankroll",
+    "model-school",
+    "results",
+    "performance",
+    "clv-tracker",
+    "bet-history",
+    "faq",
+    "bot-log",
+    "model-review",
+    "announcements"
+  ]
+}
