@@ -37,6 +37,7 @@ def configuration():
 
 
 def doctor():
+    from .providers.mysportsfeeds import MSFConfig
     try:
         settings, url, problems = configuration()
     except Exception:
@@ -63,6 +64,7 @@ def doctor():
         "cfb_provider_configured": bool(os.getenv("JABBAZI_CFBD_API_KEY")),
         "player_context_provider_configured": bool(settings.sportsdataio_api_key),
         "player_context_provider": "SportsDataIO" if settings.sportsdataio_api_key else None,
+        "mysportsfeeds_preparation": MSFConfig.from_environment().readiness(),
         "discord_enabled": os.getenv("JABBAZI_DISCORD_REVIEW_ENABLED", "false").lower() == "true",
     }
 
