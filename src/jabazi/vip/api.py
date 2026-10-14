@@ -236,6 +236,8 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
                        source_picks=ctx[0].list_records('source_pick', 200))
     if not result['projection']['selection'] and hub['web_leans']:
         result['projection'].update(selection=hub['web_leans'][0]['selection'], source='WEB-RESEARCH LEAN')
+        from .game_research import projection_reason
+        result['pick_explanation'] = projection_reason(result['projection'], evidence=hub['web_leans'][0])
     result['research_evidence'] = hub['web_leans']
     result['research_conflicts'] = hub['conflicting_events']
     sheet = data.frozen(ctx[0])

@@ -58,6 +58,31 @@ def matchups(rows, *, sport="", limit=100):
     return sorted(output, key=lambda g: (g["starts_at"] or "9999", g["sport"] or "", g["event_id"]))[:limit]
 
 
+def projection_reason(projection, favorite=None, evidence=None):
+    """Short explanation derived from the selected evidence, never invented context."""
+    selection = projection.get('selection')
+    model = _valid_probability(projection.get('model_probability'))
+    market = _valid_probability(projection.get('market_no_vig_probability'))
+    if not selection:
+        return {'reason': 'No fresh model, market, or reviewed-source evidence supports a winner yet.',
+                'caution': 'A pick will appear when sufficient evidence is available.', 'observed_at': None}
+    if model is not None:
+        reason = f'{selection} has the highest available model win estimate for this matchup at {model:.0%}.'
+        if market is not None:
+            reason += f' The observed market estimates {market:.0%} after removing the margin.'
+        caution = ('This model is still being evaluated. ' if projection.get('model_stage') != 'PRODUCTION_APPROVED' else '')
+        caution += 'Most likely winner does not automatically mean best betting value; confirmed lineup and injury context is not included here.'
+    elif market is not None:
+        reason = f'The observed moneyline market favors {selection}, with a {market:.0%} no-vig implied chance.'
+        caution = 'This is a market lean, not an independent model forecast or evidence of a profitable price. Confirmed lineup and injury context is not included here.'
+    else:
+        source = (evidence or {}).get('source', 'The reviewed source')
+        reason = f'{source} supports {selection} in the current reviewed research.'
+        caution = 'This is a qualitative research lean; a calibrated probability and betting edge are unavailable.'
+    return {'reason': reason, 'caution': caution,
+            'observed_at': (favorite or {}).get('price_at') or (evidence or {}).get('retrieved_at')}
+
+
 def matchup_detail(rows, sport, event_id):
     same = [r for r in rows if r.get("sport") == sport and str(r.get("event_id")) == event_id]
     if not same:
@@ -92,6 +117,7 @@ def matchup_detail(rows, sport, event_id):
         "sport": sport, "event_id": event_id,
         "event": same[0].get("event"), "starts_at": same[0].get("starts_at"),
         "projection": projection,
+        "pick_explanation": projection_reason(projection, favorite),
         "markets": sorted(set(r.get("market") for r in same if r.get("market"))),
         "observed_rows": len(same), "fresh_rows": sum(bool(r.get("fresh")) for r in same),
         "price_at": max((r.get("price_at") for r in same if r.get("price_at")), default=None),

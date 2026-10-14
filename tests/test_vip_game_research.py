@@ -235,3 +235,23 @@ def test_daily_rankings_requires_membership_and_returns_scoped_contract(portal):
     assert body['timezone'] == 'America/Chicago'
     assert len(body['anytime_td']) <= 10
     assert body['receiving_totals'] == []
+
+
+def test_matchup_explanation_matches_evidence_and_does_not_invent_team_context():
+    d = matchup_detail([_row('Home', .61, .55), _row('Away', .39, .45)], 'NFL', 'g1')
+    reason = d['pick_explanation']
+    assert '61%' in reason['reason'] and '55%' in reason['reason']
+    assert 'still being evaluated' in reason['caution']
+    assert reason['observed_at']
+    d = matchup_detail([_row('Home', None, .56)], 'NFL', 'g1')
+    assert 'market favors Home' in d['pick_explanation']['reason']
+    assert 'not an independent model' in d['pick_explanation']['caution']
+    d = matchup_detail([{**_row('Home', .9, .56), 'fresh':False}], 'NFL', 'g1')
+    assert 'No fresh' in d['pick_explanation']['reason']
+
+
+def test_reviewed_pick_explanation_remains_qualitative():
+    from jabazi.vip.game_research import projection_reason
+    explanation = projection_reason({'selection':'Home'}, evidence={'source':'Reviewed publisher', 'retrieved_at':'2026-10-13T17:00:00Z'})
+    assert explanation['reason'] == 'Reviewed publisher supports Home in the current reviewed research.'
+    assert 'probability and betting edge are unavailable' in explanation['caution']
