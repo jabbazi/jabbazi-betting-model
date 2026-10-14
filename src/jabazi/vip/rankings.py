@@ -57,7 +57,7 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=()):
     td = [r for r in candidates if r['sport'] == 'NFL' and r['market'] == 'player_anytime_td'
           and str(r['selection']).lower() not in {'no', 'under'}]
     receiving = [r for r in candidates if r['sport'] == 'NFL' and r['market'] == 'player_reception_yds'
-                 and str(r['selection']).lower() == 'over' and number(r.get('line')) is not None]
+                 and str(r['selection']).lower() in {'over', 'under'} and number(r.get('line')) is not None]
     prop_groups = {}
     for r in candidates:
         if r['sport'] == 'CFB' or not r.get('player') or not str(r['market']).startswith(('player_', 'batter_', 'pitcher_')):
@@ -68,9 +68,17 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=()):
     events = {(r['sport'], str(r['event_id'])): r for r in scoped}
     evidence = []
     for record in source_picks:
+        if not isinstance(record, dict) or not isinstance(record.get('payload'), dict):
+            continue
         p = record['payload']
+        if not all(isinstance(p.get(key), str) and p[key].strip()
+                   for key in ('sport', 'selection', 'source', 'source_url')):
+            continue
         game = events.get((sport_label(p.get('sport', '')), str(p.get('event_id'))))
-        url = urlparse(p.get('source_url') or '')
+        try:
+            url = urlparse(p['source_url'])
+        except ValueError:
+            continue
         if not game or p.get('independently_agreed') is not True or url.scheme != 'https' or not url.hostname or url.username or url.password:
             continue
         if not age_ok(p.get('observed_at'), now, 21600) or not age_ok(p.get('posted_at'), now, 86400):
@@ -93,7 +101,9 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=()):
             'game_count': len(events), 'fresh_rows': len(fresh), 'stale_rows': len(scoped)-len(fresh),
             'moneyline_likely': ranked(ml, event_only=True), 'moneyline_value': ranked(ml, event_only=True, value=True),
             'anytime_td': ranked(td), 'anytime_td_value': ranked(td, value=True),
-            'receiving_overs': ranked(receiving), 'receiving_value': ranked(receiving, value=True),
+            'receiving_overs': ranked([r for r in receiving if r['selection'].lower() == 'over']),
+            'receiving_unders': ranked([r for r in receiving if r['selection'].lower() == 'under']),
+            'receiving_value': ranked(receiving, value=True),
             'player_markets': {market: ranked(items) for market, items in sorted(prop_groups.items())},
             'receiving_totals': [],
             'receiving_totals_reason': 'The current feed does not expose verified player yardage means. Over-line probabilities are shown separately.',

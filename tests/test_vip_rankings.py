@@ -81,3 +81,25 @@ def test_score_histograms_preserve_probability_mass():
     for bins in hist.values():
         assert sum(b['probability'] for b in bins) == pytest.approx(1)
     assert hist['total'] == [{'low':41,'high':41,'probability':pytest.approx(1)}]
+
+
+def test_receiving_under_value_preserves_side_and_exact_line():
+    under = row(market='player_reception_yds', player='Receiver', selection='Under',
+                line=64.5, model_probability=.7, model_version='approved-fixture',
+                model_stage='PRODUCTION_APPROVED')
+    result = research_hub([under, {**under, 'id':'invalid', 'line':None}], now=NOW)
+    assert not result['receiving_overs']
+    assert len(result['receiving_unders']) == 1
+    assert len(result['receiving_value']) == 1
+    assert result['receiving_value'][0]['selection'] == 'Under'
+    assert result['receiving_value'][0]['line'] == 64.5
+    assert not research_hub([{**under, 'model_stage':'SHADOW_ONLY'}], now=NOW)['receiving_value']
+
+
+@pytest.mark.parametrize('bad', [None, {}, {'payload':None}, {'payload':[]},
+                                source(source_url='https://[invalid'),
+                                source(source_url=123), source(source=None), source(selection='')])
+def test_malformed_evidence_does_not_break_remaining_research(bad):
+    result = research_hub([row()], now=NOW, source_picks=[bad, source()])
+    assert len(result['moneyline_likely']) == 1
+    assert len(result['web_leans']) == 1

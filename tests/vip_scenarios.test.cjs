@@ -55,6 +55,8 @@ const assert=require('node:assert/strict');
   await page.route('**/v1/vip/rankings?*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({date:'2026-10-14',game_count:1,stale_rows:0,notice:'Research only',web_leans:[],conflicting_events:[],moneyline_likely:[{sport:'NFL',event_id:'one',event:'Fixture Away @ Fixture Home',selection:'Fixture Home',evidence_label:'MARKET-CONSENSUS LEAN',model_probability:null,market_probability:.6,decimal:1.8,book:'Fixture',price_at:'2026-10-14T05:00:00Z'}]})}));
   await page.goto('https://jabbazi.test/vip#rankings&sport=NFL');
   await page.getByRole('heading',{name:'NFL · Today’s research rankings',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Receiving unders at exact lines',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Receiving over/under value supported by approved models',exact:true}).waitFor();
   await page.getByText('MARKET-CONSENSUS LEAN',{exact:true}).waitFor();
   await page.getByRole('heading',{name:'Fixture Home',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
