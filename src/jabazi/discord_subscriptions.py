@@ -14,6 +14,24 @@ WHOP_SOURCE_NAME = "JABBAZI WHOP SUBSCRIBER"
 WHOP_ALLOWED_PERMISSIONS = MANAGE_ROLES | 1 | (1 << 10) | (1 << 11) | (1 << 14)
 
 
+class WhopSetupError(ValueError):
+    """Controlled preflight reason safe for operational logs (no provider body)."""
+
+    def __init__(self, code):
+        super().__init__(code)
+        self.safe_code = code
+
+
+def role_below(role, other, guild):
+    """Discord orders equal positions by descending snowflake; everyone is last."""
+    rid, oid = str(role["id"]), str(other["id"])
+    if rid == oid or oid == str(guild):
+        return False
+    if rid == str(guild):
+        return True
+    return (int(role["position"]), -int(rid)) < (int(other["position"]), -int(oid))
+
+
 def subscription_sources(config):
     """Only direct aliases to an existing, independently gated paid tier qualify."""
     tiers = config.get("paid_roles", {})
@@ -85,12 +103,12 @@ def install_whop_source(store):
             raise ValueError("Subscription source must have zero permissions")
         if sid in config.get("source_vip", []) or sid in config.get("paid_roles", {}).values():
             raise ValueError("Subscription source cannot replace an existing entitlement role")
-        if not 0 < source["position"] < bot_role["position"]:
-            raise ValueError("Whop cannot manage its subscription role")
+        if sid == guild or not role_below(source, bot_role, guild):
+            raise WhopSetupError("SOURCE_NOT_BELOW_WHOP")
         # Whop must stay below the community, derived access, staff and other
         # integration roles. No broad top-of-hierarchy placement is performed.
-        if any(str(r["id"]) not in {guild, sid} and r["position"] < bot_role["position"] for r in roles):
-            raise ValueError("Whop hierarchy would permit managing unrelated roles")
+        if any(str(r["id"]) not in {guild, sid} and role_below(r, bot_role, guild) for r in roles):
+            raise WhopSetupError("UNRELATED_ROLE_BELOW_WHOP")
         if any(str(p["id"]) == sid for c in channels for p in c.get("permission_overwrites", [])):
             raise ValueError("Subscription source must not have direct channel grants")
         aliases = config.get("subscription_sources", {})

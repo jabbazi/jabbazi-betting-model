@@ -341,7 +341,7 @@ def worker(*, once=False):
                 from .discord_subscriptions import install_whop_source
                 install_whop_source(store)
             except Exception as exc:
-                print('WHOP_SOURCE_SETUP_UNAVAILABLE_' + type(exc).__name__, flush=True)
+                print('WHOP_SOURCE_SETUP_UNAVAILABLE_' + getattr(exc, 'safe_code', type(exc).__name__), flush=True)
             try:
                 from .vip.operations import summaries
                 diagnostic = {'scan_interval_seconds': interval, 'startup_scan_delay_seconds': startup_delay,
