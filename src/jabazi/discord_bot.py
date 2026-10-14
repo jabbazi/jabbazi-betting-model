@@ -122,8 +122,8 @@ def access_destination(config):
     return f"<#{config.access_channel}>" if config.access_channel else "Get Access"
 
 
-def brand_trigger(config, *, guild, channel, author, bot_author, content, mentioned_ids, bot_id):
-    """Only the owner's explicit bot mention triggers branding, never a mass ping alone."""
+def brand_trigger(config, *, guild, channel, author, bot_author, content, mentioned_ids, bot_id, owner_role_mentioned=False):
+    """Owner-only explicit branding trigger; a mass ping alone never triggers it."""
     url = urlparse(config.brand_gif_url)
     valid_asset = (
         url.scheme == "https"
@@ -135,10 +135,10 @@ def brand_trigger(config, *, guild, channel, author, bot_author, content, mentio
     return bool(
         valid_asset
         and guild == config.guild
-        and channel in config.brand_channels
+        and channel in (config.brand_channels | {config.main_card_channel})
         and author == config.owner
         and not bot_author
-        and (bot_id in mentioned_ids or content.strip().lower() == "!guru")
+        and (bot_id in mentioned_ids or owner_role_mentioned or content.strip().lower() in {"!guru", "!jabbazi"})
     )
 
 
@@ -285,6 +285,17 @@ def build_client(config, store):
                 self._pin_refresh_running = False
 
         async def on_ready(self):
+            # Read-only diagnostic: no message contents or asset URLs in logs.
+            try:
+                targets = (config.brand_channels | {config.main_card_channel}) - {0}
+                print(f"DISCORD_BRAND_CONFIG CHANNELS={sorted(targets)} ASSET_CONFIGURED={bool(config.brand_gif_url)}", flush=True)
+                for channel_id in targets:
+                    channel = await self.fetch_channel(channel_id)
+                    bot = await channel.guild.fetch_member(self.user.id)
+                    permissions = channel.permissions_for(bot)
+                    print(f"DISCORD_BRAND_PERMISSIONS CHANNEL={channel_id} VIEW={permissions.view_channel} SEND={permissions.send_messages} EMBED={permissions.embed_links} EVERYONE={permissions.mention_everyone}", flush=True)
+            except Exception as exc:
+                print(f"DISCORD_BRAND_DIAGNOSTIC_UNAVAILABLE_{type(exc).__name__}", flush=True)
             print(f"DISCORD_GATEWAY_READY MEMBERS_INTENT={config.members_enabled} WELCOME_CHANNEL={config.welcome_channel}", flush=True)
             if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":
                 try:
@@ -735,6 +746,11 @@ def build_client(config, store):
                 content=message.content,
                 mentioned_ids={user.id for user in message.mentions},
                 bot_id=self.user.id,
+                owner_role_mentioned=any(
+                    role.name.strip("👑 ").upper() == "JABBAZI"
+                    and role in getattr(message.author, "roles", [])
+                    for role in getattr(message, "role_mentions", [])
+                ),
             ):
                 try:
                     key = digest(["discord_brand", config.guild, message.id])
@@ -742,10 +758,16 @@ def build_client(config, store):
                         embed = discord.Embed(title="JABBAZI 👑", colour=0xFF0A8A)
                         embed.set_image(url=config.brand_gif_url)
                         await message.channel.send(
-                            embed=embed, allowed_mentions=discord.AllowedMentions.none()
+                            content=None if getattr(message, "mention_everyone", False) else "@everyone",
+                            embed=embed,
+                            allowed_mentions=discord.AllowedMentions(
+                                everyone=not getattr(message, "mention_everyone", False),
+                                users=False, roles=False, replied_user=False,
+                            ),
                         )
-                except Exception:  # noqa: BLE001 -- keep credentials out of SDK errors
-                    print("DISCORD_BRAND_UNAVAILABLE", flush=True)
+                        print(f"DISCORD_BRAND_SENT CHANNEL={message.channel.id} PING_REQUESTED={not getattr(message, 'mention_everyone', False)}", flush=True)
+                except Exception as exc:  # noqa: BLE001 -- never expose credential-bearing SDK errors
+                    print(f"DISCORD_BRAND_UNAVAILABLE_{type(exc).__name__}", flush=True)
                 return
             command = command_allowed(
                 config,

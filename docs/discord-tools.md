@@ -34,11 +34,15 @@ are published by these commands.
 
 Optional branding: configure `JABBAZI_DISCORD_BRAND_CHANNEL_IDS` as a comma-separated
 allowlist and `JABBAZI_DISCORD_BRAND_GIF_URL` as the uploaded Discord CDN GIF URL.
-Only a server-owner post mentioning the actual bot (or exactly `!guru`) triggers
-the GIF response. The response never mentions everyone or a role. It claims each
-message before sending to prevent repeat delivery. This feature is not live; the
-approved animated logo still needs to be uploaded and the bot needs channel access.
-Typing a display name as plain text is not a Discord bot mention.
+Only the configured owner in the branding allowlist or official main-card channel
+can trigger the response by mentioning the actual bot, mentioning their own
+JABBAZI founder role, or sending exactly `!jabbazi` (`!guru` remains supported).
+The response requests `@everyone` notification, with user/role mentions disabled.
+If the triggering post already notified everyone, the response does not repeat it.
+Each incoming message is claimed once to prevent duplicate replies.
+The bot needs the channel's Mention Everyone permission; startup diagnostics
+report that capability without exposing private messages or the asset URL.
+Typing a display name as plain text is not a Discord mention.
 
 1. Owner supplies JABBAZI_DISCORD_BOT_TOKEN in the hosting secret manager.
 2. Review/enable the Message Content intent in the Discord Developer Portal; prefix

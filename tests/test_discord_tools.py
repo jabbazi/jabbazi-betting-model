@@ -45,6 +45,10 @@ def test_brand_response_is_owner_only_explicit_and_channel_scoped():
     ):
         assert not brand_trigger(config, **(args | changes))
     assert brand_trigger(config, **(args | {"mentioned_ids": set(), "content": "!guru"}))
+    assert brand_trigger(config, **(args | {"mentioned_ids": set(), "content": "!jabbazi"}))
+    assert brand_trigger(config, **(args | {"mentioned_ids": set(), "owner_role_mentioned": True}))
+    assert not brand_trigger(config, **(args | {"author": 8, "owner_role_mentioned": True}))
+
 
 
 def test_brand_asset_cannot_be_arbitrary_external_url():
@@ -275,3 +279,31 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
     assert all(f.filename.endswith(".png") for f in sent[0][1]["files"])
     outcome = store.list_records("sheet_delivery_result", 1)[0]["payload"]
     assert outcome["status"] == ("needs_review" if fail_send else "delivered")
+
+
+@pytest.mark.parametrize('already_pinged', [False, True])
+def test_owner_brand_reply_pings_once_without_echoing_other_mentions(store, already_pinged):
+    import asyncio
+    from unittest.mock import AsyncMock
+    from jabazi.discord_bot import build_client
+
+    async def exercise():
+        config = BotConfig(1, 2, 3, 4, frozenset(), frozenset({5}),
+                           'https://cdn.discordapp.com/attachments/one/logo.gif')
+        client = build_client(config, store)
+        client._connection.user = SimpleNamespace(id=9)
+        channel = SimpleNamespace(id=5, send=AsyncMock())
+        message = SimpleNamespace(id=123, guild=SimpleNamespace(id=1), channel=channel,
+                                  author=SimpleNamespace(id=2, bot=False, roles=[]), webhook_id=None,
+                                  content='<@9>', mentions=[SimpleNamespace(id=9)], role_mentions=[],
+                                  mention_everyone=already_pinged)
+        await client.on_message(message)
+        await client.on_message(message)
+        channel.send.assert_awaited_once()
+        kwargs = channel.send.await_args.kwargs
+        assert kwargs['content'] == (None if already_pinged else '@everyone')
+        allowed = kwargs['allowed_mentions'].to_dict()
+        assert allowed['parse'] == ([] if already_pinged else ['everyone'])
+        await client.close()
+
+    asyncio.run(exercise())
