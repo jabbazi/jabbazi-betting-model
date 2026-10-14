@@ -228,10 +228,12 @@ async def reconcile_member(member, store, config):
     joined=member.joined_at.isoformat() if member.joined_at else ''
     okay=await asyncio.to_thread(accepted,store,config,member.id,joined)
     held={str(r.id) for r in member.roles}
-    is_paid=bool(held & set(config['source_vip']))
+    from .discord_subscriptions import paid_source_roles
+    paid_held=paid_source_roles(config,held)
+    is_paid=bool(paid_held & set(config['source_vip']))
     targets=[(config['community_role'],okay)]
     if config.get('paid_roles'):
-        targets.extend((rid,okay and source in held) for source,rid in config['paid_roles'].items())
+        targets.extend((rid,okay and source in paid_held) for source,rid in config['paid_roles'].items())
         targets.append((config['paid_role'],False))  # Retire our unused shared gate.
     else:
         targets.append((config['paid_role'],okay and is_paid))

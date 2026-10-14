@@ -171,12 +171,16 @@ def validate_target(document, config, bot_id, bot_role_ids=()):
 
 def member_has_vip(config, member, store=None):
     """Manual VIP-family roles and configured viewer roles grant member-app access."""
+    subscription_role_ids = set()
     if store is not None:
         from .discord_rules import configuration, accepted
         gate = configuration(store)
         joined = getattr(member, 'joined_at', None)
         if gate and not accepted(store, gate, member.id, joined.isoformat() if joined else None):
             return False
+        if gate and str(getattr(getattr(member, 'guild', None), 'id', '')) == gate['guild']:
+            from .discord_subscriptions import subscription_sources
+            subscription_role_ids = {int(rid) for rid in subscription_sources(gate)}
     role_ids = {
         int(role.id)
         for role in getattr(member, "roles", [])
@@ -187,7 +191,7 @@ def member_has_vip(config, member, store=None):
         for role in getattr(member, "roles", [])
         if str(getattr(role, "name", "")).strip()
     }
-    configured = set(config.viewer_roles)
+    configured = set(config.viewer_roles) | subscription_role_ids
     if config.vip_role:
         configured.add(config.vip_role)
     return bool(
