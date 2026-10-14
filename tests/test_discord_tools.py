@@ -282,14 +282,14 @@ def test_real_sdk_publisher_claims_once_and_audits_uncertain_delivery(store, fai
 
 
 @pytest.mark.parametrize('already_pinged', [False, True])
-def test_owner_brand_reply_pings_once_without_echoing_other_mentions(store, already_pinged):
+@pytest.mark.parametrize('asset', ['', 'https://cdn.discordapp.com/attachments/one/logo.gif'])
+def test_owner_brand_reply_pings_once_without_echoing_other_mentions(store, already_pinged, asset):
     import asyncio
     from unittest.mock import AsyncMock
     from jabazi.discord_bot import build_client
 
     async def exercise():
-        config = BotConfig(1, 2, 3, 4, frozenset(), frozenset({5}),
-                           'https://cdn.discordapp.com/attachments/one/logo.gif')
+        config = BotConfig(1, 2, 3, 4, frozenset(), frozenset({5}), asset)
         client = build_client(config, store)
         client._connection.user = SimpleNamespace(id=9)
         channel = SimpleNamespace(id=5, send=AsyncMock())
@@ -304,6 +304,10 @@ def test_owner_brand_reply_pings_once_without_echoing_other_mentions(store, alre
         assert kwargs['content'] == (None if already_pinged else '@everyone')
         allowed = kwargs['allowed_mentions'].to_dict()
         assert allowed['parse'] == ([] if already_pinged else ['everyone'])
+        if not asset:
+            assert kwargs['file'].filename == 'jabbazi.png'
+            assert kwargs['embed'].image.url == 'attachment://jabbazi.png'
+            kwargs['file'].close()
         await client.close()
 
     asyncio.run(exercise())

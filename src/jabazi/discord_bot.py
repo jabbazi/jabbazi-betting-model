@@ -125,7 +125,7 @@ def access_destination(config):
 def brand_trigger(config, *, guild, channel, author, bot_author, content, mentioned_ids, bot_id, owner_role_mentioned=False):
     """Owner-only explicit branding trigger; a mass ping alone never triggers it."""
     url = urlparse(config.brand_gif_url)
-    valid_asset = (
+    valid_asset = not config.brand_gif_url or (
         url.scheme == "https"
         and url.hostname in {"cdn.discordapp.com", "media.discordapp.net"}
         and url.path.lower().endswith(".gif")
@@ -756,7 +756,13 @@ def build_client(config, store):
                     key = digest(["discord_brand", config.guild, message.id])
                     if await asyncio.to_thread(store.append, "brand_delivery_claim", key, {}, key):
                         embed = discord.Embed(title="JABBAZI 👑", colour=0xFF0A8A)
-                        embed.set_image(url=config.brand_gif_url)
+                        attachment = {}
+                        if config.brand_gif_url:
+                            embed.set_image(url=config.brand_gif_url)
+                        else:
+                            from .vip.graphics import approved_logo_path
+                            attachment["file"] = discord.File(approved_logo_path(), filename="jabbazi.png")
+                            embed.set_image(url="attachment://jabbazi.png")
                         await message.channel.send(
                             content=None if getattr(message, "mention_everyone", False) else "@everyone",
                             embed=embed,
@@ -764,6 +770,7 @@ def build_client(config, store):
                                 everyone=not getattr(message, "mention_everyone", False),
                                 users=False, roles=False, replied_user=False,
                             ),
+                            **attachment,
                         )
                         print(f"DISCORD_BRAND_SENT CHANNEL={message.channel.id} PING_REQUESTED={not getattr(message, 'mention_everyone', False)}", flush=True)
                 except Exception as exc:  # noqa: BLE001 -- never expose credential-bearing SDK errors

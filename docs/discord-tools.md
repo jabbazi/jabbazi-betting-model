@@ -33,7 +33,8 @@ are published by these commands.
 ## Deployment prerequisites
 
 Optional branding: configure `JABBAZI_DISCORD_BRAND_CHANNEL_IDS` as a comma-separated
-allowlist and `JABBAZI_DISCORD_BRAND_GIF_URL` as the uploaded Discord CDN GIF URL.
+allowlist and optionally `JABBAZI_DISCORD_BRAND_GIF_URL` as the uploaded Discord CDN GIF URL.
+Without a GIF, the response attaches the original approved JABBAZI logo from the repository.
 Only the configured owner in the branding allowlist or official main-card channel
 can trigger the response by mentioning the actual bot, mentioning their own
 JABBAZI founder role, or sending exactly `!jabbazi` (`!guru` remains supported).
