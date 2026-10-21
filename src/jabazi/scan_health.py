@@ -7,7 +7,7 @@ from uuid import UUID
 
 _ERROR = re.compile(
     r"(?:(?:event_odds|model|model_load|score_model_load|player_model_load)_)?"
-    r"(?:HTTPError|URLError|TimeoutError|ConnectionError|ValueError|TypeError|KeyError|"
+    r"(?:ProviderUnavailable|HTTPError|URLError|TimeoutError|ConnectionError|ValueError|TypeError|KeyError|"
     r"RuntimeError|OSError|AttributeError|IndexError|ZeroDivisionError|FileNotFoundError|"
     r"JSONDecodeError|OperationalError|IntegrityError)"
     r"|DUPLICATE_EVENT_IDENTITY|event_catalog_invalid"

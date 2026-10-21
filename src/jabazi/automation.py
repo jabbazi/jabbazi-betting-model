@@ -90,8 +90,9 @@ class AutomaticScanner:
         url = "https://api.the-odds-api.com/v4/sports/?" + urllib.parse.urlencode(
             {"apiKey": self.settings.api_key}
         )
-        with urllib.request.urlopen(url, timeout=20) as response:
-            active = json.load(response)
+        from .providers.the_odds_api import _default_transport
+        raw, _ = _default_transport(url)
+        active = json.loads(raw)
         patterns = [pattern for values in SPORTS.values() for pattern in values]
         return [
             sport

@@ -1,6 +1,11 @@
 """Allowlisted operational diagnostics; never serialize URLs, keys or bodies."""
 
 def error_details(exc):
+    from .odds_transport import ProviderUnavailable
+    if isinstance(exc, ProviderUnavailable):
+        return {k: v for k, v in exc.details.items() if k in {
+            "http_status", "reason", "provider_code", "retry_at", "observed_at"
+        }} | {"error_type": "ProviderUnavailable"}
     code = getattr(exc, "code", None)
     if not isinstance(code, int):
         code = getattr(getattr(exc, "response", None), "status_code", None)

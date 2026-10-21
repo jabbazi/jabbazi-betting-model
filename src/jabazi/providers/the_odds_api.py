@@ -19,8 +19,8 @@ Transport = Callable[[str], tuple[bytes, dict[str, str]]]
 
 
 def _default_transport(url: str) -> tuple[bytes, dict[str, str]]:
-    with urllib.request.urlopen(url, timeout=20) as response:
-        return response.read(), dict(response.headers.items())
+    from .odds_transport import transport
+    return transport(url)
 
 
 class TheOddsApiProvider(OddsProvider):

@@ -640,7 +640,13 @@ def build_client(config, store):
 
                 async def get(path):
                     response = await http.get(path)
-                    response.raise_for_status()
+                    try:
+                        response.raise_for_status()
+                    except httpx.HTTPStatusError as exc:
+                        # These paths contain only fixed route names and verified
+                        # snowflake IDs, never tokens, query strings or bodies.
+                        exc.safe_resource = path
+                        raise
                     return response.json()
 
                 guild = await get(f"/guilds/{config.guild}")
@@ -1145,6 +1151,9 @@ def build_client(config, store):
                         response = getattr(exc, "response", None)
                         status = status or getattr(response, "status_code", None)
                         print(f"DISCORD_PUBLISH_{lane.upper()}_{type(exc).__name__}_HTTP_{status}", flush=True)
+                        resource = getattr(exc, "safe_resource", None)
+                        if resource:
+                            print(f"DISCORD_RESOURCE_FAILURE lane={lane} resource={resource} http={status}", flush=True)
                         await self.log_operational_failure(lane, exc)
                 await asyncio.sleep(60)
 
