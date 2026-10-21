@@ -373,3 +373,19 @@ def test_model_status_has_typed_evidence_gated_response(setup):
     parsed = bridge.ScannerModelStatus.model_validate(approved)
     assert parsed.models[0].status == "PRODUCTION_APPROVED"
     assert parsed.models[0].approved_for_betting is True
+
+
+def test_provider_reason_survives_api_and_chat_bridge(setup):
+    from jabazi.api import perform_scan, ScanRequest
+    from jabazi.providers.odds_transport import ProviderUnavailable
+    from jabazi.providers.errors import error_details
+    with patch('jabazi.api.AutomaticScanner') as scanner:
+        scanner.return_value.run.side_effect = ProviderUnavailable({
+            'reason': 'OUT_OF_USAGE_CREDITS', 'provider_code': 'OUT_OF_USAGE_CREDITS',
+            'http_status': 401, 'retry_at': '2026-10-21T18:00:00+00:00',
+        })
+        with pytest.raises(HTTPException) as caught:
+            perform_scan(ScanRequest(mode='full'))
+    assert caught.value.status_code == 503
+    assert error_details(caught.value)['reason'] == 'OUT_OF_USAGE_CREDITS'
+    assert not __import__('jabazi.api', fromlist=['_scan_lock'])._scan_lock.locked()

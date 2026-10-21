@@ -418,6 +418,7 @@ def run_scan(
 def perform_scan(body: ScanRequest, *, model_first: bool = False, daily_only: bool = False, progress_callback=None) -> dict:
     """Shared scanner execution; callers must authorize before invoking."""
     from .research.external_sources import external_research_sources
+    from .providers.odds_transport import ProviderUnavailable
 
     settings = Settings.from_environment()
     if not settings.api_key:
@@ -497,6 +498,12 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, daily_only: bo
         raise HTTPException(
             status_code=409, detail="Scanner busy; retry the same research job shortly"
         ) from None
+    except ProviderUnavailable as exc:
+        from .providers.errors import error_details
+        details = error_details(exc)
+        failure = HTTPException(status_code=503, detail=details)
+        failure.safe_provider_details = details
+        raise failure from None
     except Exception:
         raise HTTPException(
             status_code=503, detail="Scan unavailable; no actionable output"

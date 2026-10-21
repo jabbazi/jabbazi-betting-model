@@ -2,8 +2,9 @@
 
 def error_details(exc):
     from .odds_transport import ProviderUnavailable
-    if isinstance(exc, ProviderUnavailable):
-        return {k: v for k, v in exc.details.items() if k in {
+    if isinstance(exc, ProviderUnavailable) or hasattr(exc, "safe_provider_details"):
+        details = exc.details if isinstance(exc, ProviderUnavailable) else exc.safe_provider_details
+        return {k: v for k, v in details.items() if k in {
             "http_status", "reason", "provider_code", "retry_at", "observed_at"
         }} | {"error_type": "ProviderUnavailable"}
     code = getattr(exc, "code", None)
