@@ -80,6 +80,8 @@ class ScannerModelState(BaseModel):
     player_status: Literal["SHADOW_ONLY", "VALIDATING", "LIMITED_LIVE", "PRODUCTION_APPROVED", "UNAVAILABLE"] = "UNAVAILABLE"
     player_supported_markets: list[str] = Field(default_factory=list)
     state_refreshed_at: str | None
+    inference_status: str | None = None
+    history_available_after: str | None = None
 
     @model_validator(mode="after")
     def approval_matches_stage(self):

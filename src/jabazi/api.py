@@ -261,6 +261,10 @@ def model_status_data():
                     "state_refreshed_at": models[sport].artifact.get("state_refreshed_at")
                     if sport in models
                     else None,
+                    "inference_status": models[sport].artifact.get("inference_status")
+                    if sport in models else None,
+                    "history_available_after": models[sport].artifact.get("history_available_after")
+                    if sport in models else None,
                 }
             )
     finally:

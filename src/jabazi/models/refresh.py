@@ -335,7 +335,9 @@ def fetch_update(artifact, *, now, result_store=None):
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
     checksum = hashlib.sha256(raw).hexdigest()
-    if artifact["sport"] == SPORTS["nba"] and not games:
+    if artifact["sport"] == SPORTS["nba"] and not any(
+        available_at(game) < now for game in games
+    ):
         if events:
             updated = nba_preseason_state(
                 artifact,
@@ -349,6 +351,15 @@ def fetch_update(artifact, *, now, result_store=None):
                 now=now,
                 response_checksum=checksum,
             )
+        if games:
+            # Opening-night finals are not yet eligible under the same
+            # conservative availability policy used in training. This is a
+            # normal waiting state, not a corrupt model or provider outage.
+            updated["preseason_context"] = False
+            updated["inference_status"] = "WAITING_FOR_ELIGIBLE_HISTORY"
+            updated["history_available_after"] = min(
+                available_at(game) for game in games
+            ).isoformat()
     else:
         allow_stale_state = (
             artifact["sport"] == SPORTS["nba"]

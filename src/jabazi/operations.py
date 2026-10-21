@@ -203,6 +203,10 @@ class ClosingCollector:
                             report["snapshots"] += 1
                 except Exception as exc:
                     report["errors"].append(sport + ":" + type(exc).__name__)
+                    from .providers.errors import error_details
+                    report.setdefault("error_details", []).append(
+                        {"sport": sport, **error_details(exc)}
+                    )
             if report["errors"]:
                 report["status"] = "DATA_UNHEALTHY"
             self.store.append(

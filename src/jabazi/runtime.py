@@ -457,6 +457,8 @@ def worker(*, once=False):
             except Exception as exc:
                 report["status"] = "DATA_UNHEALTHY"
                 report["error_type"] = type(exc).__name__
+                from .providers.errors import error_details
+                report["error_details"] = error_details(exc)
                 try:
                     store.append("worker_heartbeat", "research_worker", report)
                 except Exception:

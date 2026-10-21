@@ -234,3 +234,37 @@ def test_nba_october_preseason_schedule_is_clean_research_state(monkeypatch):
         "calibration_verified": False,
     }
     ScoreDistributionModel(updated)
+
+
+def test_opening_night_finals_wait_for_availability_without_poisoning_model(monkeypatch):
+    import json
+    from unittest.mock import Mock
+    from jabazi.models.refresh import BUNDLE_DIR, fetch_update
+    from jabazi.models.score_distribution import ScoreDistributionModel
+
+    raw = (
+        'game_id,season,season_type,game_date_time,neutral_site,status_type_completed,'
+        'home_display_name,away_display_name,home_score,away_score\n'
+        '1,2027,2,2026-10-20T23:30:00+00:00,false,true,Boston Celtics,New York Knicks,110,101\n'
+        '2,2027,2,2026-10-22T23:30:00+00:00,false,false,Boston Celtics,New York Knicks,,\n'
+    ).encode()
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, limit): return raw
+    monkeypatch.setattr('jabazi.models.refresh.urllib.request.urlopen', lambda *a, **k: Response())
+    archive = Mock()
+    monkeypatch.setattr('jabazi.research.prospective.archive_results', archive)
+    artifact = json.loads((BUNDLE_DIR / 'nba_scores.json').read_text())
+    updated = fetch_update(artifact, now=datetime(2026, 10, 21, 14, tzinfo=UTC), result_store=object())
+    assert updated['inference_status'] == 'WAITING_FOR_ELIGIBLE_HISTORY'
+    assert updated['history_available_after'] == '2026-10-22T00:00:00+00:00'
+    assert updated['team_state'] == artifact['team_state']
+    assert len(updated['events']) == 1
+    assert updated['preseason_context'] is False
+    archive.assert_not_called()
+    ScoreDistributionModel(updated)
+    # Once the result is available, normal refresh resumes without a waiting flag.
+    ready = fetch_update(artifact, now=datetime(2026, 10, 22, 1, tzinfo=UTC))
+    assert 'inference_status' not in ready
+    assert ready['team_state']['Boston Celtics'][-1][0] == 110
