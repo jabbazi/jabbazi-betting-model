@@ -60,3 +60,26 @@ def test_unknown_provider_body_not_exposed_and_rotated_key_can_probe():
         assert 'provider_code' not in caught.value.details
     assert len(calls) == 2
     store.close()
+
+@pytest.mark.parametrize('code,status,seconds', [('DEACTIVATED_KEY',401,900), ('INVALID_KEY',401,900), ('EXCEEDED_FREQ_LIMIT',429,60)])
+def test_documented_codes(code, status, seconds):
+    def fail(url, **kwargs):
+        raise HTTPError(url, status, 'redacted', {}, io.BytesIO(json.dumps({'error_code':code}).encode()))
+    with pytest.raises(ProviderUnavailable) as caught:
+        request(URL, now=NOW, opener=fail)
+    assert caught.value.details['reason'] == code
+    assert caught.value.details['retry_at'] == (NOW+timedelta(seconds=seconds)).isoformat()
+
+
+def test_usage_records_only_numeric_allowlisted_headers():
+    store = Store('sqlite:///:memory:', initialize=True)
+    class Response:
+        headers = {'X-Requests-Remaining':'12', 'x-requests-used':'88', 'x-requests-last':'1', 'Authorization':'secret'}
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self,n): return b'[]'
+    request(URL, store=store, now=NOW, opener=lambda *a, **k: Response())
+    data = store.list_records('provider_usage',1)[0]['payload']
+    assert data['x-requests-remaining'] == 12
+    assert 'secret' not in str(data)
+    store.close()

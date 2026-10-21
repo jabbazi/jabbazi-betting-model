@@ -9,7 +9,7 @@ import urllib.request
 from datetime import UTC, datetime, timedelta
 
 CODES = frozenset({
-    'INVALID_KEY', 'MISSING_KEY', 'OUT_OF_USAGE_CREDITS', 'ACCESS_DENIED',
+    'INVALID_KEY', 'DEACTIVATED_KEY', 'EXCEEDED_FREQ_LIMIT', 'MISSING_KEY', 'OUT_OF_USAGE_CREDITS', 'ACCESS_DENIED',
     'RATE_LIMIT_EXCEEDED', 'INVALID_MARKET', 'INVALID_REGION', 'INVALID_BOOKMAKERS',
     'INVALID_SPORT', 'UNKNOWN_SPORT', 'NO_ACCESS',
 })
@@ -55,7 +55,7 @@ def request(url, *, store=None, now=None, opener=None):
         failures = min(int(prior.get('failures', 0)) + 1, 6)
         status = details.get('http_status')
         delay = 3600 if code == 'OUT_OF_USAGE_CREDITS' else 900 if status in (401, 403) else min(30 * 2 ** (failures-1), 900)
-        if status == 429:
+        if status == 429 or code == 'EXCEEDED_FREQ_LIMIT':
             try:
                 delay = max(60, min(3600, int(exc.headers.get('Retry-After', '60'))))
             except (ValueError, TypeError, AttributeError):
@@ -66,6 +66,18 @@ def request(url, *, store=None, now=None, opener=None):
             store.append('provider_circuit', entity, details)
         # Never retain the original exception: its URL can contain credentials.
         raise ProviderUnavailable(details) from None
+    if store:
+        headers = {k.lower(): v for k, v in result[1].items()}
+        usage = {}
+        for name in ('x-requests-remaining', 'x-requests-used', 'x-requests-last'):
+            try:
+                value = int(headers[name])
+                if value >= 0:
+                    usage[name] = value
+            except (KeyError, ValueError, TypeError):
+                pass
+        if usage:
+            store.append('provider_usage', entity, {'observed_at': now.isoformat(), **usage})
     if store and prior:
         store.append('provider_circuit', entity, {'status': 'HEALTHY', 'failures': 0, 'observed_at': now.isoformat()})
     return result

@@ -649,3 +649,6 @@ app.middleware("http")(vip_guard)
 
 from .sgp_api import router as sgp_router
 app.include_router(sgp_router)
+
+from .promo_api import router as promo_router
+app.include_router(promo_router)
