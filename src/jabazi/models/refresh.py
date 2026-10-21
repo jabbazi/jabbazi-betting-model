@@ -92,6 +92,7 @@ def schedule_mlb(raw, now, home_venues=None):
 
 def nba_schedule_rows(raw, now):
     """Normalize SportsDataverse NBA schedule rows for state refresh."""
+    from jabazi.providers.nba_teams import canonical_team
     games, events = [], []
     for row in csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))):
         if str(row.get("season_type")) not in {"2", "2.0", "regular-season", "Regular Season"}:
@@ -99,8 +100,8 @@ def nba_schedule_rows(raw, now):
         try:
             start = timestamp(str(row["game_date_time"]).replace("Z", "+00:00"))
             season = int(float(row["season"])) - 1
-            home = str(row["home_display_name"]).strip()
-            away = str(row["away_display_name"]).strip()
+            home = canonical_team(row["home_display_name"])
+            away = canonical_team(row["away_display_name"])
             neutral = str(row.get("neutral_site", "")).strip().lower() in {"true", "t", "1", "yes"}
             completed = str(row.get("status_type_completed", "")).strip().lower() in {
                 "true", "t", "1", "yes"
@@ -413,13 +414,22 @@ def refresh_models(store, *, now=None):
             # exceed the original lease lifetime during a slow feed response.
             if not store.acquire_lease("model_refresh", owner, 300):
                 return {"status": "LEASE_LOST", "models": report}
+            path = BUNDLE_DIR / ("nhl_goals.json" if short == "nhl" else f"{short}_scores.json")
             previous = store.list_records("model_refresh_attempt", 1, entity=SPORTS[short])
             if previous:
                 elapsed = (now - timestamp(previous[0]["payload"]["attempted_at"])).total_seconds()
                 latest = store.list_records("game_model", 1, entity=SPORTS[short])
                 failed = bool(latest and latest[0]["payload"].get("status") == "UNAVAILABLE")
+                version_changed = False
+                if latest and latest[0]["payload"].get("model_version") and path.exists():
+                    try:
+                        version_changed = latest[0]["payload"]["model_version"] != json.loads(
+                            path.read_text()
+                        ).get("model_version")
+                    except (ValueError, OSError):
+                        pass  # Normal refresh below will record the load failure.
                 retry_after = 60 if failed else 6 * 3600
-                if 0 <= elapsed < retry_after:
+                if not version_changed and 0 <= elapsed < retry_after:
                     report[short] = "NOT_DUE"
                     continue
             store.append("model_refresh_attempt", SPORTS[short], {"attempted_at": now.isoformat()})

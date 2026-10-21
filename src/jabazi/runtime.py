@@ -453,6 +453,8 @@ def worker(*, once=False):
                         finally:
                             next_scan = time.monotonic() + interval
                     report["status"] = "RUNNING"
+                    if report.get("closing", {}).get("status") == "DATA_UNHEALTHY":
+                        report["status"] = "DATA_UNHEALTHY"
                 store.append("worker_heartbeat", "research_worker", report)
             except Exception as exc:
                 report["status"] = "DATA_UNHEALTHY"

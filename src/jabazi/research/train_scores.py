@@ -71,6 +71,10 @@ def train(source, output, sport, *, now=None):
     raw = Path(source).read_bytes()
     payload = json.loads(raw)
     all_games = validate_history(payload, sport)
+    if sport == "nba":
+        from jabazi.providers.nba_teams import NBA_TEAMS
+        if any(g[side + "_team"] not in NBA_TEAMS for g in all_games for side in ("home", "away")):
+            raise ValueError("NBA training requires canonical franchise teams; recapture clean history")
     # 2026 updates current feature state only; no use in fitting/tuning/evaluation.
     rows = training_rows(payload | {"games": [g for g in all_games if g["season"] <= 2025]}, sport)
     fitting = [r for r in rows if r["game"]["season"] <= 2023]
@@ -129,6 +133,10 @@ def train(source, output, sport, *, now=None):
         ],
     }
     threshold = 44.5 if sport == "nfl" else 224.5 if sport == "nba" else 8.5
+    if sport == "nba":
+        from jabazi.providers.nba_teams import NBA_ALIASES
+        artifact["team_aliases"] = NBA_ALIASES
+        artifact["team_identity_policy"] = "nba-30-franchises-v1"
     spread = -3.5 if sport == "nfl" else -4.5 if sport == "nba" else -1.5
     results = {key: [] for key in ("moneyline", "spread", "total")}
     reference = {key: [] for key in results}

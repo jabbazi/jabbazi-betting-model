@@ -16,6 +16,7 @@ import json
 import urllib.request
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from jabazi.providers.nba_teams import canonical_team
 
 SCHEDULE = (
     "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
@@ -66,7 +67,7 @@ def parse_time(value):
     return dt.astimezone(UTC)
 
 
-def capture(output, seasons=DEFAULT_SEASONS):
+def capture(output, seasons=DEFAULT_SEASONS, *, team_only=False):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     team_games, player_rows = {}, []
@@ -74,7 +75,8 @@ def capture(output, seasons=DEFAULT_SEASONS):
     schedule_by_game = {}
 
     for season in seasons:
-        for kind, template in (("schedule", SCHEDULE), ("player", PLAYER)):
+        sources = (("schedule", SCHEDULE),) if team_only else (("schedule", SCHEDULE), ("player", PLAYER))
+        for kind, template in sources:
             url = template.format(season=int(season))
             raw = fetch(url)
             digest = hashlib.sha256(raw).hexdigest()
@@ -99,6 +101,10 @@ def capture(output, seasons=DEFAULT_SEASONS):
                         continue
                     if not truthy(row.get("status_type_completed")):
                         continue
+                    home = canonical_team(row.get("home_display_name"))
+                    away = canonical_team(row.get("away_display_name"))
+                    if not home or not away:
+                        continue
                     gid = str(row["game_id"])
                     start = parse_time(row["game_date_time"])
                     game = {
@@ -108,8 +114,8 @@ def capture(output, seasons=DEFAULT_SEASONS):
                         # starting year so chronological split labels stay explicit.
                         "season": int(float(row["season"])) - 1,
                         "starts_at": start.isoformat(),
-                        "home_team": str(row["home_display_name"]).strip(),
-                        "away_team": str(row["away_display_name"]).strip(),
+                        "home_team": home,
+                        "away_team": away,
                         "home_score": integer(row, "home_score"),
                         "away_score": integer(row, "away_score"),
                         "neutral_site": truthy(row.get("neutral_site")),
@@ -198,5 +204,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
     parser.add_argument("--seasons", nargs="*", type=int, default=list(DEFAULT_SEASONS))
+    parser.add_argument("--team-only", action="store_true")
     args = parser.parse_args()
-    capture(args.output, tuple(args.seasons))
+    capture(args.output, tuple(args.seasons), team_only=args.team_only)

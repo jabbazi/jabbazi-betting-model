@@ -268,3 +268,54 @@ def test_opening_night_finals_wait_for_availability_without_poisoning_model(monk
     ready = fetch_update(artifact, now=datetime(2026, 10, 22, 1, tzinfo=UTC))
     assert 'inference_status' not in ready
     assert ready['team_state']['Boston Celtics'][-1][0] == 110
+
+
+def test_nba_schedule_excludes_exhibitions_and_canonicalizes_clippers():
+    raw = (
+        'game_id,season,season_type,game_date_time,neutral_site,status_type_completed,'
+        'home_display_name,away_display_name,home_score,away_score\n'
+        '1,2026,2,2026-04-01T00:00:00+00:00,false,true,Team LeBron,Team Shaq,110,101\n'
+        '2,2027,2,2026-10-01T00:00:00+00:00,false,false,LA Clippers,Boston Celtics,,\n'
+    ).encode()
+    games, events = nba_schedule_rows(raw, NOW)
+    assert games == []
+    assert len(events) == 1
+    assert events[0]['home_team'] == 'Los Angeles Clippers'
+
+
+def test_nba_training_capture_excludes_exhibitions(tmp_path, monkeypatch):
+    from tools import capture_nba_sportsdataverse as capture
+    import json
+    raw = (
+        'game_id,season,season_type,game_date_time,neutral_site,status_type_completed,'
+        'home_display_name,away_display_name,home_score,away_score\n'
+        '1,2026,2,2026-04-01T00:00:00+00:00,false,true,Team LeBron,Team Shaq,110,101\n'
+        '2,2026,2,2026-04-02T00:00:00+00:00,false,true,LA Clippers,Boston Celtics,110,101\n'
+    ).encode()
+    monkeypatch.setattr(capture, 'fetch', lambda *a, **k: raw)
+    capture.capture(tmp_path, (2026,), team_only=True)
+    games = json.loads((tmp_path / 'nba_team_history.json').read_text())['games']
+    assert len(games) == 1
+    assert games[0]['home_team'] == 'Los Angeles Clippers'
+
+
+def test_new_nba_artifact_refreshes_without_waiting_six_hours(monkeypatch):
+    import json
+    from jabazi.models.refresh import BUNDLE_DIR, refresh_models
+    from jabazi.persistence.store import Store
+    store = Store('sqlite:///:memory:', initialize=True)
+    artifact = json.loads((BUNDLE_DIR / 'nba_scores.json').read_text())
+    sport = artifact['sport']
+    store.append('model_refresh_attempt', sport, {'attempted_at': NOW.isoformat()})
+    store.append('game_model', sport, artifact | {'model_version': 'old-version'})
+    calls = []
+    def fetch(value, **kwargs):
+        calls.append(value['sport'])
+        return value
+    monkeypatch.setattr('jabazi.models.refresh.fetch_update', fetch)
+    try:
+        result = refresh_models(store, now=NOW)
+        assert sport in calls
+        assert result['nba']['version'] == artifact['model_version']
+    finally:
+        store.close()
