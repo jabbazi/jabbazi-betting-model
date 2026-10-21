@@ -287,8 +287,11 @@ def run_background(scan_id):
             "credits_remaining": result.get("credits_remaining"),
             "max_credits": max_credits,
         })
-    except Exception:
-        result = {"status": "FAILED", "errors": ["Scan unavailable; no actionable output"]}
+    except Exception as exc:
+        from .providers.errors import error_details
+        details = error_details(exc)
+        reason = details.get("reason", "Scan unavailable; no actionable output")
+        result = {"status": "FAILED", "errors": [reason], "provider_failure": details}
     try:
         if store is not None:
             store.append(

@@ -62,7 +62,7 @@ def bucket_metrics(pairs):
     return result
 
 
-def train(source, output, sport, *, now=None):
+def train(source, output, sport, *, now=None, feature_policy=None):
     import numpy as np
     from sklearn.linear_model import Ridge
     from sklearn.preprocessing import StandardScaler
@@ -76,7 +76,7 @@ def train(source, output, sport, *, now=None):
         if any(g[side + "_team"] not in NBA_TEAMS for g in all_games for side in ("home", "away")):
             raise ValueError("NBA training requires canonical franchise teams; recapture clean history")
     # 2026 updates current feature state only; no use in fitting/tuning/evaluation.
-    rows = training_rows(payload | {"games": [g for g in all_games if g["season"] <= 2025]}, sport)
+    rows = training_rows(payload | {"games": [g for g in all_games if g["season"] <= 2025]}, sport, feature_policy)
     fitting = [r for r in rows if r["game"]["season"] <= 2023]
     calibration = [r for r in rows if r["game"]["season"] == 2024]
     diagnostic = [r for r in rows if r["game"]["season"] == 2025]
@@ -97,6 +97,8 @@ def train(source, output, sport, *, now=None):
     ) - model.predict(scaler.transform([r["features"] for r in calibration]))
     checksum = hashlib.sha256(raw).hexdigest()
     version = f"{sport}-score-ridge-0.1.0-{checksum[:12]}"
+    if feature_policy:
+        version += "-" + hashlib.sha256(json.dumps(feature_policy, sort_keys=True).encode()).hexdigest()[:8]
     artifact = {
         "schema_version": 1,
         "sport": SPORTS[sport],
@@ -137,8 +139,11 @@ def train(source, output, sport, *, now=None):
         from jabazi.providers.nba_teams import NBA_ALIASES
         artifact["team_aliases"] = NBA_ALIASES
         artifact["team_identity_policy"] = "nba-30-franchises-v1"
+    if feature_policy:
+        artifact["feature_policy"] = feature_policy
     spread = -3.5 if sport == "nfl" else -4.5 if sport == "nba" else -1.5
     results = {key: [] for key in ("moneyline", "spread", "total")}
+    early_results = {key: [] for key in results}
     reference = {key: [] for key in results}
     pooled = [(r["game"]["home_score"], r["game"]["away_score"]) for r in calibration]
     for row in diagnostic:
@@ -160,6 +165,8 @@ def train(source, output, sport, *, now=None):
                 if not decisive:
                     continue
                 target[key].append((p["win"] / decisive, outcome))
+                if target is results and timestamp(g["starts_at"]).month == 10:
+                    early_results[key].append((p["win"] / decisive, outcome))
     paired_model, paired_market = [], []
     for row in diagnostic:
         g = row["game"]
@@ -190,6 +197,7 @@ def train(source, output, sport, *, now=None):
         },
         "diagnostic_thresholds": {"home_spread": spread, "total": threshold},
         "model": {k: bucket_metrics(v) for k, v in results.items()},
+        "october_diagnostic": {k: bucket_metrics(v) for k, v in early_results.items()},
         "pooled_calibration_score_reference": {k: bucket_metrics(v) for k, v in reference.items()},
         "paired_market_diagnostic": {
             "model": bucket_metrics(paired_model),

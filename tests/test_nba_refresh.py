@@ -319,3 +319,44 @@ def test_new_nba_artifact_refreshes_without_waiting_six_hours(monkeypatch):
         assert result['nba']['version'] == artifact['model_version']
     finally:
         store.close()
+
+
+def test_early_season_carries_history_but_requires_recent_eligible_results(monkeypatch):
+    import json
+    from types import SimpleNamespace
+    from jabazi.models.refresh import BUNDLE_DIR, fetch_update
+    from jabazi.models.score_distribution import ScoreDistributionModel
+    header = ('game_id,season,season_type,game_date_time,neutral_site,status_type_completed,'
+              'home_display_name,away_display_name,home_score,away_score\n')
+    prior = header + ''.join(
+        f'{i},2026,2,2026-04-{i:02d}T00:00:00+00:00,false,true,Boston Celtics,New York Knicks,110,101\n'
+        for i in range(1, 10)
+    )
+    current = header + (
+        '20,2027,2,2026-10-20T23:30:00+00:00,false,true,Boston Celtics,New York Knicks,114,108\n'
+        '21,2027,2,2026-10-22T23:30:00+00:00,false,false,Boston Celtics,New York Knicks,,\n'
+    )
+    class Response:
+        def __init__(self, text): self.raw = text.encode()
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, limit): return self.raw
+    monkeypatch.setattr('jabazi.models.refresh.urllib.request.urlopen',
+                        lambda url, **kw: Response(prior if '2026.csv' in url else current))
+    artifact = json.loads((BUNDLE_DIR / 'nba_scores.json').read_text())
+    now = datetime(2026, 10, 22, 1, tzinfo=UTC)
+    updated = fetch_update(artifact, now=now)
+    assert len(updated['team_state']['Boston Celtics']) == 10
+    assert len(updated['events']) == 1
+    price = SimpleNamespace(sport='basketball_nba', market='h2h',
+        event='New York Knicks @ Boston Celtics', event_id='21',
+        starts_at=datetime(2026, 10, 22, 23, 30, tzinfo=UTC), observed_at=now,
+        in_play=False, selection='Boston Celtics', line=None, participant=None)
+    estimate = ScoreDistributionModel(updated).estimate(price)
+    assert estimate is not None and not estimate.approved_for_betting
+    # Prior history cannot make an unavailable opening result eligible early.
+    waiting = fetch_update(artifact, now=datetime(2026, 10, 21, 14, tzinfo=UTC))
+    assert waiting['inference_status'] == 'WAITING_FOR_ELIGIBLE_HISTORY'
+    # Removing the current result preserves the per-team stale-history block.
+    updated['team_state']['Boston Celtics'].pop()
+    assert ScoreDistributionModel(updated).estimate(price) is None

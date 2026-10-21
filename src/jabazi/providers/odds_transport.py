@@ -1,6 +1,7 @@
 """Bounded odds transport with durable credential-scoped failure backoff."""
 import hashlib
 import json
+import logging
 import os
 import urllib.error
 import urllib.parse
@@ -60,6 +61,7 @@ def request(url, *, store=None, now=None, opener=None):
             except (ValueError, TypeError, AttributeError):
                 delay = 60
         details.update(failures=failures, retry_at=(now + timedelta(seconds=delay)).isoformat(), observed_at=now.isoformat())
+        logging.getLogger(__name__).warning("ODDS_PROVIDER_FAILURE %s", json.dumps(details, sort_keys=True))
         if store:
             store.append('provider_circuit', entity, details)
         # Never retain the original exception: its URL can contain credentials.

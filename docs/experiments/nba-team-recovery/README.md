@@ -38,3 +38,11 @@ process. New model versions refresh without waiting for the old six-hour window.
 Known outstanding issues: odds provider access, repeated Discord status-panel
 404s, opening-season forecast coverage, audited injury/rotation inputs and frozen
 prospective market-baseline validation. Do not relax inference gates to hide them.
+
+## October 21 follow-up: early-season diagnostics and transport recovery
+
+The decay/shrinkage candidate is NOT promoted. On 1,231 previously inspected diagnostic games, moneyline Brier improved from 0.21119 to 0.20989 but totals worsened from 0.22712 to 0.22943. October (75 games) results are mixed. See early-season-diagnostics.json. These samples are not untouched prospective evidence; fixed-line diagnostics do not demonstrate executable profitability. No roster-change adjustment has been validated.
+
+Live NBA refresh now fetches preceding regular-season history after current-season results become eligible, matching the existing training carryover behavior. It retains the per-team seven-day freshness gate, minimum sample requirement, strict label availability, and SHADOW_ONLY status. A team with no recent eligible result remains unavailable. This is a training/live consistency repair, not approval of a new early-season model.
+
+Odds requests use a durable credential-scoped circuit with bounded backoff, allowlisted failure codes and safe timestamps. A fresh authenticated scan on October 21 failed before prices were obtained; odds restoration remains unverified. Discord diagnostics identify GET /channels/1554622841201365072 returning 404 after guild/owner checks; no alternate destination was chosen.

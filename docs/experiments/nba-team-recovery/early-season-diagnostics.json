@@ -1,0 +1,1548 @@
+{
+  "baseline": {
+    "model_version": "nba-score-ridge-0.1.0-0c2e4390af66",
+    "status": "SHADOW_ONLY",
+    "approved_for_betting": false,
+    "source_checksum": "0c2e4390af66db5395a25b6d29d37335f53c3e98d8776be8563e20d16fe09495",
+    "history_games": 4923,
+    "split_counts": {
+      "fit_through_2023": 2326,
+      "residual_calibration_2024": 1231,
+      "diagnostic_2025": 1231
+    },
+    "diagnostic_thresholds": {
+      "home_spread": -4.5,
+      "total": 224.5
+    },
+    "model": {
+      "moneyline": {
+        "n": 1231,
+        "brier": 0.21119374945728914,
+        "log_loss": 0.6109389430864498,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 2,
+            "mean_probability": 0.09720604130719027,
+            "observed_rate": 0.5
+          },
+          {
+            "lower": 0.1,
+            "n": 13,
+            "mean_probability": 0.17634574143077442,
+            "observed_rate": 0.07692307692307693
+          },
+          {
+            "lower": 0.2,
+            "n": 66,
+            "mean_probability": 0.2546682489320432,
+            "observed_rate": 0.16666666666666666
+          },
+          {
+            "lower": 0.3,
+            "n": 136,
+            "mean_probability": 0.3521952345512491,
+            "observed_rate": 0.3014705882352941
+          },
+          {
+            "lower": 0.4,
+            "n": 221,
+            "mean_probability": 0.45496930839045396,
+            "observed_rate": 0.4298642533936652
+          },
+          {
+            "lower": 0.5,
+            "n": 319,
+            "mean_probability": 0.5495589294253231,
+            "observed_rate": 0.5830721003134797
+          },
+          {
+            "lower": 0.6,
+            "n": 239,
+            "mean_probability": 0.6461630274064984,
+            "observed_rate": 0.6359832635983264
+          },
+          {
+            "lower": 0.7,
+            "n": 155,
+            "mean_probability": 0.7462128394454135,
+            "observed_rate": 0.8193548387096774
+          },
+          {
+            "lower": 0.8,
+            "n": 80,
+            "mean_probability": 0.8364963672488595,
+            "observed_rate": 0.8625
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "spread": {
+        "n": 1231,
+        "brier": 0.21743368611571443,
+        "log_loss": 0.624233212810381,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 6,
+            "mean_probability": 0.07812076902247496,
+            "observed_rate": 0.16666666666666666
+          },
+          {
+            "lower": 0.1,
+            "n": 77,
+            "mean_probability": 0.1600957937269879,
+            "observed_rate": 0.11688311688311688
+          },
+          {
+            "lower": 0.2,
+            "n": 166,
+            "mean_probability": 0.25485695829622307,
+            "observed_rate": 0.25301204819277107
+          },
+          {
+            "lower": 0.3,
+            "n": 283,
+            "mean_probability": 0.34730590487781776,
+            "observed_rate": 0.3498233215547703
+          },
+          {
+            "lower": 0.4,
+            "n": 282,
+            "mean_probability": 0.4524056437999435,
+            "observed_rate": 0.48226950354609927
+          },
+          {
+            "lower": 0.5,
+            "n": 232,
+            "mean_probability": 0.54332054119163,
+            "observed_rate": 0.5732758620689655
+          },
+          {
+            "lower": 0.6,
+            "n": 122,
+            "mean_probability": 0.653440492202794,
+            "observed_rate": 0.7131147540983607
+          },
+          {
+            "lower": 0.7,
+            "n": 54,
+            "mean_probability": 0.7406203929355839,
+            "observed_rate": 0.7407407407407407
+          },
+          {
+            "lower": 0.8,
+            "n": 9,
+            "mean_probability": 0.8119866413936276,
+            "observed_rate": 0.8888888888888888
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "total": {
+        "n": 1231,
+        "brier": 0.22711828086856672,
+        "log_loss": 0.6457843462096731,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 4,
+            "mean_probability": 0.26645004061738425,
+            "observed_rate": 0.75
+          },
+          {
+            "lower": 0.3,
+            "n": 23,
+            "mean_probability": 0.36573305548687884,
+            "observed_rate": 0.2608695652173913
+          },
+          {
+            "lower": 0.4,
+            "n": 103,
+            "mean_probability": 0.45812465987869994,
+            "observed_rate": 0.44660194174757284
+          },
+          {
+            "lower": 0.5,
+            "n": 285,
+            "mean_probability": 0.5573674234326678,
+            "observed_rate": 0.543859649122807
+          },
+          {
+            "lower": 0.6,
+            "n": 489,
+            "mean_probability": 0.6528102412290538,
+            "observed_rate": 0.6257668711656442
+          },
+          {
+            "lower": 0.7,
+            "n": 260,
+            "mean_probability": 0.7424451665312753,
+            "observed_rate": 0.7153846153846154
+          },
+          {
+            "lower": 0.8,
+            "n": 64,
+            "mean_probability": 0.8349918765231519,
+            "observed_rate": 0.8125
+          },
+          {
+            "lower": 0.9,
+            "n": 3,
+            "mean_probability": 0.9073923639317627,
+            "observed_rate": 1.0
+          }
+        ]
+      }
+    },
+    "october_diagnostic": {
+      "moneyline": {
+        "n": 75,
+        "brier": 0.22219560104253494,
+        "log_loss": 0.6396216942917631,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 1,
+            "mean_probability": 0.09449465899753492,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.1,
+            "n": 1,
+            "mean_probability": 0.17715231788079472,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.2,
+            "n": 4,
+            "mean_probability": 0.27953176889791437,
+            "observed_rate": 0.5
+          },
+          {
+            "lower": 0.3,
+            "n": 9,
+            "mean_probability": 0.34143408626630856,
+            "observed_rate": 0.2222222222222222
+          },
+          {
+            "lower": 0.4,
+            "n": 17,
+            "mean_probability": 0.4562232919748151,
+            "observed_rate": 0.5882352941176471
+          },
+          {
+            "lower": 0.5,
+            "n": 13,
+            "mean_probability": 0.5425340601929857,
+            "observed_rate": 0.5384615384615384
+          },
+          {
+            "lower": 0.6,
+            "n": 17,
+            "mean_probability": 0.6415930961433234,
+            "observed_rate": 0.5294117647058824
+          },
+          {
+            "lower": 0.7,
+            "n": 8,
+            "mean_probability": 0.7506895246110155,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.8,
+            "n": 5,
+            "mean_probability": 0.84803861457933,
+            "observed_rate": 0.8
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "spread": {
+        "n": 75,
+        "brier": 0.23223678934150566,
+        "log_loss": 0.6678106223450123,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 1,
+            "mean_probability": 0.054427294882209584,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.1,
+            "n": 6,
+            "mean_probability": 0.17208231789872733,
+            "observed_rate": 0.3333333333333333
+          },
+          {
+            "lower": 0.2,
+            "n": 11,
+            "mean_probability": 0.2540432759766635,
+            "observed_rate": 0.18181818181818182
+          },
+          {
+            "lower": 0.3,
+            "n": 18,
+            "mean_probability": 0.34416463579745465,
+            "observed_rate": 0.4444444444444444
+          },
+          {
+            "lower": 0.4,
+            "n": 11,
+            "mean_probability": 0.44154789158850893,
+            "observed_rate": 0.36363636363636365
+          },
+          {
+            "lower": 0.5,
+            "n": 18,
+            "mean_probability": 0.5318620814152902,
+            "observed_rate": 0.5
+          },
+          {
+            "lower": 0.6,
+            "n": 6,
+            "mean_probability": 0.6673436230706743,
+            "observed_rate": 0.8333333333333334
+          },
+          {
+            "lower": 0.7,
+            "n": 4,
+            "mean_probability": 0.7733549959382615,
+            "observed_rate": 0.75
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "total": {
+        "n": 75,
+        "brier": 0.21821021745533462,
+        "log_loss": 0.6282570797302293,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 1,
+            "mean_probability": 0.34443541835905767,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.4,
+            "n": 8,
+            "mean_probability": 0.4619212022745735,
+            "observed_rate": 0.625
+          },
+          {
+            "lower": 0.5,
+            "n": 23,
+            "mean_probability": 0.5647582382651078,
+            "observed_rate": 0.7391304347826086
+          },
+          {
+            "lower": 0.6,
+            "n": 28,
+            "mean_probability": 0.6548682836253917,
+            "observed_rate": 0.6785714285714286
+          },
+          {
+            "lower": 0.7,
+            "n": 14,
+            "mean_probability": 0.7323894626900314,
+            "observed_rate": 0.8571428571428571
+          },
+          {
+            "lower": 0.8,
+            "n": 1,
+            "mean_probability": 0.8164094232331438,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      }
+    },
+    "pooled_calibration_score_reference": {
+      "moneyline": {
+        "n": 1231,
+        "brier": 0.24712263282478567,
+        "log_loss": 0.6873826730493416,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 1231,
+            "mean_probability": 0.5434606011372868,
+            "observed_rate": 0.5548334687246141
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "spread": {
+        "n": 1231,
+        "brier": 0.24758456895749592,
+        "log_loss": 0.6883085091785114,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 1231,
+            "mean_probability": 0.45085296506904954,
+            "observed_rate": 0.45085296506904954
+          },
+          {
+            "lower": 0.5,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "total": {
+        "n": 1231,
+        "brier": 0.2393238310871139,
+        "log_loss": 0.6716984060868842,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 1231,
+            "mean_probability": 0.5645816409423233,
+            "observed_rate": 0.6149471974004874
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      }
+    },
+    "paired_market_diagnostic": {
+      "model": {
+        "n": 0,
+        "brier": null,
+        "log_loss": null,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "market": {
+        "n": 0,
+        "brier": null,
+        "log_loss": null,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "timestamp_verified_prices": 0
+    },
+    "limitations": [
+      "Research only: no evidence of a profitable betting edge or production approval",
+      "Score/rest/home-field features only; no verified QB, starter, pitcher, lineup, injury or weather features",
+      "Paired calibration residuals approximate score distributions; no player-prop or SGP model",
+      "2025 already inspected previously; diagnostic, not untouched final holdout",
+      "Historical result availability uses a two-UTC-date delay proxy",
+      "No decision-time odds backtest, realized ROI, or CLV evidence",
+      "Moneyline probability conditional on decisive game; integer-line pushes not integrated",
+      "0.08 uncertainty haircut is a conservative policy setting, not an estimated confidence interval",
+      "Internal research; provider commercial-use permissions require review before monetization"
+    ]
+  },
+  "season_prior": {
+    "model_version": "nba-score-ridge-0.1.0-0c2e4390af66-8b3b9438",
+    "status": "SHADOW_ONLY",
+    "approved_for_betting": false,
+    "source_checksum": "0c2e4390af66db5395a25b6d29d37335f53c3e98d8776be8563e20d16fe09495",
+    "history_games": 4923,
+    "split_counts": {
+      "fit_through_2023": 2326,
+      "residual_calibration_2024": 1231,
+      "diagnostic_2025": 1231
+    },
+    "diagnostic_thresholds": {
+      "home_spread": -4.5,
+      "total": 224.5
+    },
+    "model": {
+      "moneyline": {
+        "n": 1231,
+        "brier": 0.20988867659248733,
+        "log_loss": 0.6080364614414083,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 13,
+            "mean_probability": 0.1705107392861297,
+            "observed_rate": 0.15384615384615385
+          },
+          {
+            "lower": 0.2,
+            "n": 64,
+            "mean_probability": 0.24926654316833652,
+            "observed_rate": 0.171875
+          },
+          {
+            "lower": 0.3,
+            "n": 137,
+            "mean_probability": 0.35348025959820845,
+            "observed_rate": 0.2846715328467153
+          },
+          {
+            "lower": 0.4,
+            "n": 232,
+            "mean_probability": 0.45387033637299845,
+            "observed_rate": 0.40948275862068967
+          },
+          {
+            "lower": 0.5,
+            "n": 329,
+            "mean_probability": 0.5488095354269765,
+            "observed_rate": 0.5957446808510638
+          },
+          {
+            "lower": 0.6,
+            "n": 227,
+            "mean_probability": 0.6481948050906671,
+            "observed_rate": 0.6563876651982379
+          },
+          {
+            "lower": 0.7,
+            "n": 151,
+            "mean_probability": 0.7446906220676096,
+            "observed_rate": 0.8344370860927153
+          },
+          {
+            "lower": 0.8,
+            "n": 78,
+            "mean_probability": 0.8338569915435301,
+            "observed_rate": 0.8333333333333334
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "spread": {
+        "n": 1231,
+        "brier": 0.21615504400556543,
+        "log_loss": 0.6207936498303505,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 3,
+            "mean_probability": 0.08123476848090982,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.1,
+            "n": 75,
+            "mean_probability": 0.15630652585973462,
+            "observed_rate": 0.12
+          },
+          {
+            "lower": 0.2,
+            "n": 170,
+            "mean_probability": 0.25122568930090317,
+            "observed_rate": 0.23529411764705882
+          },
+          {
+            "lower": 0.3,
+            "n": 291,
+            "mean_probability": 0.34867023429670513,
+            "observed_rate": 0.3539518900343643
+          },
+          {
+            "lower": 0.4,
+            "n": 311,
+            "mean_probability": 0.45034622728495644,
+            "observed_rate": 0.4855305466237942
+          },
+          {
+            "lower": 0.5,
+            "n": 206,
+            "mean_probability": 0.5476130385746847,
+            "observed_rate": 0.6067961165048543
+          },
+          {
+            "lower": 0.6,
+            "n": 112,
+            "mean_probability": 0.6517784611813856,
+            "observed_rate": 0.6696428571428571
+          },
+          {
+            "lower": 0.7,
+            "n": 56,
+            "mean_probability": 0.7403388650342346,
+            "observed_rate": 0.8035714285714286
+          },
+          {
+            "lower": 0.8,
+            "n": 7,
+            "mean_probability": 0.8128118834861321,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "total": {
+        "n": 1231,
+        "brier": 0.22942577595289915,
+        "log_loss": 0.6510970370804682,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 2,
+            "mean_probability": 0.2985377741673436,
+            "observed_rate": 0.5
+          },
+          {
+            "lower": 0.3,
+            "n": 11,
+            "mean_probability": 0.37404918395982567,
+            "observed_rate": 0.2727272727272727
+          },
+          {
+            "lower": 0.4,
+            "n": 70,
+            "mean_probability": 0.4614482998723454,
+            "observed_rate": 0.42857142857142855
+          },
+          {
+            "lower": 0.5,
+            "n": 236,
+            "mean_probability": 0.5593977612248551,
+            "observed_rate": 0.5169491525423728
+          },
+          {
+            "lower": 0.6,
+            "n": 475,
+            "mean_probability": 0.6545247766043867,
+            "observed_rate": 0.6252631578947369
+          },
+          {
+            "lower": 0.7,
+            "n": 367,
+            "mean_probability": 0.7423042784382561,
+            "observed_rate": 0.6757493188010899
+          },
+          {
+            "lower": 0.8,
+            "n": 69,
+            "mean_probability": 0.833668868246624,
+            "observed_rate": 0.7971014492753623
+          },
+          {
+            "lower": 0.9,
+            "n": 1,
+            "mean_probability": 0.9025182778229082,
+            "observed_rate": 1.0
+          }
+        ]
+      }
+    },
+    "october_diagnostic": {
+      "moneyline": {
+        "n": 75,
+        "brier": 0.22314801448141733,
+        "log_loss": 0.6378506142707339,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 1,
+            "mean_probability": 0.29799666110183637,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.3,
+            "n": 2,
+            "mean_probability": 0.36126975071850986,
+            "observed_rate": 0.0
+          },
+          {
+            "lower": 0.4,
+            "n": 19,
+            "mean_probability": 0.45737416466486236,
+            "observed_rate": 0.3684210526315789
+          },
+          {
+            "lower": 0.5,
+            "n": 32,
+            "mean_probability": 0.5435925668296271,
+            "observed_rate": 0.59375
+          },
+          {
+            "lower": 0.6,
+            "n": 16,
+            "mean_probability": 0.6436997919932388,
+            "observed_rate": 0.75
+          },
+          {
+            "lower": 0.7,
+            "n": 5,
+            "mean_probability": 0.7289606113333025,
+            "observed_rate": 0.8
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "spread": {
+        "n": 75,
+        "brier": 0.23178242016258835,
+        "log_loss": 0.6569900132909906,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 5,
+            "mean_probability": 0.25410235580828594,
+            "observed_rate": 0.4
+          },
+          {
+            "lower": 0.3,
+            "n": 28,
+            "mean_probability": 0.3547058140884299,
+            "observed_rate": 0.35714285714285715
+          },
+          {
+            "lower": 0.4,
+            "n": 28,
+            "mean_probability": 0.4468492514796333,
+            "observed_rate": 0.35714285714285715
+          },
+          {
+            "lower": 0.5,
+            "n": 12,
+            "mean_probability": 0.5484023828865421,
+            "observed_rate": 0.8333333333333334
+          },
+          {
+            "lower": 0.6,
+            "n": 2,
+            "mean_probability": 0.6409423233143785,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "total": {
+        "n": 75,
+        "brier": 0.21380395386533857,
+        "log_loss": 0.6202720731549799,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 7,
+            "mean_probability": 0.5650458396193571,
+            "observed_rate": 0.8571428571428571
+          },
+          {
+            "lower": 0.6,
+            "n": 37,
+            "mean_probability": 0.6556743583551057,
+            "observed_rate": 0.7567567567567568
+          },
+          {
+            "lower": 0.7,
+            "n": 30,
+            "mean_probability": 0.7379907933929055,
+            "observed_rate": 0.6333333333333333
+          },
+          {
+            "lower": 0.8,
+            "n": 1,
+            "mean_probability": 0.8090982940698619,
+            "observed_rate": 1.0
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      }
+    },
+    "pooled_calibration_score_reference": {
+      "moneyline": {
+        "n": 1231,
+        "brier": 0.24712263282478567,
+        "log_loss": 0.6873826730493416,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 1231,
+            "mean_probability": 0.5434606011372868,
+            "observed_rate": 0.5548334687246141
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "spread": {
+        "n": 1231,
+        "brier": 0.24758456895749592,
+        "log_loss": 0.6883085091785114,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 1231,
+            "mean_probability": 0.45085296506904954,
+            "observed_rate": 0.45085296506904954
+          },
+          {
+            "lower": 0.5,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "total": {
+        "n": 1231,
+        "brier": 0.2393238310871139,
+        "log_loss": 0.6716984060868842,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 1231,
+            "mean_probability": 0.5645816409423233,
+            "observed_rate": 0.6149471974004874
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      }
+    },
+    "paired_market_diagnostic": {
+      "model": {
+        "n": 0,
+        "brier": null,
+        "log_loss": null,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "market": {
+        "n": 0,
+        "brier": null,
+        "log_loss": null,
+        "reliability": [
+          {
+            "lower": 0.0,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.1,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.2,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.3,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.4,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.5,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.6,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.7,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.8,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          },
+          {
+            "lower": 0.9,
+            "n": 0,
+            "mean_probability": null,
+            "observed_rate": null
+          }
+        ]
+      },
+      "timestamp_verified_prices": 0
+    },
+    "limitations": [
+      "Research only: no evidence of a profitable betting edge or production approval",
+      "Score/rest/home-field features only; no verified QB, starter, pitcher, lineup, injury or weather features",
+      "Paired calibration residuals approximate score distributions; no player-prop or SGP model",
+      "2025 already inspected previously; diagnostic, not untouched final holdout",
+      "Historical result availability uses a two-UTC-date delay proxy",
+      "No decision-time odds backtest, realized ROI, or CLV evidence",
+      "Moneyline probability conditional on decisive game; integer-line pushes not integrated",
+      "0.08 uncertainty haircut is a conservative policy setting, not an estimated confidence interval",
+      "Internal research; provider commercial-use permissions require review before monetization"
+    ]
+  }
+}

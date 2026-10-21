@@ -335,6 +335,31 @@ def fetch_update(artifact, *, now, result_store=None):
         venues = {t["id"]: t["venue"]["id"] for t in teams["teams"] if t.get("venue", {}).get("id")}
         events = schedule_mlb(payload, now, venues)
         raw += team_raw
+    # Training carries regular-season history across season boundaries. Fetch
+    # the preceding season only after current results become eligible; old
+    # history alone must never bypass the current-form freshness gate.
+    if artifact["sport"] == SPORTS["nba"] and any(
+        available_at(g) < now and timestamp(g["starts_at"]) >= now - timedelta(days=7)
+        for g in games
+    ):
+        prior_year = ending_year - 1
+        prior_url = (
+            "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/"
+            f"espn_nba_schedules/nba_schedule_{prior_year}.csv"
+        )
+        with urllib.request.urlopen(prior_url, timeout=45) as response:
+            prior_raw = response.read(20_000_001)
+        if len(prior_raw) > 20_000_000:
+            raise ValueError("NBA prior-season response too large")
+        prior_games, _ = nba_schedule_rows(prior_raw, now)
+        merged = {}
+        for game in prior_games + games:
+            key = str(game["game_id"])
+            if key in merged and merged[key] != game:
+                raise ValueError("Conflicting NBA game records")
+            merged[key] = game
+        games = list(merged.values())
+        raw += prior_raw
     checksum = hashlib.sha256(raw).hexdigest()
     if artifact["sport"] == SPORTS["nba"] and not any(
         available_at(game) < now for game in games
@@ -375,6 +400,8 @@ def fetch_update(artifact, *, now, result_store=None):
             response_checksum=checksum,
             allow_stale_state=allow_stale_state,
         )
+    if artifact["sport"] == SPORTS["nba"]:
+        updated["state_policy_version"] = "nba-history-carryover-v1"
     if result_store is not None:
         from jabazi.research.prospective import archive_results
         completed = [
@@ -428,6 +455,8 @@ def refresh_models(store, *, now=None):
                         ).get("model_version")
                     except (ValueError, OSError):
                         pass  # Normal refresh below will record the load failure.
+                if short == "nba" and latest and not failed:
+                    version_changed |= latest[0]["payload"].get("state_policy_version") != "nba-history-carryover-v1"
                 retry_after = 60 if failed else 6 * 3600
                 if not version_changed and 0 <= elapsed < retry_after:
                     report[short] = "NOT_DUE"
