@@ -1,0 +1,44 @@
+{
+  "version": "2026-09-30",
+  "disagreement_thresholds_pp": {
+    "normal_lt": 5.0,
+    "large_min": 5.0,
+    "large_max": 10.0,
+    "extreme_gt": 10.0
+  },
+  "promotion_defaults": {
+    "calibration_bucket_min_effective_n": 50,
+    "limited_live_default_prospective_n": 150,
+    "production_default_prospective_n": 400,
+    "production_default_prospective_days": 84,
+    "max_production_ece": 0.03,
+    "demote_ece": 0.05,
+    "demote_brier_relative_deterioration": 0.05,
+    "demote_clv_min_effective_n": 150,
+    "demote_negative_clv_confidence": 0.90,
+    "min_required_feature_coverage": 0.99,
+    "demote_feature_coverage": 0.97,
+    "demote_stale_invalid_rate": 0.01
+  },
+  "high_variance": {
+    "markets": [
+      "NFL_ANYTIME_TD",
+      "MLB_HR",
+      "NHL_GOAL_SCORER",
+      "FIRST_TD_SCORER",
+      "LONGSHOT_PROPS",
+      "PARLAYS_SGPS"
+    ],
+    "limited_live_effective_n": 250,
+    "limited_live_min_days": 56,
+    "production_effective_n": 600,
+    "production_min_days": 84,
+    "limited_live_stake_cap_u": 0.25,
+    "initial_production_stake_cap_u": 0.50
+  },
+  "minimum_actionable_edge_pp": {
+    "mature_game_markets": 2.0,
+    "player_props": 3.0,
+    "high_variance_longshot": 4.0
+  }
+}
