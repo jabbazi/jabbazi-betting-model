@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 
@@ -29,6 +29,7 @@ class Settings:
     sportsdataio_api_key: str
     model_artifact_path: str
     jurisdiction: str = "LA"
+    balldontlie_api_key: str = field(default="", repr=False)
 
     def portfolio_limits(self):
         from .domain.portfolio import Limits
@@ -65,4 +66,5 @@ class Settings:
                 "JABBAZI_MLB_MODEL_ARTIFACT", "models/mlb_moneyline.json"
             ),
             jurisdiction=os.getenv("JABBAZI_JURISDICTION", "LA").upper(),
+            balldontlie_api_key=os.getenv("JABBAZI_BALLDONTLIE_API_KEY", "").strip(),
         )

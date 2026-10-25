@@ -60,6 +60,7 @@ def doctor():
         "configuration_errors": problems,
         "betting_enabled": False,
         "odds_provider_configured": bool(settings.api_key),
+        "balldontlie_provider_configured": bool(settings.balldontlie_api_key),
         "cfb_provider_configured": bool(os.getenv("JABBAZI_CFBD_API_KEY")),
         "player_context_provider_configured": bool(settings.sportsdataio_api_key),
         "player_context_provider": "SportsDataIO" if settings.sportsdataio_api_key else None,
@@ -499,6 +500,9 @@ def main():
         settings, url, errors = configuration()
         if errors:
             raise ValueError("; ".join(errors))
+        if args.role in {"api", "worker"}:
+            from .providers.balldontlie import start_capture
+            start_capture(url, settings.balldontlie_api_key, args.role)
         if args.role == "api":
             import uvicorn
 

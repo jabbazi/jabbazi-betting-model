@@ -227,6 +227,8 @@ def model_status_data():
         from .research.prospective import validation_report
         prospective = validation_report(store)
         scan_health = recent_scan_health(store)
+        from .providers.balldontlie import provider_status
+        balldontlie = provider_status(store, Settings.from_environment().balldontlie_api_key)
 
         rows = []
         for sport in SPORTS.values():
@@ -275,6 +277,7 @@ def model_status_data():
     provider = LivePlayerFeatureCollector(
         sportsdataio_api_key=Settings.from_environment().sportsdataio_api_key
     ).provider_status()
+    provider["balldontlie"] = balldontlie
     return {
         "models": rows,
         "errors": errors + player_errors,
@@ -282,6 +285,31 @@ def model_status_data():
         "external_research_sources": external_research_sources(),
         "recent_scan_health": scan_health,
     }
+
+
+@app.get("/v1/providers/balldontlie")
+def balldontlie_status(authorization: Annotated[str | None, Header()] = None):
+    require_auth(authorization)
+    from .providers.balldontlie import provider_status
+    store = platform_store()
+    try:
+        return provider_status(store, Settings.from_environment().balldontlie_api_key)
+    finally:
+        store.close()
+
+
+@app.get("/v1/providers/balldontlie/snapshots")
+def balldontlie_snapshots(
+    sport: Literal["nba", "nfl"],
+    resource: Literal["games", "stats", "injuries", "props"],
+    authorization: Annotated[str | None, Header()] = None,
+):
+    require_auth(authorization)
+    store = platform_store()
+    try:
+        return {"records": store.list_records("balldontlie_snapshot", 1, entity=f"{sport}:{resource}")}
+    finally:
+        store.close()
 
 
 @app.get("/v1/candidates")
