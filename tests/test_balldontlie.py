@@ -69,16 +69,16 @@ def test_capture_retains_provenance_partiality_and_separate_sport_access():
     p = BallDontLieProvider('secret', transport=httpx.MockTransport(reply), interval=0)
     report = p.capture(store, now=datetime(2026, 10, 25, 4, tzinfo=UTC))
     p.close()
-    assert len(requests) == 8
+    assert len(requests) == 10
     assert report['sports']['nfl']['stats']['error'] == 'HTTP_401'
     assert report['sports']['nba']['stats']['rows'] == 1
     assert report['sports']['nba']['stats']['has_more']
     assert not report['model_features_enabled']
     assert 'secret' not in json.dumps(report)
-    assert store.append.call_count == 7
-    assert requests[0].url.params.get_list('dates[]') == ['2026-10-24', '2026-10-25']
-    assert requests[3].url.path == '/nba/v2/odds/player_props'
-    assert requests[3].url.params['game_id'] == '123'
+    assert store.append.call_count == 9
+    assert requests[1].url.params.get_list('dates[]') == ['2026-10-24', '2026-10-25']
+    assert requests[4].url.path == '/nba/v2/odds/player_props'
+    assert requests[4].url.params['game_id'] == '123'
     snapshot = store.append.call_args.args[2]
     assert snapshot['observed_at'] and snapshot['sha256'] and snapshot['research_only']
 
@@ -122,7 +122,7 @@ def test_capture_persists_and_deduplicates_across_services(tmp_path, monkeypatch
     from jabazi.providers import balldontlie as bdl
     url = 'sqlite:///' + str(tmp_path / 'provider.db')
     store = Store(url, initialize=True)
-    report = {'observed_at': datetime.now(UTC).isoformat(), 'sports': {}, 'research_only': True}
+    report = {'diagnostic_version': 2, 'observed_at': datetime.now(UTC).isoformat(), 'sports': {}, 'research_only': True}
     fake = Mock()
     fake.capture.return_value = report
     factory = Mock(return_value=fake)
@@ -147,3 +147,19 @@ def test_other_service_lease_prevents_duplicate_requests(tmp_path, monkeypatch):
     factory.assert_not_called()
     assert not store.acquire_lease('balldontlie-capture', 'third-service', ttl=30)
     store.close()
+
+
+def test_free_auth_failure_skips_paid_probes():
+    requests = []
+    def reply(request):
+        requests.append(request)
+        return httpx.Response(401)
+    p = BallDontLieProvider('secret', transport=httpx.MockTransport(reply), interval=0)
+    report = p.capture(Mock())
+    p.close()
+    assert len(requests) == 2
+    assert requests[0].url.path == '/v1/teams'
+    assert requests[1].url.path == '/nfl/v1/teams'
+    for sport in ('nba', 'nfl'):
+        assert report['sports'][sport]['authentication']['error'] == 'HTTP_401'
+        assert 'stats' not in report['sports'][sport]

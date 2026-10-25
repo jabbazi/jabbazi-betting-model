@@ -301,7 +301,7 @@ def balldontlie_status(authorization: Annotated[str | None, Header()] = None):
 @app.get("/v1/providers/balldontlie/snapshots")
 def balldontlie_snapshots(
     sport: Literal["nba", "nfl"],
-    resource: Literal["games", "stats", "injuries", "props"],
+    resource: Literal["teams", "games", "stats", "injuries", "props"],
     authorization: Annotated[str | None, Header()] = None,
 ):
     require_auth(authorization)

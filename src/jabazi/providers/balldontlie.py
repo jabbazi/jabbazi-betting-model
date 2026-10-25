@@ -18,6 +18,7 @@ import httpx
 BASE = "https://api.balldontlie.io"
 PATHS = {
     sport: {
+        "teams": "/v1/teams" if sport == "nba" else "/nfl/v1/teams",
         "games": f"/{sport}/v1/games",
         "stats": f"/{sport}/v1/stats",
         "injuries": f"/{sport}/v1/player_injuries",
@@ -85,6 +86,12 @@ class BallDontLieProvider:
         day = now.astimezone(ZoneInfo("America/Chicago")).date()
         report = {
             "provider": "BALLDONTLIE", "configured": bool(self._key),
+            "diagnostic_version": 2,
+            "credential_format_issue": (
+                "BEARER_PREFIX" if self._key.lower().startswith("bearer ") else
+                "QUOTED_KEY" if self._key.startswith((chr(34), chr(39))) else
+                "INTERNAL_WHITESPACE" if any(c.isspace() for c in self._key) else None
+            ),
             "observed_at": now.isoformat(), "research_only": True,
             "model_features_enabled": False, "sports": {},
             "coverage": "Bounded sample: first stats/injury page and one event's props per sport; not a full slate scan.",
@@ -93,6 +100,14 @@ class BallDontLieProvider:
             return report
         for sport in PATHS:
             status = report["sports"][sport] = {}
+            status["authentication"], _ = self._capture_one(store, sport, "teams", [])
+            auth_error = status["authentication"].get("error")
+            if auth_error == "HTTP_429":
+                report["rate_limited"] = True
+                return report
+            if auth_error:
+                status["action_required"] = "Free teams endpoint rejected the request; verify the BALLDONTLIE account key before upgrading any plan."
+                continue
             season = day.year - (1 if day.month < (8 if sport == "nba" else 3) else 0)
             queries = [
                 ("games", [("dates[]", str(day)), ("dates[]", str(day + timedelta(days=1))), ("per_page", 100)]),
@@ -165,7 +180,8 @@ def capture_once(database_url, key):
         records = store.list_records("balldontlie_status", 1, entity="nba-nfl")
         if records:
             last = datetime.fromisoformat(records[0]["payload"]["observed_at"])
-            if datetime.now(UTC) - last < timedelta(hours=6):
+            if (records[0]["payload"].get("diagnostic_version") == 2
+                    and datetime.now(UTC) - last < timedelta(hours=6)):
                 return
         provider = BallDontLieProvider(key)
         report = provider.capture(store)
