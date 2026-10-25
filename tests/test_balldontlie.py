@@ -122,7 +122,7 @@ def test_capture_persists_and_deduplicates_across_services(tmp_path, monkeypatch
     from jabazi.providers import balldontlie as bdl
     url = 'sqlite:///' + str(tmp_path / 'provider.db')
     store = Store(url, initialize=True)
-    report = {'diagnostic_version': 2, 'observed_at': datetime.now(UTC).isoformat(), 'sports': {}, 'research_only': True}
+    report = {'diagnostic_version': 2, 'observed_at': datetime.now(UTC).isoformat(), 'sports': {'nba': {'authentication': {'status': 'AVAILABLE'}}}, 'research_only': True}
     fake = Mock()
     fake.capture.return_value = report
     factory = Mock(return_value=fake)
@@ -163,3 +163,20 @@ def test_free_auth_failure_skips_paid_probes():
     for sport in ('nba', 'nfl'):
         assert report['sports'][sport]['authentication']['error'] == 'HTTP_401'
         assert 'stats' not in report['sports'][sport]
+
+
+def test_failed_capture_can_retry_after_credential_redeploy(tmp_path, monkeypatch):
+    from jabazi.persistence.store import Store
+    from jabazi.providers import balldontlie as bdl
+    url = 'sqlite:///' + str(tmp_path / 'provider.db')
+    store = Store(url, initialize=True)
+    failed = {'diagnostic_version': 2, 'observed_at': datetime.now(UTC).isoformat(),
+              'sports': {'nba': {'authentication': {'error': 'HTTP_401'}}}}
+    store.append('balldontlie_status', 'nba-nfl', failed)
+    fake = Mock()
+    fake.capture.return_value = {**failed, 'observed_at': datetime.now(UTC).isoformat()}
+    factory = Mock(return_value=fake)
+    monkeypatch.setattr(bdl, 'BallDontLieProvider', factory)
+    bdl.capture_once(url, 'replacement-secret')
+    factory.assert_called_once_with('replacement-secret')
+    store.close()

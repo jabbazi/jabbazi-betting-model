@@ -180,7 +180,11 @@ def capture_once(database_url, key):
         records = store.list_records("balldontlie_status", 1, entity="nba-nfl")
         if records:
             last = datetime.fromisoformat(records[0]["payload"]["observed_at"])
-            if (records[0]["payload"].get("diagnostic_version") == 2
+            previous = records[0]["payload"]
+            endpoints = [endpoint for sport in previous.get("sports", {}).values()
+                         for endpoint in sport.values() if isinstance(endpoint, dict)]
+            successful = bool(endpoints) and all(not endpoint.get("error") for endpoint in endpoints)
+            if (previous.get("diagnostic_version") == 2 and successful
                     and datetime.now(UTC) - last < timedelta(hours=6)):
                 return
         provider = BallDontLieProvider(key)
