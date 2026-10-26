@@ -236,6 +236,12 @@ else if(route==='top10'||route==='rankings'){
     root.append(section('Top 10 · '+label+' validated value'));
     root.append(node('p','Positive modeled ROI requires a production-approved model and a fresh exact sportsbook price. Research only; no automatic bet approval.','muted'));
     rankingCards(value,root,'No approved, positive-EV '+label.toLowerCase()+' opportunities at verified current prices.');
+    if(sport==='NFL'){
+      // Preserve legacy research sections and browser/Discord deep-link contracts.
+      for(const [key,title] of [['receiving_overs','Receiving overs at exact lines'],['receiving_unders','Receiving unders at exact lines'],['receiving_value','Receiving over/under value supported by approved models']]){
+        root.append(section(title));rankingCards(d[key]||[],root,'No fresh, supported evidence qualifies for this list.');
+      }
+    }
     root.append(link('View all player-prop markets','#props&sport='+sport));
     root.append(node('p','Excluded stale research rows: '+d.stale_rows+'. Model-estimated statistical totals require a separately verified mean or distribution output; sportsbook lines are not substituted for projections.','muted'));
   };
