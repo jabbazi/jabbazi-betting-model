@@ -592,13 +592,18 @@ def build_client(config, store):
                 if view != "home":
                     link += "&view=" + view
                 await interaction.followup.send(
-                    f"Your private JABBAZI member link (expires quickly): {link}",
+                    f"JABBAZI V5.5 VIP — updated Top 10, +EV Intelligence and Scanner. "
+                    f"Your private link (expires quickly): {link}",
                     ephemeral=True,
                 )
 
             @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
             async def vip(interaction: discord.Interaction):
                 await open_research(interaction)
+
+            @self.tree.command(name="ev", description="Open the JABBAZI +EV Intelligence Center")
+            async def ev(interaction: discord.Interaction):
+                await open_research(interaction, "ev")
 
             @self.tree.command(name="sim", description="Open supported game score scenarios and model status")
             async def sim(interaction: discord.Interaction):
@@ -623,7 +628,7 @@ def build_client(config, store):
             self.tree.copy_global_to(guild=discord.Object(id=config.guild))
             synced = await self.tree.sync(guild=discord.Object(id=config.guild))
             expected = {"vip", "cheatsheet", "alerts", "support", "card", "performance",
-                        "sim", "firsttd", "matchup", "props", "playoftheday"}
+                        "sim", "firsttd", "matchup", "props", "playoftheday", "ev"}
             if {command.name for command in synced} != expected:
                 raise RuntimeError("Discord command registration mismatch")
             print("DISCORD_COMMANDS_REGISTERED: " + ",".join(sorted(expected)), flush=True)
@@ -828,10 +833,10 @@ def build_client(config, store):
                     )
                     link = portal_origin() + "/vip#access=" + ticket
                     embed = discord.Embed(
-                        title="Open JABBAZI",
+                        title="Open JABBAZI V5.5 VIP",
                         url=link,
                         colour=0xFF0A8A,
-                        description="Your private research room: game sheets, player props, anytime TDs, insights and lessons. This single-use link expires in 5 minutes; access lasts 15 minutes. Keep this link private.",
+                        description="Your updated JABBAZI research terminal: Top 10 projections, +EV Intelligence, Scanner, cheat sheets and model status. This single-use link expires in 5 minutes; access lasts 15 minutes. Keep this link private.",
                     )
                     try:
                         await member.send(
