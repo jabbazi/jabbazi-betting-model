@@ -349,6 +349,15 @@ def firsttd(event_id: str, ctx=Depends(context)):
                      'notice': 'First touchdown is distinct from anytime touchdown. No unsupported rankings are displayed.'})
 
 
+@router.get('/player-feed-verification')
+def player_feed_verification(ctx=Depends(context)):
+    """Authenticated, read-only verification of bounded provider samples."""
+    from ..providers.balldontlie import verification_summary
+    records = ctx[0].list_records('balldontlie_status', 1, entity='nba-nfl')
+    report = records[0].get('payload') if records else None
+    return response(verification_summary(report))
+
+
 @router.get('/rankings')
 def rankings(sport: str = Query('', max_length=12), event_id: str = Query('', max_length=160), ctx=Depends(context)):
     from .rankings import research_hub
