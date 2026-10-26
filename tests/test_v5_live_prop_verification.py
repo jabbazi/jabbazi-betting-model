@@ -13,7 +13,7 @@ NOW = datetime(2026, 10, 26, 20, tzinfo=UTC)
 def sample(now=NOW):
     checks = {name: {'status': 'AVAILABLE', 'rows': 3}
               for name in ('authentication', 'games', 'stats', 'injuries', 'props')}
-    return {'observed_at': now.isoformat(), 'sports': {'nba': checks, 'nfl': checks},
+    return {'observed_at': now.isoformat(), 'sports': {'nba': checks, 'nfl': {k: dict(v) for k, v in checks.items()}},
             'model_features_enabled': False, 'research_only': True}
 
 
