@@ -14,6 +14,21 @@ function slateControls(root){const panel=node('div',undefined,'panel');const[l,i
 let renderedDate=slateKey();
 function live(r){return Number.isFinite(Date.parse(r.starts_at))&&chicagoDate(Date.parse(r.starts_at))===activeSlateDate()&&r.fresh&&Date.parse(r.price_at)+300000>now()&&Date.parse(r.starts_at)>now();}
 function say(s){$('notice').textContent=s||'';}
+function checkRelease(){
+  const loaded=document.querySelector('meta[name="jabbazi-release"]')?.content;
+  if(!loaded||loaded==='development'||!navigator.onLine)return;
+  fetch('/vip/version',{cache:'no-store',credentials:'same-origin'})
+    .then(r=>r.ok?r.json():null).then(data=>{
+      if(!data?.release||data.release==='development'||data.release===loaded)return;
+      const notice=$('update-notice');
+      if(!notice||!notice.hidden)return;
+      notice.replaceChildren(node('span','A new JABBAZI release is available. '));
+      const reload=node('button','Reload updated app','primary');
+      reload.addEventListener('click',()=>window.location.reload());
+      notice.append(reload);notice.hidden=false;
+    }).catch(()=>{});
+}
+
 function lock(message){++serial;me=null;$('workspace').hidden=true;$('navigation').hidden=true;$('signout').hidden=true;$('login').hidden=false;$('content').replaceChildren();if(message){let p=$('login-message');if(!p){p=node('p',undefined,'muted');p.id='login-message';$('login').append(p);}p.textContent=message;let retry=$('login-retry');if(!retry){retry=node('button','Retry existing session','button');retry.id='login-retry';retry.addEventListener('click',async()=>{retry.disabled=true;try{const data=await get('me');me=data;$('login').hidden=true;$('workspace').hidden=false;$('navigation').hidden=false;$('signout').hidden=false;$('access-badge').textContent=me.tier+' ACCESS';render();}catch(e){p.textContent=e.message;}finally{retry.disabled=false;}});$('login').append(retry);}}}
 async function api(path,options={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal});let d={};try{d=await r.json();}catch{}if(!r.ok){if((r.status===401||(r.status===403&&String(d.detail||'').startsWith('VIP access')))&&path!=='/v1/member/session')lock(d.detail||'Open a fresh /vip link from Discord.');throw Error(typeof d.detail==='string'?d.detail:'Research is temporarily unavailable.');}if(d.server_time){serverAnchor=Date.parse(d.server_time);monoAnchor=performance.now();wallAnchor=Date.now();}return d;}catch(e){if(e.name==='AbortError')throw Error('The app is taking too long to respond. Check your connection and try again.');throw e;}finally{clearTimeout(timeout);}}
 const get=(path)=>api('/v1/vip/'+path+(path.includes('?')?'&':'?')+'slate_date='+activeSlateDate());
@@ -364,7 +379,8 @@ $('signout').addEventListener('click',async()=>{try{await api('/v1/member/logout
 window.addEventListener('hashchange',render);
 window.addEventListener('offline',()=>{$('offline').hidden=false;++serial;$('content').replaceChildren();});
 window.addEventListener('online',render);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me)render();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkRelease();if(me)render();}});
+window.addEventListener('focus',checkRelease);
 setInterval(()=>{if(!me||document.hidden)return;if(Date.parse(me.expires_at)<=now()){lock('Session expired. Use /vip in Discord for a fresh private link.');return;}get('me').then(d=>{if(!me)return;me=d;$('access-badge').textContent=me.tier+' ACCESS';if(renderedDate!==slateKey()){++serial;$('content').replaceChildren();render();}}).catch(e=>{if(me)say(e.message);});},30000);
 function accessView(value){return ['sim','firsttd','matchups','props','playoftheday','top10','ev','board','sheets'].includes(value)?value:'home';}
 (async()=>{const hash=new URLSearchParams(location.hash.slice(1)),ticket=hash.get('access');$('access-badge').textContent=ticket?'VERIFYING ACCESS':'PRIVATE ACCESS';try{if(ticket){await api('/v1/member/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});history.replaceState(null,'','/vip#'+accessView(hash.get('view')));}me=await get('me');$('login').hidden=true;$('workspace').hidden=false;$('navigation').hidden=false;$('signout').hidden=false;$('access-badge').textContent=me.tier+' ACCESS';render();}catch(e){if(ticket&&/expired|already used|invalid/i.test(e.message))history.replaceState(null,'','/vip#home');lock(e.message);}if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>new URL(r.scope).pathname.startsWith('/vip')).map(r=>r.unregister()))).catch(()=>{});})();
