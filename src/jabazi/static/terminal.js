@@ -214,9 +214,11 @@ else if(route==='top10'||route==='rankings'){
   const categories=top10Categories[sport]||[];
   const selected=params.get('market');
   const market=categories.some(([,key])=>key===selected)?selected:(categories[0]?.[1]||'');
-  const [d,verification]=await Promise.all([
+  const [d,verification,slateAudit,calibrationAudit]=await Promise.all([
     get('rankings?'+new URLSearchParams({sport,event_id:params.get('event_id')||''})),
-    get('player-feed-verification').catch(()=>null)
+    get('player-feed-verification').catch(()=>null),
+    get('player-full-slate-audit').catch(()=>null),
+    get('player-calibration-audit').catch(()=>null)
   ]);
   build=root=>{
     const sports=node('div',undefined,'pills');
@@ -232,6 +234,18 @@ else if(route==='top10'||route==='rankings'){
     }else{
       root.append(node('p','Live provider verification unavailable; research is not certified by this screen.','muted'));
     }
+    const slate=slateAudit?.sports?.[sport];
+    if(slate){
+      root.append(node('p','Full-slate prop coverage: '+slate.covered_games+'/'+slate.scheduled_games+
+        ' games · '+(slate.all_game_props_verified?'Captured complete vendor pages':'INCOMPLETE')+
+        ' · Executable sportsbook prices: NOT VERIFIED','muted'));
+    }
+    const modelAudit=(calibrationAudit?.models||[]).filter(m=>m.sport===
+      ({NBA:'basketball_nba',NFL:'americanfootball_nfl',NHL:'icehockey_nhl',MLB:'baseball_mlb'}[sport]||sport));
+    if(modelAudit.length){
+      root.append(node('p','Player calibration: '+modelAudit.filter(m=>m.promotion_eligible).length+
+        '/'+modelAudit.length+' models pass all prospective promotion gates.','muted'));
+    }else root.append(node('p','Player calibration: no eligible model evidence verified for this sport.','muted'));
     root.append(section('Most likely moneyline winners'));
     rankingCards(d.moneyline_likely||[],root,'No fresh moneyline research for this slate.');
     root.append(section('Moneyline value supported by approved models'));
