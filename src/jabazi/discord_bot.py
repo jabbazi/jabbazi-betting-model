@@ -301,6 +301,8 @@ def build_client(config, store):
             except Exception as exc:
                 print(f"DISCORD_BRAND_DIAGNOSTIC_UNAVAILABLE_{type(exc).__name__}", flush=True)
             print(f"DISCORD_GATEWAY_READY MEMBERS_INTENT={config.members_enabled} WELCOME_CHANNEL={config.welcome_channel}", flush=True)
+            from .member_access import portal_origin
+            print("VIP_PORTAL_ORIGIN " + portal_origin(), flush=True)
             if os.getenv("JABBAZI_DISCORD_COMPACT_MIGRATION_V1", "false").lower() == "true":
                 try:
                     done = await asyncio.to_thread(
