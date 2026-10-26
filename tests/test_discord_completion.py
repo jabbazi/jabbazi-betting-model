@@ -46,7 +46,7 @@ def test_commands_sync_nonempty_guild_and_private_vip_rechecks_current_roles(sto
             await client._async_setup_hook()
             await client.setup_hook()
         guild_id = discord.Object(id=1)
-        assert {c.name for c in client.tree.get_commands(guild=guild_id)} == {"vip", "cheatsheet", "alerts", "support", "card", "performance", "sim", "firsttd", "matchup", "props", "playoftheday"}
+        assert {c.name for c in client.tree.get_commands(guild=guild_id)} == {"vip", "cheatsheet", "alerts", "support", "card", "performance", "sim", "firsttd", "matchup", "props", "playoftheday", "ev"}
         fetched = NS(id=5, roles=[NS(id=8, name="JABBAZI VIP")])
         interaction = NS(guild_id=1, user=NS(id=5, roles=[]),
                          guild=NS(fetch_member=AsyncMock(return_value=fetched)),
@@ -56,7 +56,7 @@ def test_commands_sync_nonempty_guild_and_private_vip_rechecks_current_roles(sto
         interaction.guild.fetch_member.assert_awaited_once_with(5)
         assert interaction.followup.send.call_args.kwargs["ephemeral"] is True
         assert "/vip#access=" in interaction.followup.send.call_args.args[0]
-        for command, view in (("sim", "sim"), ("firsttd", "firsttd"), ("matchup", "matchups"), ("props", "props"), ("playoftheday", "playoftheday")):
+        for command, view in (("sim", "sim"), ("firsttd", "firsttd"), ("matchup", "matchups"), ("props", "props"), ("playoftheday", "playoftheday"), ("ev", "ev")):
             await client.tree.get_command(command, guild=guild_id).callback(interaction)
             assert "&view=" + view in interaction.followup.send.call_args.args[0]
             assert interaction.followup.send.call_args.kwargs["ephemeral"] is True
