@@ -81,3 +81,20 @@ def test_ui_exposes_six_primary_destinations_and_ev_filters():
     assert "else if(route==='ev')" in js
     assert "Minimum estimated EV" in js
     assert "No qualified +EV research" in js
+
+
+def test_ev_endpoint_does_not_expose_research_without_vip_context():
+    from fastapi.testclient import TestClient
+    from jabazi.api import app
+
+    response = TestClient(app).get("/v1/vip/ev-center?min_ev=3")
+    assert response.status_code in (401, 403, 503)
+    assert "expected_profit_per_50" not in response.text
+
+
+def test_invalid_ev_query_is_rejected_before_reading_any_private_data():
+    from fastapi.testclient import TestClient
+    from jabazi.api import app
+
+    response = TestClient(app).get("/v1/vip/ev-center?min_ev=1000")
+    assert response.status_code == 422
