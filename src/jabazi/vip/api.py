@@ -370,6 +370,26 @@ def player_feed_verification(ctx=Depends(context)):
     return response(verification_summary(report))
 
 
+@router.get('/ev-center')
+def ev_center_view(
+    sport: str = Query('', max_length=12),
+    market: str = Query('', max_length=80),
+    book: str = Query('', max_length=80),
+    min_ev: float = Query(3, ge=0, le=100, allow_inf_nan=False),
+    min_probability: float = Query(0, ge=0, le=100, allow_inf_nan=False),
+    max_quote_age: int = Query(300, ge=1, le=300),
+    ctx=Depends(context),
+):
+    from .ev_center import ev_center
+    b = snapshot(ctx[0])
+    return response({**ev_center(
+        b['rows'], sport=sport, market=market, book=book,
+        min_ev=min_ev / 100, min_probability=min_probability / 100,
+        max_quote_age=max_quote_age,
+        slate_date=getattr(ctx[0], 'vip_slate_date', None)),
+        'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
+
+
 @router.get('/rankings')
 def rankings(sport: str = Query('', max_length=12), event_id: str = Query('', max_length=160), ctx=Depends(context)):
     from .rankings import research_hub
