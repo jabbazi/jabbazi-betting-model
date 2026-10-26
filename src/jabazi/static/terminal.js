@@ -214,11 +214,24 @@ else if(route==='top10'||route==='rankings'){
   const categories=top10Categories[sport]||[];
   const selected=params.get('market');
   const market=categories.some(([,key])=>key===selected)?selected:(categories[0]?.[1]||'');
-  const d=await get('rankings?'+new URLSearchParams({sport,event_id:params.get('event_id')||''}));
+  const [d,verification]=await Promise.all([
+    get('rankings?'+new URLSearchParams({sport,event_id:params.get('event_id')||''})),
+    get('player-feed-verification').catch(()=>null)
+  ]);
   build=root=>{
     const sports=node('div',undefined,'pills');
     for(const name of ['NBA','NFL','NHL','MLB','CFB'])sports.append(link(name,'#top10&sport='+name,name===sport?'selected':''));
     root.append(sports,node('h2',sport+(activeSlateDate()===chicagoDate()?' · Today’s research rankings':' · Next-day research rankings')),node('h3','Top 10 projections by category'),node('p',d.date+' · America/Chicago · '+d.game_count+' games · Snapshot '+when(d.snapshot_at),'muted'));
+    const provider=verification?.sports?.[sport];
+    if(provider){
+      root.append(node('p','Live player-prop verification: '+provider.status.replaceAll('_',' ')+
+        ' · Provider sample only · Full-slate prices: NOT VERIFIED · Calibrated model: NOT VERIFIED','muted'));
+    }else if(['NHL','MLB'].includes(sport)){
+      root.append(node('p','This provider audit covers NBA and NFL only. '+sport+
+        ' player-data and executable prop coverage require separate verification.','muted'));
+    }else{
+      root.append(node('p','Live provider verification unavailable; research is not certified by this screen.','muted'));
+    }
     root.append(section('Most likely moneyline winners'));
     rankingCards(d.moneyline_likely||[],root,'No fresh moneyline research for this slate.');
     root.append(section('Moneyline value supported by approved models'));
