@@ -106,3 +106,13 @@ def test_invalid_threshold_rejected_by_research_engine():
     import pytest
     with pytest.raises(ValueError):
         ev_center([row()], now=NOW, min_ev=10)
+
+
+def test_vip_javascript_parses_in_node():
+    import subprocess
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[1] / "src/jabazi/static/terminal.js"
+    result = subprocess.run(["node", "--check", str(script)],
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
