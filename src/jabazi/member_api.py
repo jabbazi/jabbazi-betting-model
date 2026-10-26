@@ -1,13 +1,15 @@
 """Read-only member portal. Deliberately separate from owner and scanner routes."""
 
 import json
+import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from .discord_sheets import latest_sheet
@@ -69,9 +71,23 @@ def same_origin(request):
         raise HTTPException(403, "Same-origin request required")
 
 
+def _vip_release():
+    """Public build identity only; never expose environment configuration."""
+    commit = os.getenv("RENDER_GIT_COMMIT", "")
+    return commit if re.fullmatch(r"[0-9a-fA-F]{40}", commit) else "development"
+
+
+@router.get("/vip/version", include_in_schema=False)
+def vip_version():
+    return JSONResponse({"release": _vip_release()}, headers=HEADERS)
+
+
 @router.get("/vip", include_in_schema=False)
 def portal():
-    return FileResponse(STATIC / "terminal.html", headers={**HEADERS, "Content-Security-Policy": CSP})
+    # Versioned assets bypass stale mobile/PWA shells after a production deploy.
+    html = (STATIC / "terminal.html").read_text(encoding="utf-8")
+    return HTMLResponse(html.replace("__JABBAZI_RELEASE__", _vip_release()),
+                        headers={**HEADERS, "Content-Security-Policy": CSP})
 
 
 @router.get("/vip/app.js", include_in_schema=False)
