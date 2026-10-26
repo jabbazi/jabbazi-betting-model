@@ -116,6 +116,24 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
         selections.setdefault((e['sport'], e['event_id']), set()).add(e['selection'])
     conflicts = [key[1] for key, values in selections.items() if len(values) > 1]
     evidence = [e for e in evidence if len(selections[(e['sport'], e['event_id'])]) == 1]
+    # Expected statistical totals are distinct from threshold-hit probabilities.
+    # Never infer a mean from an odds line or a market-implied probability.
+    player_projected_totals = {}
+    for market, items in prop_groups.items():
+        eligible = [r for r in items if number(r.get('projected_mean')) is not None
+                    and number(r['projected_mean']) >= 0
+                    and r.get('model_probability') is not None
+                    and r.get('model_stage') in {'VALIDATING', 'PRODUCTION_APPROVED'}
+                    and r.get('projection_basis') == 'FITTED DISTRIBUTION'
+                    and market not in {'player_anytime_td', 'batter_home_runs', 'player_double_double'}]
+        eligible.sort(key=lambda r: (-number(r['projected_mean']), str(r.get('id'))))
+        seen, leaders = set(), []
+        for item in eligible:
+            key = (item['sport'], item['event_id'], item.get('player'))
+            if key not in seen:
+                seen.add(key)
+                leaders.append(item)
+        player_projected_totals[market] = leaders[:10]
     player_market_value = {
         market: ranked(items, value=True, unique_player=True)
         for market, items in sorted(prop_groups.items())
@@ -129,6 +147,7 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
             'receiving_value': ranked(receiving, value=True),
             'player_markets': {market: ranked(items, unique_player=True) for market, items in sorted(prop_groups.items())},
             'player_market_value': player_market_value,
+            'player_projected_totals': player_projected_totals,
             'receiving_totals': [],
             'receiving_totals_reason': 'The current feed does not expose verified player yardage means. Over-line probabilities are shown separately.',
             'web_leans': evidence[:10], 'conflicting_events': conflicts,
