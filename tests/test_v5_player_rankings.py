@@ -79,5 +79,5 @@ def test_no_cfb_player_market_and_no_first_td_mislabeled_as_anytime():
     ]
     result = research_hub(rows, now=NOW)
     assert not result["anytime_td"]
-    assert "player_first_td" in result["player_markets"]
-    assert all(r["sport"] != "CFB" for group in result["player_markets"].values() for r in group)
+    assert not result["player_markets"]  # first TD requires its own validated model
+    assert not result["anytime_td_value"]
