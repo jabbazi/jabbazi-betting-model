@@ -219,6 +219,10 @@ else if(route==='top10'||route==='rankings'){
     const sports=node('div',undefined,'pills');
     for(const name of ['NBA','NFL','NHL','MLB','CFB'])sports.append(link(name,'#top10&sport='+name,name===sport?'selected':''));
     root.append(sports,node('h2',sport+(activeSlateDate()===chicagoDate()?' · Today’s research rankings':' · Next-day research rankings')),node('h3','Top 10 projections by category'),node('p',d.date+' · America/Chicago · '+d.game_count+' games · Snapshot '+when(d.snapshot_at),'muted'));
+    root.append(section('Most likely moneyline winners'));
+    rankingCards(d.moneyline_likely||[],root,'No fresh moneyline research for this slate.');
+    root.append(section('Moneyline value supported by approved models'));
+    rankingCards(d.moneyline_value||[],root,'No validated moneyline value for this slate.');
     if(sport==='CFB'){
       root.append(empty('College player rankings unavailable','Player-prop markets are disabled under the existing Louisiana policy. Use the game research board for spreads and totals.'));
       root.append(link('Open CFB game research','#board&sport=CFB'));
