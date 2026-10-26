@@ -85,10 +85,23 @@ def project(r, record, now, historical=False, slate_date=None):
         value = number(quote)
         if value and value > 1:
             books.append({'book': str(book), 'decimal': value})
+    # Only expose a projected stat total when the canonical scan contains a
+    # version-matched, explicit fitted distribution. A betting line is not a mean.
+    distribution = r.get('player_distribution')
+    projected_mean = None
+    if (isinstance(distribution, dict) and r.get('model_version')
+            and distribution.get('model_version') == r.get('model_version')
+            and distribution.get('market') == r.get('market')
+            and str(r.get('model_stage')) in {'VALIDATING', 'PRODUCTION_APPROVED'}
+            and r.get('data_health') == 'HEALTHY'):
+        projected_mean = number(distribution.get('mean'))
+        if projected_mean is not None and (projected_mean < 0 or projected_mean > 10000):
+            projected_mean = None
     return {'id': identity(r), 'snapshot_id': record['id'], 'sport': label, 'event_id': r.get('event_id'),
             'event': str(r.get('event') or ''), 'player': r.get('participant'), 'market': r.get('market'),
             'selection': r.get('selection'), 'line': r.get('line'), 'book': r.get('book'), 'decimal': price,
             'model_probability': p, 'calibrated_probability': number(r.get('calibrated_model_probability')),
+            'projected_mean': projected_mean, 'projection_basis': 'FITTED DISTRIBUTION' if projected_mean is not None else None,
             'market_probability': market_p, 'fair_decimal': 1/p if p else None,
             'edge': p-market_p if p is not None and market_p is not None else None,
             'ev': p*price-1 if p and price else None, 'play_to_decimal': playto if playto and playto > 1 else None,
