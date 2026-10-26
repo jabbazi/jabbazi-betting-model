@@ -211,35 +211,37 @@ else if(route==='sheets'){const d=await get('sheets?'+params);build=root=>{const
 else if(route==='archive'){const d=await get('archive');build=root=>{if(!d.sheets.length)root.append(empty('No published sheets yet','Healthy frozen sheets will appear here automatically.'));for(const s of d.sheets)root.append(link(s.entity+' · Frozen original','#sheets&day='+s.entity,'linkrow'));};}
 else if(route==='ev'){
   const sport=params.get('sport')||'',market=params.get('market')||'',book=params.get('book')||'';
-  const rawEv=Number(params.get('min_ev')||3);
-  const minEv=Number.isFinite(rawEv)?Math.max(0,Math.min(100,rawEv)):3;
+  const value=Number(params.get('min_ev')||3);
+  const minEv=Number.isFinite(value)?Math.max(0,Math.min(100,value)):3;
   const d=await get('ev-center?'+new URLSearchParams({sport,market,book,min_ev:minEv}));
   build=root=>{
     root.append(node('h2','+EV Intelligence Center'));
-    root.append(node('p','Independent calibrated model research only. This view never authorizes wagers, and missing data never becomes a fabricated edge.','muted'));
-    const f=node('form',undefined,'filters');
-    const[sl,si]=select('Sport',[['','All supported sports'],...['NBA','NFL','NHL','MLB','CFB','WNBA','TENNIS','SOCCER'].map(v=>[v,v])],sport);
+    root.append(node('p','Independent calibrated model research only. No automatic wager approval.','muted'));
+    const form=node('form',undefined,'filters');
+    const[sl,si]=select('Sport',[['','All sports'],...['NBA','NFL','NHL','MLB','CFB','WNBA','TENNIS','SOCCER'].map(v=>[v,v])],sport);
     const[el,ei]=select('Minimum estimated EV',[['1','+1%'],['2','+2%'],['3','+3%'],['4','+4%'],['5','+5%'],['7.5','+7.5%'],['10','+10%'],['15','+15%'],['custom','Custom']],String(minEv));
     if(!['1','2','3','4','5','7.5','10','15'].includes(String(minEv)))ei.value='custom';
     const[cl,ci]=field('Custom minimum EV (%)','number',minEv);ci.min='0';ci.max='100';ci.step='0.1';
-    const[ml,mi]=field('Exact market key (optional)','text',market);mi.placeholder='player_points';
+    const[ml,mi]=field('Market key (optional)','text',market);mi.placeholder='player_points';
     const[bl,bi]=field('Sportsbook (optional)','text',book);bi.placeholder='DraftKings';
     const submit=node('button','Apply filters','primary');submit.type='submit';
-    f.append(sl,el,cl,ml,bl,submit);
-    function apply(e){e.preventDefault();const threshold=ei.value==='custom'?Number(ci.value):Number(ei.value);
-      if(!Number.isFinite(threshold)||threshold<0||threshold>100){say('Enter an EV threshold from 0 to 100%.');return;}
+    form.append(sl,el,cl,ml,bl,submit);
+    form.addEventListener('submit',e=>{e.preventDefault();const threshold=ei.value==='custom'?Number(ci.value):Number(ei.value);
+      if(!Number.isFinite(threshold)||threshold<0||threshold>100){say('EV must be between 0 and 100%.');return;}
       location.hash='ev&'+new URLSearchParams({sport:si.value,market:mi.value.trim(),book:bi.value.trim(),min_ev:threshold});
+    });
+    root.append(form,node('p',d.matching+' qualifying opportunities · '+when(d.snapshot_at),'muted'),node('p',d.notice,'muted'));
+    if(!d.rows.length)root.append(empty('No qualified +EV research','Unapproved and stale opportunities are never substituted.'));
+    for(const item of d.rows){
+      const panel=node('article',undefined,'panel');
+      panel.append(badge('WATCH · RESEARCH ONLY'),node('h3',(item.player||item.selection)+' · '+String(item.market||'').replaceAll('_',' ')),node('p',item.event+' · '+when(item.starts_at),'muted'));
+      panel.append(metrics([['Estimated EV',pct(item.ev)],['Model probability',pct(item.model_probability)],['Break-even',pct(item.break_even_probability)],['Fair odds',odds(item.fair_decimal)],['Observed odds',odds(item.decimal)],['Expected profit at 50 USD',Number(item.expected_profit_per_50).toFixed(2)]]));
+      panel.append(node('p',item.book+' · '+when(item.price_at)+' · '+item.model_stage+' · '+item.model_version,'muted'),node('p',item.notice,'muted'));
+      panel.append(link('Inspect research','#detail='+encodeURIComponent(item.id)));root.append(panel);
     }
-    f.addEventListener('submit',apply);
-    root.append(f,node('p',d.matching+' qualifying research opportunities · Snapshot '+when(d.snapshot_at),'muted'));
-    root.append(node('p',d.notice,'muted'));
-    if(!d.rows.length)root.append(empty('No qualified +EV research','This is an acceptable outcome. No unapproved or stale picks have been substituted.'));
-    for(const r of d.rows){
-      const p=node('article',undefined,'panel');
-      p.append(badge('WATCH · RESEARCH ONLY'),node('h3',(r.player||r.selection)+' · '+String(r.market||'').replaceAll('_',' ')),
-        node('p',r.event+' · '+when(r.starts_at),'muted'));
-      p.append(metrics([['Estimated EV',pct(r.ev)],['Model probability',pct(r.model_probability)],['Break-even',pct(r.break_even_probability)],
-        ['Fair odds',odds(r.fair_decimal)],['Observed odds',odds(r.decimal)],['Expected $50 profit','
+  };
+}
+else if(route==='top10'||route==='rankings'){
   const sport=params.get('sport')||({td:'NFL',hr:'MLB',nba_props:'NBA',nhl_goals:'NHL'}[params.get('kind')]||'NFL');
   const categories=top10Categories[sport]||[];
   const selected=params.get('market');
