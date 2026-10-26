@@ -77,7 +77,9 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
                  and str(r['selection']).lower() in {'over', 'under'} and number(r.get('line')) is not None]
     prop_groups = {}
     for r in candidates:
-        if r['sport'] == 'CFB' or not r.get('player') or not str(r['market']).startswith(('player_', 'batter_', 'pitcher_')):
+        if (r['sport'] == 'CFB' or not r.get('player')
+                or r['market'] == 'player_first_td'
+                or not str(r['market']).startswith(('player_', 'batter_', 'pitcher_'))):
             continue
         if str(r.get('selection', '')).lower() in {'no', 'under'}:
             continue
