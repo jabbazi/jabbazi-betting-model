@@ -81,3 +81,25 @@ def test_no_cfb_player_market_and_no_first_td_mislabeled_as_anytime():
     assert not result["anytime_td"]
     assert not result["player_markets"]  # first TD requires its own validated model
     assert not result["anytime_td_value"]
+
+
+def test_projected_totals_only_from_explicit_fitted_distribution():
+    eligible = player_row(
+        id="fit", sport="NBA", market="player_points", player="Scorer",
+        model_probability=.58, projected_mean=28.4,
+        projection_basis="FITTED DISTRIBUTION")
+    line_only = player_row(
+        id="line", sport="NBA", market="player_points", player="Line Player",
+        model_probability=.72, line=30.5)
+    result = research_hub([eligible, line_only], sport="NBA", now=NOW)
+    projected = result["player_projected_totals"]["player_points"]
+    assert len(projected) == 1
+    assert projected[0]["player"] == "Scorer"
+    assert projected[0]["projected_mean"] == 28.4
+    assert len(result["player_markets"]["player_points"]) == 2
+
+
+def test_binary_anytime_td_never_claims_statistical_total():
+    row = player_row(projected_mean=.7, projection_basis="FITTED DISTRIBUTION")
+    result = research_hub([row], sport="NFL", now=NOW)
+    assert not result["player_projected_totals"]["player_anytime_td"]
