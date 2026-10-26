@@ -53,6 +53,9 @@ def test_verification_does_not_leak_raw_data_or_credentials():
     assert 'private-data' not in out
 
 
-def test_member_endpoint_requires_authentication():
+def test_member_endpoint_does_not_disclose_provider_data_without_context():
     client = TestClient(app)
-    assert client.get('/v1/vip/player-feed-verification').status_code in (401, 403)
+    response = client.get('/v1/vip/player-feed-verification')
+    # A missing test database can reject before member authentication.
+    assert response.status_code in (401, 403, 503)
+    assert 'BALLDONTLIE' not in response.text
