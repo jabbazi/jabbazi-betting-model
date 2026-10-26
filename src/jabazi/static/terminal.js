@@ -49,6 +49,7 @@ function rankingCards(rows,root,message){
   for(const r of rows){const panel=node('article',undefined,'panel');
     panel.append(badge(r.evidence_label),node('h3',[r.player||r.selection,r.line??'',r.player?r.selection:''].join(' ')),node('p',r.event+' · '+when(r.starts_at),'muted'));
     panel.append(metrics([['Model probability',pct(r.model_probability)],['Market no-vig',pct(r.market_probability)],['Observed price',odds(r.decimal)]]));
+    panel.append(metrics([['Fair odds',r.model_probability!==null?odds(r.fair_decimal):'—'],['Estimated ROI',r.model_probability!==null?pct(r.ev):'—'],['Model status',r.model_stage||'UNAVAILABLE']]));
     panel.append(node('p',(r.book||'Book unavailable')+' · Price observed '+when(r.price_at),'muted'),node('p',r.why||'Research only.','muted'));
     if(r.model_probability!==null)panel.append(node('p','Model: '+r.model_version+' · '+r.model_stage,'muted'));
     panel.append(link('Open game','#matchup='+encodeURIComponent(r.sport)+'|'+encodeURIComponent(r.event_id)));
@@ -207,7 +208,14 @@ else if(route==='top10'||route==='rankings'){
   build=root=>{const nav=node('div',undefined,'pills');for(const name of ['NFL','CFB','NBA','MLB','NHL'])nav.append(link(name,'#rankings&sport='+name,name===sport?'selected':''));root.append(nav,node('h2',sport+(activeSlateDate()===chicagoDate()?' · Today’s research rankings':' · Next-day research rankings')),node('p',d.date+' · America/Chicago · '+d.game_count+' games · Snapshot '+when(d.snapshot_at),'muted'),node('p',d.notice,'muted'));
     for(const [key,title] of [['moneyline_likely','Most likely moneyline winners'],['moneyline_value','Moneyline value supported by approved models'],...(sport==='NFL'?[['anytime_td','Most likely anytime touchdown scorers'],['anytime_td_value','Anytime touchdown value'],['receiving_overs','Receiving overs at exact lines'],['receiving_unders','Receiving unders at exact lines'],['receiving_value','Receiving over/under value supported by approved models']]:[])]){root.append(section(title));rankingCards(d[key]||[],root,d.game_count?'No fresh, supported evidence qualifies for this list.':'No eligible upcoming games for this slate.');}
     if(sport==='NFL')root.append(node('p',d.receiving_totals_reason,'muted'));
-    if(sport!=='NFL')for(const [market,rows] of Object.entries(d.player_markets||{})){root.append(section('Player research · '+market.replaceAll('_',' ')));rankingCards(rows,root,'No supported entries.');}
+    // Player markets are grouped by exact market for every supported sport, including NFL.
+    // Likelihood and validated price-aware value are intentionally separate.
+    if(sport!=='CFB')for(const [market,rows] of Object.entries(d.player_markets||{})){
+      root.append(section('Top projected · '+market.replaceAll('_',' ')));
+      rankingCards(rows,root,'No fresh, supported model or market evidence for this player market.');
+      root.append(section('Best validated value · '+market.replaceAll('_',' ')));
+      rankingCards((d.player_market_value||{})[market]||[],root,'No production-approved, positive-EV entries at fresh exact prices.');
+    }
     root.append(section('Reviewed web research'),node('p',d.web_research_notice,'muted'));
     for(const e of d.web_leans||[]){const p=node('article',undefined,'panel');p.append(badge(e.evidence_label),node('h3',e.selection),node('p',e.event),link(e.source,e.source_url),node('p','Published '+when(e.published_at)+' · Retrieved '+when(e.retrieved_at),'muted'));root.append(p);}
     if((d.conflicting_events||[]).length)root.append(node('p','Some reviewed sources disagree; those selections are withheld.','muted'));
