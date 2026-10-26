@@ -234,6 +234,18 @@ else if(route==='top10'||route==='rankings'){
     const label=categories.find(([,key])=>key===market)?.[0]||'Player';
     const rows=market==='player_anytime_td'?(d.anytime_td||[]):((d.player_markets||{})[market]||[]);
     const value=market==='player_anytime_td'?(d.anytime_td_value||[]):((d.player_market_value||{})[market]||[]);
+    const projected=((d.player_projected_totals||{})[market]||[]);
+    root.append(section('Top 10 · '+label+' projected totals'));
+    if(projected.length){
+      for(const item of projected){
+        const panel=node('article',undefined,'panel');
+        panel.append(badge(item.evidence_label),node('h3',item.player||item.selection),
+          node('p',item.event+' · '+when(item.starts_at),'muted'));
+        panel.append(metrics([['Projected '+label,Number(item.projected_mean).toFixed(1)],['Model stage',item.model_stage||'UNAVAILABLE']]));
+        panel.append(node('p','Fitted distribution · '+(item.model_version||'Unknown model')+' · Research only','muted'));
+        root.append(panel);
+      }
+    }else root.append(empty('Projected totals unavailable','No fresh, version-matched fitted player distribution is available for this category. Sportsbook prop lines are not projected averages.'));
     root.append(section('Top 10 · '+label+' likelihood'));
     root.append(node('p','Ranked by probability of the exact displayed market outcome (for example, Over 24.5 points). This is NOT a projected points/rebounds/assists average. Experimental and market-derived probabilities are labeled.','muted'));
     rankingCards(rows,root,'No fresh, supported '+label.toLowerCase()+' probabilities for this slate. The app will not invent ten players.');
