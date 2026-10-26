@@ -349,6 +349,18 @@ def firsttd(event_id: str, ctx=Depends(context)):
                      'notice': 'First touchdown is distinct from anytime touchdown. No unsupported rankings are displayed.'})
 
 
+@router.get('/player-calibration-audit')
+def player_calibration_audit(ctx=Depends(context)):
+    from .player_audit import calibration_audit
+    return response(calibration_audit(ctx[0]))
+
+
+@router.get('/player-full-slate-audit')
+def player_full_slate_audit(ctx=Depends(context)):
+    from .player_audit import full_slate_audit
+    return response(full_slate_audit(ctx[0], slate_date=getattr(ctx[0], 'vip_slate_date', None)))
+
+
 @router.get('/player-feed-verification')
 def player_feed_verification(ctx=Depends(context)):
     """Authenticated, read-only verification of bounded provider samples."""
