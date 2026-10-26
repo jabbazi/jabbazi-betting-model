@@ -157,6 +157,68 @@ class BallDontLieProvider:
         }, payload["data"]
 
 
+
+def verification_summary(report, *, now=None):
+    """Safe member-visible status; sample endpoint access is NOT full-slate validation.
+
+    No raw vendor payload, player identifiers, keys, or protected account details
+    leave this summary. A provider 200 is not model approval or an executable quote.
+    """
+    now = now or datetime.now(UTC)
+    observed = report.get("observed_at") if isinstance(report, dict) else None
+    age = None
+    if isinstance(observed, str):
+        try:
+            stamp = datetime.fromisoformat(observed.replace("Z", "+00:00"))
+            if stamp.tzinfo is not None:
+                age = (now - stamp.astimezone(UTC)).total_seconds()
+        except ValueError:
+            pass
+    fresh = age is not None and 0 <= age <= 6 * 3600
+    output = {}
+    for sport in ("nba", "nfl"):
+        data = (report.get("sports", {}).get(sport, {})
+                if isinstance(report, dict) else {})
+        if not isinstance(data, dict):
+            data = {}
+        checks = {}
+        for resource in ("authentication", "games", "stats", "injuries", "props"):
+            entry = data.get(resource, {})
+            entry = entry if isinstance(entry, dict) else {}
+            checks[resource] = {
+                "status": entry.get("status") if entry.get("status") in {
+                    "AVAILABLE", "ACCESS_OK_EMPTY", "NOT_TESTED_NO_EVENT",
+                    "UNAVAILABLE"} else "NOT_TESTED",
+                "sample_rows": entry.get("rows") if isinstance(entry.get("rows"), int)
+                    and 0 <= entry["rows"] <= 1000000 else None,
+                "error_code": entry.get("error") if isinstance(entry.get("error"), str)
+                    and entry["error"] in {
+                        "HTTP_401", "HTTP_403", "HTTP_404", "HTTP_429",
+                        "MISSING_KEY", "UNSUPPORTED_RESOURCE",
+                        "REQUEST_BUDGET_EXHAUSTED", "INVALID_SCHEMA",
+                        "RESPONSE_TOO_LARGE", "TRANSPORT_OR_JSON_ERROR"} else None,
+            }
+        accessible = all(checks[key]["status"] == "AVAILABLE"
+                         for key in ("authentication", "games", "stats", "injuries", "props"))
+        output[sport.upper()] = {
+            "status": "SAMPLE_ACCESS_CONFIRMED" if fresh and accessible else
+                      "STALE" if age is not None and not fresh else "NOT_VERIFIED",
+            "sample_only": True,
+            "full_slate_coverage_verified": False,
+            "model_features_verified": False,
+            "model_calibration_verified": False,
+            "live_executable_prices_verified": False,
+            "checks": checks,
+        }
+    return {
+        "provider": "BALLDONTLIE",
+        "observed_at": observed if fresh else None,
+        "fresh": fresh,
+        "sports": output,
+        "notice": "One-event provider samples are not full-slate live player-prop verification. Model approval and executable odds require separate validation.",
+    }
+
+
 def provider_status(store, key):
     records = store.list_records("balldontlie_status", 1, entity="nba-nfl")
     return {
