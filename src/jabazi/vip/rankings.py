@@ -66,8 +66,10 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
     fresh = [r for r in scoped if r.get('fresh') and age_ok(r.get('price_at'), now, 300)]
     candidates = [c for r in fresh if (c := candidate(r)) is not None]
     # No mixed-model rankings from a quarantined or unhealthy feed.
-    candidates = [r for r in candidates if r.get('data_health') == 'HEALTHY'
-                  and r.get('model_stage') not in {'QUARANTINED'}]
+    candidates = [r for r in candidates
+                  if (not str(r.get('market', '')).startswith(('player_', 'batter_', 'pitcher_'))
+                      or r.get('data_health') == 'HEALTHY')
+                  and r.get('model_stage') != 'QUARANTINED']
     ml = [r for r in candidates if r['market'] == 'h2h']
     td = [r for r in candidates if r['sport'] == 'NFL' and r['market'] == 'player_anytime_td'
           and str(r['selection']).lower() not in {'no', 'under'}]
