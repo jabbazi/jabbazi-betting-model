@@ -17,13 +17,21 @@ def current(row, now, slate_date=None):
 
 
 def candidate(row):
-    model = _usable_model(row)
+    # VALIDATING artifacts may appear in research rankings, never in value lists.
+    # The general matchup helper deliberately has a narrower model-stage policy.
+    model = (_usable_model(row) or (
+        row.get('model_stage') == 'VALIDATING'
+        and row.get('status') not in {'QUARANTINED', 'INVALIDATED', 'SAFETY REVIEW'}
+        and row.get('data_health') == 'HEALTHY'
+        and bool(row.get('model_version'))
+        and _valid_probability(row.get('model_probability')) is not None
+    ))
     p = _valid_probability(row.get('model_probability')) if model else None
     market = _valid_probability(row.get('market_probability'))
     if p is None and market is None:
         return None
     source = ('VALIDATED MODEL' if row.get('model_stage') == 'PRODUCTION_APPROVED' else 'SHADOW MODEL') if model else 'MARKET-CONSENSUS LEAN'
-    return {**row, 'model_probability': p, 'calibrated_probability': None,
+    return {**row, 'model_probability': p, 'calibrated_probability': row.get('calibrated_probability') if model else None,
             'fair_decimal': 1/p if p else None, 'edge': p-market if p and market else None,
             'ev': p*row['decimal']-1 if p and row.get('decimal') else None,
             'evidence_label': source, 'ranking_probability': p if p else market,
@@ -31,7 +39,7 @@ def candidate(row):
             'approved_for_betting': False}
 
 
-def ranked(rows, *, event_only=False, value=False):
+def ranked(rows, *, event_only=False, value=False, unique_player=False):
     if value:
         rows = [r for r in rows if r.get('evidence_label') == 'VALIDATED MODEL'
                 and r.get('ev') is not None and r['ev'] > 0]
@@ -39,7 +47,11 @@ def ranked(rows, *, event_only=False, value=False):
                                        -(r.get('decimal') or 0), str(r.get('id'))))
     seen, result = set(), []
     for r in rows:
-        key = (r['sport'], r['event_id']) if event_only else (r['sport'], r['event_id'], r.get('player') or r['selection'], r['market'], r.get('line'), r['selection'])
+        key = ((r['sport'], r['event_id']) if event_only else
+               (r['sport'], r['event_id'], r['market'], r.get('player') or r['selection'])
+               if unique_player else
+               (r['sport'], r['event_id'], r.get('player') or r['selection'],
+                r['market'], r.get('line'), r['selection']))
         if key not in seen:
             seen.add(key)
             result.append(r)
@@ -53,6 +65,9 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
               and (not event_id or str(r['event_id']) == event_id)]
     fresh = [r for r in scoped if r.get('fresh') and age_ok(r.get('price_at'), now, 300)]
     candidates = [c for r in fresh if (c := candidate(r)) is not None]
+    # No mixed-model rankings from a quarantined or unhealthy feed.
+    candidates = [r for r in candidates if r.get('data_health') == 'HEALTHY'
+                  and r.get('model_stage') not in {'QUARANTINED'}]
     ml = [r for r in candidates if r['market'] == 'h2h']
     td = [r for r in candidates if r['sport'] == 'NFL' and r['market'] == 'player_anytime_td'
           and str(r['selection']).lower() not in {'no', 'under'}]
@@ -97,14 +112,19 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
         selections.setdefault((e['sport'], e['event_id']), set()).add(e['selection'])
     conflicts = [key[1] for key, values in selections.items() if len(values) > 1]
     evidence = [e for e in evidence if len(selections[(e['sport'], e['event_id'])]) == 1]
+    player_market_value = {
+        market: ranked(items, value=True, unique_player=True)
+        for market, items in sorted(prop_groups.items())
+    }
     return {'date': today, 'timezone': 'America/Chicago', 'sport': sport.upper(),
             'game_count': len(events), 'fresh_rows': len(fresh), 'stale_rows': len(scoped)-len(fresh),
             'moneyline_likely': ranked(ml, event_only=True), 'moneyline_value': ranked(ml, event_only=True, value=True),
-            'anytime_td': ranked(td), 'anytime_td_value': ranked(td, value=True),
+            'anytime_td': ranked(td, unique_player=True), 'anytime_td_value': ranked(td, value=True, unique_player=True),
             'receiving_overs': ranked([r for r in receiving if r['selection'].lower() == 'over']),
             'receiving_unders': ranked([r for r in receiving if r['selection'].lower() == 'under']),
             'receiving_value': ranked(receiving, value=True),
-            'player_markets': {market: ranked(items) for market, items in sorted(prop_groups.items())},
+            'player_markets': {market: ranked(items, unique_player=True) for market, items in sorted(prop_groups.items())},
+            'player_market_value': player_market_value,
             'receiving_totals': [],
             'receiving_totals_reason': 'The current feed does not expose verified player yardage means. Over-line probabilities are shown separately.',
             'web_leans': evidence[:10], 'conflicting_events': conflicts,
