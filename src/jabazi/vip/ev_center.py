@@ -34,9 +34,9 @@ def ev_center(rows, *, now=None, slate_date=None, sport="", market="", book="",
             excluded["not_current"] += 1
             continue
         d = number(r.get("decimal"))
+        # An approved stage alone does not make an uncalibrated point estimate
+        # suitable for the official price-aware research feed.
         p = number(r.get("calibrated_probability"))
-        if p is None:
-            p = number(r.get("model_probability"))
         if (r.get("status") in BLOCKED or not r.get("fresh")
                 or r.get("data_health") != "HEALTHY"
                 or not age_ok(r.get("price_at"), now, max_quote_age)
