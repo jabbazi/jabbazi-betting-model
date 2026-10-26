@@ -210,7 +210,7 @@ else if(route==='board'||route==='search'){const sport=params.get('sport')||'',q
 else if(route==='sheets'){const d=await get('sheets?'+params);build=root=>{const filters=node('div',undefined,'filters');const[l,i]=field('Archive date','date',d.date);i.addEventListener('change',()=>{location.hash='sheets&day='+i.value;});filters.append(l,link('Browse archive','#archive'));root.append(filters,node('p',d.state==='FROZEN'?`9 AM INITIAL · frozen ${when(d.generated_at)} · original prices retained`:d.notice,'muted'));if(d.rows.length){if(d.date===activeSlateDate()){const download=link('Download complete daily slate','/v1/vip/slate.png');download.download='JABBAZI-daily-slate.png';root.append(download);}for(const r of d.rows){const c=card(r);c.href='#board&sport='+r.sport+'&q='+encodeURIComponent(r.event);root.append(c);}}else root.append(empty('Morning sheet not available',d.notice));};}
 else if(route==='archive'){const d=await get('archive');build=root=>{if(!d.sheets.length)root.append(empty('No published sheets yet','Healthy frozen sheets will appear here automatically.'));for(const s of d.sheets)root.append(link(s.entity+' · Frozen original','#sheets&day='+s.entity,'linkrow'));};}
 else if(route==='top10'||route==='rankings'){
-  const sport=params.get('sport')||({td:'NFL',hr:'MLB',nba_props:'NBA',nhl_goals:'NHL'}[params.get('kind')]||'NBA');
+  const sport=params.get('sport')||({td:'NFL',hr:'MLB',nba_props:'NBA',nhl_goals:'NHL'}[params.get('kind')]||'NFL');
   const categories=top10Categories[sport]||[];
   const selected=params.get('market');
   const market=categories.some(([,key])=>key===selected)?selected:(categories[0]?.[1]||'');
