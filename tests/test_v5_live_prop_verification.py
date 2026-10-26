@@ -1,6 +1,5 @@
 """Provider availability is not a full-slate, calibrated or executable prop."""
 from datetime import UTC, datetime, timedelta
-from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 
