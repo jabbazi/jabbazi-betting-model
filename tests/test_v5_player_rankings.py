@@ -69,8 +69,7 @@ def test_stale_and_unhealthy_never_populate_player_rankings():
     ]
     result = research_hub(rows, sport="NFL", now=NOW)
     assert not result["anytime_td"]
-    assert "player_first_td" in result["player_markets"]  # separately labeled research only
-    assert all(r["sport"] != "CFB" for group in result["player_markets"].values() for r in group)
+    assert not result["player_markets"]
 
 
 def test_no_cfb_player_market_and_no_first_td_mislabeled_as_anytime():
@@ -80,4 +79,5 @@ def test_no_cfb_player_market_and_no_first_td_mislabeled_as_anytime():
     ]
     result = research_hub(rows, now=NOW)
     assert not result["anytime_td"]
-    assert not result["player_markets"]
+    assert "player_first_td" in result["player_markets"]
+    assert all(r["sport"] != "CFB" for group in result["player_markets"].values() for r in group)
