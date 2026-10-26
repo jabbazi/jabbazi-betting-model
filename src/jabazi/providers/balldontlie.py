@@ -177,8 +177,8 @@ def verification_summary(report, *, now=None):
     fresh = age is not None and 0 <= age <= 6 * 3600
     output = {}
     for sport in ("nba", "nfl"):
-        data = (report.get("sports", {}).get(sport, {})
-                if isinstance(report, dict) else {})
+        sports = report.get("sports") if isinstance(report, dict) else None
+        data = sports.get(sport, {}) if isinstance(sports, dict) else {}
         if not isinstance(data, dict):
             data = {}
         checks = {}
