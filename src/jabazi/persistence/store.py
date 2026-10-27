@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 import hashlib
 import json
+import logging
 
 from sqlalchemy import (
     create_engine,
@@ -281,6 +282,10 @@ class Store:
             ).scalars()
             spent = sum(int(r["credits"]) for r in rows)
             if spent + amount > monthly_limit:
+                logging.getLogger(__name__).warning(
+                    "MONTHLY_QUOTA_BLOCKED provider=%s month=%s reserved=%d limit=%d requested=%d",
+                    provider, month, spent, monthly_limit, amount,
+                )
                 return False
             self._append(conn, "quota_reservation", entity, payload, key)
             return True
