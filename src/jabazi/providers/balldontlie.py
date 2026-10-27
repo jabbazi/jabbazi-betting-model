@@ -81,6 +81,34 @@ class BallDontLieProvider:
             raise BallDontLieError("INVALID_SCHEMA")
         return payload
 
+    def fetch_all_pages(self, sport, resource, params=None, *, max_pages=100):
+        """Retrieve every cursor page or fail closed on truncation.
+
+        Never silently represent a bounded sample as full coverage. Caller must
+        provide the correct eligible sport/resource and provider entitlement.
+        """
+        if not 1 <= max_pages <= 1000:
+            raise ValueError("Invalid page limit")
+        params = list(params or [])
+        if any(k == "cursor" for k, _ in params):
+            raise ValueError("Cursor must be managed by paginator")
+        rows, seen_cursors = [], set()
+        pages = 0
+        while True:
+            payload = self.fetch(sport, resource, params)
+            pages += 1
+            rows.extend(payload["data"])
+            cursor = payload.get("meta", {}).get("next_cursor")
+            if cursor is None:
+                return {"data": rows, "pages": pages, "complete": True}
+            cursor = str(cursor)
+            if not cursor or cursor in seen_cursors:
+                raise BallDontLieError("INVALID_PAGINATION_CURSOR")
+            if pages >= max_pages:
+                raise BallDontLieError("PAGINATION_LIMIT_REACHED")
+            seen_cursors.add(cursor)
+            params = [(k, v) for k, v in params if k != "cursor"] + [("cursor", cursor)]
+
     def capture(self, store, *, now=None):
         now = now or datetime.now(UTC)
         day = now.astimezone(ZoneInfo("America/Chicago")).date()
