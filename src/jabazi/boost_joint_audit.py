@@ -6,7 +6,7 @@ promotion. Each observation is one independent game-level ticket outcome.
 from __future__ import annotations
 
 from collections import defaultdict
-from math import log, sqrt
+from math import log
 
 
 def audit_joint_predictions(rows, *, minimum_events=200):
