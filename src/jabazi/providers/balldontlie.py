@@ -81,6 +81,23 @@ class BallDontLieProvider:
             raise BallDontLieError("INVALID_SCHEMA")
         return payload
 
+    def probe_nhl_props(self, game_id):
+        """Read-only NHL entitlement probe; never returns raw licensed rows.
+
+        A successful response verifies access for one specified game only,
+        not full-slate coverage or model readiness.
+        """
+        if isinstance(game_id, bool) or not isinstance(game_id, int) or game_id <= 0:
+            raise ValueError("Positive NHL game ID required")
+        try:
+            result = self.fetch("nhl", "props", [("game_id", game_id)])
+        except BallDontLieError as exc:
+            return {"sport": "nhl", "status": "UNAVAILABLE", "error": str(exc),
+                    "entitlement_verified": False}
+        return {"sport": "nhl", "status": "AVAILABLE",
+                "rows": len(result["data"]), "entitlement_verified": True,
+                "full_slate_verified": False}
+
     def fetch_all_pages(self, sport, resource, params=None, *, max_pages=100):
         """Retrieve every cursor page or fail closed on truncation.
 
