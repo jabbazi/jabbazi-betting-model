@@ -26,7 +26,8 @@ def audit_joint_predictions(rows, *, minimum_events=200):
         if split not in {"test", "prospective"}:
             raise ValueError("Only out-of-sample evidence admitted")
         p = float(row["probability"])
-        if not 0 <= p <= 1:
+        from math import isfinite
+        if not isfinite(p) or not 0 <= p <= 1:
             raise ValueError("Invalid probability")
         if row["outcome"] not in (0, 1) or isinstance(row["outcome"], bool):
             raise ValueError("Outcome must be binary")
