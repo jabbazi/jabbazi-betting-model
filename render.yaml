@@ -38,7 +38,7 @@ services:
       - key: JABBAZI_CFBD_API_KEY
         sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
-        value: "3000"
+        value: "10000"
       - key: JABBAZI_DISCORD_REVIEW_ENABLED
         value: "false"
   - type: worker
@@ -76,7 +76,7 @@ services:
       - key: JABBAZI_CFBD_API_KEY
         sync: false
       - key: JABBAZI_MONTHLY_CREDIT_LIMIT
-        value: "3000"
+        value: "10000"
       - key: JABBAZI_SCAN_INTERVAL_SECONDS
         value: "7200"
       - key: JABBAZI_DISCORD_REVIEW_ENABLED
