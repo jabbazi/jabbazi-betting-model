@@ -263,3 +263,77 @@ def test_final_leg_numbers_without_authoritative_game_final_are_rejected(store):
             result_source=source, observed_at=now,
         )
     assert audit_ready_rows(store) == []
+
+
+
+def test_inventory_distinguishes_missing_baselines_and_pending_results(store):
+    from jabazi.boost_prospective_inventory import capture_inventory
+    frozen = freeze_joint_ticket(store, ticket(market=False), observed_at=NOW)
+    summary = capture_inventory(store)
+    nba = summary["sports"]["basketball_nba"]
+    assert summary["status"] == "RESEARCH_ONLY"
+    assert nba["frozen"] == 1
+    assert nba["pending_result"] == 1
+    assert nba["missing_market_baseline"] == 1
+    assert nba["fully_resolved_with_baseline"] == 0
+    assert summary["integrity_failures"] == 0
+    assert summary["approved_for_betting"] is False
+    assert "nba-p1" not in str(summary)
+    assert "event-1" not in str(summary)
+    assert frozen["forecast_id"] not in str(summary)
+
+
+def test_inventory_counts_final_and_excluded_without_promoting(store):
+    from jabazi.boost_prospective_inventory import capture_inventory
+    fid = freeze_joint_ticket(store, ticket(), observed_at=NOW)["forecast_id"]
+    assert settle(store, fid)["status"] == "FINAL"
+    summary = capture_inventory(store)
+    nba = summary["sports"]["basketball_nba"]
+    assert nba["settled_final"] == 1
+    assert nba["fully_resolved_with_baseline"] == 1
+    assert nba["pending_result"] == 0
+    assert summary["integrity_failures"] == 0
+    assert summary["approved_for_betting"] is False
+
+
+def test_corrupted_nested_source_hash_blocks_inventory(store):
+    from jabazi.boost_prospective_inventory import capture_inventory
+    from jabazi.boost_prospective import FORECAST
+    frozen = freeze_joint_ticket(store, ticket(), observed_at=NOW)
+    raw = store.list_records(FORECAST, 1)[0]["payload"]
+    corrupt = deepcopy(raw)
+    corrupt["model_source"]["sha256"] = "0" * 64
+    quarantined = Store("sqlite:///:memory:", initialize=True)
+    try:
+        quarantined.append(FORECAST, "event-1", corrupt, key=frozen["forecast_id"])
+        summary = capture_inventory(quarantined)
+        assert summary["status"] == "INTEGRITY_BLOCKED"
+        assert summary["sports"]["basketball_nba"]["invalid_evidence"] == 1
+        assert summary["integrity_failures"] == 1
+        assert summary["approved_for_betting"] is False
+    finally:
+        quarantined.close()
+
+
+def test_orphan_resolution_blocks_scoring_without_leaking_ids(store):
+    from jabazi.boost_prospective_inventory import capture_inventory
+    from jabazi.boost_prospective import RESULT
+    store.append(RESULT, "orphan-event", {
+        "forecast_id": "a" * 64,
+        "status": "FINAL",
+        "outcome": 1,
+        "private_player": "SECRET_PLAYER_ID",
+    })
+    summary = capture_inventory(store)
+    assert summary["status"] == "INTEGRITY_BLOCKED"
+    assert summary["orphan_results"] == 1
+    assert "SECRET_PLAYER_ID" not in str(summary)
+
+
+def test_inventory_enforces_cap_instead_of_partial_counts(store):
+    from jabazi.boost_prospective_inventory import capture_inventory
+    from jabazi.boost_prospective import RESULT
+    for x in range(2):
+        store.append(RESULT, "orphan", {"forecast_id": str(x), "outcome": 0})
+    with pytest.raises(ValueError, match="no partial evidence"):
+        capture_inventory(store, limit=1)
