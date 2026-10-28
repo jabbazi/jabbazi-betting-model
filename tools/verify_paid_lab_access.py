@@ -59,9 +59,15 @@ def main(argv=None) -> int:
         "notice": ("Passing LAB access alone does not prove complete live odds coverage, "
                    "calibrated player hit probabilities, or production readiness."),
     }, sort_keys=True))
-    # LAB NHL is documented unsupported, not a failed credential check.
-    return 0 if all(r["state"] in ("RESEARCH_ONLY", "NO_PREDICTIONS", "UNAVAILABLE")
-                    for r in results) else 1
+    # Zero means the requested *supported* sports passed a complete
+    # authenticated API read, never that a model/probability was approved.
+    # NHL's unsupported result is expected and never counted as paid coverage.
+    return 0 if all(
+        r["coverage_complete"] is True
+        if r["sport"] in ("NBA", "NFL") else
+        r["reason"] == "LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED"
+        for r in results
+    ) else 1
 
 
 if __name__ == "__main__":
