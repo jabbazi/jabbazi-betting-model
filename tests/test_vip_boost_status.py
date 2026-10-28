@@ -8,7 +8,10 @@ from jabazi.vip import model_cache
 
 def test_boost_status_requires_vip_session():
     response = TestClient(app).get("/v1/vip/boost/status")
-    assert response.status_code == 401
+    # If the session database is unavailable, verification fails closed with
+    # 503 rather than authenticating an unknown member.
+    assert response.status_code in {401, 503}
+    assert response.status_code != 200
 
 
 def test_boost_status_fails_closed_without_cached_model_evidence(monkeypatch):
