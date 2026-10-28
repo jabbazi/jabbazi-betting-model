@@ -72,6 +72,8 @@ def audit_matrix(provider, *, target_date: date | None = None,
         and results[sport].get("games_eligible", 0) > 0
         and results[sport].get("games_with_prop_response", 0)
             == results[sport].get("games_eligible", -1)
+        and results[sport].get("games_with_eligible_quotes", 0)
+            == results[sport].get("games_eligible", -1)
         and results[sport].get("eligible_quote_rows", 0) > 0
         and not results[sport].get("errors")
         for sport in SPORTS
@@ -110,6 +112,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not 1 <= args.max_games <= 25 or not 3 <= args.request_budget <= 120:
         parser.error("Use 1-25 games and a 3-120 request safety budget")
+    dates = {
+        label: getattr(args, label.lower() + "_date") or args.date
+        for label in SPORTS
+    }
+    if any(day is None for day in dates.values()):
+        parser.error("Specify --date or all three --nba-date/--nfl-date/--nhl-date")
     credential = os.environ.get("JABBAZI_BALLDONTLIE_API_KEY", "").strip()
     if not credential:
         print(json.dumps({
@@ -119,12 +127,6 @@ def main(argv=None):
         return 2
     provider = BallDontLieProvider(credential, budget=args.request_budget)
     try:
-        dates = {
-            label: getattr(args, label.lower() + "_date") or args.date
-            for label in SPORTS
-        }
-        if any(day is None for day in dates.values()):
-            parser.error("Specify --date or all three --nba-date/--nfl-date/--nhl-date")
         report = audit_matrix(
             provider, target_dates=dates, max_games=args.max_games,
             runtime_commit=os.environ.get("RENDER_GIT_COMMIT", ""),
