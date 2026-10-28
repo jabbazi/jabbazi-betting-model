@@ -12,6 +12,13 @@ def _finite_probability(value):
             and math.isfinite(value) and 0 <= value <= 1)
 
 
+MIN_INDEPENDENT_GAMES_PER_SPLIT = 200
+
+
+def _sufficient_independent_games(value):
+    return type(value) is int and value >= MIN_INDEPENDENT_GAMES_PER_SPLIT
+
+
 def _positive_samples(value):
     return type(value) is int and value > 0
 
@@ -33,7 +40,11 @@ def boost_model_readiness(player_models, joint_models=None):
                         and _positive_samples(validation.get("prospective_sample_count"))
                         and _finite_probability(validation.get("ece"))
                         and _finite_probability(validation.get("market_baseline_brier"))
-                        and _finite_probability(validation.get("brier")))
+                        and _finite_probability(validation.get("brier"))
+                        and validation["brier"] < validation["market_baseline_brier"]
+                        and _sufficient_independent_games(validation.get("test_independent_games"))
+                        and _sufficient_independent_games(validation.get("prospective_independent_games"))
+                        and validation.get("source_evidence_reviewed") is True)
             markets[market] = {
                 "stage": getattr(model, "stage", "UNAVAILABLE"),
                 "approved": approved,
@@ -48,6 +59,9 @@ def boost_model_readiness(player_models, joint_models=None):
             and getattr(joint, "independent_benchmark_passed", False) is True
             and _positive_samples(getattr(joint, "prospective_sample_count", None))
             and _finite_probability(getattr(joint, "calibration_ece", None))
+            and _sufficient_independent_games(getattr(joint, "test_independent_games", None))
+            and _sufficient_independent_games(getattr(joint, "prospective_independent_games", None))
+            and getattr(joint, "source_evidence_reviewed", False) is True
         )
         results[sport] = {
             "marginal_markets": markets,
