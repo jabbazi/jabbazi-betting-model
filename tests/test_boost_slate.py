@@ -148,7 +148,7 @@ def test_nfl_sunday_night_utc_rollover_preserves_local_game_day():
     assert [c[0] for c in provider.calls] == ["nfl", "nfl"]
 
 
-def test_nfl_mismatched_local_day_fails_closed():
+def test_nfl_adjacent_eastern_day_is_skipped_without_paid_prop_call():
     provider = FakeProvider([
         {"id": 10, "status_state": "scheduled",
          "date": "2026-11-02T01:20:00Z"},
@@ -156,6 +156,21 @@ def test_nfl_mismatched_local_day_fails_closed():
     report = inspect_sport_slate(
         provider, BoostScope("americanfootball_nfl"),
         target_date=date(2026, 11, 2),
+    )
+    assert report.coverage == "NO_ELIGIBLE_GAMES"
+    assert report.errors == ()
+    assert report.games_skipped == 1
+    assert len(provider.calls) == 1
+
+
+def test_nfl_nonadjacent_calendar_day_fails_closed():
+    provider = FakeProvider([
+        {"id": 10, "status_state": "scheduled",
+         "date": "2026-11-02T01:20:00Z"},
+    ])
+    report = inspect_sport_slate(
+        provider, BoostScope("americanfootball_nfl"),
+        target_date=date(2026, 11, 4),
     )
     assert report.coverage == "PARTIAL"
     assert "GAME_DATE_NOT_VERIFIED" in report.errors
@@ -174,3 +189,56 @@ def test_nfl_naive_timestamp_is_not_assumed_utc():
     assert report.coverage == "PARTIAL"
     assert "GAME_DATE_NOT_VERIFIED" in report.errors
     assert len(provider.calls) == 1
+
+
+def test_nfl_game_discovery_queries_utc_rollover_in_one_bounded_call():
+    class FilterByUtcDate(FakeProvider):
+        def fetch_all_pages(self, sport, resource, params, *, max_pages):
+            self.calls.append((sport, resource, tuple(params)))
+            if resource == "games":
+                dates = [v for k, v in params if k == "dates[]"]
+                assert dates == ["2026-11-01", "2026-11-02"]
+                assert max_pages == 10
+                # Sunday-night local game is Monday UTC; an API filtering
+                # on UTC date would omit it without the second date query.
+                return {
+                    "data": [
+                        {"id": 10, "status_state": "scheduled",
+                         "date": "2026-11-02T01:20:00Z"},
+                        {"id": 11, "status_state": "scheduled",
+                         "date": "2026-11-03T01:15:00Z"},
+                    ],
+                    "pages": 1, "complete": True,
+                }
+            gid = dict(params)["game_id"]
+            return {"data": self.props.get(gid, []),
+                    "pages": 1, "complete": True}
+
+    p = FilterByUtcDate([], {10: [quote(100, 10)]})
+    report = inspect_sport_slate(
+        p, BoostScope("americanfootball_nfl"),
+        target_date=date(2026, 11, 1),
+    )
+    assert report.coverage == "FULL"
+    assert report.games_eligible == 1
+    assert report.games_skipped == 1
+    assert report.odds_report.game_row_counts == ((10, 1),)
+    assert [call[1] for call in p.calls] == ["games", "props"]
+
+
+def test_nba_date_query_stays_single_day():
+    p = FakeProvider([game(1)], {1: [quote(100, 1)]})
+    r = inspect_sport_slate(
+        p, BoostScope("basketball_nba"), target_date=date(2026, 10, 28),
+    )
+    assert r.coverage == "FULL"
+    assert p.calls[0][2] == (("dates[]", "2026-10-28"), ("per_page", 100))
+
+
+def test_nhl_date_query_stays_single_day():
+    p = FakeProvider([game(1, "nhl")], {1: [quote(100, 1)]})
+    r = inspect_sport_slate(
+        p, BoostScope("icehockey_nhl"), target_date=date(2026, 10, 28),
+    )
+    assert r.coverage == "FULL"
+    assert p.calls[0][2] == (("dates[]", "2026-10-28"), ("per_page", 100))
