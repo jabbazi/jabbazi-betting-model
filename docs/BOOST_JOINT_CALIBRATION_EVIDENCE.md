@@ -82,3 +82,10 @@ independent events. 2 indicates an invalid or inaccessible input file.
 Promotion, branch merge, Render deployment, production betting advice and
 Discord publication are forbidden until the other independent gates in
 `docs/BOOST_V6_RELEASE_GATE.md` pass. `SCAN EVERYTHING` is unchanged.
+
+
+## Automated readiness enforcement (feature branch)
+
+The research-only `boost_model_readiness` check now refuses to approve NBA/NHL joint boosts unless each marginal model and the joint model have **at least 200 distinct independent games in both test and prospective partitions**, not just 200 tickets. Marginals also require finite Brier/ECE values, an independent market baseline with strictly better model Brier score, and explicit source-evidence review. Joint evidence additionally requires a passed independent benchmark and prospective calibration with source review. These are **necessary, not sufficient** conditions: an operator must independently audit archived immutable sources, exact ticket quote provenance, selection bias and confidence intervals before any promotion. No synthetic unit-test fixture may be used as release evidence.
+
+Current production models have no qualifying prospective observations. The readiness guard therefore remains fail-closed and cannot approve any wagering. No merge or production deployment is authorized solely by this check.
