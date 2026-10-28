@@ -62,3 +62,34 @@ live paid-provider acceptance. **Do not label the release complete** until
 those checks can be performed and their concrete results recorded.
 
 Source: Issue #79 and draft PR #80 in jabbazi/jabbazi-betting-model.
+
+## Reproducible single-sport paid access evidence
+
+An operator with existing authorized Render shell access can run the
+read-only tool without copying keys, making secret changes, merging or
+deploying. Run one sport at a time, on a verified upcoming vendor calendar
+date; examples below show a placeholder date, **not completed evidence**:
+
+```bash
+python tools/boost_live_acceptance.py --sport NBA --date YYYY-MM-DD --request-budget 36
+python tools/boost_live_acceptance.py --sport NFL --date YYYY-MM-DD --request-budget 36
+python tools/boost_live_acceptance.py --sport NHL --date YYYY-MM-DD --request-budget 36
+```
+
+Specify `--game-id` and `--market` only when the particular promotion
+restricts those choices. Default query covers all eligible scheduled games
+within a 25-game cap. The probe stops rather than silently truncating larger
+slates, handles one-response live prop endpoints, follows game-page cursors,
+and avoids emitting licensed odds, player IDs, secrets or invented probabilities.
+
+Exit code 0 means the provider returned a complete bounded set of requests,
+**not** that available sportsbook odds, betting predictions or calibration
+passed. Exit code 1 means incomplete/failed quote coverage; 2 means no secret
+was configured. Inspect the aggregate JSON, timestamp, error codes and
+current service commit. For full release, attach actual three-sport outputs
+and independently validated NBA/NHL joint-model and sportsbook SGP evidence.
+Running this only in GitHub Actions without the actual Render service key
+does not satisfy live acceptance.
+
+The tool does not place bets or send Discord alerts, and the existing broad
+scanner is not called.
