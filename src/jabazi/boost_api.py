@@ -170,3 +170,62 @@ def diagnose_join(body: BoostJoinRequest, authorization: Annotated[str | None, H
         }, headers=PRIVATE_HEADERS)
     finally:
         provider.close()
+
+
+class GoatSportFeedRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sport: Literal["NBA", "NFL", "NHL"]
+    slate_date: date
+    max_games: int = Field(default=5, ge=1, le=10)
+
+
+@router.post("/v1/chatgpt/boost-goat-feed-diagnostic", operation_id="diagnose_goat_sport_prop_feed")
+def diagnose_goat(body: GoatSportFeedRequest, authorization: Annotated[str | None, Header()] = None):
+    """Private GOAT Sports API acceptance; does not require LAB or approve models.
+
+    Discovers the specified sport's games and checks actual paid player-prop
+    responses. This endpoint does not call LAB, generate predictions, or place bets.
+    """
+    from .chatgpt_api import authorize, PRIVATE_HEADERS
+    from .config import Settings
+    from tools.boost_live_acceptance import audit_sport
+
+    authorize(authorization)
+    key = Settings.from_environment().balldontlie_api_key
+    if not key:
+        raise HTTPException(503, "BALLDONTLIE Sports API credential unavailable")
+    provider = BallDontLieProvider(key, budget=20)
+    try:
+        result = audit_sport(
+            provider, sport=body.sport,
+            calendar_date=body.slate_date, max_games=body.max_games,
+        )
+        # Only aggregate evidence, never raw vendor odds, player IDs, or secrets.
+        complete = (
+            result["coverage"] == "FULL"
+            and result["games_eligible"] > 0
+            and result["games_with_eligible_quotes"] == result["games_eligible"]
+            and result["eligible_quote_rows"] > 0
+            and not result["errors"]
+        )
+        return JSONResponse({
+            "sport": body.sport,
+            "slate_date": body.slate_date.isoformat(),
+            "source": "BALLDONTLIE_SPORTS_API",
+            "lab_required": False,
+            "status": "RESEARCH_ONLY" if complete else "UNAVAILABLE",
+            "reason": None if complete else "PAID_SPORT_PROP_COVERAGE_NOT_VERIFIED",
+            "games_eligible": result["games_eligible"],
+            "games_with_eligible_quotes": result["games_with_eligible_quotes"],
+            "eligible_quote_rows": result["eligible_quote_rows"],
+            "observed_market_breadth": result["observed_market_breadth"],
+            "coverage": result["coverage"],
+            "errors": result["errors"],
+            "jabbazi_exact_line_probabilities_verified": False,
+            "joint_probability_validated": False,
+            "betting_enabled": False,
+            "production_approved": False,
+            "observed_at": datetime.now(UTC).isoformat(),
+        }, headers=PRIVATE_HEADERS)
+    finally:
+        provider.close()
