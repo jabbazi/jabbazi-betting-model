@@ -59,13 +59,18 @@ def evaluate_boost(*, joint_probability, conservative_probability, offered_decim
         raise ValueError("Invalid minimum ROI")
     if conservative < threshold:
         reasons.append("INSUFFICIENT_CONSERVATIVE_EV")
-    # Uncapped break-even original decimal price under a profit boost.
+    # Invert the same capped payout function used above; include promo minimum odds.
     boost = D(str(boost_fraction))
     if not boost.is_finite() or boost < 0:
         raise ValueError("Invalid boost")
     required_boosted = minimum_decimal(lower, threshold) if lower > 0 else None
-    required_original = (D(1) + (required_boosted - 1) / (1 + boost)
-                         if required_boosted is not None and profit_cap is None else None)
+    required_original = None
+    if required_boosted is not None:
+        required_original = D(1) + (required_boosted - 1) / (1 + boost)
+        if profit_cap is not None:
+            # Both branches of min((d-1)*boost, cap/stake) must meet the target.
+            required_original = max(required_original, required_boosted - D(str(profit_cap)) / stake)
+        required_original = max(minimum, required_original)
     return BoostValuation(
         status="WATCH" if not reasons else "PASS",
         joint_probability=p, conservative_probability=lower,
