@@ -15,6 +15,8 @@ import httpx
 
 BASE = "https://api.balldontlie.io"
 SPORTS = {"NBA": "nba", "NFL": "nfl", "NHL": "nhl"}
+# Per published BDL LAB model-type docs: NHL supports game models only.
+LAB_PLAYER_PROP_SPORTS = frozenset({"NBA", "NFL"})
 MAX_MODEL_PAGES = 4
 MAX_MODELS_PER_SPORT = 12
 MAX_PREDICTION_PAGES = 3
@@ -121,7 +123,7 @@ class LabReader:
 
 
 def _project(row: dict, model: dict):
-    """Allowlist safe fields. Never interpret LAB confidence as hit probability."""
+    """Allowlist safe fields. Neither LAB score nor confidence is a hit chance."""
     model_id = _positive_id(model.get("id"))
     game = row.get("game") if isinstance(row.get("game"), dict) else {}
     player = row.get("player") if isinstance(row.get("player"), dict) else {}
@@ -144,7 +146,11 @@ def _project(row: dict, model: dict):
         "player_id": _positive_id(row.get("player_id")) or _positive_id(player.get("id")),
         "player_name": _name(row.get("player_name")) or _name(player.get("name")),
         "starts_at": _name(game.get("date")) or _name(game.get("datetime")),
+        # LAB predicted_value is a MODEL SIGNAL/SCORE, not a projected stat total.
         "predicted_value": value,
+        "model_signal_value": value,
+        "stat_total_projection": None,
+        "stat_total_projection_verified": False,
         "predicted_side": _name(row.get("predicted_side")),
         "market_line": _number(row.get("market_value")),
         "provider_confidence_raw": confidence,
@@ -176,8 +182,13 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
         "predictions_seen": 0, "rows": [],
         "coverage_complete": False, "betting_enabled": False,
         "model_hit_probabilities_verified": False,
-        "notice": "LAB statistical forecasts and confidence are not calibrated hit probabilities. Live sportsbook odds are separate. Research only.",
+        "source_player_prop_supported": sport in LAB_PLAYER_PROP_SPORTS,
+        "notice": "BDL LAB model score and confidence are not projected stat totals or calibrated hit chances. NHL LAB has game models only. Live sportsbook prop odds are separate. Research only.",
     }
+    if sport not in LAB_PLAYER_PROP_SPORTS:
+        # Prevent a misleading NHL API fetch, success state, or fabricated props.
+        report["reason"] = "LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED"
+        return report
     if not key or not key.strip():
         return report
     client = LabReader(key, transport=transport)
