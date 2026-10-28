@@ -21,11 +21,12 @@ const assert=require('node:assert/strict');
    if(u.pathname.endsWith('/matchups'))body={games:[],notice:'Synthetic only'};
    if(u.pathname.endsWith('/paid-player-models'))body={
       provider:'BALLDONTLIE_LAB',sport:u.searchParams.get('sport'),
-      state:'RESEARCH_ONLY',slate_date:'2026-10-14',
+      state:u.searchParams.get('sport')==='NHL'?'UNAVAILABLE':'RESEARCH_ONLY',slate_date:'2026-10-14',
+      reason:u.searchParams.get('sport')==='NHL'?'LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED':null,
       observed_at:'2026-10-14T12:00:00Z',coverage_complete:true,
       models_found:1,models_checked:1,predictions_seen:1,
       betting_enabled:false,notice:'Synthetic LAB forecasts are not hit probabilities',
-      rows:[{model_id:17,model_name:'Fixture model',player_name:'Fixture Athlete',
+      rows:u.searchParams.get('sport')==='NHL'?[]:[{model_id:17,model_name:'Fixture model',player_name:'Fixture Athlete',
         game_id:88,market:'points',predicted_value:24.5,model_signal_value:24.5,
         provider_confidence_raw:.92,model_hit_probability:null,predicted_side:'over',market_line:22.5}],
     };
@@ -77,10 +78,16 @@ const assert=require('node:assert/strict');
   for(const sp of ['NBA','NFL','NHL']){
     await page.goto('https://jabbazi.test/vip#paidplayers&sport='+sp);
     await page.getByRole('heading',{name:sp+' Paid Player Model Research',exact:true}).waitFor();
-    await page.getByText('Fixture Athlete',{exact:true}).waitFor();
-    await page.getByText('Hit probability',{exact:true}).waitFor();
-    await page.getByText('LAB model signal (not stat total)',{exact:true}).waitFor();
-    await page.getByText('NOT VERIFIED',{exact:true}).waitFor();
+    if(sp==='NHL'){
+      await page.getByText('LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED',{exact:false}).first().waitFor();
+      await page.getByText('BDL LAB does not provide NHL player-prop models.',{exact:false}).waitFor();
+      assert(!(await page.locator('#content').textContent()).includes('Fixture Athlete'));
+    }else{
+      await page.getByText('Fixture Athlete',{exact:true}).waitFor();
+      await page.getByText('Hit probability',{exact:true}).waitFor();
+      await page.getByText('LAB model signal (not stat total)',{exact:true}).waitFor();
+      await page.getByText('NOT VERIFIED',{exact:true}).waitFor();
+    }
   }
   assert(requests.filter(x=>x.includes('/paid-player-models')).length===3);
   assert(requests.every(x=>!x.includes('/lab/v1/')&&!x.includes('/odds/player_props')));
