@@ -90,3 +90,33 @@ def test_cli_does_not_echo_invalid_file_path(monkeypatch, capsys):
         "--commit-evidence",
     ]) == 2
     assert "missing-personal-tickets" not in capsys.readouterr().out
+
+
+
+def test_cli_inventory_is_private_and_requires_no_write_flag(monkeypatch, capsys):
+    s = Store("sqlite:///:memory:", initialize=True)
+    monkeypatch.setattr(capture, "_open_store", lambda: s)
+    assert capture.main(["inventory"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "NO_EVIDENCE"
+    assert report["sports"]["basketball_nba"]["frozen"] == 0
+    assert report["sports"]["icehockey_nhl"]["frozen"] == 0
+    assert report["approved_for_betting"] is False
+
+
+def test_cli_audit_refuses_scores_for_orphan_resolution(monkeypatch, capsys):
+    s = Store("sqlite:///:memory:", initialize=True)
+    from jabazi.boost_prospective import RESULT
+    s.append(RESULT, "orphan", {
+        "forecast_id": "a" * 64,
+        "private_player": "HIDDEN_PLAYER",
+        "outcome": 1,
+    })
+    monkeypatch.setattr(capture, "_open_store", lambda: s)
+    assert capture.main(["audit"]) == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["status"] == "INTEGRITY_BLOCKED"
+    assert response["inventory"]["integrity_failures"] == 1
+    assert "report" not in response
+    assert "HIDDEN_PLAYER" not in str(response)
+    assert response["approved_for_betting"] is False
