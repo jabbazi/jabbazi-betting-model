@@ -47,6 +47,15 @@ def diagnose(body: BoostFeedRequest, authorization: Annotated[str | None, Header
             "games_requested": report.games_requested,
             "games_succeeded": report.games_succeeded,
             "odds_rows": report.odds_rows,
+            "raw_odds_rows": report.raw_odds_rows,
+            "duplicate_rows": report.duplicate_rows,
+            "invalid_rows": report.invalid_rows,
+            "mismatched_game_rows": report.mismatched_game_rows,
+            "stale_rows": report.stale_rows,
+            "out_of_scope_rows": report.out_of_scope_rows,
+            "per_game_accepted_rows": {
+                str(game_id): count for game_id, count in report.game_row_counts
+            },
             "pages": report.pages,
             "coverage": report.coverage,
             "errors": report.errors,
