@@ -7,7 +7,7 @@ No executable ticket or wager recommendation is produced.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from jabazi.boost_feed import BoostFeedReport, VENDOR_SPORT, collect_boost_odds
@@ -29,6 +29,19 @@ class BoostSlateReport:
     player_probabilities_verified: bool = False
 
 
+def _nfl_eastern_game_day(value):
+    """Convert an explicitly UTC/offset-aware NFL kickoff to Eastern day."""
+    if not isinstance(value, str):
+        return None
+    try:
+        instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if instant.utcoffset() is None:
+            return None
+        return instant.astimezone(ZoneInfo("America/New_York")).date()
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
 def _matches_vendor_calendar_day(sport: str, value, target: date) -> bool:
     """Compare against the sport's published game day, not raw UTC prefix.
 
@@ -39,13 +52,7 @@ def _matches_vendor_calendar_day(sport: str, value, target: date) -> bool:
     if not isinstance(value, str):
         return False
     if sport == "nfl":
-        try:
-            at = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return at.utcoffset() is not None and (
-                at.astimezone(ZoneInfo("America/New_York")).date() == target
-            )
-        except ValueError:
-            return False
+        return _nfl_eastern_game_day(value) == target
     return value == target.isoformat()
 
 
@@ -64,10 +71,16 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         raise ValueError("Invalid game cap")
     sport = VENDOR_SPORT[scope.sport]
     label = target_date.isoformat()
+    # NFL kickoffs are UTC datetimes. A game on Sunday evening ET may have a
+    # Monday UTC date; fetch both dates and filter by the Eastern game day.
+    # This remains a SINGLE paginated discovery request (shared page cap).
+    game_dates = [label]
+    if sport == "nfl":
+        game_dates.append((target_date + timedelta(days=1)).isoformat())
+    params = [("dates[]", value) for value in game_dates] + [("per_page", 100)]
     try:
         listing = provider.fetch_all_pages(
-            sport, "games",
-            [("dates[]", label), ("per_page", 100)],
+            sport, "games", params,
             max_pages=max_game_pages,
         )
         if not listing.get("complete"):
@@ -97,6 +110,13 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         date_field = "game_date" if sport == "nhl" else "date"
         game_date = game.get(date_field)
         if not _matches_vendor_calendar_day(sport, game_date, target_date):
+            if sport == "nfl":
+                actual_day = _nfl_eastern_game_day(game_date)
+                if actual_day is not None and abs((actual_day - target_date).days) <= 1:
+                    # Widening the UTC query intentionally includes adjacent
+                    # Eastern games; never charge paid credits for those.
+                    skipped += 1
+                    continue
             errors.append("GAME_DATE_NOT_VERIFIED")
             continue
         if game.get("status_state") != "scheduled":
