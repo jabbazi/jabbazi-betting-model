@@ -1,0 +1,119 @@
+"""No network, credentials or licensed payloads are used in these tests."""
+from datetime import UTC, date, datetime
+
+import pytest
+
+from jabazi.providers.balldontlie import BallDontLieError
+from tools.boost_live_acceptance import audit_sport, main
+
+
+class FakeProvider:
+    def __init__(self, *, games, props=None, error=None):
+        self.games = games
+        self.props = props or {}
+        self.error = error
+        self.calls = []
+
+    def fetch_all_pages(self, sport, resource, params, *, max_pages):
+        self.calls.append((sport, resource, tuple(params), max_pages))
+        if resource == "games":
+            return {"data": self.games, "complete": True, "pages": 1}
+        if self.error is not None:
+            raise self.error
+        gid = dict(params)["game_id"]
+        return {"data": self.props.get(gid, []), "complete": True, "pages": 1}
+
+
+def game(gid, *, sport="nba", day="2026-10-28"):
+    return {"id": gid, "status_state": "scheduled",
+            ("game_date" if sport == "nhl" else "date"): day}
+
+
+def quote(gid):
+    return {
+        "id": gid + 100, "game_id": gid, "player_id": 444,
+        "vendor": "fanduel", "prop_type": "points", "line_value": "20.5",
+        "market": {"type": "over_under", "over_odds": -115, "under_odds": -105},
+        "updated_at": datetime.now(UTC).isoformat(),
+        "protected_vendor_secret_payload": "must-never-expose",
+    }
+
+
+def test_sport_isolation_and_provenance_no_raw_data():
+    p = FakeProvider(games=[game(42)], props={42: [quote(42)]})
+    report = audit_sport(
+        p, sport="NBA", calendar_date=date(2026, 10, 28),
+    )
+    assert report["coverage"] == "FULL"
+    assert report["eligible_quote_rows"] == 1
+    assert report["games_with_prop_response"] == 1
+    assert report["paid_endpoint_sample_access_observed"] is True
+    assert report["provider_player_hit_probabilities"] is False
+    assert report["joint_calibration_validated"] is False
+    assert report["production_approved"] is False
+    assert report["recommendation"] == "PASS"
+    assert "must-never-expose" not in str(report)
+    assert [x[0] for x in p.calls] == ["nba", "nba"]
+    assert p.calls[1][-1] == 1
+
+
+def test_nhl_paid_scope_and_rate_limit_fail_closed():
+    p = FakeProvider(
+        games=[game(10, sport="nhl")], error=BallDontLieError("HTTP_429"),
+    )
+    report = audit_sport(
+        p, sport="NHL", calendar_date=date(2026, 10, 28),
+        event_ids=[10], markets=["goals"],
+    )
+    assert report["coverage"] == "FAILED"
+    assert report["recommendation"] == "PASS"
+    assert report["errors"] == ["game:10:HTTP_429"]
+    assert [x[0] for x in p.calls] == ["nhl", "nhl"]
+
+
+def test_large_slate_does_not_silently_truncate_or_fetch_paid_props():
+    p = FakeProvider(games=[game(1), game(2), game(3)])
+    report = audit_sport(
+        p, sport="NBA", calendar_date=date(2026, 10, 28),
+        max_games=2,
+    )
+    assert report["coverage"] == "PARTIAL"
+    assert "GAME_CAP_REACHED_NO_PARTIAL_SCAN" in report["errors"]
+    assert len(p.calls) == 1
+
+
+def test_no_games_not_confused_with_verified_odds():
+    p = FakeProvider(games=[])
+    report = audit_sport(
+        p, sport="NFL", calendar_date=date(2026, 10, 28),
+    )
+    assert report["coverage"] == "NO_ELIGIBLE_GAMES"
+    assert report["paid_endpoint_sample_access_observed"] is False
+    assert report["recommendation"] == "PASS"
+
+
+def test_missing_key_prevents_any_network(monkeypatch, capsys):
+    monkeypatch.delenv("JABBAZI_BALLDONTLIE_API_KEY", raising=False)
+    result = main(["--sport", "NHL", "--date", "2026-10-28"])
+    assert result == 2
+    output = capsys.readouterr().out
+    assert "PROVIDER_NOT_CONFIGURED" in output
+    assert "PASS" in output
+
+
+@pytest.mark.parametrize("sport", ["MLB", "nhl", ""])
+def test_reject_invalid_sport(sport):
+    with pytest.raises(ValueError, match="Unsupported sport"):
+        audit_sport(
+            FakeProvider(games=[]), sport=sport,
+            calendar_date=date(2026, 10, 28),
+        )
+
+
+def test_reject_duplicate_event_scope():
+    with pytest.raises(ValueError, match="Duplicate"):
+        audit_sport(
+            FakeProvider(games=[]), sport="NBA",
+            calendar_date=date(2026, 10, 28),
+            event_ids=[12, 12],
+        )
