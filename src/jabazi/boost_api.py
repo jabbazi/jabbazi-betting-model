@@ -189,6 +189,7 @@ def diagnose_goat(body: GoatSportFeedRequest, authorization: Annotated[str | Non
     from .chatgpt_api import authorize, PRIVATE_HEADERS
     from .config import Settings
     from tools.boost_live_acceptance import audit_sport
+    from .boost_goat_model_map import summarize_goat_model_market_alignment
 
     authorize(authorization)
     key = Settings.from_environment().balldontlie_api_key
@@ -219,6 +220,9 @@ def diagnose_goat(body: GoatSportFeedRequest, authorization: Annotated[str | Non
             "games_with_eligible_quotes": result["games_with_eligible_quotes"],
             "eligible_quote_rows": result["eligible_quote_rows"],
             "observed_market_breadth": result["observed_market_breadth"],
+            "jabbazi_market_alignment": summarize_goat_model_market_alignment(
+                body.sport, result["observed_market_breadth"],
+            ),
             "coverage": result["coverage"],
             "errors": result["errors"],
             "jabbazi_exact_line_probabilities_verified": False,
