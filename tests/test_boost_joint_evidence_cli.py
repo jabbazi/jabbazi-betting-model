@@ -2,7 +2,30 @@
 import json
 
 from tools.audit_boost_joint_evidence import inspect_local_archive, main
-from tests.test_boost_joint_evidence import row
+def row():
+    return {
+        "sport": "basketball_nba",
+        "split": "test",
+        "event_id": "g1",
+        "ticket_id": "t1",
+        "model_version": "joint-v1",
+        "probability": 0.6,
+        "market_probability": 0.5,
+        "outcome": 1,
+        "market_baseline_kind": "independently_quoted_combined_ticket",
+        "predicted_at": "2026-02-02T12:00:00Z",
+        "forecast_frozen_at": "2026-02-02T12:01:00Z",
+        "starts_at": "2026-02-02T20:00:00Z",
+        "result_observed_at": "2026-02-02T23:00:00Z",
+        "features_available_at": "2026-02-02T10:00:00Z",
+        "market_observed_at": "2026-02-02T11:59:00Z",
+        "trained_through": "2026-01-01T00:00:00Z",
+        "test_start": "2026-02-01T00:00:00Z",
+        "prospective_start": "2026-04-01T00:00:00Z",
+        "forecast_snapshot_sha256": "a" * 64,
+        "result_snapshot_sha256": "b" * 64,
+        "market_snapshot_sha256": "c" * 64,
+    }
 
 
 def test_private_jsonl_outputs_no_ticket_identifiers(tmp_path, capsys):
