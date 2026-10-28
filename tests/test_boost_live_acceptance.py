@@ -48,6 +48,15 @@ def test_sport_isolation_and_provenance_no_raw_data():
     assert report["eligible_quote_rows"] == 1
     assert report["games_with_prop_response"] == 1
     assert report["games_with_eligible_quotes"] == 1
+    priority = report["priority_market_observations"]
+    assert priority["sport"] == "NBA"
+    assert priority["priority_markets_observed"] == 1
+    assert any(m["prop_type"] == "points" and m["games_with_any_accepted_quote"] == 1
+               for m in priority["categories"])
+    assert any(m["prop_type"] == "points_rebounds_assists"
+               and m["observation"] == "NOT_OBSERVED"
+               for m in priority["categories"])
+    assert priority["source_defined_market_universe_complete"] is False
     assert report["paid_endpoint_sample_access_observed"] is True
     assert report["provider_player_hit_probabilities"] is False
     assert report["joint_calibration_validated"] is False
