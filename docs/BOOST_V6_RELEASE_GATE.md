@@ -195,3 +195,22 @@ Provider category support is not guaranteed availability; NFL's
 cannot certify all eligible markets or players. Further validation
 requires an actual current authenticated three-sport scoped run in
 an authorized runtime.
+
+## NFL local-day/UTC discovery reconciliation
+
+The NFL `games.date` field is an offset-bearing UTC kickoff timestamp,
+not an NBA/NHL-style date-only value. In the game discovery request for an
+NFL **Eastern calendar game day**, the V6 collector now requests both
+`dates[]=YYYY-MM-DD` and `dates[]=(next UTC calendar date)` in **one**
+bounded paginated discovery call. It then converts every returned NFL
+kickoff to Eastern to include games played on the requested day; adjacent
+Eastern-day games are skipped without paid prop requests. Invalid or
+unexpected nonadjacent timestamps downgrade the report rather than being
+silently included.
+
+This protects Sunday-night and Monday-night UTC date rollovers, without
+expanding NBA/NHL requests. It is a precaution against incomplete
+provider date-filter semantics, not independent confirmation of what the
+live provider actually returned. The real provider response must still be
+audited in an authorized runtime to establish correct full-slate coverage,
+and the research engine still cannot mark a bet as executable.
