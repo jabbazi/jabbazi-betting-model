@@ -130,6 +130,12 @@ def _project(row: dict, model: dict):
     prediction_model = _positive_id(row.get("model_id"))
     if prediction_model is not None and prediction_model != model_id:
         return None
+    # Player research must have an exact vendor game/player identity before
+    # being displayed or counted as an accepted paid-model observation.
+    if not model_id or not (_positive_id(row.get("game_id")) or _positive_id(game.get("id"))):
+        return None
+    if not (_positive_id(row.get("player_id")) or _positive_id(player.get("id"))):
+        return None
     value = _number(row.get("predicted_value"))
     if value is None:
         return None
@@ -179,7 +185,7 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
         "observed_at": datetime.now(UTC).isoformat(),
         "state": "UNAVAILABLE", "reason": "NO_CREDENTIAL",
         "models_found": 0, "models_checked": 0,
-        "predictions_seen": 0, "rows": [],
+        "predictions_seen": 0, "rows_rejected_missing_identity_or_signal": 0, "rows": [],
         "coverage_complete": False, "betting_enabled": False,
         "model_hit_probabilities_verified": False,
         "source_player_prop_supported": sport in LAB_PLAYER_PROP_SPORTS,
@@ -227,6 +233,7 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
             for row in rows:
                 item = _project(row, model)
                 if item is None:
+                    report["rows_rejected_missing_identity_or_signal"] += 1
                     continue
                 identity = (item["model_id"], item["id"], item["game_id"], item["player_id"])
                 if identity in seen:
