@@ -26,7 +26,7 @@ const assert=require('node:assert/strict');
       models_found:1,models_checked:1,predictions_seen:1,
       betting_enabled:false,notice:'Synthetic LAB forecasts are not hit probabilities',
       rows:[{model_id:17,model_name:'Fixture model',player_name:'Fixture Athlete',
-        game_id:88,market:'points',predicted_value:24.5,
+        game_id:88,market:'points',predicted_value:24.5,model_signal_value:24.5,
         provider_confidence_raw:.92,model_hit_probability:null,predicted_side:'over',market_line:22.5}],
     };
    if(u.pathname.endsWith('/boost/status'))body={
@@ -76,9 +76,10 @@ const assert=require('node:assert/strict');
   // Paid forecasts stay isolated by sport, on demand, and never claim hit probabilities.
   for(const sp of ['NBA','NFL','NHL']){
     await page.goto('https://jabbazi.test/vip#paidplayers&sport='+sp);
-    await page.getByRole('heading',{name:sp+' Paid Player Model Forecasts',exact:true}).waitFor();
+    await page.getByRole('heading',{name:sp+' Paid Player Model Research',exact:true}).waitFor();
     await page.getByText('Fixture Athlete',{exact:true}).waitFor();
     await page.getByText('Hit probability',{exact:true}).waitFor();
+    await page.getByText('LAB model signal (not stat total)',{exact:true}).waitFor();
     await page.getByText('NOT VERIFIED',{exact:true}).waitFor();
   }
   assert(requests.filter(x=>x.includes('/paid-player-models')).length===3);
