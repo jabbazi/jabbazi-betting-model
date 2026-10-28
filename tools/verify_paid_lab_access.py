@@ -1,6 +1,7 @@
 """Read-only BDL LAB paid player-prop access acceptance.
 
-Run from the *authorized private service runtime* with the existing BDL key.
+Run from an *authorized private runtime* with JABBAZI_BALLDONTLIE_LAB_API_KEY.
+Do not use the separate JABBAZI_BALLDONTLIE_API_KEY Sports API credential.
 No secrets, raw licensed player records, model identifiers, or quotes are logged.
 No models are created, predictions generated, subscription changes made, or bets placed.
 NHL is explicitly unsupported for LAB player props (game models only).
@@ -33,6 +34,8 @@ def summarized(report: dict) -> dict:
         "predictions_seen": report["predictions_seen"],
         "visible_research_rows": len(report["rows"]),
         "coverage_complete": report["coverage_complete"],
+        "lab_endpoint_authenticated": report["coverage_complete"] and report["state"] in ("RESEARCH_ONLY", "NO_PREDICTIONS"),
+        "saved_player_predictions_observed": report["state"] == "RESEARCH_ONLY" and len(report["rows"]) > 0,
         "model_hit_probabilities_verified": False,
         "betting_enabled": False,
     }
@@ -55,15 +58,16 @@ def main(argv=None) -> int:
         "checked_at": datetime.now(UTC).isoformat(),
         "release_approved": False,
         "paid_player_hit_probabilities_verified": False,
+        "notes": "LAB access, saved predictions and calibrated JABBAZI exact-line hit probabilities are independent release gates.",
         "results": results,
         "notice": ("Passing LAB access alone does not prove complete live odds coverage, "
                    "calibrated player hit probabilities, or production readiness."),
     }, sort_keys=True))
-    # Zero means the requested *supported* sports passed a complete
-    # authenticated API read, never that a model/probability was approved.
-    # NHL's unsupported result is expected and never counted as paid coverage.
+    # A supported sport must have *observed saved predictions*, not only
+    # authenticated endpoint access, to pass this feed-readiness checkpoint.
+    # It still cannot approve a wager, probability, or production release.
     return 0 if all(
-        r["coverage_complete"] is True
+        r["saved_player_predictions_observed"] is True
         if r["sport"] in ("NBA", "NFL") else
         r["reason"] == "LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED"
         for r in results
