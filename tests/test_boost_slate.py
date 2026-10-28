@@ -1,5 +1,5 @@
 """Regression tests for bounded sport-specific slate discovery."""
-from datetime import date
+from datetime import UTC, date, datetime
 
 from jabazi.boost_scope import BoostScope
 from jabazi.boost_slate import inspect_sport_slate
@@ -29,10 +29,19 @@ def game(game_id, sport="nba", state="scheduled", day="2026-10-28"):
             ("game_date" if sport == "nhl" else "date"): day}
 
 
+def quote(identifier, game_id):
+    return {"id": identifier, "game_id": game_id, "player_id": 12,
+            "vendor": "draftkings", "prop_type": "points",
+            "line_value": "1.5",
+            "market": {"type": "over_under", "over_odds": -110,
+                       "under_odds": -110},
+            "updated_at": datetime.now(UTC).isoformat()}
+
+
 def test_complete_nhl_slate_is_sport_isolated_and_never_claims_probabilities():
     provider = FakeProvider(
         [game(1, "nhl"), game(2, "nhl", state="final")],
-        {1: [{"id": 400, "game_id": 1}]},
+        {1: [quote(400, 1)]},
     )
     report = inspect_sport_slate(
         provider, BoostScope("icehockey_nhl"),
@@ -95,7 +104,7 @@ def test_duplicate_game_identity_fails_closed():
 def test_paid_prop_failure_preserves_partial_coverage():
     provider = FakeProvider(
         [game(1), game(2)],
-        {1: [{"id": 11, "game_id": 1}],
+        {1: [quote(11, 1)],
          2: BallDontLieError("HTTP_429")},
     )
     report = inspect_sport_slate(
@@ -110,7 +119,7 @@ def test_paid_prop_failure_preserves_partial_coverage():
 def test_promotion_game_subset_limits_paid_requests():
     provider = FakeProvider(
         [game(1), game(2)],
-        {2: [{"id": 12, "game_id": 2}]},
+        {2: [quote(12, 2)]},
     )
     report = inspect_sport_slate(
         provider, BoostScope("basketball_nba", frozenset({"2"})),
