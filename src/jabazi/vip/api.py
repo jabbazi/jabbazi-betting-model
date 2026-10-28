@@ -556,7 +556,7 @@ def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(
     store, _principal = ctx
     selected_day = getattr(store, 'vip_slate_date', datetime.now(UTC).date())
     return response(read_paid_player_models(
-        Settings.from_environment().balldontlie_api_key, sport, selected_day
+        Settings.from_environment().balldontlie_lab_api_key, sport, selected_day
     ))
 
 
