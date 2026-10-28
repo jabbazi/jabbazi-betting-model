@@ -82,12 +82,17 @@ def _snapshot(source, *, now, name):
         raise ValueError(f"Stale/future {name} snapshot")
     provider = _text(source.get("provider"), name + " provider")
     payload = dict(source["payload"])
+    try:
+        # Reject NaN/Infinity/nonserializable licensed inputs before output.
+        fingerprint = digest([provider, stamp.isoformat(), payload])
+    except (ValueError, TypeError, OverflowError):
+        raise ValueError(f"Invalid {name} quote or source payload") from None
     return {
         "provider": provider,
         "observed_at": stamp.isoformat(),
         "payload": payload,
         # SHA refers to the exact source object, never an owner-typed claim.
-        "sha256": digest([provider, stamp.isoformat(), payload]),
+        "sha256": fingerprint,
     }
 
 
