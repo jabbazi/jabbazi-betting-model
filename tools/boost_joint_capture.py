@@ -54,7 +54,7 @@ def main(argv=None):
         }))
         return 2
     try:
-        payload = _read_private_json(args.input) if args.action != "audit" else None
+        payload = _read_private_json(args.input) if args.action in {"freeze", "settle"} else None
         store = _open_store()
         try:
             if args.action == "freeze":
