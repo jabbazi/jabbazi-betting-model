@@ -100,12 +100,20 @@ A new **read-only** command collects a bounded NBA/NFL/NHL coverage matrix
 from an authorized runtime with the already-configured BALLDONTLIE key:
 
 ```bash
-python -m tools.boost_live_acceptance_matrix --date YYYY-MM-DD --max-games 25 --request-budget 90
+python -m tools.boost_live_acceptance_matrix --nba-date YYYY-MM-DD --nfl-date YYYY-MM-DD --nhl-date YYYY-MM-DD --max-games 25 --request-budget 90
 ```
 
 Do not run this from a public build, print the provider secret, modify Render
 networking, or treat a mocked Actions workflow as live provider verification.
-Set the date to the actual upcoming vendor calendar date. This checks
+Use the actual upcoming game date **separately for each sport**. NFL
+game records have UTC timestamps (which may roll into Monday UTC for
+Sunday-night Eastern games); the collector validates them against the
+game's Eastern calendar day. Do not force a Tuesday NFL date just
+because NBA or NHL plays Tuesday. A common `--date YYYY-MM-DD`
+remains available for explicit same-day audits, but a sport with no
+game must return NO_ELIGIBLE_GAMES, not successful coverage.
+
+This checks
 eligible scheduled games for all three sports with one shared request budget,
 stops on subscription/rate-limit exhaustion, and reports only sanitized
 aggregate per-sport counts and observation times. If there is no eligible
