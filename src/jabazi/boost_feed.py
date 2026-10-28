@@ -1,7 +1,7 @@
-"""Read-only, sport-isolated BALLDONTLIE boost feed acquisition.
+"""Read-only sport-isolated BALLDONTLIE odds collection and integrity audit.
 
-No production command registration, model approval, or wagering side effects.
-A completed provider response is not evidence of calibrated hit probabilities.
+Vendor player props are *prices*, not calibrated player hit probabilities.
+An HTTP 200 and completed pagination do not establish actionable coverage.
 """
 from __future__ import annotations
 
@@ -28,27 +28,39 @@ class BoostFeedReport:
     coverage: str
     errors: tuple[str, ...]
     rows: tuple[dict, ...]
+    raw_odds_rows: int = 0
+    duplicate_rows: int = 0
+    invalid_rows: int = 0
+    mismatched_game_rows: int = 0
+    game_row_counts: tuple[tuple[int, int], ...] = ()
+
+
+def _valid_identifier(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
 def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                        max_pages_per_game: int = 100) -> BoostFeedReport:
-    """Retrieve only the requested sport's eligible games, fail closed on errors.
+    """Collect exact-game provider prices with auditable schema and deduplication.
 
-    The caller supplies verified BALLDONTLIE game IDs; odds are retained as
-    vendor rows, not misrepresented as independent player probabilities.
+    Missing/foreign IDs are rejected. Duplicates are counted and not silently
+    interpreted as additional markets. Any integrity failure downgrades coverage.
+    No odds price is ever reinterpreted as a hit probability.
     """
     sport = VENDOR_SPORT[scope.sport]
     ids = list(game_ids)
-    if not ids or len(ids) > 100 or any(
-        isinstance(gid, bool) or not isinstance(gid, int) or gid <= 0 for gid in ids
-    ):
+    if not ids or len(ids) > 100 or any(not _valid_identifier(gid) for gid in ids):
         raise ValueError("Provide 1-100 valid game IDs")
     if len(set(ids)) != len(ids):
         raise ValueError("Duplicate game IDs")
     if scope.event_ids and set(map(str, ids)) != scope.event_ids:
         raise ValueError("Game IDs do not match promotion scope")
     rows, errors, pages, succeeded = [], [], 0, 0
+    raw_count = duplicate_count = invalid_count = foreign_count = 0
+    seen = set()
+    per_game = []
     for gid in ids:
+        count = 0
         try:
             response = provider.fetch_all_pages(
                 sport, "props", [("game_id", gid)],
@@ -59,17 +71,43 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
             succeeded += 1
             pages += response["pages"]
             for row in response["data"]:
-                rows.append({"sport": scope.sport, "game_id": gid, "vendor": "BALLDONTLIE", "raw": row})
+                raw_count += 1
+                if not isinstance(row, dict) or not _valid_identifier(row.get("id")):
+                    invalid_count += 1
+                    continue
+                if row.get("game_id") != gid:
+                    foreign_count += 1
+                    continue
+                identity = (gid, row["id"])
+                if identity in seen:
+                    duplicate_count += 1
+                    continue
+                seen.add(identity)
+                rows.append({"sport": scope.sport, "game_id": gid,
+                             "vendor": "BALLDONTLIE", "raw": row})
+                count += 1
         except BallDontLieError as exc:
             errors.append(f"game:{gid}:{exc}")
             # Stop on entitlement failures and exhausted budget to avoid
-            # repeated rejected calls.
-            if str(exc) in {"HTTP_401", "HTTP_403", "HTTP_429", "REQUEST_BUDGET_EXHAUSTED"}:
+            # repeated rejected calls or automatic retrials.
+            if str(exc) in {"HTTP_401", "HTTP_403", "HTTP_429",
+                            "REQUEST_BUDGET_EXHAUSTED"}:
+                per_game.append((gid, count))
                 break
+        per_game.append((gid, count))
+    if invalid_count:
+        errors.append("INVALID_PROP_IDENTITIES")
+    if foreign_count:
+        errors.append("FOREIGN_GAME_PROP_IDENTITIES")
+    if duplicate_count:
+        errors.append("DUPLICATE_PROP_IDENTITIES")
     return BoostFeedReport(
         sport=scope.sport, games_requested=len(ids),
         games_succeeded=succeeded, odds_rows=len(rows), pages=pages,
         coverage="FULL" if succeeded == len(ids) and not errors else
                  "FAILED" if succeeded == 0 else "PARTIAL",
         errors=tuple(errors), rows=tuple(rows),
+        raw_odds_rows=raw_count, duplicate_rows=duplicate_count,
+        invalid_rows=invalid_count, mismatched_game_rows=foreign_count,
+        game_row_counts=tuple(per_game),
     )
