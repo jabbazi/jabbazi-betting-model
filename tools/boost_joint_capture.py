@@ -14,6 +14,7 @@ from jabazi.boost_prospective import (
     audit_ready_rows, archive_joint_outcome, freeze_joint_ticket,
 )
 from jabazi.boost_joint_evidence import audit_frozen_joint_evidence
+from jabazi.boost_prospective_inventory import capture_inventory
 
 
 def _open_store():
@@ -44,6 +45,7 @@ def main(argv=None):
         command.add_argument("--input", required=True)
         command.add_argument("--commit-evidence", action="store_true")
     sub.add_parser("audit")
+    sub.add_parser("inventory")
     args = parser.parse_args(argv)
     if args.action in {"freeze", "settle"} and not args.commit_evidence:
         print(json.dumps({
@@ -77,15 +79,26 @@ def main(argv=None):
                     "created": report["created"],
                     "approved_for_betting": False,
                 }
+            elif args.action == "inventory":
+                safe = capture_inventory(store)
             else:
-                rows = audit_ready_rows(store)
-                report = audit_frozen_joint_evidence(rows)
-                safe = {
-                    "status": "RESEARCH_ONLY",
-                    "eligible_resolved_tickets": len(rows),
-                    "report": report,
-                    "approved_for_betting": False,
-                }
+                inventory = capture_inventory(store)
+                if inventory["integrity_failures"]:
+                    safe = {
+                        "status": "INTEGRITY_BLOCKED",
+                        "inventory": inventory,
+                        "approved_for_betting": False,
+                    }
+                else:
+                    rows = audit_ready_rows(store)
+                    report = audit_frozen_joint_evidence(rows)
+                    safe = {
+                        "status": "RESEARCH_ONLY",
+                        "inventory": inventory,
+                        "eligible_resolved_tickets": len(rows),
+                        "report": report,
+                        "approved_for_betting": False,
+                    }
         finally:
             store.close()
     except Exception:
