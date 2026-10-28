@@ -208,8 +208,11 @@ def archive_joint_outcome(store, *, forecast_id, leg_results, result_source,
                 or source_payload.get("leg_results") != leg_results):
             raise ValueError("Archived result source does not match resolved legs")
         start = _at(frozen["starts_at"], "starts_at")
-        if now <= start or _at(result_snapshot["observed_at"], "result observed_at") <= start:
-            raise ValueError("Event has not finished")
+        source_finished_at = _at(source_payload.get("completed_at"), "completed_at")
+        if (source_payload.get("event_status") != "final"
+                or not start < source_finished_at
+                <= _at(result_snapshot["observed_at"], "result observed_at") <= now):
+            raise ValueError("Verified final event completion is required")
         expected = {leg["leg_id"]: leg for leg in frozen["legs"]}
         if len(leg_results) != len(expected):
             raise ValueError("Missing or extra resolved leg")
