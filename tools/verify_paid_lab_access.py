@@ -32,6 +32,7 @@ def summarized(report: dict) -> dict:
         "models_found": report["models_found"],
         "models_checked": report["models_checked"],
         "predictions_seen": report["predictions_seen"],
+        "predictions_rejected_missing_identity_or_signal": report.get("rows_rejected_missing_identity_or_signal", 0),
         "visible_research_rows": len(report["rows"]),
         "coverage_complete": report["coverage_complete"],
         "lab_endpoint_authenticated": report["coverage_complete"] and report["state"] in ("RESEARCH_ONLY", "NO_PREDICTIONS"),
