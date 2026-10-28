@@ -17,8 +17,14 @@ def test_authenticated_nhl_diagnostic_never_queries_other_sports(monkeypatch):
 
         def fetch_all_pages(self, sport, resource, params, **kwargs):
             requested.append((sport, resource, tuple(params)))
+            from datetime import UTC, datetime
             return {"complete": True, "pages": 1,
                     "data": [{"id": 1, "game_id": 123,
+                              "player_id": 44, "vendor": "draftkings",
+                              "prop_type": "goals", "line_value": "0.5",
+                              "market": {"type": "over_under", "over_odds": 150,
+                                         "under_odds": -180},
+                              "updated_at": datetime.now(UTC).isoformat(),
                               "licensed": "not-to-expose"}]}
 
         def close(self):
