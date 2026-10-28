@@ -82,3 +82,60 @@ def test_lab_diagnostic_requires_distinct_lab_key(monkeypatch):
             boost_api.BoostLabRequest(sport="NFL", slate_date=date(2026, 10, 28)),
             authorization="Bearer private")
     assert exc.value.status_code == 503
+
+
+def test_paid_join_requires_private_authentication(monkeypatch):
+    monkeypatch.setenv("JABBAZI_MODEL_TOKEN", "x" * 32)
+    monkeypatch.setenv("JABBAZI_CHATGPT_ENABLED", "true")
+    client = TestClient(app)
+    result = client.post("/v1/chatgpt/boost-paid-join-diagnostic",
+                         json={"sport": "NBA", "slate_date": "2026-10-28", "game_ids": [31]})
+    assert result.status_code == 401
+
+
+def test_paid_join_rejects_nhl_lab_and_duplicate_game_ids():
+    client = TestClient(app)
+    assert client.post("/v1/chatgpt/boost-paid-join-diagnostic",
+        json={"sport": "NHL", "slate_date": "2026-10-28", "game_ids": [31]}).status_code == 422
+
+
+def test_paid_join_missing_lab_credential_fails_before_sports_requests(monkeypatch):
+    from types import SimpleNamespace
+    from datetime import date
+    from fastapi import HTTPException
+    import pytest
+    from jabazi import boost_api, chatgpt_api
+    from jabazi.config import Settings
+
+    monkeypatch.setattr(chatgpt_api, "authorize", lambda token: None)
+    monkeypatch.setattr(Settings, "from_environment",
+        lambda: SimpleNamespace(balldontlie_api_key="sports", balldontlie_lab_api_key=""))
+    request = boost_api.BoostJoinRequest(sport="NBA", slate_date=date(2026, 10, 28),
+                                        game_ids=[31])
+    with pytest.raises(HTTPException) as exc:
+        boost_api.diagnose_join(request, authorization="Bearer private")
+    assert exc.value.status_code == 503
+
+
+def test_paid_join_empty_lab_skips_sports_api_calls(monkeypatch):
+    from types import SimpleNamespace
+    from datetime import date
+    from jabazi import boost_api, chatgpt_api
+    from jabazi.config import Settings
+    from jabazi.vip import paid_models
+    import json
+
+    monkeypatch.setattr(chatgpt_api, "authorize", lambda token: None)
+    monkeypatch.setattr(Settings, "from_environment",
+        lambda: SimpleNamespace(balldontlie_api_key="sports", balldontlie_lab_api_key="lab"))
+    monkeypatch.setattr(paid_models, "read_paid_player_models",
+        lambda key, sport, day: {"coverage_complete": True,
+            "state": "NO_PREDICTIONS", "reason": "NO_PREDICTIONS_ON_DATE", "rows": []})
+    monkeypatch.setattr(boost_api, "BallDontLieProvider",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("sports should not be queried")))
+    request = boost_api.BoostJoinRequest(sport="NBA", slate_date=date(2026, 10, 28),
+                                        game_ids=[31])
+    result = json.loads(boost_api.diagnose_join(request, authorization="Bearer private").body)
+    assert result["status"] == "UNAVAILABLE"
+    assert result["betting_enabled"] is False
+    assert result["exact_identity_joins"] == 0
