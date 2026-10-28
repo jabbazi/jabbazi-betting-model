@@ -46,6 +46,7 @@ def ticket(*, sport="basketball_nba", market=True):
                 "event_id": "event-1", "ticket_id": "ticket-1",
                 "model_version": "research-joint-v1",
                 "joint_probability": 0.42, "leg_ids": ["a", "b"],
+                "legs": legs(),
                 "features_available_at": (NOW - timedelta(minutes=2)).isoformat(),
                 "model_fit_provenance": "synthetic-test-only",
             },
@@ -58,7 +59,9 @@ def ticket(*, sport="basketball_nba", market=True):
             "payload": {
                 "baseline_kind": "independently_quoted_combined_ticket",
                 "event_id": "event-1", "ticket_id": "ticket-1",
-                "leg_ids": ["a", "b"], "book": "test-book",
+                "leg_ids": ["a", "b"], "legs": legs(),
+                "book": "test-book", "quote_id": "synthetic-pair-1",
+                "paired_quotes": {"yes_decimal": 3.0, "no_decimal": 2.0},
                 "no_vig_probability": 0.4,
             },
         }
@@ -337,3 +340,58 @@ def test_inventory_enforces_cap_instead_of_partial_counts(store):
         store.append(RESULT, "orphan", {"forecast_id": str(x), "outcome": 0})
     with pytest.raises(ValueError, match="no partial evidence"):
         capture_inventory(store, limit=1)
+
+
+def test_combined_baseline_requires_full_ticket_leg_specification(store):
+    altered = ticket()
+    altered["market_source"]["payload"]["legs"][0]["line"] = 24.5
+    with pytest.raises(ValueError, match="exact leg identity"):
+        freeze_joint_ticket(store, altered, observed_at=NOW)
+    assert store.list_records("boost_joint_forecast") == []
+
+
+def test_model_prediction_must_bind_to_full_ticket_legs(store):
+    altered = ticket()
+    altered["model_source"]["payload"]["legs"][0]["side"] = "under"
+    with pytest.raises(ValueError, match="does not match exact ticket"):
+        freeze_joint_ticket(store, altered, observed_at=NOW)
+    assert store.list_records("boost_joint_forecast") == []
+
+
+@pytest.mark.parametrize("bad", [
+    None,
+    {},
+    {"yes_decimal": 3.0},
+    {"yes_decimal": 3.0, "no_decimal": 1.0},
+    {"yes_decimal": True, "no_decimal": 2.0},
+    {"yes_decimal": 3.0, "no_decimal": float("inf")},
+])
+def test_one_sided_or_invalid_combined_quotes_cannot_claim_no_vig(store, bad):
+    altered = ticket()
+    altered["market_source"]["payload"]["paired_quotes"] = bad
+    with pytest.raises(ValueError, match="quote|price"):
+        freeze_joint_ticket(store, altered, observed_at=NOW)
+    assert store.list_records("boost_joint_forecast") == []
+
+
+@pytest.mark.parametrize("missing", ["quote_id", "book"])
+def test_market_receipt_must_name_book_and_quote_id(store, missing):
+    altered = ticket()
+    del altered["market_source"]["payload"][missing]
+    with pytest.raises(ValueError, match=missing):
+        freeze_joint_ticket(store, altered, observed_at=NOW)
+
+
+def test_claimed_no_vig_probability_must_equal_derived_two_way_baseline(store):
+    altered = ticket()
+    altered["market_source"]["payload"]["no_vig_probability"] = 0.6
+    with pytest.raises(ValueError, match="disagrees"):
+        freeze_joint_ticket(store, altered, observed_at=NOW)
+    assert store.list_records("boost_joint_forecast") == []
+
+
+def test_without_bookmaker_two_way_baseline_forecast_remains_research_only(store):
+    independent = ticket(market=False)
+    frozen = freeze_joint_ticket(store, independent, observed_at=NOW)
+    assert frozen["state"] == "RESEARCH_ONLY"
+    assert audit_ready_rows(store) == []
