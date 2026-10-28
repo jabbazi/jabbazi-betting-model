@@ -547,6 +547,19 @@ def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
                      'notice': 'ASK JABBAZI does not invent probabilities or override BET/WATCH/PASS/model-stage controls.'})
 
 
+@router.get('/paid-player-models')
+def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
+    """VIP-only, on-demand BALLDONTLIE LAB forecasts; no auto scan or bet approval."""
+    from ..config import Settings
+    from .paid_models import read_paid_player_models
+
+    store, _principal = ctx
+    selected_day = getattr(store, 'vip_slate_date', datetime.now(UTC).date())
+    return response(read_paid_player_models(
+        Settings.from_environment().balldontlie_api_key, sport, selected_day
+    ))
+
+
 @router.get('/boost/status')
 def boost_status(ctx=Depends(context)):
     """VIP-only, quota-free readiness view; not a recommendation or paid scan."""
