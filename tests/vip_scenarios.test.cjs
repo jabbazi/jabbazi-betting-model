@@ -110,7 +110,7 @@ const assert=require('node:assert/strict');
     status:503,contentType:'application/json',
     body:JSON.stringify({detail:'PRIVATE_SERVICE_ERROR_DO_NOT_RENDER'}),
   }));
-  await page.goto('https://jabbazi.test/vip#promo');
+  await page.reload();
   await page.getByText('Model evidence: UNAVAILABLE · Decision: PASS · Paid requests: 0',{exact:true}).waitFor();
   await page.getByText('Boost readiness could not be verified. All selections remain PASS. No live paid scan was started.',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Calculate boost'}).click();
@@ -124,7 +124,7 @@ const assert=require('node:assert/strict');
       decision:'BET NOW',betting_enabled:true,
       sports:[{sport:'NHL',player_markets:[]}]})
   }));
-  await page.goto('https://jabbazi.test/vip#promo');
+  await page.reload();
   await page.getByText('Model evidence: UNAVAILABLE · Decision: PASS · Paid requests: 0',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Calculate boost'}).click();
   await page.getByText('Synthetic payout scenario; not a model prediction.',{exact:true}).waitFor();
