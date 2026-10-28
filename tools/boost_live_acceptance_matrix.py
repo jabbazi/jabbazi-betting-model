@@ -23,15 +23,22 @@ def _public_commit(value: str) -> str | None:
     return value.lower() if re.fullmatch(r"[0-9a-fA-F]{40}", value or "") else None
 
 
-def audit_matrix(provider, *, target_date: date, max_games: int = 25,
-                 runtime_commit: str = "") -> dict:
-    """Perform sport-isolated live requests and classify acceptance conservatively.
+def audit_matrix(provider, *, target_date: date | None = None,
+                 target_dates: dict[str, date] | None = None,
+                 max_games: int = 25, runtime_commit: str = "") -> dict:
+    """Audit independent NBA/NFL/NHL game days and enforce evidence gates.
 
-    A successful complete 200 with empty prop data is never "paid row coverage".
-    Failures due to entitlement or rate limits halt subsequent sports.
+    Each league can play on different days. Empty or inaccessible paid
+    markets are not proof of entitlement or complete quote coverage.
     """
-    if type(target_date) is not date or not 1 <= max_games <= 25:
-        raise ValueError("Expected date and bounded 1-25 game cap")
+    days = dict(target_dates or {})
+    if target_date is not None:
+        for sport in SPORTS:
+            days.setdefault(sport, target_date)
+    if (set(days) != set(SPORTS)
+            or any(type(day) is not date for day in days.values())
+            or not 1 <= max_games <= 25):
+        raise ValueError("Explicit valid NBA/NFL/NHL dates and 1-25 game cap required")
     results = {}
     halt_reason = None
     for sport in SPORTS:
@@ -45,7 +52,7 @@ def audit_matrix(provider, *, target_date: date, max_games: int = 25,
             continue
         try:
             report = audit_sport(
-                provider, sport=sport, calendar_date=target_date, max_games=max_games,
+                provider, sport=sport, calendar_date=days[sport], max_games=max_games,
             )
         except Exception:
             # Never display transport exceptions, provider response bodies, or keys.
@@ -72,7 +79,7 @@ def audit_matrix(provider, *, target_date: date, max_games: int = 25,
     return {
         "schema_version": 1,
         "environment_commit": _public_commit(runtime_commit),
-        "target_calendar_date": target_date.isoformat(),
+        "target_calendar_dates": {sport: days[sport].isoformat() for sport in SPORTS},
         "finished_at_utc": datetime.now(UTC).isoformat(),
         "sports": results,
         "all_three_paid_quote_coverage_observed": complete,
@@ -90,7 +97,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Read-only NBA/NFL/NHL live prop acceptance matrix",
     )
-    parser.add_argument("--date", required=True, type=date.fromisoformat)
+    parser.add_argument("--date", type=date.fromisoformat,
+                        help="Common date fallback, overridden by per-sport dates")
+    for label in SPORTS:
+        parser.add_argument(
+            "--" + label.lower() + "-date",
+            type=date.fromisoformat,
+            help="Sport's verified upcoming pregame calendar date",
+        )
     parser.add_argument("--max-games", type=int, default=25)
     parser.add_argument("--request-budget", type=int, default=90)
     args = parser.parse_args(argv)
@@ -105,8 +119,14 @@ def main(argv=None):
         return 2
     provider = BallDontLieProvider(credential, budget=args.request_budget)
     try:
+        dates = {
+            label: getattr(args, label.lower() + "_date") or args.date
+            for label in SPORTS
+        }
+        if any(day is None for day in dates.values()):
+            parser.error("Specify --date or all three --nba-date/--nfl-date/--nhl-date")
         report = audit_matrix(
-            provider, target_date=args.date, max_games=args.max_games,
+            provider, target_dates=dates, max_games=args.max_games,
             runtime_commit=os.environ.get("RENDER_GIT_COMMIT", ""),
         )
         print(json.dumps(report, sort_keys=True))
