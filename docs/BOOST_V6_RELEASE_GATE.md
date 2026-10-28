@@ -97,7 +97,15 @@ scanner is not called.
 ## One-run three-sport live acceptance (operator-only)
 
 A new **read-only** command collects a bounded NBA/NFL/NHL coverage matrix
-from an authorized runtime with the already-configured BALLDONTLIE key:
+from an authorized runtime with the already-configured BALLDONTLIE key.
+**The current production image does NOT include this feature-branch script**:
+the existing Render Shell page opens its running production commit, not PR #80.
+For acceptance, securely use a checked-out copy of the exact PR commit in an
+isolated authorized runtime with the service's existing secret available.
+Do not merge/deploy unverified code just to gain access to the script.
+Render supports isolated ephemeral shell instances, but the available hosted
+connector cannot open one or copy this private feature branch into it.
+Document the executed commit with the output:
 
 ```bash
 python -m tools.boost_live_acceptance_matrix --nba-date YYYY-MM-DD --nfl-date YYYY-MM-DD --nhl-date YYYY-MM-DD --max-games 25 --request-budget 90
