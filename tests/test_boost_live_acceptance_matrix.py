@@ -102,3 +102,49 @@ def test_incomplete_single_sport_blocks_matrix(monkeypatch):
     result = matrix.audit_matrix(object(), target_date=DAY)
     assert not result["all_three_paid_quote_coverage_observed"]
     assert all(s in result["sports"] for s in ("NBA", "NFL", "NHL"))
+
+
+def test_each_sport_can_use_a_different_upcoming_game_date(monkeypatch):
+    calls = []
+    dates = {
+        "NBA": date(2026, 10, 28),
+        "NFL": date(2026, 11, 1),
+        "NHL": date(2026, 10, 29),
+    }
+
+    def probe(provider, *, sport, calendar_date, max_games):
+        calls.append((sport, calendar_date))
+        return report(sport)
+
+    monkeypatch.setattr(matrix, "audit_sport", probe)
+    result = matrix.audit_matrix(object(), target_dates=dates)
+    assert calls == [(sport, dates[sport]) for sport in ("NBA", "NFL", "NHL")]
+    assert result["target_calendar_dates"] == {
+        sport: day.isoformat() for sport, day in dates.items()
+    }
+    assert result["all_three_paid_quote_coverage_observed"] is True
+    assert result["betting_decision"] == "PASS"
+
+
+def test_missing_one_sport_date_rejected_before_any_provider_request(monkeypatch):
+    def fail(*args, **kwargs):
+        raise AssertionError("No live requests allowed without all dates")
+    monkeypatch.setattr(matrix, "audit_sport", fail)
+    with pytest.raises(ValueError, match="NBA/NFL/NHL dates"):
+        matrix.audit_matrix(object(), target_dates={
+            "NBA": date(2026, 10, 28),
+            "NHL": date(2026, 10, 29),
+        })
+
+
+def test_common_date_backward_compatibility_remains_explicit(monkeypatch):
+    monkeypatch.setattr(
+        matrix, "audit_sport",
+        lambda provider, *, sport, calendar_date, max_games: report(sport),
+    )
+    result = matrix.audit_matrix(object(), target_date=DAY)
+    assert result["target_calendar_dates"] == {
+        "NBA": DAY.isoformat(),
+        "NFL": DAY.isoformat(),
+        "NHL": DAY.isoformat(),
+    }
