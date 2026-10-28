@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .boost_scope import BoostScope, SPORTS
 from .boost_feed import collect_boost_odds
+from .boost_market_coverage import summarize_prop_markets
 from .providers.balldontlie import BallDontLieProvider
 
 router = APIRouter()
@@ -53,6 +54,7 @@ def diagnose(body: BoostFeedRequest, authorization: Annotated[str | None, Header
             "mismatched_game_rows": report.mismatched_game_rows,
             "stale_rows": report.stale_rows,
             "out_of_scope_rows": report.out_of_scope_rows,
+            "observed_market_breadth": summarize_prop_markets(report.rows),
             "per_game_accepted_rows": {
                 str(game_id): count for game_id, count in report.game_row_counts
             },
