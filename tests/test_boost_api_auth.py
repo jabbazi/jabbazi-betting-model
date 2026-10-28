@@ -184,6 +184,8 @@ def test_goat_feed_uses_sports_key_without_lab(monkeypatch):
         authorization="Bearer private")
     data = json.loads(result.body)
     assert data["source"] == "BALLDONTLIE_SPORTS_API"
+    assert data["jabbazi_market_alignment"]["sport"] == "NHL"
+    assert data["jabbazi_market_alignment"]["model_hit_probability_verified"] is False
     assert data["lab_required"] is False
     assert data["status"] == "RESEARCH_ONLY"
     assert data["jabbazi_exact_line_probabilities_verified"] is False
