@@ -83,6 +83,8 @@ def settle(store, fid, *, results=None):
         "payload": {
             "event_id": "event-1", "ticket_id": "ticket-1",
             "forecast_id": fid, "leg_results": observations,
+            "event_status": "final",
+            "completed_at": (now - timedelta(hours=1)).isoformat(),
         },
     }
     return archive_joint_outcome(
@@ -194,6 +196,8 @@ def test_wrong_resolution_receipt_or_identity_refused(store):
         "payload": {
             "event_id": "event-1", "ticket_id": "ticket-1",
             "forecast_id": fid, "leg_results": deepcopy(values),
+            "event_status": "final",
+            "completed_at": (now - timedelta(hours=1)).isoformat(),
         },
     }
     changed = deepcopy(values)
@@ -222,9 +226,10 @@ def test_pregame_result_cannot_be_archived(store):
         "payload": {
             "event_id": "event-1", "ticket_id": "ticket-1",
             "forecast_id": fid, "leg_results": values,
+            "event_status": "final", "completed_at": NOW.isoformat(),
         },
     }
-    with pytest.raises(ValueError, match="has not finished"):
+    with pytest.raises(ValueError, match="final event completion"):
         archive_joint_outcome(
             store, forecast_id=fid, leg_results=values,
             result_source=source, observed_at=NOW,
@@ -235,4 +240,26 @@ def test_no_fabricated_results_when_only_frozen_forecast_exists(store):
     frozen = freeze_joint_ticket(store, ticket(), observed_at=NOW)
     assert frozen["created"]
     assert store.list_records("boost_joint_result") == []
+    assert audit_ready_rows(store) == []
+
+
+def test_final_leg_numbers_without_authoritative_game_final_are_rejected(store):
+    fid = freeze_joint_ticket(store, ticket(), observed_at=NOW)["forecast_id"]
+    now = NOW + timedelta(hours=5)
+    values = settled(forecast_id=fid)
+    source = {
+        "provider": "unverified-result",
+        "observed_at": (now - timedelta(minutes=1)).isoformat(),
+        "payload": {
+            "event_id": "event-1", "ticket_id": "ticket-1",
+            "forecast_id": fid, "leg_results": values,
+            "event_status": "in_progress",
+            "completed_at": (now - timedelta(hours=1)).isoformat(),
+        },
+    }
+    with pytest.raises(ValueError, match="final event completion"):
+        archive_joint_outcome(
+            store, forecast_id=fid, leg_results=values,
+            result_source=source, observed_at=now,
+        )
     assert audit_ready_rows(store) == []
