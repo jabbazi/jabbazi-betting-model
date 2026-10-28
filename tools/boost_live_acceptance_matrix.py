@@ -35,10 +35,11 @@ def audit_matrix(provider, *, target_date: date | None = None,
     if target_date is not None:
         for sport in SPORTS:
             days.setdefault(sport, target_date)
+    if not 1 <= max_games <= 25:
+        raise ValueError("Invalid bounded 1-25 game cap")
     if (set(days) != set(SPORTS)
-            or any(type(day) is not date for day in days.values())
-            or not 1 <= max_games <= 25):
-        raise ValueError("Explicit valid NBA/NFL/NHL dates and 1-25 game cap required")
+            or any(type(day) is not date for day in days.values())):
+        raise ValueError("Explicit valid NBA/NFL/NHL dates required")
     results = {}
     halt_reason = None
     for sport in SPORTS:
