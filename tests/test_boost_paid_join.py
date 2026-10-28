@@ -74,3 +74,17 @@ def test_no_proprietary_rows_returned():
     result = check([lab(player_name="PRIVATE_PLAYER")], [odds(vendor="PRIVATE_BOOK")])
     assert "PRIVATE_PLAYER" not in str(result)
     assert "PRIVATE_BOOK" not in str(result)
+
+
+def test_saved_lab_signal_can_precede_live_odds_by_hours():
+    older = (NOW - timedelta(hours=8)).isoformat()
+    result = check([lab(created_at=older)], [odds()])
+    assert result["unique_exact_identity_joins"] == 1
+    assert result["betting_enabled"] is False
+
+
+def test_lab_signal_older_than_one_day_is_rejected():
+    older = (NOW - timedelta(hours=25)).isoformat()
+    result = check([lab(created_at=older)], [odds()])
+    assert result["unique_exact_identity_joins"] == 0
+    assert result["rejections"]["lab_stale_or_missing_timestamp"] == 1
