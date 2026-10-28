@@ -36,7 +36,8 @@ def _timestamp(value):
 
 
 def reconcile_paid_player_research(sport, lab_rows, sportsbook_rows, *, observed_at,
-                                   max_age=timedelta(minutes=15)):
+                                   max_age=timedelta(minutes=15),
+                                   lab_max_age=timedelta(hours=24)):
     """Return aggregate reconciliation only; never a probability or licensed row.
 
     LAB and Sports API identifiers must share the exact provider namespace.
@@ -47,7 +48,7 @@ def reconcile_paid_player_research(sport, lab_rows, sportsbook_rows, *, observed
         raise ValueError("LAB player-prop reconciliation supports NBA/NFL only")
     if observed_at.tzinfo is None or observed_at.utcoffset() is None:
         raise ValueError("Aware observation time required")
-    if max_age <= timedelta(0):
+    if max_age <= timedelta(0) or lab_max_age <= timedelta(0):
         raise ValueError("Positive freshness window required")
     now = observed_at.astimezone(UTC)
     reasons = Counter()
@@ -64,7 +65,7 @@ def reconcile_paid_player_research(sport, lab_rows, sportsbook_rows, *, observed
             reasons["lab_missing_exact_identity_or_line"] += 1
             continue
         stamp = _timestamp(row.get("created_at"))
-        if stamp is None or not timedelta(0) <= now - stamp <= max_age:
+        if stamp is None or not timedelta(0) <= now - stamp <= lab_max_age:
             reasons["lab_stale_or_missing_timestamp"] += 1
             continue
         if row.get("hit_probability_verified") is True or row.get("model_hit_probability") is not None:
