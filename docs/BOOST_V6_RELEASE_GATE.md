@@ -137,3 +137,30 @@ bet is a loss. Keep all raw credential/licensed data private.
 
 This command has not been executed from a Render shell by the hosted
 connector and does not prove live acceptance by itself.
+
+## De-identified market breadth vs complete prop coverage
+
+The sport-specific feed diagnostics now include `observed_market_breadth`
+derived exclusively from **validated, accepted** BALLDONTLIE odds rows.
+For each normalized `prop_type` it reports: accepted quote count, number of
+eligible games containing that market, distinct sportsbook count,
+over/under vs milestone counts, and the number of over/under offers where
+both sides were present. It never includes player IDs, provider URLs,
+sportsbook names, exact lines or prices, or raw licensed quote payloads.
+
+This is a **diagnostic of observed markets**. A game-level HTTP 200 can
+still have missing NBA PRA or NHL first-goal markets, missing players,
+suspended sides, unavailable books or new market types. Do not interpret
+a nonempty game response or green `all_three_paid_quote_coverage_observed`
+as verification of every eligible prop market or an executable SGP.
+The matrix explicitly reports `all_required_prop_market_families_verified:
+false` and `all_eligible_players_verified: false`; those are separate,
+currently unmet acceptance requirements.
+
+Before approval, compare observed prop categories against the source-defined
+current NBA/NFL/NHL market coverage manifest and promotion-specific eligible
+markets, examine each game's missing category/book/player gaps in an authorized
+private environment, and independently verify sportsbook execution. No
+genuine provider-level market manifest or fully authenticated three-sport
+matrix was available in this development run. Zero quotes must remain
+UNAVAILABLE/PASS, not a forced play.
