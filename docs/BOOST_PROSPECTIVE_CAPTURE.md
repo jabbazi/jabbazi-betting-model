@@ -38,18 +38,25 @@ Prepare a private JSON document containing:
   `line` for over/under; yes/no uses null.
 - `model_source`: `provider`, `observed_at`, and a protected `payload`
   with the same `event_id`, `ticket_id`, `model_version`,
-  `joint_probability`, ordered `leg_ids`, and
+  `joint_probability`, ordered `leg_ids`, **the full canonical
+  `legs` array** (player, market, side, line), and
   `features_available_at`. The source must truly substantiate the
   versioned fitted model and its frozen pregame features.
 - Optionally `market_source`: `provider`, `observed_at`, and
   `payload` with `baseline_kind:
   "independently_quoted_combined_ticket"`, exact `event_id`,
-  `ticket_id`, ordered `leg_ids`, a nonempty sportsbook `book`,
-  and independently verified `no_vig_probability`. **Do not invent a
-  de-vigged joint market probability from a single SGP quote or the product
-  of the legs.** Without genuine market baseline evidence, the forecast may
-  still be frozen for research but is **excluded** from the strict
-  market-baseline audit.
+  `ticket_id`, ordered `leg_ids`, the full exact canonical `legs`,
+  a nonempty sportsbook `book`, immutable `quote_id` and
+  `paired_quotes: {"yes_decimal": 3.0, "no_decimal": 2.0}` with **both
+  decimal sides priced for the same complete ticket and book**.
+  For this *illustrative example only*, the derived combined no-vig probability
+  is 0.4, which must equal `no_vig_probability` to 1e-8. Never substitute
+  a second book's odds, opposite marginal leg odds, multiplied single-leg
+  prices, or owner-entered probability. Most SGP markets do **not** provide
+  a paired `no` quote; if unavailable, omit `market_source` and preserve
+  the forecast as **research only**, excluded from the market-baseline audit.
+  Both quotes and their underlying source receipts still require independent
+  provider authenticity checks; a computed digest is not authentication.
 
 Write evidence privately, then run in an approved isolated checkout on the
 feature commit with its existing configured platform DB access:
