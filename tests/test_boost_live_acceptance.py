@@ -47,6 +47,7 @@ def test_sport_isolation_and_provenance_no_raw_data():
     assert report["coverage"] == "FULL"
     assert report["eligible_quote_rows"] == 1
     assert report["games_with_prop_response"] == 1
+    assert report["games_with_eligible_quotes"] == 1
     assert report["paid_endpoint_sample_access_observed"] is True
     assert report["provider_player_hit_probabilities"] is False
     assert report["joint_calibration_validated"] is False
@@ -87,6 +88,7 @@ def test_no_games_not_confused_with_verified_odds():
     report = audit_sport(
         p, sport="NFL", calendar_date=date(2026, 10, 28),
     )
+    assert report["games_with_eligible_quotes"] == 0
     assert report["coverage"] == "NO_ELIGIBLE_GAMES"
     assert report["paid_endpoint_sample_access_observed"] is False
     assert report["recommendation"] == "PASS"
@@ -117,3 +119,19 @@ def test_reject_duplicate_event_scope():
             calendar_date=date(2026, 10, 28),
             event_ids=[12, 12],
         )
+
+
+def test_paid_http_success_with_one_empty_game_is_not_full_quote_coverage():
+    p = FakeProvider(
+        games=[game(42), game(43)],
+        props={42: [quote(42)], 43: []},
+    )
+    report = audit_sport(
+        p, sport="NBA", calendar_date=date(2026, 10, 28),
+    )
+    assert report["coverage"] == "FULL"  # both provider requests completed
+    assert report["games_with_prop_response"] == 2
+    assert report["games_with_eligible_quotes"] == 1
+    assert report["eligible_quote_rows"] == 1
+    assert report["production_approved"] is False
+    assert report["recommendation"] == "PASS"
