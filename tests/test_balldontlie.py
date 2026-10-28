@@ -22,7 +22,7 @@ def test_key_only_in_header_and_trimmed():
     finally:
         p.close()
     assert seen[0].headers['Authorization'] == 'secret-value'
-    assert str(seen[0].url) == 'https://api.balldontlie.io/nba/v1/stats?per_page=1'
+    assert str(seen[0].url) == 'https://api.balldontlie.io/v1/stats?per_page=1'
 
 
 @pytest.mark.parametrize('code', [301, 401, 403, 429, 500])
@@ -77,7 +77,7 @@ def test_capture_retains_provenance_partiality_and_separate_sport_access():
     assert 'secret' not in json.dumps(report)
     assert store.append.call_count == 9
     assert requests[1].url.params.get_list('dates[]') == ['2026-10-24', '2026-10-25']
-    assert requests[4].url.path == '/nba/v2/odds/player_props'
+    assert requests[4].url.path == '/v2/odds/player_props'
     assert requests[4].url.params['game_id'] == '123'
     snapshot = store.append.call_args.args[2]
     assert snapshot['observed_at'] and snapshot['sha256'] and snapshot['research_only']
