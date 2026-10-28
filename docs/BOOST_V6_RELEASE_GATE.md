@@ -93,3 +93,31 @@ does not satisfy live acceptance.
 
 The tool does not place bets or send Discord alerts, and the existing broad
 scanner is not called.
+
+## One-run three-sport live acceptance (operator-only)
+
+A new **read-only** command collects a bounded NBA/NFL/NHL coverage matrix
+from an authorized runtime with the already-configured BALLDONTLIE key:
+
+```bash
+python tools/boost_live_acceptance_matrix.py --date YYYY-MM-DD --max-games 25 --request-budget 90
+```
+
+Do not run this from a public build, print the provider secret, modify Render
+networking, or treat a mocked Actions workflow as live provider verification.
+Set the date to the actual upcoming vendor calendar date. This checks
+eligible scheduled games for all three sports with one shared request budget,
+stops on subscription/rate-limit exhaustion, and reports only sanitized
+aggregate per-sport counts and observation times. If there is no eligible
+game or no valid available prop row, the matrix is **NOT COMPLETE**.
+
+The matrix deliberately reports `production_approved=false` and
+`betting_decision=PASS` **even if the three paid feeds responded**.
+Actual NBA/NHL validated joint probabilities, independent prospective
+outcomes, genuine executable sportsbook SGP quotes, and VIP/Discord
+integration are independent release gates. A nonzero exit code means
+the provider coverage evidence itself is insufficient, not that a sports
+bet is a loss. Keep all raw credential/licensed data private.
+
+This command has not been executed from a Render shell by the hosted
+connector and does not prove live acceptance by itself.
