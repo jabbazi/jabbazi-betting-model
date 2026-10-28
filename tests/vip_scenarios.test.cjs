@@ -19,6 +19,16 @@ const assert=require('node:assert/strict');
    if(u.pathname.endsWith('/home'))body={load_strategy:'on_demand',state:'ON_DEMAND',notice:'Synthetic home',sports:[]};
    if(u.pathname.endsWith('/today'))body={games:[],research:[],official:[],recap:{groups:[]},live_notice:'Pregame only'};
    if(u.pathname.endsWith('/matchups'))body={games:[],notice:'Synthetic only'};
+   if(u.pathname.endsWith('/paid-player-models'))body={
+      provider:'BALLDONTLIE_LAB',sport:u.searchParams.get('sport'),
+      state:'RESEARCH_ONLY',slate_date:'2026-10-14',
+      observed_at:'2026-10-14T12:00:00Z',coverage_complete:true,
+      models_found:1,models_checked:1,predictions_seen:1,
+      betting_enabled:false,notice:'Synthetic LAB forecasts are not hit probabilities',
+      rows:[{model_id:17,model_name:'Fixture model',player_name:'Fixture Athlete',
+        game_id:88,market:'points',predicted_value:24.5,
+        provider_confidence_raw:.92,model_hit_probability:null,predicted_side:'over',market_line:22.5}],
+    };
    if(u.pathname.endsWith('/boost/status'))body={
      mode:'RESEARCH_ONLY',state:'READY',decision:'PASS',
      paid_requests_made:0,betting_enabled:false,
@@ -63,6 +73,17 @@ const assert=require('node:assert/strict');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.goto('https://jabbazi.test/vip#firsttddetail=NFL|test');
   await page.getByText('Verified projections unavailable',{exact:true}).waitFor();
+  // Paid forecasts stay isolated by sport, on demand, and never claim hit probabilities.
+  for(const sp of ['NBA','NFL','NHL']){
+    await page.goto('https://jabbazi.test/vip#paidplayers&sport='+sp);
+    await page.getByRole('heading',{name:sp+' Paid Player Model Forecasts',exact:true}).waitFor();
+    await page.getByText('Fixture Athlete',{exact:true}).waitFor();
+    await page.getByText('Hit probability',{exact:true}).waitFor();
+    await page.getByText('NOT VERIFIED',{exact:true}).waitFor();
+  }
+  assert(requests.filter(x=>x.includes('/paid-player-models')).length===3);
+  assert(requests.every(x=>!x.includes('/lab/v1/')&&!x.includes('/odds/player_props')));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.goto('https://jabbazi.test/vip#props');
   await page.getByText('0 eligible prop rows today',{exact:true}).waitFor();
   const count=requests.filter(r=>r.includes('family=props')).length;
