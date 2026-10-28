@@ -25,3 +25,10 @@ Record a redacted, UTC-timestamped report: authenticated status, eligible games,
 For each player-market line, require an identified and versioned JABBAZI distribution, point-in-time player/game/stat mapping, pregame features, out-of-sample testing and genuine prospective settled outcomes. NBA/NHL joint SGP probability requires immutable frozen exact-ticket forecasts, independent combined sportsbook quotes, and event-independent prospective calibration and review. Until approved, the scanner must show `VALIDATING`/`RESEARCH_ONLY`, not a verified edge or wager recommendation.
 
 **No merge, production deployment, Discord publication, or wagering approval** is authorized by passing the feed diagnostic or development CI alone.
+
+
+## Market-category reconciliation (development)
+
+The private GOAT diagnostic now includes `jabbazi_market_alignment`, a de-identified mapping of **documented Sports API prop_type categories** into the existing JABBAZI NBA/NFL/NHL player-model market taxonomy. The map is explicit and sport-scoped, not a fuzzy name match. Unsupported categories such as NFL first touchdown and NHL first goal remain `UNMAPPED` rather than receiving a fabricated player model. It reports mapped and unmapped quote counts without player IDs or prices.
+
+**Category alignment is not player-level integration or calibration.** The remaining necessary steps are: authenticated complete live paid prop coverage; verified player/game identity crosswalk, frozen pregame feature snapshots, actual model artifact/version and exact sportsbook line; then independent prospective settlement/calibration and correlation-aware joint validation. The alignment diagnostic always reports `model_hit_probability_verified=false`, `joint_probability_verified=false`, `betting_enabled=false`. No production release should be inferred from mapped quote counts.
