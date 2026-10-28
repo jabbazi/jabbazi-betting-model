@@ -118,6 +118,18 @@ const assert=require('node:assert/strict');
   assert(!(await page.locator('#content').textContent()).includes('PRIVATE_SERVICE_ERROR_DO_NOT_RENDER'));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.unroute('**/v1/vip/boost/status?*');
+  await page.route('**/v1/vip/boost/status?*',route=>route.fulfill({
+    contentType:'application/json',
+    body:JSON.stringify({mode:'RESEARCH_ONLY',state:'READY',
+      decision:'BET NOW',betting_enabled:true,
+      sports:[{sport:'NHL',player_markets:[]}]})
+  }));
+  await page.goto('https://jabbazi.test/vip#promo');
+  await page.getByText('Model evidence: UNAVAILABLE · Decision: PASS · Paid requests: 0',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Calculate boost'}).click();
+  await page.getByText('Synthetic payout scenario; not a model prediction.',{exact:true}).waitFor();
+  assert(!(await page.locator('#content').textContent()).includes('BET NOW'));
+  await page.unroute('**/v1/vip/boost/status?*');
 
   await page.route('**/v1/vip/admin?*',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({detail:'Administrator access required.'})}));
   await page.goto('https://jabbazi.test/vip#admin');
