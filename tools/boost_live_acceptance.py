@@ -19,7 +19,8 @@ from jabazi.providers.balldontlie import BallDontLieProvider
 
 
 def audit_sport(provider, *, sport: str, calendar_date: date,
-                event_ids=(), markets=(), max_games=25):
+                event_ids=(), markets=(), max_games=25,
+                observed_at: datetime | None = None):
     """Return aggregate counts without exposing licensed/player-level payloads."""
     if sport not in SPORTS:
         raise ValueError("Unsupported sport")
@@ -37,6 +38,7 @@ def audit_sport(provider, *, sport: str, calendar_date: date,
     result = inspect_sport_slate(
         provider, scope, target_date=calendar_date,
         max_games=max_games, max_game_pages=10, max_prop_pages=1,
+        require_future_kickoff=True, observed_at=observed_at,
     )
     props = result.odds_report
     breadth = summarize_prop_markets(props.rows if props else ())
@@ -47,6 +49,7 @@ def audit_sport(provider, *, sport: str, calendar_date: date,
         "provider": "BALLDONTLIE",
         "sport": sport,
         "calendar_date": result.target_date,
+        "verified_future_kickoff_required": True,
         "observed_at_utc": datetime.now(UTC).isoformat(),
         "game_pages": result.game_pages,
         "games_received": result.games_received,
