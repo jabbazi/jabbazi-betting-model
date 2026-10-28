@@ -214,3 +214,21 @@ provider date-filter semantics, not independent confirmation of what the
 live provider actually returned. The real provider response must still be
 audited in an authorized runtime to establish correct full-slate coverage,
 and the research engine still cannot mark a bet as executable.
+
+## Verified pregame kickoff in the live acceptance probe
+
+The provider's game lifecycle alone is **not sufficient** to certify a
+pregame offer. The sport-specific paid acceptance probes now require a
+timezone-aware, provider-supplied *future* kickoff on every candidate:
+NBA `datetime`, NFL `date`, NHL `start_time_utc`. They compare
+kickoff against the probe's observation time and verify its Eastern
+game date against the requested target calendar day. A scheduled game
+with missing/naive, already-passed or inconsistent kickoff fails
+closed with `GAME_START_UNVERIFIED`, `GAME_ALREADY_STARTED`, or
+`GAME_KICKOFF_DATE_MISMATCH` and causes no paid prop request.
+
+The strict check is scoped to the paid acceptance probe. Historical
+research and the existing broad scanner are unchanged. This does not
+prove sportsbook execution or quote timestamp freshness; those are
+independent gates. The protected production branch has not received
+this change.
