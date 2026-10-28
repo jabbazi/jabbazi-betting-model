@@ -91,6 +91,19 @@ def _snapshot(source, *, now, name):
     }
 
 
+def _decimal_price(value, name):
+    """Strict finite decimal price for a real paired, full-ticket quote."""
+    if isinstance(value, bool):
+        raise ValueError(f"Invalid {name}")
+    try:
+        price = float(value)
+    except (ValueError, TypeError, OverflowError):
+        raise ValueError(f"Invalid {name}") from None
+    if not isfinite(price) or price <= 1:
+        raise ValueError(f"Invalid {name}")
+    return price
+
+
 def _forecast_id(sport, event_id, ticket_id, model_version):
     return digest(["boost_joint_v1", sport, event_id, ticket_id, model_version])
 
@@ -135,7 +148,8 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
             or model_evidence.get("ticket_id") != ticket_id
             or model_evidence.get("model_version") != version
             or model_evidence.get("joint_probability") != probability
-            or model_evidence.get("leg_ids") != [leg["leg_id"] for leg in legs]):
+            or model_evidence.get("leg_ids") != [leg["leg_id"] for leg in legs]
+            or model_evidence.get("legs") != legs):
         raise ValueError("Frozen model evidence does not match exact ticket")
     features_at = _at(model_source["payload"].get("features_available_at"), "features_available_at")
     if features_at > now or features_at > _at(model_source["observed_at"], "model observed_at"):
@@ -149,11 +163,25 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
             raise ValueError("Exact combined-ticket market baseline required")
         if market.get("event_id") != event or market.get("ticket_id") != ticket_id:
             raise ValueError("Combined quote does not match ticket")
-        if market.get("leg_ids") != [leg["leg_id"] for leg in legs]:
-            raise ValueError("Combined market quote leg identity mismatch")
-        if not _text(market.get("book"), "book"):
-            raise ValueError("Book is required")
-        market_probability = _number(market.get("no_vig_probability"), "combined market probability", positive=True)
+        if (market.get("leg_ids") != [leg["leg_id"] for leg in legs]
+                or market.get("legs") != legs):
+            raise ValueError("Combined market quote exact leg identity mismatch")
+        _text(market.get("book"), "book")
+        _text(market.get("quote_id"), "quote_id")
+        paired = market.get("paired_quotes")
+        if not isinstance(paired, Mapping):
+            raise ValueError("Independent two-way combined-ticket quotes required")
+        yes = _decimal_price(paired.get("yes_decimal"), "combined yes price")
+        no = _decimal_price(paired.get("no_decimal"), "combined no price")
+        # A lone SGP 'yes' quote does not establish a no-vig market baseline.
+        # Both sides must refer to the SAME exact combined ticket and book,
+        # externally authenticated before this is considered genuine proof.
+        derived = (1 / yes) / ((1 / yes) + (1 / no))
+        claimed = _number(market.get("no_vig_probability"),
+                          "combined market probability", positive=True)
+        if abs(claimed - derived) > 1e-8:
+            raise ValueError("Combined market baseline disagrees with paired quotes")
+        market_probability = derived
     payload = {
         "policy": "boost_joint_prospective_v1",
         "sport": sport, "event_id": event, "ticket_id": ticket_id,
