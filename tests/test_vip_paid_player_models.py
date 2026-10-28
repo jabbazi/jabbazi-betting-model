@@ -129,3 +129,52 @@ def test_vip_paid_models_endpoint_is_read_only_and_sport_isolated(monkeypatch):
     value = vip_api.paid_player_models(sport="NHL", ctx=(Store(), {"tier": "VIP"}))
     assert json.loads(value.body)["sport"] == "NHL"
     assert called == [("existing-private-key", "NHL", DAY)]
+
+
+
+def test_paid_lab_operator_summary_never_leaks_rows_or_signals():
+    from tools.verify_paid_lab_access import summarized
+
+    record = {
+        "sport": "NBA", "slate_date": "2026-10-28",
+        "observed_at": "2026-10-28T10:00:00+00:00",
+        "state": "RESEARCH_ONLY", "reason": None,
+        "source_player_prop_supported": True, "models_found": 1,
+        "models_checked": 1, "predictions_seen": 1,
+        "rows": [{"player_name": "PRIVATE", "model_signal_value": 1.2,
+                  "model_hit_probability": 0.99, "provider_key": "DO_NOT_LEAK"}],
+        "coverage_complete": True,
+    }
+    result = summarized(record)
+    assert result["visible_research_rows"] == 1
+    assert result["model_hit_probabilities_verified"] is False
+    assert result["betting_enabled"] is False
+    assert "PRIVATE" not in json.dumps(result)
+    assert "DO_NOT_LEAK" not in json.dumps(result)
+    assert "0.99" not in json.dumps(result)
+
+
+def test_paid_lab_operator_command_fails_when_nba_access_unverified(monkeypatch, capsys):
+    from tools import verify_paid_lab_access as probe
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        probe.Settings, "from_environment",
+        lambda: SimpleNamespace(balldontlie_api_key="existing-private-key"),
+    )
+    monkeypatch.setattr(
+        probe, "read_paid_player_models",
+        lambda key, sport, day: {
+            "sport": sport, "slate_date": day.isoformat(),
+            "observed_at": "2026-10-28T10:00:00+00:00",
+            "state": "UNAVAILABLE", "reason": "LAB_ACCESS_DENIED",
+            "source_player_prop_supported": True, "models_found": 0,
+            "models_checked": 0, "predictions_seen": 0,
+            "rows": [], "coverage_complete": False,
+        },
+    )
+    assert probe.main(["--sport", "NBA", "--date", "2026-10-28"]) == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output["release_approved"] is False
+    assert output["paid_player_hit_probabilities_verified"] is False
+    assert output["results"][0]["reason"] == "LAB_ACCESS_DENIED"
