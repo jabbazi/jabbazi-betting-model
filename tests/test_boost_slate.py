@@ -129,3 +129,48 @@ def test_promotion_game_subset_limits_paid_requests():
     assert report.games_eligible == 1
     assert [c[1] for c in provider.calls] == ["games", "props"]
     assert dict(provider.calls[1][2])["game_id"] == 2
+
+
+def test_nfl_sunday_night_utc_rollover_preserves_local_game_day():
+    # The API's UTC Monday timestamp represents Sunday evening Eastern.
+    provider = FakeProvider(
+        [{"id": 10, "status_state": "scheduled",
+          "date": "2026-11-02T01:20:00Z"}],
+        {10: [quote(100, 10)]},
+    )
+    report = inspect_sport_slate(
+        provider, BoostScope("americanfootball_nfl"),
+        target_date=date(2026, 11, 1),
+    )
+    assert report.coverage == "FULL"
+    assert report.games_eligible == 1
+    assert report.odds_report.odds_rows == 1
+    assert [c[0] for c in provider.calls] == ["nfl", "nfl"]
+
+
+def test_nfl_mismatched_local_day_fails_closed():
+    provider = FakeProvider([
+        {"id": 10, "status_state": "scheduled",
+         "date": "2026-11-02T01:20:00Z"},
+    ])
+    report = inspect_sport_slate(
+        provider, BoostScope("americanfootball_nfl"),
+        target_date=date(2026, 11, 2),
+    )
+    assert report.coverage == "PARTIAL"
+    assert "GAME_DATE_NOT_VERIFIED" in report.errors
+    assert len(provider.calls) == 1
+
+
+def test_nfl_naive_timestamp_is_not_assumed_utc():
+    provider = FakeProvider([
+        {"id": 10, "status_state": "scheduled",
+         "date": "2026-11-01T20:20:00"},
+    ])
+    report = inspect_sport_slate(
+        provider, BoostScope("americanfootball_nfl"),
+        target_date=date(2026, 11, 1),
+    )
+    assert report.coverage == "PARTIAL"
+    assert "GAME_DATE_NOT_VERIFIED" in report.errors
+    assert len(provider.calls) == 1
