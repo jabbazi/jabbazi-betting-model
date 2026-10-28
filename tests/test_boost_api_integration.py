@@ -2,7 +2,6 @@
 from fastapi.testclient import TestClient
 from jabazi.api import app
 from jabazi import boost_api
-from jabazi.boost_feed import BoostFeedReport
 from jabazi.chatgpt_api import scanner_key
 
 
