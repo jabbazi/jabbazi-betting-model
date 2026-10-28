@@ -123,7 +123,8 @@ def test_vip_paid_models_endpoint_is_read_only_and_sport_isolated(monkeypatch):
         return {"sport": sport, "rows": [], "betting_enabled": False}
 
     monkeypatch.setattr(paid_models, "read_paid_player_models", fake_reader)
-    monkeypatch.setenv("JABBAZI_BALLDONTLIE_API_KEY", "existing-private-key")
+    monkeypatch.setenv("JABBAZI_BALLDONTLIE_API_KEY", "sports-only-do-not-use")
+    monkeypatch.setenv("JABBAZI_BALLDONTLIE_LAB_API_KEY", "existing-private-key")
     class Store:
         vip_slate_date = DAY
     value = vip_api.paid_player_models(sport="NHL", ctx=(Store(), {"tier": "VIP"}))
@@ -149,6 +150,8 @@ def test_paid_lab_operator_summary_never_leaks_rows_or_signals():
     assert result["visible_research_rows"] == 1
     assert result["model_hit_probabilities_verified"] is False
     assert result["betting_enabled"] is False
+    assert result["lab_endpoint_authenticated"] is True
+    assert result["saved_player_predictions_observed"] is True
     assert "PRIVATE" not in json.dumps(result)
     assert "DO_NOT_LEAK" not in json.dumps(result)
     assert "0.99" not in json.dumps(result)
@@ -160,7 +163,7 @@ def test_paid_lab_operator_command_fails_when_nba_access_unverified(monkeypatch,
 
     monkeypatch.setattr(
         probe.Settings, "from_environment",
-        lambda: SimpleNamespace(balldontlie_api_key="existing-private-key"),
+        lambda: SimpleNamespace(balldontlie_lab_api_key="existing-private-key"),
     )
     monkeypatch.setattr(
         probe, "read_paid_player_models",
@@ -178,3 +181,41 @@ def test_paid_lab_operator_command_fails_when_nba_access_unverified(monkeypatch,
     assert output["release_approved"] is False
     assert output["paid_player_hit_probabilities_verified"] is False
     assert output["results"][0]["reason"] == "LAB_ACCESS_DENIED"
+    assert output["results"][0]["saved_player_predictions_observed"] is False
+
+
+
+def test_operator_gate_rejects_empty_lab_predictions(monkeypatch, capsys):
+    from tools import verify_paid_lab_access as probe
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        probe.Settings, "from_environment",
+        lambda: SimpleNamespace(balldontlie_lab_api_key="lab-only-key"),
+    )
+    monkeypatch.setattr(
+        probe, "read_paid_player_models",
+        lambda key, sport, day: {
+            "sport": sport, "slate_date": day.isoformat(),
+            "observed_at": "2026-10-28T10:00:00+00:00",
+            "state": "NO_PREDICTIONS", "reason": "NO_PREDICTIONS_ON_DATE",
+            "source_player_prop_supported": True, "models_found": 1,
+            "models_checked": 1, "predictions_seen": 0,
+            "rows": [], "coverage_complete": True,
+        },
+    )
+    assert probe.main(["--sport", "NBA", "--date", "2026-10-28"]) == 1
+    record = json.loads(capsys.readouterr().out)["results"][0]
+    assert record["lab_endpoint_authenticated"] is True
+    assert record["saved_player_predictions_observed"] is False
+
+
+def test_settings_does_not_conflate_sports_api_and_lab_keys(monkeypatch):
+    from jabazi.config import Settings
+    monkeypatch.setenv("JABBAZI_BALLDONTLIE_API_KEY", "sports-only")
+    monkeypatch.delenv("JABBAZI_BALLDONTLIE_LAB_API_KEY", raising=False)
+    settings = Settings.from_environment()
+    assert settings.balldontlie_api_key == "sports-only"
+    assert settings.balldontlie_lab_api_key == ""
+    monkeypatch.setenv("JABBAZI_BALLDONTLIE_LAB_API_KEY", "lab-only")
+    assert Settings.from_environment().balldontlie_lab_api_key == "lab-only"
