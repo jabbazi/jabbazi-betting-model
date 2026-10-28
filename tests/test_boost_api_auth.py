@@ -139,3 +139,78 @@ def test_paid_join_empty_lab_skips_sports_api_calls(monkeypatch):
     assert result["status"] == "UNAVAILABLE"
     assert result["betting_enabled"] is False
     assert result["exact_identity_joins"] == 0
+
+
+def test_goat_feed_diagnostic_requires_private_authentication(monkeypatch):
+    monkeypatch.setenv("JABBAZI_MODEL_TOKEN", "x" * 32)
+    monkeypatch.setenv("JABBAZI_CHATGPT_ENABLED", "true")
+    response = TestClient(app).post("/v1/chatgpt/boost-goat-feed-diagnostic",
+        json={"sport": "NHL", "slate_date": "2026-10-28", "max_games": 2})
+    assert response.status_code == 401
+
+
+def test_goat_feed_uses_sports_key_without_lab(monkeypatch):
+    from datetime import date
+    from types import SimpleNamespace
+    import json
+    from jabazi import boost_api, chatgpt_api
+    from jabazi.config import Settings
+    from tools import boost_live_acceptance
+
+    monkeypatch.setattr(chatgpt_api, "authorize", lambda authorization: None)
+    monkeypatch.setattr(Settings, "from_environment", lambda:
+        SimpleNamespace(balldontlie_api_key="goat-sports-only", balldontlie_lab_api_key=""))
+    calls = []
+    class FakeProvider:
+        def __init__(self, key, *, budget):
+            calls.append((key, budget))
+        def close(self):
+            calls.append("closed")
+    monkeypatch.setattr(boost_api, "BallDontLieProvider", FakeProvider)
+    def fake_audit(provider, *, sport, calendar_date, max_games):
+        assert sport == "NHL"
+        assert calendar_date == date(2026, 10, 28)
+        assert max_games == 2
+        return {
+            "coverage": "FULL", "games_eligible": 1,
+            "games_with_eligible_quotes": 1, "eligible_quote_rows": 12,
+            "observed_market_breadth": {"market_types_seen": 2, "markets": {}},
+            "errors": [],
+        }
+    monkeypatch.setattr(boost_live_acceptance, "audit_sport", fake_audit)
+    result = boost_api.diagnose_goat(
+        boost_api.GoatSportFeedRequest(sport="NHL", slate_date=date(2026, 10, 28),
+                                      max_games=2),
+        authorization="Bearer private")
+    data = json.loads(result.body)
+    assert data["source"] == "BALLDONTLIE_SPORTS_API"
+    assert data["lab_required"] is False
+    assert data["status"] == "RESEARCH_ONLY"
+    assert data["jabbazi_exact_line_probabilities_verified"] is False
+    assert data["joint_probability_validated"] is False
+    assert data["betting_enabled"] is False
+    assert data["production_approved"] is False
+    assert calls == [("goat-sports-only", 20), "closed"]
+
+
+def test_goat_feed_missing_sports_key_fails_closed(monkeypatch):
+    from datetime import date
+    from types import SimpleNamespace
+    import pytest
+    from fastapi import HTTPException
+    from jabazi import boost_api, chatgpt_api
+    from jabazi.config import Settings
+    monkeypatch.setattr(chatgpt_api, "authorize", lambda authorization: None)
+    monkeypatch.setattr(Settings, "from_environment", lambda:
+        SimpleNamespace(balldontlie_api_key="", balldontlie_lab_api_key="lab-key"))
+    with pytest.raises(HTTPException) as exc:
+        boost_api.diagnose_goat(
+            boost_api.GoatSportFeedRequest(sport="NBA", slate_date=date(2026, 10, 28)),
+            authorization="Bearer private")
+    assert exc.value.status_code == 503
+
+
+def test_goat_feed_rejects_out_of_scope_sport():
+    response = TestClient(app).post("/v1/chatgpt/boost-goat-feed-diagnostic",
+        json={"sport": "MLB", "slate_date": "2026-10-28"})
+    assert response.status_code == 422
