@@ -86,6 +86,10 @@ def audit_matrix(provider, *, target_date: date | None = None,
         "finished_at_utc": datetime.now(UTC).isoformat(),
         "sports": results,
         "all_three_paid_quote_coverage_observed": complete,
+        # Counts demonstrate observed feed breadth only; no market universe is
+        # guaranteed by a per-game HTTP 200 or nonempty prop response.
+        "all_required_prop_market_families_verified": False,
+        "all_eligible_players_verified": False,
         "scope": "provider live props only; not model forecasts or SGP quotes",
         "halt_reason": halt_reason,
         "joint_probability_calibration_validated": False,
