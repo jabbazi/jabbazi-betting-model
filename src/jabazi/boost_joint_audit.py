@@ -18,6 +18,8 @@ def audit_joint_predictions(rows, *, minimum_events=200):
     from datetime import datetime
     buckets = defaultdict(list)
     seen = set()
+    event_splits = {}
+    ticket_outcomes = {}
     for row in rows:
         sport = row["sport"]
         if sport not in {"basketball_nba", "icehockey_nhl"}:
@@ -35,7 +37,18 @@ def audit_joint_predictions(rows, *, minimum_events=200):
         start = datetime.fromisoformat(row["starts_at"].replace("Z", "+00:00"))
         if pred.tzinfo is None or start.tzinfo is None or pred >= start:
             raise ValueError("Invalid point-in-time evidence")
-        key = (sport, row["event_id"], row["ticket_id"], row["model_version"], split)
+        if any(not isinstance(row.get(field), str) or not row[field].strip()
+               for field in ("event_id", "ticket_id", "model_version")):
+            raise ValueError("Missing prediction provenance")
+        event_key = (sport, row["event_id"])
+        previous_split = event_splits.setdefault(event_key, split)
+        if previous_split != split:
+            raise ValueError("Event overlap between test and prospective splits")
+        outcome_key = (sport, row["event_id"], row["ticket_id"])
+        previous_outcome = ticket_outcomes.setdefault(outcome_key, row["outcome"])
+        if previous_outcome != row["outcome"]:
+            raise ValueError("Conflicting ticket outcomes")
+        key = (sport, row["event_id"], row["ticket_id"], row["model_version"])
         if key in seen:
             raise ValueError("Duplicate prediction identity")
         seen.add(key)
