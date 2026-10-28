@@ -18,13 +18,13 @@ import httpx
 BASE = "https://api.balldontlie.io"
 PATHS = {
     sport: {
-        "teams": "/v1/teams" if sport == "nba" else f"/{sport}/v1/teams",
-        "games": f"/{sport}/v1/games",
-        "stats": f"/{sport}/v1/stats",
-        "injuries": f"/{sport}/v1/player_injuries",
-        "props": f"/{sport}/v{'2' if sport == 'nba' else '1'}/odds/player_props",
+        "teams": f"{prefix}/v1/teams",
+        "games": f"{prefix}/v1/games",
+        "stats": f"{prefix}/v1/stats",
+        "injuries": f"{prefix}/v1/player_injuries",
+        "props": f"{prefix}/v{2 if sport == 'nba' else 1}/odds/player_props",
     }
-    for sport in ("nba", "nfl", "nhl")
+    for sport, prefix in (("nba", ""), ("nfl", "/nfl"), ("nhl", "/nhl"))
 }
 
 
