@@ -49,3 +49,20 @@ No private service secret was read or modified during development. The available
 BALLDONTLIE states that its **Sports API ALL-ACCESS** subscribers automatically receive LAB Pro access; other Sports API plans do not establish LAB entitlement. A LAB API key must still be retrieved from the authorized LAB account and configured privately, not pasted into chat. See https://lab.balldontlie.io/ and https://lab.balldontlie.io/docs/api/. Do not buy an additional subscription before checking existing entitlement.
 
 A saved LAB prediction is displayable only with a valid model ID, game ID, player ID, and numeric signal. Missing identities are counted in aggregate as `rows_rejected_missing_identity_or_signal`, excluded from the VIP research rows, and cannot make the acceptance gate pass. Even a complete, nonempty LAB response is not a calibrated exact-line hit probability. NHL sportsbook props must be checked through the separate Sports API acceptance matrix.
+
+
+## Private exact-join acceptance command (NBA/NFL)
+
+On an authorized shell with the **feature branch checked out**, and with the two distinct existing credentials available only as private environment variables:
+
+```bash
+python -m tools.verify_paid_join --sport NBA --date 2026-10-28 --game-id <verified-bdl-nba-game-id>
+python -m tools.verify_paid_join --sport NFL --date 2026-10-28 --game-id <verified-bdl-nfl-game-id>
+python -m tools.boost_live_acceptance --sport NHL --date 2026-10-28 --max-games 5 --request-budget 20
+```
+
+Replace placeholders only with authentic provider game IDs from the actual eligible slate. Do not guess IDs. These are **read-only, bounded, aggregate-only** diagnostics. The join script fails closed on missing LAB/Sports credentials, no saved LAB player-prop rows, incomplete odds pagination, empty eligible odds, stale quotes, or no exact game/player/market/line match. LAB model signal age is separately bounded to 24 hours, while live sportsbook quote age is 15 minutes. An exact join is not evidence of a calibrated player hit probability; its output keeps betting and production approval false.
+
+The private join script does not work from the credential-free public preview, and the connected Render integration cannot open a private shell. Do not copy provider secrets into chat, GitHub Actions, or a public Render service to work around that restriction. Preserve the existing production Render API/Worker and their credentials until the authorized acceptance process can be executed and audited.
+
+Joint probability validation is **a distinct prospective task**: freeze model and joint-ticket versions before events, archive exact pregame market lines and independent sportsbook combined quotes, settle real outcomes, evaluate calibration (ECE/Brier/log loss and independent market baseline), and approve only the precise supported markets whose evidence passes. The present deployed status has zero prospective samples; therefore no joint wagering promotion is justified.
