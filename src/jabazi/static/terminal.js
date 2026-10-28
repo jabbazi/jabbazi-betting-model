@@ -78,9 +78,9 @@ function rankingCards(rows,root,message){
     root.append(panel);
   }
 }
-async function render(){if(!me)return;renderedDate=slateKey();if(!navigator.onLine){$('content').replaceChildren();$('offline').hidden=false;return;}$('offline').hidden=true;const n=++serial;const raw=location.hash.slice(1)||'home';const parts=raw.split('&'),first=parts.shift(),params=new URLSearchParams(parts.join('&'));const [route,arg]=first.split('=');for(const a of $('navigation').querySelectorAll('a')){const target=a.hash.slice(1).split('&')[0];a.setAttribute('aria-current',target===route||(route==='rankings'&&target==='top10')||(route==='search'&&target==='board')?'page':'false');}setSportbar(route,arg);page(({home:'Today’s board',sport:(arg||'Sport')+' research',sports:'Sports',board:'Research board',sheets:'Daily cheat sheets',top10:'Today’s rankings',rankings:'Today’s rankings',ev:'+EV Intelligence',search:'Find your research',detail:'Research detail',watchlist:'Your watchlist',performance:'The honest record',models:'Model center',ask:'Ask JABBAZI',changes:'What changed since 9 AM?',more:'Your terminal',settings:'My board & preferences',admin:'Operations',promo:'Boost research',academy:'JABBAZI Academy',picks:'Official JABBAZI picks',archive:'Historical sheets',matchups:'Matchup center',matchup:'Game breakdown',sim:'Game simulator',firsttd:'First touchdown research',props:'Player props',simdetail:'Game simulation',firsttddetail:'First touchdown board',playoftheday:'Play of the Day'})[route]||'Research');$('content').append(node('div',undefined,'loading'));$('refresh').disabled=true;
+async function render(){if(!me)return;renderedDate=slateKey();if(!navigator.onLine){$('content').replaceChildren();$('offline').hidden=false;return;}$('offline').hidden=true;const n=++serial;const raw=location.hash.slice(1)||'home';const parts=raw.split('&'),first=parts.shift(),params=new URLSearchParams(parts.join('&'));const [route,arg]=first.split('=');for(const a of $('navigation').querySelectorAll('a')){const target=a.hash.slice(1).split('&')[0];a.setAttribute('aria-current',target===route||(route==='rankings'&&target==='top10')||(route==='search'&&target==='board')?'page':'false');}setSportbar(route,arg);page(({home:'Today’s board',sport:(arg||'Sport')+' research',sports:'Sports',board:'Research board',sheets:'Daily cheat sheets',top10:'Today’s rankings',rankings:'Today’s rankings',ev:'+EV Intelligence',search:'Find your research',detail:'Research detail',watchlist:'Your watchlist',performance:'The honest record',models:'Model center',ask:'Ask JABBAZI',changes:'What changed since 9 AM?',more:'Your terminal',settings:'My board & preferences',admin:'Operations',promo:'Boost research',academy:'JABBAZI Academy',picks:'Official JABBAZI picks',archive:'Historical sheets',matchups:'Matchup center',matchup:'Game breakdown',sim:'Game simulator',firsttd:'First touchdown research',props:'Player props',paidplayers:'Paid player models',simdetail:'Game simulation',firsttddetail:'First touchdown board',playoftheday:'Play of the Day'})[route]||'Research');$('content').append(node('div',undefined,'loading'));$('refresh').disabled=true;
 try{let build;
-if(route==='home'||route==='sports'){const d=await get('home');build=root=>{if(route==='home'){const hero=node('article',undefined,'panel hero');hero.append(node('span','JABBAZI VIP RESEARCH','eyebrow'),node('h2',d.load_strategy==='on_demand'?'Your VIP terminal is ready':d.top_play?'Today’s top play':'No top play yet'),node('p',d.notice,'muted'),badge(d.state));root.append(hero);gridLinks(root,[['Top 10 projections','NBA points, rebounds, assists and supported player rankings.','#top10&sport=NBA'],['+EV Intelligence','Model-based value research with exact price and approval gates.','#ev'],['Full-board scanner','Inspect available market evidence by sport.','#board'],['Daily cheat sheets','Today’s frozen research and history.','#sheets'],['Matchup center','Game-by-game analysis and supported simulations.','#matchups'],['Official ledger','Issued selections, results and CLV.','#performance']]);if(d.load_strategy!=='on_demand'){root.append(section('Official Main Card','#picks'));cards(d.official,root,'No current official recommendations.');root.append(section('Research to explore','#board'));cards(d.research,root,'No fresh research available.');}}else{const items=d.sports.map(s=>[s.sport,s.events===null?'Open today’s research and model status':s.status+' · '+s.events+' observed events · '+s.fresh_rows+' fresh rows','#board&sport='+s.sport]);gridLinks(root,items);root.append(node('p','Active means an observed upcoming slate with fresh research. It does not mean the model is production-approved.','muted'));}if(d.snapshot_at)root.append(node('p','Latest snapshot: '+when(d.snapshot_at),'muted'));};}
+if(route==='home'||route==='sports'){const d=await get('home');build=root=>{if(route==='home'){const hero=node('article',undefined,'panel hero');hero.append(node('span','JABBAZI VIP RESEARCH','eyebrow'),node('h2',d.load_strategy==='on_demand'?'Your VIP terminal is ready':d.top_play?'Today’s top play':'No top play yet'),node('p',d.notice,'muted'),badge(d.state));root.append(hero);gridLinks(root,[['Top 10 projections','NBA points, rebounds, assists and supported player rankings.','#top10&sport=NBA'],['+EV Intelligence','Model-based value research with exact price and approval gates.','#ev'],['Full-board scanner','Inspect available market evidence by sport.','#board'],['Paid NBA / NFL / NHL player models','View authorized BALLDONTLIE LAB predictions separately from bookmaker odds.','#paidplayers'],['Daily cheat sheets','Today’s frozen research and history.','#sheets'],['Matchup center','Game-by-game analysis and supported simulations.','#matchups'],['Official ledger','Issued selections, results and CLV.','#performance']]);if(d.load_strategy!=='on_demand'){root.append(section('Official Main Card','#picks'));cards(d.official,root,'No current official recommendations.');root.append(section('Research to explore','#board'));cards(d.research,root,'No fresh research available.');}}else{const items=d.sports.map(s=>[s.sport,s.events===null?'Open today’s research and model status':s.status+' · '+s.events+' observed events · '+s.fresh_rows+' fresh rows','#board&sport='+s.sport]);gridLinks(root,items);root.append(node('p','Active means an observed upcoming slate with fresh research. It does not mean the model is production-approved.','muted'));}if(d.snapshot_at)root.append(node('p','Latest snapshot: '+when(d.snapshot_at),'muted'));};}
 else if(route==='sport'){
   const cfg=sportConfig((arg||'').toUpperCase());
   if(!cfg){build=root=>root.append(empty('Sport unavailable','This sport workspace is not configured.'));}else{
@@ -105,6 +105,7 @@ else if(route==='sport'){
       const games=node('div',undefined,'market-strip');games.append(link('ALL GAMES','#board&sport='+cfg.label,''));for(const game of slateData.games.slice(0,20))games.append(link(game.event,'#matchup='+cfg.label+'|'+encodeURIComponent(game.event_id),''));root.append(games);
       const strip=node('div',undefined,'market-strip');
       for(const [label,market]of cfg.markets)strip.append(link(label,'#board&sport='+cfg.label+(market?'&market='+encodeURIComponent(market):''),''));
+      strip.append(link('Paid model forecasts','#paidplayers&sport='+cfg.label,''));
       strip.append(link('Cheat sheet','#sheets&sport='+cfg.label,''));
       root.append(strip);
       root.append(node('p','Slate: '+activeSlateDate()+' · America/Chicago · '+slateData.games.length+' eligible games.','muted'));
@@ -123,6 +124,44 @@ else if(route==='sport'){
       root.append(node('p','Workspace outputs come from the same canonical backend used by the scanner and Discord. Model stage controls whether research can become actionable.','muted'));
     };
   }
+}
+else if(route==='paidplayers'){
+  const sport=(params.get('sport')||'NBA').toUpperCase();
+  if(!['NBA','NFL','NHL'].includes(sport))throw Error('Choose NBA, NFL or NHL.');
+  const d=await get('paid-player-models?sport='+sport);
+  build=root=>{
+    const hero=node('article',undefined,'panel');
+    hero.append(node('span','BALLDONTLIE LAB · PRIVATE VIP RESEARCH','eyebrow'),
+      node('h2',sport+' Paid Player Model Forecasts'),
+      badge(d.state||'UNAVAILABLE'),
+      node('p',d.notice||'Model projections are not hit probabilities.','muted'));
+    root.append(hero);
+    const filter=node('div',undefined,'pills');
+    for(const sp of ['NBA','NFL','NHL'])filter.append(link(sp,'#paidplayers&sport='+sp,sp===sport?'selected':''));
+    root.append(filter);
+    root.append(metrics([['Models found',String(d.models_found||0)],
+      ['Models checked',String(d.models_checked||0)],
+      ['Predictions seen',String(d.predictions_seen||0)],
+      ['Coverage',d.coverage_complete?'Complete bounded read':'Not verified']]));
+    root.append(node('p','Date: '+(d.slate_date||activeSlateDate())+' · observed '+when(d.observed_at)+' · status '+(d.reason||'RESEARCH_ONLY'),'muted'));
+    if(!Array.isArray(d.rows)||!d.rows.length){
+      root.append(empty('No verified paid LAB forecasts',d.reason==='LAB_ACCESS_DENIED'
+        ?'The connected BALLDONTLIE key does not authorize LAB predictions; your sports odds subscription does not by itself grant LAB access.'
+        :'No saved player-prop model predictions were returned for this sport/date. This does not mean the regular paid odds feed has no props.'));
+    }else for(const p of d.rows.slice(0,300)){
+      const panel=node('article',undefined,'panel');
+      panel.append(node('span',sport+' · '+(p.market||'Unspecified stat')+' · BALLDONTLIE LAB','eyebrow'),
+        node('h3',p.player_name||('Player ID '+(p.player_id??'unavailable'))),
+        node('p','Model '+(p.model_name||p.model_id)+' · Game '+(p.game_id??'unverified'),'muted'),
+        metrics([['Predicted stat',Number.isFinite(p.predicted_value)?String(p.predicted_value):'—'],
+          ['Provider confidence (not hit %)',Number.isFinite(p.provider_confidence_raw)?String(p.provider_confidence_raw):'—'],
+          ['Hit probability','NOT VERIFIED']]),
+        node('small','Research only · '+(p.predicted_side||'Side unknown')+' · Line '+(p.market_line??'unavailable')));
+      root.append(panel);
+    }
+    root.append(node('p','Data is fetched only when this tab opens. No paid-model result may trigger a bet, alter Scan Everything, or be mistaken for a sportsbook executable price.','muted'));
+    root.append(link('Back to full-board scanner','#board'));
+  };
 }
 else if(route==='matchups'||route==='sim'||route==='firsttd'||route==='props'){
   const sport=route==='firsttd'?'NFL':(params.get('sport')||'');
