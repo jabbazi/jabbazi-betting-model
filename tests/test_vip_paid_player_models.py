@@ -55,6 +55,9 @@ def test_only_nba_saved_player_models_and_bounded_read():
     assert report["models_found"] == 1 and report["models_checked"] == 1
     assert report["state"] == "RESEARCH_ONLY"
     assert report["rows"][0]["predicted_value"] == 27.2
+    assert report["rows"][0]["model_signal_value"] == 27.2
+    assert report["rows"][0]["stat_total_projection"] is None
+    assert report["rows"][0]["stat_total_projection_verified"] is False
     assert report["rows"][0]["model_hit_probability"] is None
     assert report["rows"][0]["provider_confidence_raw"] == .98
     assert "extra_licensed_field" not in json.dumps(report)
@@ -72,10 +75,21 @@ def test_missing_entitlement_fails_closed_and_redacts_provider_body():
 
 
 def test_missing_key_makes_zero_external_requests():
-    report = read_paid_player_models("", "NHL", DAY)
+    report = read_paid_player_models("", "NBA", DAY)
     assert report["state"] == "UNAVAILABLE"
     assert report["reason"] == "NO_CREDENTIAL"
     assert report["rows"] == []
+
+
+def test_nhl_player_prop_lab_not_supported_and_does_not_call_provider():
+    transport, paths = _transport()
+    report = read_paid_player_models("existing-private-key", "NHL", DAY, transport=transport)
+    assert paths == []
+    assert report["state"] == "UNAVAILABLE"
+    assert report["reason"] == "LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED"
+    assert report["source_player_prop_supported"] is False
+    assert report["rows"] == []
+    assert report["betting_enabled"] is False
 
 
 def test_paginated_duplicate_cursor_blocks_partial_as_complete():
