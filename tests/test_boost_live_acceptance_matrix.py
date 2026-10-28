@@ -33,6 +33,8 @@ def test_all_three_nonempty_sport_only_samples_still_not_approved(monkeypatch):
     assert [x[0] for x in called] == ["NBA", "NFL", "NHL"]
     assert all(x[1] == DAY and x[2] == 5 for x in called)
     assert result["all_three_paid_quote_coverage_observed"] is True
+    assert result["all_required_prop_market_families_verified"] is False
+    assert result["all_eligible_players_verified"] is False
     assert result["joint_probability_calibration_validated"] is False
     assert result["sportsbook_combined_sgp_quote_verified"] is False
     assert result["production_approved"] is False
