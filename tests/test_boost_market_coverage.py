@@ -86,6 +86,7 @@ def test_report_does_not_make_network_requests():
             if resource == "games":
                 return {
                     "data": [{"id": 123, "date": "2026-10-28",
+                              "datetime": "2026-10-28T20:00:00Z",
                               "status_state": "scheduled"}],
                     "pages": 1, "complete": True,
                 }
@@ -102,7 +103,10 @@ def test_report_does_not_make_network_requests():
             }
 
     provider = Provider()
-    report = audit_sport(provider, sport="NBA", calendar_date=date(2026, 10, 28))
+    report = audit_sport(
+        provider, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
+    )
     assert provider.calls == [("nba", "games"), ("nba", "props")]
     assert report["observed_market_breadth"]["markets"]["points"]["games_with_market"] == 1
     assert report["observed_market_breadth"]["markets"]["points"]["distinct_bookmakers"] == 1
