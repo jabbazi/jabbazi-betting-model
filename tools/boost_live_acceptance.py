@@ -47,6 +47,9 @@ def audit_sport(provider, *, sport: str, calendar_date: date,
         "games_eligible": result.games_eligible,
         "games_skipped": result.games_skipped,
         "games_with_prop_response": props.games_succeeded if props else 0,
+        "games_with_eligible_quotes": sum(
+            count > 0 for _, count in props.game_row_counts
+        ) if props else 0,
         "quote_pages": props.pages if props else 0,
         "raw_quotes_received": props.raw_odds_rows if props else 0,
         "eligible_quote_rows": props.odds_rows if props else 0,
