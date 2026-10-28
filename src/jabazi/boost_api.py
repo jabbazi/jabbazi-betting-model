@@ -109,3 +109,64 @@ def diagnose_lab(body: BoostLabRequest, authorization: Annotated[str | None, Hea
         "betting_enabled": False,
         "wager_recommendation": "UNAVAILABLE",
     }, headers=PRIVATE_HEADERS)
+
+
+class BoostJoinRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sport: Literal["NBA", "NFL"]
+    slate_date: date
+    game_ids: list[int] = Field(min_length=1, max_length=5)
+
+
+@router.post("/v1/chatgpt/boost-paid-join-diagnostic", operation_id="diagnose_exact_paid_player_join")
+def diagnose_join(body: BoostJoinRequest, authorization: Annotated[str | None, Header()] = None):
+    """Private aggregate-only LAB/Sports join; never exposes odds or model rows."""
+    from .chatgpt_api import authorize, PRIVATE_HEADERS
+    from .config import Settings
+    from .vip.paid_models import read_paid_player_models
+    from .boost_paid_join import reconcile_paid_player_research
+
+    authorize(authorization)
+    if len(set(body.game_ids)) != len(body.game_ids) or any(type(x) is not int or x <= 0 for x in body.game_ids):
+        raise HTTPException(422, "Distinct positive game IDs required")
+    settings = Settings.from_environment()
+    if not settings.balldontlie_api_key or not settings.balldontlie_lab_api_key:
+        raise HTTPException(503, "Separate LAB and Sports API credentials required")
+    lab = read_paid_player_models(settings.balldontlie_lab_api_key, body.sport, body.slate_date)
+    if not lab["coverage_complete"] or lab["state"] != "RESEARCH_ONLY":
+        return JSONResponse({
+            "sport": body.sport, "status": "UNAVAILABLE",
+            "reason": lab["reason"] or "NO_VERIFIED_LAB_PREDICTIONS",
+            "exact_identity_joins": 0, "betting_enabled": False,
+            "calibrated_hit_probabilities_verified": False,
+            "joint_probability_validated": False,
+        }, headers=PRIVATE_HEADERS)
+    provider = BallDontLieProvider(settings.balldontlie_api_key, budget=15)
+    try:
+        odds = collect_boost_odds(
+            provider, BoostScope(SPORTS[body.sport]),
+            game_ids=body.game_ids, max_pages_per_game=2,
+        )
+        if odds.coverage != "FULL" or odds.odds_rows == 0:
+            return JSONResponse({
+                "sport": body.sport, "status": "UNAVAILABLE",
+                "reason": "INCOMPLETE_OR_EMPTY_SPORTS_API_PROPS",
+                "exact_identity_joins": 0, "betting_enabled": False,
+                "calibrated_hit_probabilities_verified": False,
+                "joint_probability_validated": False,
+            }, headers=PRIVATE_HEADERS)
+        report = reconcile_paid_player_research(
+            body.sport, lab["rows"], odds.rows, observed_at=datetime.now(UTC),
+        )
+        return JSONResponse({
+            "sport": body.sport, "status": "RESEARCH_ONLY",
+            "lab_predictions_seen": lab["predictions_seen"],
+            "odds_rows_accepted": odds.odds_rows,
+            "exact_identity_joins": report["unique_exact_identity_joins"],
+            "identity_namespace_independently_verified": False,
+            "calibrated_hit_probabilities_verified": False,
+            "joint_probability_validated": False,
+            "betting_enabled": False,
+        }, headers=PRIVATE_HEADERS)
+    finally:
+        provider.close()
