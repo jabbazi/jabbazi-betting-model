@@ -6,7 +6,10 @@ An HTTP 200 and completed pagination do not establish actionable coverage.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Iterable
+
+from jabazi.boost_offer_integrity import inspect_prop_offer
 
 from jabazi.boost_scope import BoostScope
 from jabazi.providers.balldontlie import BallDontLieError
@@ -33,6 +36,8 @@ class BoostFeedReport:
     invalid_rows: int = 0
     mismatched_game_rows: int = 0
     game_row_counts: tuple[tuple[int, int], ...] = ()
+    stale_rows: int = 0
+    out_of_scope_rows: int = 0
 
 
 def _valid_identifier(value):
@@ -57,6 +62,8 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
         raise ValueError("Game IDs do not match promotion scope")
     rows, errors, pages, succeeded = [], [], 0, 0
     raw_count = duplicate_count = invalid_count = foreign_count = 0
+    stale_count = out_of_scope_count = 0
+    observed_at = datetime.now(UTC)
     seen = set()
     per_game = []
     for gid in ids:
@@ -72,13 +79,19 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
             pages += response["pages"]
             for row in response["data"]:
                 raw_count += 1
-                if not isinstance(row, dict) or not _valid_identifier(row.get("id")):
-                    invalid_count += 1
+                if scope.markets and isinstance(row, dict) and row.get("prop_type") not in scope.markets:
+                    out_of_scope_count += 1
                     continue
-                if row.get("game_id") != gid:
+                identity, issue = inspect_prop_offer(row, gid, observed_at=observed_at)
+                if issue == "FOREIGN_GAME_ID":
                     foreign_count += 1
                     continue
-                identity = (gid, row["id"])
+                if issue == "STALE_OR_FUTURE_VENDOR_QUOTE":
+                    stale_count += 1
+                    continue
+                if issue is not None:
+                    invalid_count += 1
+                    continue
                 if identity in seen:
                     duplicate_count += 1
                     continue
@@ -101,6 +114,8 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
         errors.append("FOREIGN_GAME_PROP_IDENTITIES")
     if duplicate_count:
         errors.append("DUPLICATE_PROP_IDENTITIES")
+    if stale_count:
+        errors.append("STALE_PROP_QUOTES")
     return BoostFeedReport(
         sport=scope.sport, games_requested=len(ids),
         games_succeeded=succeeded, odds_rows=len(rows), pages=pages,
@@ -110,4 +125,5 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
         raw_odds_rows=raw_count, duplicate_rows=duplicate_count,
         invalid_rows=invalid_count, mismatched_game_rows=foreign_count,
         game_row_counts=tuple(per_game),
+        stale_rows=stale_count, out_of_scope_rows=out_of_scope_count,
     )
