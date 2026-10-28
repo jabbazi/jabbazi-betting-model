@@ -232,3 +232,25 @@ research and the existing broad scanner are unchanged. This does not
 prove sportsbook execution or quote timestamp freshness; those are
 independent gates. The protected production branch has not received
 this change.
+
+## VIP boost route: actual isolated HTTPS staging browser acceptance
+
+The CI `vip-browser` job runs `tests/vip_ui_test.cjs` against
+`tests/vip_staging_server.py`, a local HTTPS FastAPI app with synthetic
+member access and a separate temporary SQLite platform database. The
+browser now opens the real `#promo` route, receives an **authenticated
+GET /v1/vip/boost/status response from FastAPI**, inspects the exact
+NBA/NFL/NHL research-only/PASS/zero-paid-requests contract, and exercises
+the real hypothetical `POST /v1/vip/promo` calculator endpoint.
+
+It then intercepts only the boost-readiness response with HTTP 503 and
+reloads the real authenticated app to verify a visible UNAVAILABLE/PASS
+fallback, continued calculator availability, and no internal error leakage
+or paid-feed diagnostic requests. Viewport overflow is checked at 390px,
+alongside the existing VIP browser regression and offline behavior.
+
+**Boundary:** This is an actual browser-to-staging-API integration test, but
+the member/session and research data are fixture-backed. It is not a
+production Discord sign-in, sportsbook provider acceptance, or a claim
+that live player-prop models are calibrated. The draft PR is intentionally
+not merged or deployed without independent release approval.
