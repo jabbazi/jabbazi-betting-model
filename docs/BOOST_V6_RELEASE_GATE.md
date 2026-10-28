@@ -164,3 +164,34 @@ private environment, and independently verify sportsbook execution. No
 genuine provider-level market manifest or fully authenticated three-sport
 matrix was available in this development run. Zero quotes must remain
 UNAVAILABLE/PASS, not a forced play.
+
+## Current partial live access evidence (not full-slate acceptance)
+
+Render Research API's existing production `BALLDONTLIE_CAPTURE` logs
+were inspected on 2026-10-28. The 2026-10-27 19:17–19:19 UTC
+**bounded single-game samples** show NBA access with 2,628 player-prop
+rows and NFL access with 81 player-prop rows, while game/stats/injuries
+were accessible on both. A later 2026-10-28 02:35–02:38 UTC
+sample returned zero NBA player-prop rows and 81 NFL rows. Earlier
+Oct 27 17:01 UTC samples included HTTP 401 responses, so access can
+vary by request/credential state. No paid NHL prop sample is
+documented in these particular logs.
+
+**Partial evidence only:** these were provider's production sampling
+calls using the first candidate event, not a pregame scoped complete
+slate audit, complete player-market census, source timestamp freshness
+test, or live sportsbook availability check. Do not claim the NHL
+paid feed is validated. Do not treat historical logs as evidence of
+the latest market availability.
+
+The acceptance report now additionally compares safe observed
+`prop_type` counts against a source-documented, versioned priority
+category list for NBA (including PRA), NFL (including anytime/first TD)
+and NHL (including first goal). Each category displays how many
+scheduled games had **any** accepted quote and how many did not,
+without showing licensed quotes, sportsbook identities, or player IDs.
+Provider category support is not guaranteed availability; NFL's
+`prop_type` vocabulary is expressly open-ended. These observations
+cannot certify all eligible markets or players. Further validation
+requires an actual current authenticated three-sport scoped run in
+an authorized runtime.
