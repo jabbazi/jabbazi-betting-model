@@ -42,6 +42,12 @@ def test_authenticated_nhl_diagnostic_never_queries_other_sports(monkeypatch):
     assert payload["sport"] == "NHL"
     assert payload["coverage"] == "FULL"
     assert payload["odds_rows"] == 1
+    market = payload["observed_market_breadth"]
+    assert market["market_types_seen"] == 1
+    assert market["markets"]["goals"]["games_with_market"] == 1
+    assert market["markets"]["goals"]["distinct_bookmakers"] == 1
+    assert market["markets"]["goals"]["two_sided_rows"] == 1
+    assert market["all_eligible_markets_verified"] is False
     assert payload["player_probabilities_verified"] is False
     assert payload["wager_recommendation"] == "UNAVAILABLE"
     assert "licensed" not in response.text
