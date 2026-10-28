@@ -86,11 +86,34 @@ legs are excluded from binary calibration; originals stay archived without
 revision. This is a research derivation, not an official sportsbook settlement
 determination. An independent settlement-rules audit remains required.
 
-## 4. Readiness audit and release gates
+## 4. Integrity inventory and readiness audit
+
+Before calculating any calibration metrics, run the **read-only, quota-free**
+archive inventory in the authorized private runtime:
+
+```bash
+python -m tools.boost_joint_capture inventory
+```
+
+It counts frozen, awaiting-final-result, excluded, missing independent
+combined-market baseline, fully reconciled, and orphaned source events
+separately for NBA and NHL. It validates existing database event fingerprints
+and nested source-object checksums without exposing player, event or ticket
+identifiers. Hash consistency detects changes to stored objects; it **does not
+authenticate** external model providers, sportsbook quotes, or official box
+scores. `NO_EVIDENCE` means no prospective samples were captured, not that
+the model passed.
+
+Next run:
 
 ```bash
 python -m tools.boost_joint_capture audit
 ```
+
+The score audit first runs the integrity inventory. If an orphan result,
+altered nested receipt, or malformed evidence is found, it returns
+`INTEGRITY_BLOCKED` with counts and **no calibration metrics**. Source
+records must be independently verified before the archive is trusted.
 
 The output contains only aggregate per-sport metrics and event counts; it
 does not print raw player IDs, leg details or licensed data. Only fully
