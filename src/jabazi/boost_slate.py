@@ -7,7 +7,7 @@ No executable ticket or wager recommendation is produced.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from jabazi.boost_feed import BoostFeedReport, VENDOR_SPORT, collect_boost_odds
@@ -56,9 +56,38 @@ def _matches_vendor_calendar_day(sport: str, value, target: date) -> bool:
     return value == target.isoformat()
 
 
+def _verified_future_kickoff(game, sport: str, *, target_date: date,
+                             observed_at: datetime) -> str | None:
+    """Validate a future exact kickoff against the vendor's game calendar day.
+
+    A scheduled lifecycle label on its own is insufficient pregame evidence.
+    This strict gate is used by the paid acceptance probe; it is not imposed
+    on ordinary historical or broad-scanner research.
+    """
+    source_field = {"nba": "datetime", "nfl": "date",
+                    "nhl": "start_time_utc"}[sport]
+    value = game.get(source_field)
+    if not isinstance(value, str):
+        return "GAME_START_UNVERIFIED"
+    try:
+        start = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if start.utcoffset() is None:
+            return "GAME_START_UNVERIFIED"
+        start = start.astimezone(UTC)
+    except (ValueError, OverflowError):
+        return "GAME_START_UNVERIFIED"
+    if start <= observed_at:
+        return "GAME_ALREADY_STARTED"
+    if start.astimezone(ZoneInfo("America/New_York")).date() != target_date:
+        return "GAME_KICKOFF_DATE_MISMATCH"
+    return None
+
+
 def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
                         max_games: int = 25, max_game_pages: int = 10,
-                        max_prop_pages: int = 100) -> BoostSlateReport:
+                        max_prop_pages: int = 100,
+                        require_future_kickoff: bool = False,
+                        observed_at: datetime | None = None) -> BoostSlateReport:
     """Discover the specified sport's *scheduled* games and audit paid odds.
 
     Enforce a hard cap instead of silently treating a truncated slate as full.
@@ -70,6 +99,10 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
     if not 1 <= max_games <= 25:
         raise ValueError("Invalid game cap")
     sport = VENDOR_SPORT[scope.sport]
+    now = observed_at if observed_at is not None else datetime.now(UTC)
+    if now.utcoffset() is None:
+        raise ValueError("Observation time must be timezone-aware")
+    now = now.astimezone(UTC)
     label = target_date.isoformat()
     # NFL kickoffs are UTC datetimes. A game on Sunday evening ET may have a
     # Monday UTC date; fetch both dates and filter by the Eastern game day.
@@ -128,6 +161,13 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         if scope.event_ids and str(gid) not in scope.event_ids:
             skipped += 1
             continue
+        if require_future_kickoff:
+            issue = _verified_future_kickoff(
+                game, sport, target_date=target_date, observed_at=now,
+            )
+            if issue is not None:
+                errors.append(issue)
+                continue
         ids.append(gid)
 
     if scope.event_ids and set(map(str, ids)) != scope.event_ids:
