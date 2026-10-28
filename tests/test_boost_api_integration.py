@@ -14,10 +14,13 @@ def test_authenticated_nhl_diagnostic_never_queries_other_sports(monkeypatch):
     class FakeProvider:
         def __init__(self, key, **kwargs):
             assert key == "fake-test-key"
+
         def fetch_all_pages(self, sport, resource, params, **kwargs):
             requested.append((sport, resource, tuple(params)))
             return {"complete": True, "pages": 1,
-                    "data": [{"id": 1, "licensed": "not-to-expose"}]}
+                    "data": [{"id": 1, "game_id": 123,
+                              "licensed": "not-to-expose"}]}
+
         def close(self):
             pass
 
