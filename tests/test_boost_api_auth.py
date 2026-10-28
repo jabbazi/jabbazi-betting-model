@@ -3,7 +3,9 @@ from fastapi.testclient import TestClient
 from jabazi.api import app
 
 
-def test_boost_diagnostic_requires_authentication():
+def test_boost_diagnostic_requires_authentication(monkeypatch):
+    monkeypatch.setenv("JABBAZI_MODEL_TOKEN", "x" * 32)
+    monkeypatch.setenv("JABBAZI_CHATGPT_ENABLED", "true")
     client = TestClient(app)
     response = client.post("/v1/chatgpt/boost-feed-diagnostic",
                            json={"sport": "NHL", "game_ids": [123]})
