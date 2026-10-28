@@ -43,3 +43,9 @@ The read-only LAB acceptance reports `lab_endpoint_authenticated=true` after a c
 NHL LAB player-prop models remain unsupported. Verify NHL **Sports API** prop coverage separately using `python -m tools.boost_live_acceptance --sport NHL --date YYYY-MM-DD` or the three-sport odds matrix.
 
 No private service secret was read or modified during development. The available GitHub and Render tools cannot execute authenticated commands inside the production service or its private database, so live acceptance remains pending. For a valid JABBAZI hit chance, require exact player/event/market/line, pregame data, model version, external benchmarks, timestamped prospective outcomes, and passing calibration gates. Never map LAB signal strength or market-implied prices to an approved player hit percentage.
+
+## Subscription and identity clarification
+
+BALLDONTLIE states that its **Sports API ALL-ACCESS** subscribers automatically receive LAB Pro access; other Sports API plans do not establish LAB entitlement. A LAB API key must still be retrieved from the authorized LAB account and configured privately, not pasted into chat. See https://lab.balldontlie.io/ and https://lab.balldontlie.io/docs/api/. Do not buy an additional subscription before checking existing entitlement.
+
+A saved LAB prediction is displayable only with a valid model ID, game ID, player ID, and numeric signal. Missing identities are counted in aggregate as `rows_rejected_missing_identity_or_signal`, excluded from the VIP research rows, and cannot make the acceptance gate pass. Even a complete, nonempty LAB response is not a calibrated exact-line hit probability. NHL sportsbook props must be checked through the separate Sports API acceptance matrix.
