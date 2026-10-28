@@ -63,7 +63,6 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
     rows, errors, pages, succeeded = [], [], 0, 0
     raw_count = duplicate_count = invalid_count = foreign_count = 0
     stale_count = out_of_scope_count = 0
-    observed_at = datetime.now(UTC)
     seen = set()
     per_game = []
     for gid in ids:
@@ -82,7 +81,9 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                 if scope.markets and isinstance(row, dict) and row.get("prop_type") not in scope.markets:
                     out_of_scope_count += 1
                     continue
-                identity, issue = inspect_prop_offer(row, gid, observed_at=observed_at)
+                identity, issue = inspect_prop_offer(
+                    row, gid, observed_at=datetime.now(UTC),
+                )
                 if issue == "FOREIGN_GAME_ID":
                     foreign_count += 1
                     continue
