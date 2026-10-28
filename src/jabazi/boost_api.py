@@ -2,7 +2,7 @@
 
 This endpoint does not estimate probabilities or recommend wagers.
 """
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, HTTPException
@@ -67,3 +67,45 @@ def diagnose(body: BoostFeedRequest, authorization: Annotated[str | None, Header
         }, headers=PRIVATE_HEADERS)
     finally:
         provider.close()
+
+
+class BoostLabRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sport: Literal["NBA", "NFL"]
+    slate_date: date
+
+
+@router.post("/v1/chatgpt/boost-lab-diagnostic", operation_id="diagnose_paid_lab_player_models")
+def diagnose_lab(body: BoostLabRequest, authorization: Annotated[str | None, Header()] = None):
+    """Authenticated, aggregate-only LAB probe, distinct from Sports API odds.
+
+    LAB access is not JABBAZI exact-line calibration and cannot approve a bet.
+    """
+    from .chatgpt_api import authorize, PRIVATE_HEADERS
+    from .config import Settings
+    from .vip.paid_models import read_paid_player_models
+
+    authorize(authorization)
+    key = Settings.from_environment().balldontlie_lab_api_key
+    if not key:
+        raise HTTPException(503, "LAB credential unavailable")
+    report = read_paid_player_models(key, body.sport, body.slate_date)
+    rows = report.get("rows", [])
+    return JSONResponse({
+        "sport": body.sport,
+        "slate_date": report["slate_date"],
+        "observed_at": report["observed_at"],
+        "state": report["state"],
+        "reason": report["reason"],
+        "models_found": report["models_found"],
+        "models_checked": report["models_checked"],
+        "predictions_seen": report["predictions_seen"],
+        "eligible_prediction_rows": len(rows),
+        "rejected_prediction_rows": report.get("rows_rejected_missing_identity_or_signal", 0),
+        "endpoint_authenticated": report["coverage_complete"],
+        "saved_predictions_observed": report["state"] == "RESEARCH_ONLY" and bool(rows),
+        "calibrated_exact_line_probabilities_verified": False,
+        "joint_probability_calibration_verified": False,
+        "betting_enabled": False,
+        "wager_recommendation": "UNAVAILABLE",
+    }, headers=PRIVATE_HEADERS)
