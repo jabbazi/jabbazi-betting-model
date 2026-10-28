@@ -7,7 +7,8 @@ No executable ticket or wager recommendation is produced.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from jabazi.boost_feed import BoostFeedReport, VENDOR_SPORT, collect_boost_odds
 from jabazi.boost_scope import BoostScope
@@ -26,6 +27,26 @@ class BoostSlateReport:
     errors: tuple[str, ...]
     odds_report: BoostFeedReport | None
     player_probabilities_verified: bool = False
+
+
+def _matches_vendor_calendar_day(sport: str, value, target: date) -> bool:
+    """Compare against the sport's published game day, not raw UTC prefix.
+
+    NFL game timestamps are UTC, so Sunday night ET can be Monday UTC.
+    NBA/NHL date-only fields are calendar days. Unparseable/naive NFL
+    timestamps fail closed rather than being silently reassigned.
+    """
+    if not isinstance(value, str):
+        return False
+    if sport == "nfl":
+        try:
+            at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return at.utcoffset() is not None and (
+                at.astimezone(ZoneInfo("America/New_York")).date() == target
+            )
+        except ValueError:
+            return False
+    return value == target.isoformat()
 
 
 def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
@@ -75,7 +96,7 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         seen.add(gid)
         date_field = "game_date" if sport == "nhl" else "date"
         game_date = game.get(date_field)
-        if not isinstance(game_date, str) or game_date[:10] != label:
+        if not _matches_vendor_calendar_day(sport, game_date, target_date):
             errors.append("GAME_DATE_NOT_VERIFIED")
             continue
         if game.get("status_state") != "scheduled":
