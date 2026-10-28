@@ -12,6 +12,7 @@ import os
 from datetime import UTC, date, datetime
 
 from jabazi.boost_scope import BoostScope, SPORTS
+from jabazi.boost_market_coverage import summarize_prop_markets
 from jabazi.boost_slate import inspect_sport_slate
 from jabazi.providers.balldontlie import BallDontLieProvider
 
@@ -37,6 +38,7 @@ def audit_sport(provider, *, sport: str, calendar_date: date,
         max_games=max_games, max_game_pages=10, max_prop_pages=1,
     )
     props = result.odds_report
+    breadth = summarize_prop_markets(props.rows if props else ())
     return {
         "provider": "BALLDONTLIE",
         "sport": sport,
@@ -53,6 +55,7 @@ def audit_sport(provider, *, sport: str, calendar_date: date,
         "quote_pages": props.pages if props else 0,
         "raw_quotes_received": props.raw_odds_rows if props else 0,
         "eligible_quote_rows": props.odds_rows if props else 0,
+        "observed_market_breadth": breadth,
         "duplicate_quotes": props.duplicate_rows if props else 0,
         "invalid_quotes": props.invalid_rows if props else 0,
         "foreign_game_quotes": props.mismatched_game_rows if props else 0,
