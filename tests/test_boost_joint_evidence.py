@@ -89,7 +89,6 @@ def test_missing_prospective_partition_reported_not_inferred():
     ("forecast_frozen_at", "2026-02-02T22:00:00Z", "point-in-time"),
     ("market_observed_at", "2026-02-02T11:00:00Z", "stale"),
     ("trained_through", "2026-03-01T00:00:00Z", "chronological"),
-    ("starts_at", "2026-04-02T20:00:00Z", "Test observation"),
 ])
 def test_invalid_provenance_is_rejected(field, value, match):
     sample = row()
@@ -135,3 +134,11 @@ def test_empty_input_does_not_approve_or_invent_evidence():
     assert result["reports"] == []
     assert result["sport_groups"] == 0
     assert result["approved_for_betting"] is False
+
+
+def test_test_ticket_outside_declared_test_window():
+    sample = row()
+    sample["starts_at"] = "2026-04-02T20:00:00Z"
+    sample["result_observed_at"] = "2026-04-02T23:00:00Z"
+    with pytest.raises(ValueError, match="Test observation"):
+        audit_frozen_joint_evidence([sample])
