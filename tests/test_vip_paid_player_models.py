@@ -104,8 +104,10 @@ def test_paginated_duplicate_cursor_blocks_partial_as_complete():
 def test_research_result_without_player_identity_does_not_claim_join():
     transport, paths = _transport(missing_player_id=True)
     report = read_paid_player_models("existing-private-key", "NBA", DAY, transport=transport)
-    assert report["rows"][0]["player_id"] is None
-    assert report["rows"][0]["hit_probability_verified"] is False
+    assert report["rows"] == []
+    assert report["rows_rejected_missing_identity_or_signal"] == 1
+    assert report["state"] == "NO_PREDICTIONS"
+    assert report["betting_enabled"] is False
 
 
 def test_vip_paid_models_endpoint_requires_session():
