@@ -25,8 +25,11 @@ class FakeProvider:
 
 
 def game(gid, *, sport="nba", day="2026-10-28"):
-    return {"id": gid, "status_state": "scheduled",
-            ("game_date" if sport == "nhl" else "date"): day}
+    kickoff = day + "T20:00:00Z"
+    output = {"id": gid, "status_state": "scheduled",
+              ("game_date" if sport == "nhl" else "date"): day}
+    output[{"nba": "datetime", "nfl": "date", "nhl": "start_time_utc"}[sport]] = kickoff
+    return output
 
 
 def quote(gid):
@@ -43,7 +46,9 @@ def test_sport_isolation_and_provenance_no_raw_data():
     p = FakeProvider(games=[game(42)], props={42: [quote(42)]})
     report = audit_sport(
         p, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
     )
+    assert report["verified_future_kickoff_required"] is True
     assert report["coverage"] == "FULL"
     assert report["eligible_quote_rows"] == 1
     assert report["games_with_prop_response"] == 1
@@ -73,6 +78,7 @@ def test_nhl_paid_scope_and_rate_limit_fail_closed():
     )
     report = audit_sport(
         p, sport="NHL", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
         event_ids=[10], markets=["goals"],
     )
     assert report["coverage"] == "FAILED"
@@ -85,6 +91,7 @@ def test_large_slate_does_not_silently_truncate_or_fetch_paid_props():
     p = FakeProvider(games=[game(1), game(2), game(3)])
     report = audit_sport(
         p, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
         max_games=2,
     )
     assert report["coverage"] == "PARTIAL"
@@ -96,6 +103,7 @@ def test_no_games_not_confused_with_verified_odds():
     p = FakeProvider(games=[])
     report = audit_sport(
         p, sport="NFL", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
     )
     assert report["games_with_eligible_quotes"] == 0
     assert report["coverage"] == "NO_ELIGIBLE_GAMES"
@@ -118,6 +126,7 @@ def test_reject_invalid_sport(sport):
         audit_sport(
             FakeProvider(games=[]), sport=sport,
             calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
         )
 
 
@@ -126,6 +135,7 @@ def test_reject_duplicate_event_scope():
         audit_sport(
             FakeProvider(games=[]), sport="NBA",
             calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
             event_ids=[12, 12],
         )
 
@@ -137,6 +147,7 @@ def test_paid_http_success_with_one_empty_game_is_not_full_quote_coverage():
     )
     report = audit_sport(
         p, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
     )
     assert report["coverage"] == "FULL"  # both provider requests completed
     assert report["games_with_prop_response"] == 2
@@ -144,3 +155,41 @@ def test_paid_http_success_with_one_empty_game_is_not_full_quote_coverage():
     assert report["eligible_quote_rows"] == 1
     assert report["production_approved"] is False
     assert report["recommendation"] == "PASS"
+
+
+def test_missing_kickoff_is_not_validated_pregame_quote():
+    entry = game(42)
+    del entry["datetime"]
+    p = FakeProvider(games=[entry], props={42: [quote(42)]})
+    report = audit_sport(
+        p, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
+    )
+    assert report["coverage"] == "PARTIAL"
+    assert "GAME_START_UNVERIFIED" in report["errors"]
+    assert [x[1] for x in p.calls] == ["games"]
+    assert report["eligible_quote_rows"] == 0
+
+
+def test_scheduled_label_does_not_resurrect_already_started_game():
+    p = FakeProvider(games=[game(42)], props={42: [quote(42)]})
+    report = audit_sport(
+        p, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 21, tzinfo=UTC),
+    )
+    assert report["coverage"] == "PARTIAL"
+    assert "GAME_ALREADY_STARTED" in report["errors"]
+    assert [x[1] for x in p.calls] == ["games"]
+
+
+def test_nhl_kickoff_date_inconsistent_with_game_date_fails_closed():
+    entry = game(12, sport="nhl")
+    entry["start_time_utc"] = "2026-10-30T02:00:00Z"
+    p = FakeProvider(games=[entry], props={12: [quote(12)]})
+    report = audit_sport(
+        p, sport="NHL", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
+    )
+    assert report["coverage"] == "PARTIAL"
+    assert "GAME_KICKOFF_DATE_MISMATCH" in report["errors"]
+    assert [x[1] for x in p.calls] == ["games"]
