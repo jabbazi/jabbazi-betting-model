@@ -45,7 +45,7 @@ def main(argv=None) -> int:
                    help="Explicit YYYY-MM-DD date; current Chicago date by default")
     p.add_argument("--sport", choices=("NBA", "NFL", "NHL", "ALL"), default="ALL")
     args = p.parse_args(argv)
-    key = Settings.from_environment().balldontlie_api_key
+    key = Settings.from_environment().balldontlie_lab_api_key
     sports = ("NBA", "NFL", "NHL") if args.sport == "ALL" else (args.sport,)
     results = [
         summarized(read_paid_player_models(key, sport, args.date))
