@@ -132,7 +132,7 @@ else if(route==='paidplayers'){
   build=root=>{
     const hero=node('article',undefined,'panel');
     hero.append(node('span','BALLDONTLIE LAB · PRIVATE VIP RESEARCH','eyebrow'),
-      node('h2',sport+' Paid Player Model Forecasts'),
+      node('h2',sport+' Paid Player Model Research'),
       badge(d.state||'UNAVAILABLE'),
       node('p',d.notice||'Model projections are not hit probabilities.','muted'));
     root.append(hero);
@@ -144,17 +144,18 @@ else if(route==='paidplayers'){
       ['Predictions seen',String(d.predictions_seen||0)],
       ['Coverage',d.coverage_complete?'Complete bounded read':'Not verified']]));
     root.append(node('p','Date: '+(d.slate_date||activeSlateDate())+' · observed '+when(d.observed_at)+' · status '+(d.reason||'RESEARCH_ONLY'),'muted'));
+    if(sport==='NHL')root.append(node('p','BDL LAB does not provide NHL player-prop models. NHL sportsbook prop odds and JABBAZI NHL player-model research must be verified separately.','muted'));
     if(!Array.isArray(d.rows)||!d.rows.length){
       root.append(empty('No verified paid LAB forecasts',d.reason==='LAB_ACCESS_DENIED'
-        ?'The connected BALLDONTLIE key does not authorize LAB predictions; your sports odds subscription does not by itself grant LAB access.'
-        :'No saved player-prop model predictions were returned for this sport/date. This does not mean the regular paid odds feed has no props.'));
+        ?'The configured BALLDONTLIE key does not authorize LAB predictions. Sports API access does not establish LAB entitlement.'
+        :d.reason==='LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED'?'NHL player props are not a BDL LAB model type; this is not a failed sportsbook feed.':'No saved player-prop model predictions were returned for this sport/date. This does not mean the regular paid odds feed has no props.'));
     }else for(const p of d.rows.slice(0,300)){
       const panel=node('article',undefined,'panel');
       panel.append(node('span',sport+' · '+(p.market||'Unspecified stat')+' · BALLDONTLIE LAB','eyebrow'),
         node('h3',p.player_name||('Player ID '+(p.player_id??'unavailable'))),
         node('p','Model '+(p.model_name||p.model_id)+' · Game '+(p.game_id??'unverified'),'muted'),
-        metrics([['Predicted stat',Number.isFinite(p.predicted_value)?String(p.predicted_value):'—'],
-          ['Provider confidence (not hit %)',Number.isFinite(p.provider_confidence_raw)?String(p.provider_confidence_raw):'—'],
+        metrics([['LAB model signal (not stat total)',Number.isFinite(p.model_signal_value)?String(p.model_signal_value):'—'],
+          ['Signal strength (not hit %)',Number.isFinite(p.provider_confidence_raw)?String(p.provider_confidence_raw):'—'],
           ['Hit probability','NOT VERIFIED']]),
         node('small','Research only · '+(p.predicted_side||'Side unknown')+' · Line '+(p.market_line??'unavailable')));
       root.append(panel);
