@@ -130,6 +130,13 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
     if len({(x["player_id"], x["market"], x["line"]) for x in legs}) != len(legs):
         raise ValueError("Contradictory same player/market/line legs")
     model_source = _snapshot(ticket.get("model_source"), now=now, name="model")
+    model_evidence = model_source["payload"]
+    if (model_evidence.get("event_id") != event
+            or model_evidence.get("ticket_id") != ticket_id
+            or model_evidence.get("model_version") != version
+            or model_evidence.get("joint_probability") != probability
+            or model_evidence.get("leg_ids") != [leg["leg_id"] for leg in legs]):
+        raise ValueError("Frozen model evidence does not match exact ticket")
     features_at = _at(model_source["payload"].get("features_available_at"), "features_available_at")
     if features_at > now or features_at > _at(model_source["observed_at"], "model observed_at"):
         raise ValueError("Future features in model evidence")
@@ -194,6 +201,12 @@ def archive_joint_outcome(store, *, forecast_id, leg_results, result_source,
         if record is None:
             raise ValueError("Frozen prospective forecast not found")
         frozen = record["payload"]
+        source_payload = result_snapshot["payload"]
+        if (source_payload.get("event_id") != frozen["event_id"]
+                or source_payload.get("ticket_id") != frozen["ticket_id"]
+                or source_payload.get("forecast_id") != forecast_id
+                or source_payload.get("leg_results") != leg_results):
+            raise ValueError("Archived result source does not match resolved legs")
         start = _at(frozen["starts_at"], "starts_at")
         if now <= start or _at(result_snapshot["observed_at"], "result observed_at") <= start:
             raise ValueError("Event has not finished")
