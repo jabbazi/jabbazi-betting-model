@@ -7,7 +7,7 @@ bookmaker data; counts are not calibration or promotion.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
