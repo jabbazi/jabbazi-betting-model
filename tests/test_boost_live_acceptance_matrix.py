@@ -14,6 +14,7 @@ def report(sport, *, count=10, coverage="FULL", errors=()):
         "coverage": coverage,
         "games_eligible": 2,
         "games_with_prop_response": 2,
+        "games_with_eligible_quotes": 2 if count > 0 else 0,
         "eligible_quote_rows": count,
         "errors": list(errors),
         "paid_endpoint_sample_access_observed": True,
@@ -148,3 +149,53 @@ def test_common_date_backward_compatibility_remains_explicit(monkeypatch):
         "NFL": DAY.isoformat(),
         "NHL": DAY.isoformat(),
     }
+
+
+def test_one_empty_game_prevents_full_matrix_acceptance(monkeypatch):
+    def probe(provider, *, sport, calendar_date, max_games):
+        result = report(sport)
+        if sport == "NHL":
+            result["games_with_eligible_quotes"] = 1
+        return result
+    monkeypatch.setattr(matrix, "audit_sport", probe)
+    result = matrix.audit_matrix(object(), target_date=DAY)
+    assert result["sports"]["NHL"]["coverage"] == "FULL"
+    assert result["sports"]["NHL"]["games_with_eligible_quotes"] == 1
+    assert result["all_three_paid_quote_coverage_observed"] is False
+    assert result["betting_decision"] == "PASS"
+
+
+def test_cli_accepts_distinct_dates_before_using_credentials(monkeypatch, capsys):
+    called = []
+    class FakeProvider:
+        def __init__(self, key, budget):
+            assert key == "synthetic-test-key"
+            assert budget == 9
+        def close(self):
+            called.append("closed")
+    monkeypatch.setenv("JABBAZI_BALLDONTLIE_API_KEY", "synthetic-test-key")
+    monkeypatch.setattr(matrix, "BallDontLieProvider", FakeProvider)
+    def probe(provider, *, sport, calendar_date, max_games):
+        called.append((sport, calendar_date))
+        return report(sport)
+    monkeypatch.setattr(matrix, "audit_sport", probe)
+    result = matrix.main([
+        "--nba-date", "2026-10-28", "--nfl-date", "2026-11-01",
+        "--nhl-date", "2026-10-29", "--request-budget", "9",
+    ])
+    assert result == 0
+    assert called == [
+        ("NBA", date(2026, 10, 28)),
+        ("NFL", date(2026, 11, 1)),
+        ("NHL", date(2026, 10, 29)), "closed",
+    ]
+    assert "joint_probability_calibration_validated" in capsys.readouterr().out
+
+
+def test_cli_rejects_missing_sport_date_before_provider_creation(monkeypatch):
+    def fail(*args, **kwargs):
+        raise AssertionError("Must not construct provider")
+    monkeypatch.setattr(matrix, "BallDontLieProvider", fail)
+    monkeypatch.setenv("JABBAZI_BALLDONTLIE_API_KEY", "synthetic-test-key")
+    with pytest.raises(SystemExit):
+        matrix.main(["--nba-date", "2026-10-28", "--nhl-date", "2026-10-29"])
