@@ -33,3 +33,13 @@ Use verified upcoming dates independently for each sport. These two checks serve
 A future NBA/NFL/NHL **player hit-probability** release also requires a documented actual model-probability source for each sport, a point-in-time player/game/market/line mapping, current feed freshness, archived independent prospective game outcomes, calibration, and a passing production VIP/Discord verification. NHL LAB player props cannot satisfy that gate. If any element is absent, the scanner must show UNAVAILABLE/PASS, not an invented hit percentage or BET NOW.
 
 **Do not merge/deploy feature PR #80 solely on successful development CI.** Keep existing Render API/Worker on the current verified production commit until live acceptance and the separate Discord delivery blocker are resolved.
+
+## Authentication correction and strict release status
+
+NBA/NFL LAB prediction access is **not** authenticated through the regular BALLDONTLIE Sports API key. The implementation now reads a distinct environment variable `JABBAZI_BALLDONTLIE_LAB_API_KEY`, reserved for an authorized LAB PRO or ALL-ACCESS credential. The existing `JABBAZI_BALLDONTLIE_API_KEY` remains the Sports API odds/props credential and is never silently reused for LAB. If LAB is not connected, this research route fails closed; do not buy a subscription or change secrets without authorization.
+
+The read-only LAB acceptance reports `lab_endpoint_authenticated=true` after a complete paginated response even if no saved rows exist. It reports `saved_player_predictions_observed=true` only when a supported sport has actual saved player-prop predictions. Its exit 0 requires a nonempty NBA/NFL prediction set for each requested supported sport, but **still does not establish JABBAZI calibrated hit probabilities or wagering approval**.
+
+NHL LAB player-prop models remain unsupported. Verify NHL **Sports API** prop coverage separately using `python -m tools.boost_live_acceptance --sport NHL --date YYYY-MM-DD` or the three-sport odds matrix.
+
+No private service secret was read or modified during development. The available GitHub and Render tools cannot execute authenticated commands inside the production service or its private database, so live acceptance remains pending. For a valid JABBAZI hit chance, require exact player/event/market/line, pregame data, model version, external benchmarks, timestamped prospective outcomes, and passing calibration gates. Never map LAB signal strength or market-implied prices to an approved player hit percentage.
