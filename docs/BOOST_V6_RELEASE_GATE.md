@@ -100,7 +100,7 @@ A new **read-only** command collects a bounded NBA/NFL/NHL coverage matrix
 from an authorized runtime with the already-configured BALLDONTLIE key:
 
 ```bash
-python tools/boost_live_acceptance_matrix.py --date YYYY-MM-DD --max-games 25 --request-budget 90
+python -m tools.boost_live_acceptance_matrix --date YYYY-MM-DD --max-games 25 --request-budget 90
 ```
 
 Do not run this from a public build, print the provider secret, modify Render
