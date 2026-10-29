@@ -92,6 +92,21 @@ const assert=require('node:assert/strict');
   assert(requests.filter(x=>x.includes('/paid-player-models')).length===3);
   assert(requests.every(x=>!x.includes('/lab/v1/')&&!x.includes('/odds/player_props')));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  // VALIDATING model estimates remain visible, but not approved for wagering.
+  await page.route('**/v1/vip/board?*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({
+    rows:[{id:'fixture',sport:'NBA',market:'player_points',player:'Fixture Player',line:20.5,
+      event:'Fixture Away @ Fixture Home',decimal:1.9,book:'FixtureBook',
+      price_at:'2026-10-14T04:00:00Z',starts_at:'2026-10-14T23:00:00Z',
+      status:'WATCH',fresh:true,model_probability:.57,market_probability:.51,
+      edge:.06,model_version:'fixture-model-v1',model_stage:'VALIDATING',
+      probability_kind:'RESEARCH_ONLY',why:'Research only',historical:false}],
+    total:1,next:null,state:'RESEARCH_ONLY',snapshot_at:'2026-10-14T04:00:00Z'
+  })}));
+  await page.goto('https://jabbazi.test/vip#board&sport=NBA');
+  await page.getByText('Research model',{exact:true}).waitFor();
+  await page.getByText('57.0%',{exact:true}).waitFor();
+  await page.getByText('fixture-model-v1 · RESEARCH_ONLY · VALIDATING · NOT A VERIFIED EDGE',{exact:false}).waitFor();
+  await page.unroute('**/v1/vip/board?*');
   await page.goto('https://jabbazi.test/vip#props');
   await page.getByText('0 eligible prop rows today',{exact:true}).waitFor();
   const count=requests.filter(r=>r.includes('family=props')).length;
