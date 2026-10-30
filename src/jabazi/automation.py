@@ -168,6 +168,33 @@ class AutomaticScanner:
         actions = []
         run_id = str(uuid.uuid4())
         slate_events = {}
+        # A bounded processing budget prevents very large player-prop boards
+        # from monopolizing the scan after paid quotes have been archived.
+        # Network operations still need their own socket timeouts; this is a
+        # cooperative deadline checked between independent cards/stages.
+        processing_budget = float(os.getenv("JABBAZI_SCAN_PROCESSING_BUDGET_SECONDS", "240"))
+        if not 30 <= processing_budget <= 480:
+            raise ValueError("Scanner processing budget must be 30-480 seconds")
+        processing_deadline = time.monotonic() + processing_budget
+        processed_cards = 0
+
+        def emit_progress(phase, sport_key, *, total_cards=None):
+            if self.progress_callback is None:
+                return
+            try:
+                self.progress_callback({
+                    "phase": phase,
+                    "sport": sport_key,
+                    "feeds_scanned": scanned,
+                    "quotes_archived": quote_count,
+                    "credits_remaining": remaining,
+                    "processed_cards": processed_cards,
+                    "total_batch_cards": total_cards,
+                })
+            except Exception:
+                # Monitoring must never fail or mutate the research result.
+                pass
+
         from .feed_plan import FeedPlan
 
         from .providers.player_features_live import LivePlayerFeatureCollector
@@ -226,8 +253,14 @@ class AutomaticScanner:
                 duplicate_ids = duplicate_event_ids(batch.quotes)
                 if duplicate_ids:
                     errors.extend(f"{sport['key']}:{event}:DUPLICATE_EVENT_IDENTITY" for event in sorted(duplicate_ids))
+                emit_progress("BUILDING_PRICE_CARDS", sport["key"])
                 cards = build_price_cards(batch.quotes, policy.stale_after_seconds)
                 all_cards.extend(cards)
+                emit_progress("COLLECTING_PLAYER_FEATURES", sport["key"], total_cards=len(cards))
+                if time.monotonic() >= processing_deadline:
+                    errors.append(f"{sport['key']}:PROCESSING_BUDGET_EXHAUSTED")
+                    emit_progress("SPORT_PARTIAL_TIMEOUT", sport["key"], total_cards=len(cards))
+                    break
                 if isinstance(ledger, Store) and any(is_player_market(card) for card in cards):
                     feature_cards = []
                     for card in cards:
@@ -238,7 +271,17 @@ class AutomaticScanner:
                             feature_cards.append(inference_card)
                     if feature_cards:
                         player_features.sync(ledger, feature_cards)
+                emit_progress("MODELING_PLAYER_AND_GAME_MARKETS", sport["key"], total_cards=len(cards))
+                timed_out = False
                 for card in cards:
+                    if time.monotonic() >= processing_deadline:
+                        errors.append(f"{sport['key']}:PROCESSING_BUDGET_EXHAUSTED")
+                        timed_out = True
+                        emit_progress("SPORT_PARTIAL_TIMEOUT", sport["key"], total_cards=len(cards))
+                        break
+                    processed_cards += 1
+                    if processed_cards % 25 == 0:
+                        emit_progress("MODELING_PLAYER_AND_GAME_MARKETS", sport["key"], total_cards=len(cards))
                     if isinstance(ledger, Store):
                         try:
                             from .research.market_intelligence import archive_snapshot
@@ -411,6 +454,9 @@ class AutomaticScanner:
                                 else "Central portfolio limits leave no capacity",
                             )
                     actions.append(action)
+                if timed_out:
+                    break
+                emit_progress("SPORT_BATCH_COMPLETE", sport["key"], total_cards=len(cards))
             except Exception as exc:
                 errors.append(f"{sport['key']}:{type(exc).__name__}")
         arbitrages = find_arbitrage(all_cards, self.settings.unit_size)
