@@ -85,3 +85,20 @@ Only run inside an authorized **private checkout of the exact tested feature com
 Candidate matching requires normalized name, team, jersey, unique identities, and NFL position agreement, plus a bounded pregame source snapshot. **Candidates are not verified identity crosswalks.** Names and jerseys can coincide or change; independent original-record review, event/team validation, and verified feature snapshots remain required before any model input can be accepted. The command never computes a hit probability, SGP EV, or wagering approval.
 
 The documented NBA/NFL GOAT category mapping now includes NBA blocks, steals, double-double, and NFL passing attempts/completions where corresponding JABBAZI model market types exist. This expands possible research coverage; it does not prove the model artifacts are trained, calibrated, or applicable to every quote.
+
+
+## Prospective calibration pipeline recovery (NBA/NHL)
+
+A critical circular gate was corrected in `PlayerPropModel.estimate`: **verified pregame feature inputs** are no longer overwritten with the model's **wagering approval** status. Previously, a VALIDATING model with genuine verified inputs still reported `production_inputs_verified=false`, so the prospective evaluator rejected every forecast before it could collect the samples needed for approval. Input integrity and model promotion are now independent: research predictions can be frozen and evaluated while `approved_for_betting=false`.
+
+The prospective freezer previously hardcoded NFL/MLB markets and silently omitted every NBA/NHL player market. It now uses the canonical `PLAYER_PROP_MARKETS` registry, allowing supported NBA/NHL research forecasts to be frozen before kickoff. The existing `validation_report` still requires authentic pregame inputs and separately archived final results; no sample count is manufactured.
+
+A new `boost_nba_final_labels.py` extracts the 12 NBA player-market outcomes from final BALLDONTLIE boxscores using the **same target definitions** as JABBAZI NBA training. It rejects DNP/unknown minutes, missing stats, incoherent or duplicate boxscores, nonfinal games, postgame crosswalk review and foreign identities. It does not interpret missing data as zero.
+
+`tools.audit_nba_prospective_results` is a private, **dry-run-by-default** acceptance/settlement utility. With an independently reviewed local crosswalk, a completed GOAT NBA game, and existing immutable pregame forecasts in the private JABBAZI database, it reports eligible labels and matches. **No database writes happen by default.** An explicit `--commit-reviewed-results` operator flag is required to archive results, and only previously frozen, trusted, exactly matched event/player/market forecasts are eligible. The tool does not generate missing forecasts retroactively, fabricate closing prices, promote models, or place wagers.
+
+```bash
+python -m tools.audit_nba_prospective_results --game-id VERIFIED_FINAL_NBA_GAME_ID --date YYYY-MM-DD --reviewed-crosswalk-file /private/reviewed_nba_crosswalk.json
+```
+
+The command is only available from the exact tested feature checkout in a private authorized runtime with existing `DATABASE_URL` and `JABBAZI_BALLDONTLIE_API_KEY`. Do not commit or paste the crosswalk file, keys, player rows or source stats into chat. No production result writes or prospective validation were performed during development. Genuine outcomes over many independent games and an independent market baseline remain necessary for approval.
