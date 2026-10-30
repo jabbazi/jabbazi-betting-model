@@ -80,6 +80,7 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
     reasons = Counter()
     bdl_index, source_index = defaultdict(list), defaultdict(list)
     seen_bdl, seen_source = set(), set()
+    bdl_id_counts, source_id_counts = Counter(), Counter()
     for row in bdl_players:
         if not isinstance(row, dict):
             reasons["bdl_invalid_schema"] += 1
@@ -98,6 +99,7 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
             reasons["bdl_duplicate_player_id"] += 1
             # Keep duplicate ID in index to reject it, rather than selecting first.
         seen_bdl.add(ident)
+        bdl_id_counts[ident] += 1
         bdl_index[key].append(row)
     for row in source_roster:
         if not isinstance(row, dict):
@@ -120,6 +122,7 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
         if ident in seen_source:
             reasons["source_duplicate_player_id"] += 1
         seen_source.add(ident)
+        source_id_counts[ident] += 1
         source_index[key].append(row)
     candidates = []
     for key, bdl_rows in bdl_index.items():
@@ -131,6 +134,10 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
             reasons["ambiguous_identity_factors"] += len(bdl_rows)
             continue
         bdl, source = bdl_rows[0], source_rows[0]
+        if (bdl_id_counts[bdl["id"]] != 1
+                or source_id_counts[source["source_player_id"]] != 1):
+            reasons["cross_key_duplicate_player_identity"] += 1
+            continue
         if sport == "NFL":
             bpos = str(bdl.get("position_abbreviation") or "").upper()
             spos = str(source.get("position_abbreviation") or "").upper()
