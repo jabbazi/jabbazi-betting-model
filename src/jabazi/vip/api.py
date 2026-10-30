@@ -547,6 +547,75 @@ def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
                      'notice': 'ASK JABBAZI does not invent probabilities or override BET/WATCH/PASS/model-stage controls.'})
 
 
+@router.get('/paid-player-models')
+def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
+    """VIP-only, on-demand BALLDONTLIE LAB forecasts; no auto scan or bet approval."""
+    from ..config import Settings
+    from .paid_models import read_paid_player_models
+
+    store, _principal = ctx
+    selected_day = getattr(store, 'vip_slate_date', datetime.now(UTC).date())
+    return response(read_paid_player_models(
+        Settings.from_environment().balldontlie_lab_api_key, sport, selected_day
+    ))
+
+
+@router.get('/boost/status')
+def boost_status(ctx=Depends(context)):
+    """VIP-only, quota-free readiness view; not a recommendation or paid scan."""
+    from ..api import model_status_data
+    from .model_cache import status
+
+    current = status(model_status_data)
+    result = current.get('data')
+    labels = {
+        'basketball_nba': 'NBA',
+        'americanfootball_nfl': 'NFL',
+        'icehockey_nhl': 'NHL',
+    }
+    by_sport = {
+        row.get('sport'): row for row in result.get('models', [])
+        if isinstance(row, dict) and row.get('sport') in labels
+    } if isinstance(result, dict) else {}
+    sports = []
+    for code, label in labels.items():
+        data_row = by_sport.get(code, {})
+        buckets = data_row.get('player_market_buckets', {})
+        buckets = buckets if isinstance(buckets, dict) else {}
+        markets = []
+        for market, details in sorted(buckets.items()):
+            if not isinstance(details, dict):
+                continue
+            markets.append({
+                'market': market,
+                'stage': details.get('stage') or 'UNAVAILABLE',
+                'approved': details.get('approved_for_betting') is True,
+                'prospective_samples': details.get('prospective_sample_count') or 0,
+            })
+        sports.append({
+            'sport': label,
+            'player_model_stage': data_row.get('player_status') or 'UNAVAILABLE',
+            'player_markets': markets,
+            'joint_probability_calibration': 'NOT_VERIFIED',
+            'paid_slate_coverage': 'NOT_VERIFIED',
+            'bookmaker_parlay_price': 'NOT_VERIFIED',
+            'betting_enabled': False,
+        })
+    return response({
+        'state': current.get('state', 'UNAVAILABLE'),
+        'mode': 'RESEARCH_ONLY',
+        'sports': sports,
+        'decision': 'PASS',
+        'betting_enabled': False,
+        'paid_requests_made': 0,
+        'notice': (
+            'Model readiness is not same-game joint calibration or an executable '
+            'sportsbook quote. Sport-specific paid scans require owner-controlled '
+            'acceptance; Scan Everything is unchanged.'
+        ),
+    })
+
+
 @router.get('/models')
 def models(ctx=Depends(context)):
     from ..api import model_status_data

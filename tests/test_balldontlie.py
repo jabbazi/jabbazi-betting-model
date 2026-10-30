@@ -158,7 +158,7 @@ def test_free_auth_failure_skips_paid_probes():
     report = p.capture(Mock())
     p.close()
     assert len(requests) == 2
-    assert requests[0].url.path == '/v1/teams'
+    assert requests[0].url.path == '/nba/v1/teams'
     assert requests[1].url.path == '/nfl/v1/teams'
     for sport in ('nba', 'nfl'):
         assert report['sports'][sport]['authentication']['error'] == 'HTTP_401'

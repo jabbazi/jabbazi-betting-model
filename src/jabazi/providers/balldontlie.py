@@ -18,14 +18,19 @@ import httpx
 BASE = "https://api.balldontlie.io"
 PATHS = {
     sport: {
-        "teams": "/v1/teams" if sport == "nba" else "/nfl/v1/teams",
-        "games": f"/{sport}/v1/games",
-        "stats": f"/{sport}/v1/stats",
-        "injuries": f"/{sport}/v1/player_injuries",
-        "props": f"/{sport}/v{'2' if sport == 'nba' else '1'}/odds/player_props",
+        "teams": f"{prefix}/v1/teams",
+        "games": f"{prefix}/v1/games",
+        "stats": f"{prefix}/v1/stats",
+        "injuries": f"{prefix}/v1/player_injuries",
+        "props": f"{prefix}/v{2 if sport == 'nba' else 1}/odds/player_props",
     }
-    for sport in ("nba", "nfl")
+    for sport, prefix in (("nba", "/nba"), ("nfl", "/nfl"), ("nhl", "/nhl"))
 }
+# Player directory endpoints follow the published NBA/NFL contracts.
+# The documented NBA players route is unprefixed even though this account's
+# NBA games/props requests succeeded at /nba/v1 and /nba/v2.
+PATHS["nba"]["players"] = "/v1/players"
+PATHS["nfl"]["players"] = "/nfl/v1/players"
 
 
 class BallDontLieError(Exception):
@@ -81,6 +86,51 @@ class BallDontLieProvider:
             raise BallDontLieError("INVALID_SCHEMA")
         return payload
 
+    def probe_nhl_props(self, game_id):
+        """Read-only NHL entitlement probe; never returns raw licensed rows.
+
+        A successful response verifies access for one specified game only,
+        not full-slate coverage or model readiness.
+        """
+        if isinstance(game_id, bool) or not isinstance(game_id, int) or game_id <= 0:
+            raise ValueError("Positive NHL game ID required")
+        try:
+            result = self.fetch("nhl", "props", [("game_id", game_id)])
+        except BallDontLieError as exc:
+            return {"sport": "nhl", "status": "UNAVAILABLE", "error": str(exc),
+                    "entitlement_verified": False}
+        return {"sport": "nhl", "status": "AVAILABLE",
+                "rows": len(result["data"]), "entitlement_verified": True,
+                "full_slate_verified": False}
+
+    def fetch_all_pages(self, sport, resource, params=None, *, max_pages=100):
+        """Retrieve every cursor page or fail closed on truncation.
+
+        Never silently represent a bounded sample as full coverage. Caller must
+        provide the correct eligible sport/resource and provider entitlement.
+        """
+        if not 1 <= max_pages <= 1000:
+            raise ValueError("Invalid page limit")
+        params = list(params or [])
+        if any(k == "cursor" for k, _ in params):
+            raise ValueError("Cursor must be managed by paginator")
+        rows, seen_cursors = [], set()
+        pages = 0
+        while True:
+            payload = self.fetch(sport, resource, params)
+            pages += 1
+            rows.extend(payload["data"])
+            cursor = payload.get("meta", {}).get("next_cursor")
+            if cursor is None:
+                return {"data": rows, "pages": pages, "complete": True}
+            cursor = str(cursor)
+            if not cursor or cursor in seen_cursors:
+                raise BallDontLieError("INVALID_PAGINATION_CURSOR")
+            if pages >= max_pages:
+                raise BallDontLieError("PAGINATION_LIMIT_REACHED")
+            seen_cursors.add(cursor)
+            params = [(k, v) for k, v in params if k != "cursor"] + [("cursor", cursor)]
+
     def capture(self, store, *, now=None):
         now = now or datetime.now(UTC)
         day = now.astimezone(ZoneInfo("America/Chicago")).date()
@@ -98,7 +148,7 @@ class BallDontLieProvider:
         }
         if not self._key:
             return report
-        for sport in PATHS:
+        for sport in ("nba", "nfl"):
             status = report["sports"][sport] = {}
             status["authentication"], _ = self._capture_one(store, sport, "teams", [])
             auth_error = status["authentication"].get("error")

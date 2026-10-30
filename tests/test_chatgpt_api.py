@@ -252,6 +252,29 @@ def test_unsafe_timestamps_never_current(kind):
     assert bridge.present_action(row, now)["decision"] == "STALE DATA"
 
 
+def test_stalled_scan_expiry_reports_terminal_error_without_recharging(setup):
+    _, store, _ = setup
+    scan_id = request(store)
+    store.append(
+        "chatgpt_scan_progress", scan_id,
+        {"phase": "MODELING_PLAYER_AND_GAME_MARKETS",
+         "sport": "basketball_nba", "feeds_scanned": 6,
+         "quotes_archived": 4313, "processed_cards": 25},
+        digest(["chatgpt_scan_progress", scan_id, "stalled"]),
+    )
+    result = bridge.scan_page(
+        store, scan_id, now=datetime.now(UTC) + timedelta(seconds=601),
+    )
+    assert result.status == "EXPIRED"
+    assert result.progress["phase"] == "EXPIRED"
+    assert result.progress["reason"] == "SCAN_JOB_EXPIRED_WITHOUT_TERMINAL_RESULT"
+    assert result.feeds_scanned == 6
+    assert result.quotes_archived == 4313
+    assert result.errors == ["SCAN_JOB_EXPIRED_WITHOUT_TERMINAL_RESULT"]
+    assert result.actions == []
+    assert result.poll_after_seconds is None
+
+
 def test_interrupted_scan_expires_and_is_not_automatically_requeued(setup):
     _, store, _ = setup
     scan_id = request(store)

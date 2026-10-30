@@ -106,6 +106,14 @@ def project(r, record, now, historical=False, slate_date=None):
             'edge': p-market_p if p is not None and market_p is not None else None,
             'ev': p*price-1 if p and price else None, 'play_to_decimal': playto if playto and playto > 1 else None,
             'model_version': r.get('model_version'), 'model_stage': r.get('model_stage', 'UNAVAILABLE'),
+            'probability_kind': ('CALIBRATED' if number(r.get('calibrated_model_probability')) is not None
+                                 and r.get('model_stage') == 'PRODUCTION_APPROVED'
+                                 else 'RESEARCH_ONLY' if p is not None else 'UNAVAILABLE'),
+            'probability_unavailable_reason': (
+                None if p is not None else
+                'MISSING_MODEL_VERSION' if not r.get('model_version') else
+                'NO_VALID_EXACT_LINE_MODEL_ESTIMATE'
+            ),
             'uncertainty': uncertainty, 'uncertainty_kind': 'policy haircut, not a confidence interval',
             'status': state, 'anomaly_state': anomaly or None, 'fresh': fresh, 'historical': historical, 'lifecycle': 'INVALIDATED' if invalidated else 'HISTORICAL' if historical else 'EXPIRED' if start and start <= now else 'UPCOMING',
             'price_at': r.get('price_time_utc'), 'model_at': r.get('model_time_utc') or record['payload'].get('completed_at'), 'injury_at': r.get('injury_time_utc'), 'lineup_at': r.get('lineup_time_utc'), 'weather_at': r.get('weather_time_utc'), 'starts_at': r.get('starts_at_utc'), 'snapshot_at': record['payload'].get('completed_at', record['payload'].get('generated_at')),
