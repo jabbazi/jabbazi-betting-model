@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+import re
 
 from jabazi.boost_goat_model_map import GOAT_TO_JABBAZI
 
@@ -62,11 +63,19 @@ def audit_exact_model_inputs(sport, sportsbook_rows, feature_rows, *, observed_a
         game, player = row.get("bdl_game_id"), row.get("bdl_player_id")
         market, threshold = row.get("jabbazi_market"), _line(row.get("line"))
         version, snapshot = row.get("model_version"), _timestamp(row.get("feature_frozen_at"))
+        kickoff = _timestamp(row.get("event_starts_at"))
+        crosswalk = row.get("identity_crosswalk_sha256")
+        source = row.get("feature_source_sha256")
+        snapshot_id = row.get("feature_snapshot_id")
         if (not _positive_int(game) or not _positive_int(player)
                 or market not in GOAT_TO_JABBAZI[sport].values()
                 or threshold is None or not isinstance(version, str)
                 or not version.strip() or snapshot is None
                 or not timedelta(0) <= now - snapshot <= timedelta(hours=48)
+                or kickoff is None or not snapshot < kickoff
+                or not isinstance(crosswalk, str) or not re.fullmatch(r"[0-9a-f]{64}", crosswalk)
+                or not isinstance(source, str) or not re.fullmatch(r"[0-9a-f]{64}", source)
+                or not isinstance(snapshot_id, str) or not re.fullmatch(r"playerfs-[0-9a-f]{20}", snapshot_id)
                 or row.get("provider_identity_verified") is not True
                 or row.get("pregame_snapshot_verified") is not True):
             reasons["feature_identity_or_pregame_evidence_missing"] += 1
