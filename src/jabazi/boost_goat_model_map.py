@@ -14,6 +14,8 @@ GOAT_TO_JABBAZI = {
     "NBA": {
         "points": "player_points", "rebounds": "player_rebounds",
         "assists": "player_assists", "threes": "player_threes",
+        "blocks": "player_blocks", "steals": "player_steals",
+        "double_double": "player_double_double",
         "points_rebounds": "player_points_rebounds",
         "points_assists": "player_points_assists",
         "rebounds_assists": "player_rebounds_assists",
@@ -21,6 +23,8 @@ GOAT_TO_JABBAZI = {
     },
     "NFL": {
         "passing_yards": "player_pass_yds",
+        "passing_attempts": "player_pass_attempts",
+        "passing_completions": "player_pass_completions",
         "passing_tds": "player_pass_tds",
         "rushing_yards": "player_rush_yds",
         "rushing_attempts": "player_rush_attempts",
