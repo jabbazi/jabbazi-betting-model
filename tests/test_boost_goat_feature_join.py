@@ -13,6 +13,10 @@ def feature(**kw):
     row = {"sport": "NBA", "bdl_game_id": 77, "bdl_player_id": 19,
            "jabbazi_market": "player_points", "line": 22.5,
            "model_version": "nba-points-v3", "feature_frozen_at": FROZEN,
+           "event_starts_at": (NOW + timedelta(hours=2)).isoformat(),
+           "identity_crosswalk_sha256": "a" * 64,
+           "feature_source_sha256": "b" * 64,
+           "feature_snapshot_id": "playerfs-" + "c" * 20,
            "provider_identity_verified": True, "pregame_snapshot_verified": True}
     row.update(kw)
     return row
@@ -53,6 +57,11 @@ def test_mismatched_or_stale_offer_is_not_joined(change):
     {"line": None},
     {"feature_frozen_at": "bad"},
     {"feature_frozen_at": (NOW + timedelta(minutes=1)).isoformat()},
+    {"event_starts_at": (NOW - timedelta(hours=3)).isoformat()},
+    {"identity_crosswalk_sha256": None},
+    {"identity_crosswalk_sha256": "not-a-digest"},
+    {"feature_source_sha256": None},
+    {"feature_snapshot_id": "unverified"},
 ])
 def test_missing_model_provenance_rejected(change):
     result = audit([feature(**change)], [offer()])
