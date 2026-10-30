@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "sport": "americanfootball_nfl",
+  "model_version": "nfl-moneyline-challenger-0.1.0-9e32b8c33c84",
+  "status": "RESEARCH_ONLY",
+  "approved_for_betting": false,
+  "supported_markets": [
+    "h2h_decisive_game_only"
+  ],
+  "family": "form_elo",
+  "c": 0.1,
+  "features": [
+    "home_scoring_form",
+    "away_scoring_form",
+    "home_conceding_form",
+    "away_conceding_form",
+    "rest_advantage_days",
+    "home_field",
+    "lagged_elo_logit"
+  ],
+  "mean": [
+    22.414562534035216,
+    22.395458945967206,
+    22.342838990742422,
+    22.27318176317541,
+    0.18035260482846258,
+    0.9796696315120712,
+    0.004592855358172199
+  ],
+  "scale": [
+    4.963548481351208,
+    4.907327261261546,
+    3.975483546498961,
+    3.9529171055555286,
+    2.4281277371541274,
+    0.1411277598669862,
+    0.4343175890642657
+  ],
+  "coefficients": [
+    0.2550833902146952,
+    -0.2984124535470868,
+    -0.06473874812060941,
+    0.025073671599447567,
+    0.11881774170895981,
+    0.07415071212860559,
+    0.23498091959315587
+  ],
+  "intercept": 0.24109977131457802,
+  "calibration_slope": 1.1228558978483396,
+  "calibration_intercept": -0.037143988815770586,
+  "admitted_games_sha256": "3c996fa3c89333ad3994d32984626641934af76acb885256d8255ea209445f80",
+  "protocol_sha256": "30f3017ec1fc7eb36fe232c7390ef656e7e9bb1aaf87540cc9e4f8f588509041",
+  "source_sha256": "8b55af293d53452d08112153c76f45594efcdd551c2e5b718471b471ef0c73da"
+}

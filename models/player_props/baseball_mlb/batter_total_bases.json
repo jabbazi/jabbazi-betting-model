@@ -1,0 +1,95 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "baseball_mlb",
+  "market": "batter_total_bases",
+  "provider": "Retrosheet",
+  "source_checksum": "0c13e890cb3c04963dc5222196a299c19d64feafe79cf99093137d2ea0e10724",
+  "feature_names": [
+    "games_prior",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean20_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "role_value",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      55.0633831511853,
+      3.726261332712429,
+      1.3679802668917445,
+      3.7055503380439654,
+      1.3674045562071577,
+      1.365226225605416,
+      3.724519890759505,
+      1.3692317767074258,
+      3.72490941106325,
+      1.3711206833825735,
+      5.026907461035843,
+      1.3618492382974596,
+      1.3389447459277684
+    ],
+    "scale": [
+      16.87521816943535,
+      1.21279168442888,
+      1.7458570243812837,
+      0.6694221850218285,
+      0.6523210106811408,
+      0.5353025403585494,
+      0.8187476357475458,
+      1.0510451520982467,
+      0.7133397479944152,
+      0.8436122719146449,
+      2.596138856137642,
+      0.4374105764674527,
+      0.7393785693163207
+    ]
+  },
+  "trained_at": "2026-09-26T02:38:15.982911+00:00",
+  "training_cutoff": "2023-10-01T21:00:00+00:00",
+  "stage": "VALIDATING",
+  "family": "count_nb",
+  "parameters": {
+    "coef": [
+      0.01860746894831657,
+      -0.0008623826434564852,
+      0.004622440307730436,
+      0.051784180218359704,
+      0.009378658369957394,
+      0.026294217891987104,
+      0.013800314247449463,
+      0.0028126855138622155,
+      0.02487578605725917,
+      -0.0014079033474600716,
+      -0.061955526781652816,
+      0.06524722671698764,
+      0.008856658646371576
+    ],
+    "intercept": 0.2794475855145633,
+    "dispersion": 0.8257050528177418
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 47267,
+    "mae": 1.2998677875443447,
+    "rmse": 1.717780287980196,
+    "mean_bias": 0.019690044686092763
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "artifact_schema_version": 2,
+  "split_policy": {
+    "train_before": "2024-01-01T00:00:00+00:00",
+    "test_before": "2025-01-01T00:00:00+00:00"
+  },
+  "model_version": "mlb-batter_total_bases-dist-0.2.0-f2a37ffa1935"
+}

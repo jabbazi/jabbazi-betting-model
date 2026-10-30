@@ -1,0 +1,41 @@
+{
+  "model_version": "nfl-scoring-form-logistic-0.1.0",
+  "status": "RESEARCH_ONLY",
+  "approved_for_betting": false,
+  "features": [
+    "home_scoring_form",
+    "away_scoring_form",
+    "home_conceding_form",
+    "away_conceding_form",
+    "rest_advantage_days",
+    "home_field"
+  ],
+  "training_mean": [
+    22.414562534035216,
+    22.395458945967206,
+    22.342838990742422,
+    22.27318176317541,
+    0.18035260482846258,
+    0.9796696315120712
+  ],
+  "training_scale": [
+    4.963548481351208,
+    4.907327261261546,
+    3.975483546498961,
+    3.9529171055555286,
+    2.4281277371541274,
+    0.1411277598669862
+  ],
+  "coefficients": [
+    0.37359642487276706,
+    -0.40561928614118914,
+    -0.13428954249312905,
+    0.08703610532100176,
+    0.11689093430476416,
+    0.07675710350665227
+  ],
+  "intercept": 0.24082571634308345,
+  "calibration_slope": 0.9120391642795738,
+  "calibration_intercept": 0.0009431612662695295,
+  "source_sha256": "8b55af293d53452d08112153c76f45594efcdd551c2e5b718471b471ef0c73da"
+}

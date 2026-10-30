@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "schedule",
+    "season": 2023,
+    "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_schedules/nba_schedule_2023.csv",
+    "sha256": "71aad62f4c082455ba7659b5cc900745a72b113b85bc22727ac04a603a9b5dca",
+    "retrieved_at": "2026-10-21T16:18:50.386066+00:00"
+  },
+  {
+    "kind": "schedule",
+    "season": 2024,
+    "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_schedules/nba_schedule_2024.csv",
+    "sha256": "ae89a6e51dec1817b41e457d02ffc4cfc26d25b411d318906c1ec5f39a6c5527",
+    "retrieved_at": "2026-10-21T16:18:58.370622+00:00"
+  },
+  {
+    "kind": "schedule",
+    "season": 2025,
+    "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_schedules/nba_schedule_2025.csv",
+    "sha256": "a7a5b6607a256c84a324f819e4461248bdff90a78b1ddb675a5a117a9a94e74f",
+    "retrieved_at": "2026-10-21T16:19:07.251474+00:00"
+  },
+  {
+    "kind": "schedule",
+    "season": 2026,
+    "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_schedules/nba_schedule_2026.csv",
+    "sha256": "5a4a7473fce1c49d56382211c5955ad405f421d59869143b1d501e997e79223e",
+    "retrieved_at": "2026-10-21T16:19:16.110767+00:00"
+  }
+]
