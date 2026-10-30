@@ -45,7 +45,8 @@ def audit_nba_result_settlement(provider, store, *, game_id, game_date,
         )
         if not listing.get("complete"):
             return base
-        matches = [x for x in listing["data"] if isinstance(x, dict) and x.get("id") == game_id]
+        matches = [x for x in listing["data"] if isinstance(x, dict)
+                   and type(x.get("id")) is int and x["id"] == game_id]
         if len(matches) != 1:
             base["reason"] = "GAME_ID_NOT_UNIQUE_OR_NOT_FOUND"
             return base
@@ -68,14 +69,18 @@ def audit_nba_result_settlement(provider, store, *, game_id, game_date,
         base["rejections"] = labels["rejections"]
         prepared = labels["_private_result_rows"]
         event_ids = {row["event_id"] for row in prepared}
-        if len(event_ids) > 2:
+        if len(event_ids) > 1:
             base["reason"] = "AMBIGUOUS_CANONICAL_EVENT_ID"
             return base
         frozen = []
         for event_id in event_ids:
-            frozen.extend(store.list_records(
+            records = store.list_records(
                 "player_prospective_forecast", 1000, entity=event_id,
-            ))
+            )
+            if len(records) >= 1000:
+                base["reason"] = "FORECAST_PAGE_CAP_REACHED"
+                return base
+            frozen.extend(records)
         trusted = set()
         for record in frozen:
             f = record["payload"]
@@ -84,12 +89,14 @@ def audit_nba_result_settlement(provider, store, *, game_id, game_date,
                         or not _trusted_forecast(f)
                         or _timestamp(f["predicted_at"]) >= _timestamp(f["starts_at"])):
                     continue
-                trusted.add((f["event_id"], f["participant"], f["market"], f["starts_at"]))
+                trusted.add((f["event_id"], f["participant"], f["market"],
+                             _timestamp(f["starts_at"]).isoformat()))
             except (KeyError, TypeError, ValueError):
                 continue
         matched = []
         for row in prepared:
-            key = (row["event_id"], row["participant"], row["market"], row["starts_at"])
+            key = (row["event_id"], row["participant"], row["market"],
+                   _timestamp(row["starts_at"]).isoformat())
             if key in trusted:
                 matched.append(row)
         base["matched_trusted_frozen_forecasts"] = len(matched)
