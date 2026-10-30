@@ -69,7 +69,7 @@ def test_sport_isolation_and_provenance_no_raw_data():
     assert report["recommendation"] == "PASS"
     assert "must-never-expose" not in str(report)
     assert [x[0] for x in p.calls] == ["nba", "nba"]
-    assert p.calls[1][-1] == 1
+    assert p.calls[1][-1] == 25
 
 
 def test_nhl_paid_scope_and_rate_limit_fail_closed():
@@ -193,3 +193,54 @@ def test_nhl_kickoff_date_inconsistent_with_game_date_fails_closed():
     assert report["coverage"] == "PARTIAL"
     assert "GAME_KICKOFF_DATE_MISMATCH" in report["errors"]
     assert [x[1] for x in p.calls] == ["games"]
+
+
+def test_multi_page_paid_props_are_read_with_bounded_complete_pagination():
+    class MultiPageProvider(FakeProvider):
+        def fetch_all_pages(self, sport, resource, params, *, max_pages):
+            if resource == "games":
+                return super().fetch_all_pages(
+                    sport, resource, params, max_pages=max_pages,
+                )
+            self.calls.append((sport, resource, tuple(params), max_pages))
+            assert max_pages == 25
+            return {"data": [quote(42)], "complete": True, "pages": 3}
+
+    p = MultiPageProvider(games=[game(42)])
+    report = audit_sport(
+        p, sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
+    )
+    assert report["coverage"] == "FULL"
+    assert report["quote_pages"] == 3
+    assert report["eligible_quote_rows"] == 1
+    assert report["production_approved"] is False
+
+
+def test_truncated_paid_prop_pagination_never_claims_complete_coverage():
+    class TruncatedProvider(FakeProvider):
+        def fetch_all_pages(self, sport, resource, params, *, max_pages):
+            if resource == "games":
+                return super().fetch_all_pages(
+                    sport, resource, params, max_pages=max_pages,
+                )
+            raise BallDontLieError("PAGINATION_LIMIT_REACHED")
+
+    report = audit_sport(
+        TruncatedProvider(games=[game(42)]),
+        sport="NBA", calendar_date=date(2026, 10, 28),
+        observed_at=datetime(2026, 10, 28, 12, tzinfo=UTC),
+        max_prop_pages=2,
+    )
+    assert report["coverage"] == "FAILED"
+    assert report["eligible_quote_rows"] == 0
+    assert report["production_approved"] is False
+
+
+def test_invalid_prop_page_budget_fails_before_network():
+    with pytest.raises(ValueError):
+        audit_sport(
+            FakeProvider(games=[]), sport="NBA",
+            calendar_date=date(2026, 10, 28),
+            max_prop_pages=0,
+        )
