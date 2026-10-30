@@ -14,7 +14,12 @@ def test_every_mapped_category_is_a_real_jabbazi_player_model_market(sport):
 @pytest.mark.parametrize("sport,source,model", [
     ("NBA", "points", "player_points"),
     ("NBA", "points_rebounds_assists", "player_points_rebounds_assists"),
+    ("NBA", "blocks", "player_blocks"),
+    ("NBA", "steals", "player_steals"),
+    ("NBA", "double_double", "player_double_double"),
     ("NFL", "passing_yards", "player_pass_yds"),
+    ("NFL", "passing_attempts", "player_pass_attempts"),
+    ("NFL", "passing_completions", "player_pass_completions"),
     ("NFL", "receiving_yards", "player_reception_yds"),
     ("NHL", "shots_on_goal", "player_shots_on_goal"),
     ("NHL", "saves", "player_total_saves"),
