@@ -67,3 +67,21 @@ The exact feature join now requires a reviewed `identity_crosswalk_sha256`, `fea
 `src/jabazi/boost_identity_manifest.py` now audits a private operator-supplied manifest linking BALLDONTLIE player/game IDs to the **correct source namespace** (ESPN for NBA, NFLVERSE for NFL). It enforces review timestamps preceding the scheduled game, source-record checksums, deterministic manifest fingerprints, and rejects duplicate/conflicting BALLDONTLIE identities. Output contains only counts and reason codes. No names or raw IDs leave the private environment.
 
 **Critical limitation:** a syntactically valid checksum, `independent_source_reviewed=true`, or passing unit test does NOT establish that two real-world player identities correspond. The independent source records must be fetched, compared, and audited in the authorized private runtime. Until those actual records are supplied, `independent_provider_truth_confirmed_by_runtime=false`, and model inference/wagering remain blocked.
+
+
+## Automated NBA/NFL cross-provider roster candidate generation (private, read-only)
+
+A new operator command, `tools.prepare_goat_roster_candidates`, reduces manual source preparation. It retrieves fresh, eligible GOAT props for **one authentic upcoming game**, fetches the distinct BALLDONTLIE player directory records, and compares them with a current **ESPN NBA roster** or **nflverse NFL 2026 season roster**. The source adapters are `boost_nba_espn_roster.py` and `boost_nfl_nflverse_roster.py`. The nflverse release asset `roster_2026.csv` exists and was updated 2026-10-29; the source schema includes GSIS IDs, team, position, name, and jersey.
+
+Example operator commands (symbolic placeholders are **not** real IDs or kickoffs):
+
+```bash
+python -m tools.prepare_goat_roster_candidates --sport NBA --game-id VERIFIED_NBA_GAME_ID --starts-at VERIFIED_NBA_START_ISO8601 --max-prop-pages 25 --request-budget 40
+python -m tools.prepare_goat_roster_candidates --sport NFL --game-id VERIFIED_NFL_GAME_ID --starts-at VERIFIED_NFL_START_ISO8601 --max-prop-pages 25 --request-budget 40
+```
+
+Only run inside an authorized **private checkout of the exact tested feature commit** with the existing Sports API key in the environment. Do not run against the old production checkout, change production branch, or paste the key. The command prints **counts and rejection reasons only**, not raw players, game IDs, source rosters, or licensed sportsbook quotes. An optional `--save-private-candidates /private/new-file.json` writes a new 0600-permission local file and refuses to overwrite an existing file. Never upload that file to a public repository or chat.
+
+Candidate matching requires normalized name, team, jersey, unique identities, and NFL position agreement, plus a bounded pregame source snapshot. **Candidates are not verified identity crosswalks.** Names and jerseys can coincide or change; independent original-record review, event/team validation, and verified feature snapshots remain required before any model input can be accepted. The command never computes a hit probability, SGP EV, or wagering approval.
+
+The documented NBA/NFL GOAT category mapping now includes NBA blocks, steals, double-double, and NFL passing attempts/completions where corresponding JABBAZI model market types exist. This expands possible research coverage; it does not prove the model artifacts are trained, calibrated, or applicable to every quote.
