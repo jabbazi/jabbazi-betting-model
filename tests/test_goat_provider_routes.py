@@ -14,8 +14,10 @@ from jabazi.providers.balldontlie import PATHS
     ("nba", "games", "/nba/v1/games"),
     ("nba", "stats", "/nba/v1/stats"),
     ("nba", "props", "/nba/v2/odds/player_props"),
+    ("nba", "players", "/v1/players"),
     ("nfl", "games", "/nfl/v1/games"),
     ("nfl", "props", "/nfl/v1/odds/player_props"),
+    ("nfl", "players", "/nfl/v1/players"),
     ("nhl", "games", "/nhl/v1/games"),
     ("nhl", "props", "/nhl/v1/odds/player_props"),
 ])
@@ -23,5 +25,8 @@ def test_goat_sport_routes_are_explicit_and_sport_scoped(sport, resource, path):
     assert PATHS[sport][resource] == path
 
 
-def test_nba_routes_cannot_fall_back_to_root_v1_v2():
-    assert all(path.startswith("/nba/") for path in PATHS["nba"].values())
+def test_nba_games_and_props_cannot_fall_back_to_root_v1_v2():
+    assert all(path.startswith("/nba/") for key, path in PATHS["nba"].items()
+               if key != "players")
+    # Published NBA player directory is an intentional exception.
+    assert PATHS["nba"]["players"] == "/v1/players"
