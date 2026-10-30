@@ -1,7 +1,7 @@
 """Private, read-only NBA/NFL GOAT roster crosswalk candidate probe.
 
 Runs only in an authorized runtime with the existing Sports API key. NBA can
-fetch current ESPN rosters; NFL requires a locally sourced nflverse roster JSON.
+fetch current ESPN rosters; NFL can download the nflverse season roster.
 No candidates are automatically verified or promoted to model probabilities.
 Logs contain only de-identified counts, never licensed quotes or player IDs.
 """
@@ -15,6 +15,7 @@ from pathlib import Path
 
 from jabazi.boost_feed import collect_boost_odds
 from jabazi.boost_nba_espn_roster import fetch_nba_espn_roster
+from jabazi.boost_nfl_nflverse_roster import fetch_nfl_nflverse_roster
 from jabazi.boost_roster_candidates import (
     match_roster_candidates, redacted_candidate_summary,
 )
@@ -23,7 +24,7 @@ from jabazi.providers.balldontlie import BallDontLieError, BallDontLieProvider
 
 
 def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
-                         source_roster=None, source_loader=fetch_nba_espn_roster,
+                         source_roster=None, source_loader=None,
                          max_prop_pages=25):
     if sport not in ("NBA", "NFL"):
         raise ValueError("NBA or NFL only")
@@ -31,8 +32,9 @@ def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
         raise ValueError("Positive provider game ID required")
     if not 1 <= max_prop_pages <= 100:
         raise ValueError("Bounded page cap required")
-    if sport == "NFL" and source_roster is None:
-        raise ValueError("NFL needs private source roster metadata")
+    if source_loader is None:
+        source_loader = (fetch_nba_espn_roster if sport == "NBA"
+                         else fetch_nfl_nflverse_roster)
     base = {
         "sport": sport, "status": "UNAVAILABLE",
         "reason": "PAID_PROP_COVERAGE_NOT_VERIFIED",
@@ -87,7 +89,8 @@ def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
         # Private rows are returned only to the caller; never print this value.
         base["_private_candidates"] = result["candidates_private"]
         return base
-    except (BallDontLieError, ValueError, KeyError, TypeError):
+    except Exception:
+        # Fail closed without logging HTTP bodies, source records or credentials.
         base["reason"] = "PROVIDER_OR_SOURCE_EVIDENCE_UNAVAILABLE"
         return base
 
@@ -116,7 +119,7 @@ def main(argv=None):
     parser.add_argument("--starts-at", required=True,
                         help="UTC/offset-aware kickoff from independently checked provider game")
     parser.add_argument("--source-roster-file", type=Path,
-                        help="Private ESPN/nflverse roster metadata; NBA defaults to live ESPN")
+                        help="Optional private roster JSON; default uses live ESPN or nflverse")
     parser.add_argument("--save-private-candidates", type=Path)
     parser.add_argument("--max-prop-pages", type=int, default=25)
     parser.add_argument("--request-budget", type=int, default=40)
@@ -125,8 +128,6 @@ def main(argv=None):
         parser.error("Request budget must be 1-100")
     if not 1 <= args.max_prop_pages <= 100 or args.game_id <= 0:
         parser.error("Invalid page or game bounds")
-    if args.sport == "NFL" and args.source_roster_file is None:
-        parser.error("NFL requires a private, source-backed nflverse roster file")
     try:
         source = (_read_private_roster(args.source_roster_file)
                   if args.source_roster_file is not None else None)
