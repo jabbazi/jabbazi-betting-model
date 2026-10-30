@@ -102,3 +102,10 @@ python -m tools.audit_nba_prospective_results --game-id VERIFIED_FINAL_NBA_GAME_
 ```
 
 The command is only available from the exact tested feature checkout in a private authorized runtime with existing `DATABASE_URL` and `JABBAZI_BALLDONTLIE_API_KEY`. Do not commit or paste the crosswalk file, keys, player rows or source stats into chat. No production result writes or prospective validation were performed during development. Genuine outcomes over many independent games and an independent market baseline remain necessary for approval.
+
+
+## Exact-line fitted research inference and safety status
+
+`boost_goat_research_inference.py` now supplies a **read-only, sport-scoped** adapter that can evaluate an actual BALLDONTLIE player-prop threshold with the existing fitted JABBAZI NBA/NFL distribution. It requires an independently reviewed cross-provider mapping, an immutable and **production-input-verified** pregame feature snapshot, exact event/player/market/line identity, a current licensed quote, and a matching versioned fitted model. It returns **research-only** over/under (or binary yes) probabilities, never a sportsbook-derived model probability, executable EV, or approved SGP. Whole-number push-capable lines are rejected until settlement-aware pricing is supported. Unverified SportsDataIO provenance or `research_only=true` inputs fail closed.
+
+The core player result archiver also rejects future-dated observations and unsupported settlement statuses, preventing a future timestamp from being accepted as completed prospective evidence. No fabricated forecasts, future results, or model promotion are authorized. Unit tests use synthetic fixtures only; live provider-to-model inference still needs private acceptance.
