@@ -121,3 +121,13 @@ python -m tools.prepare_goat_roster_candidates --sport NFL --date YYYY-MM-DD --m
 ```
 
 Use an upcoming eligible NBA date and an independently appropriate NFL date; do not assume both leagues play on the same day. This command must run in a **private feature-branch checkout with the existing Render Sports API secret**. It does not exist on the older production checkout. Output is redacted candidate counts, not player identities, betting recommendations, or live model-calibration approval.
+
+
+## Private roster acceptance without a Render Shell
+
+The existing authenticated Research API router now includes a read-only diagnostic:
+`POST /v1/chatgpt/boost-roster-candidate-diagnostic`.
+
+Request schema: `{"sport":"NBA","slate_date":"YYYY-MM-DD","max_games":1,"max_prop_pages":5}` (or `NFL`). The route uses the same owner-scoped ChatGPT scanner bearer token as other private diagnostics and the existing Sports API key from server-side configuration. It does **not** accept, return, or log API keys. It performs bounded GOAT game/prop/player reads and source-backed ESPN/nflverse roster candidate checks in the authorized API runtime, and returns **only aggregate counts/rejection reasons**. There is no crosswalk approval, exact-line model probability, SGP EV, wagering recommendation, or database mutation.
+
+This endpoint is **feature-branch code only until reviewed, CI-verified, and deployed**. A successful unit test or HTTP 200 in a mock environment is not live paid-feed acceptance. Its returned `identity_candidate_count` explicitly means candidates needing independent original-record review, not verified player identities. No production or preview deploy is authorized solely by this documentation.
