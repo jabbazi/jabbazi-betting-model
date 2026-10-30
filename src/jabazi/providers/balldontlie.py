@@ -26,6 +26,11 @@ PATHS = {
     }
     for sport, prefix in (("nba", "/nba"), ("nfl", "/nfl"), ("nhl", "/nhl"))
 }
+# Player directory endpoints follow the published NBA/NFL contracts.
+# The documented NBA players route is unprefixed even though this account's
+# NBA games/props requests succeeded at /nba/v1 and /nba/v2.
+PATHS["nba"]["players"] = "/v1/players"
+PATHS["nfl"]["players"] = "/nfl/v1/players"
 
 
 class BallDontLieError(Exception):
