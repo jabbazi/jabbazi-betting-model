@@ -131,3 +131,17 @@ The existing authenticated Research API router now includes a read-only diagnost
 Request schema: `{"sport":"NBA","slate_date":"YYYY-MM-DD","max_games":1,"max_prop_pages":5}` (or `NFL`). The route uses the same owner-scoped ChatGPT scanner bearer token as other private diagnostics and the existing Sports API key from server-side configuration. It does **not** accept, return, or log API keys. It performs bounded GOAT game/prop/player reads and source-backed ESPN/nflverse roster candidate checks in the authorized API runtime, and returns **only aggregate counts/rejection reasons**. There is no crosswalk approval, exact-line model probability, SGP EV, wagering recommendation, or database mutation.
 
 This endpoint is **feature-branch code only until reviewed, CI-verified, and deployed**. A successful unit test or HTTP 200 in a mock environment is not live paid-feed acceptance. Its returned `identity_candidate_count` explicitly means candidates needing independent original-record review, not verified player identities. No production or preview deploy is authorized solely by this documentation.
+
+
+## Exact-line GOAT to fitted JABBAZI research acceptance (2026-10-30)
+
+The new `src/jabazi/boost_goat_inference_acceptance.py` performs a **bounded aggregate** join across actual paid GOAT sportsbook offers, independently reviewed BALLDONTLIE-to-ESPN/nflverse player/game identity mappings, authentic frozen pregame JABBAZI feature snapshots, and versioned fitted player-prop artifacts. It rejects missing/ambiguous identities, snapshots, models, stale quotes, and unsupported markets. It invokes the existing `research_goat_exact_line` distribution inference **at the offered sportsbook threshold**, counting successful research estimates and modeled sides without exposing licensed rows, player IDs, or individual probabilities.
+
+`tools.verify_goat_exact_line_inference` provides a **private read-only acceptance command**. It reads three operator-reviewed local JSON arrays and retrieves paid GOAT props with the existing Sports API key; no key or private file is printed, and no database write or wager is performed. Example placeholders below are NOT live game IDs or real evidence:
+
+```bash
+python -m tools.verify_goat_exact_line_inference --sport NBA --game-id VERIFIED_NBA_GAME_ID --reviewed-crosswalks /private/reviewed_nba_crosswalks.json --frozen-features /private/frozen_nba_features.json --fitted-artifacts /private/nba_fitted_artifacts.json --max-prop-pages 10
+python -m tools.verify_goat_exact_line_inference --sport NFL --game-id VERIFIED_NFL_GAME_ID --reviewed-crosswalks /private/reviewed_nfl_crosswalks.json --frozen-features /private/frozen_nfl_features.json --fitted-artifacts /private/nfl_fitted_artifacts.json --max-prop-pages 10
+```
+
+**Acceptance is not complete merely because this command exists or tests pass.** It must run on an authorized private checkout against actual reviewed source identities and immutable feature evidence. Schema flags and SHA-256 strings are NOT independently verified crosswalk truth. Research estimate counts are NOT prospectively calibrated probabilities, correlated SGP joint probabilities, or wagering approvals. The command remains NBA/NFL only until NHL entitlement and model evidence are independently established. Do not merge PR #80 or deploy to production until the complete release gate passes.
