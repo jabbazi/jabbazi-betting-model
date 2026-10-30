@@ -38,6 +38,25 @@ def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *
             reasons["CROSSWALK_INVALID_ID"] += 1
             continue
         crosswalk_index[(game, player)].append(row)
+    # Enforce global one-to-one player identity across games, not merely a
+    # unique mapping within each game. A conflicting crosswalk invalidates
+    # every affected quote; it is never resolved by picking the first row.
+    bdl_sources = defaultdict(set)
+    source_bdl = defaultdict(set)
+    for rows in crosswalk_index.values():
+        for row in rows:
+            bdl_id = row["bdl_player_id"]
+            source_id = row.get("source_player_id")
+            if isinstance(source_id, str) and source_id.strip():
+                bdl_sources[bdl_id].add(source_id.strip())
+                source_bdl[source_id.strip()].add(bdl_id)
+    conflicting_bdl = {
+        bdl_id for bdl_id, sources in bdl_sources.items()
+        if len(sources) > 1
+    }
+    for source_id, bdl_ids in source_bdl.items():
+        if len(bdl_ids) > 1:
+            conflicting_bdl.update(bdl_ids)
     for row in snapshots:
         if not isinstance(row, dict) or row.get("sport") != SPORTS[sport]:
             reasons["SNAPSHOT_INVALID_SCHEMA"] += 1
@@ -86,6 +105,9 @@ def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *
             reasons["DUPLICATE_OFFER"] += 1
             continue
         seen.add(key)
+        if player in conflicting_bdl:
+            reasons["CONFLICTING_CROSS_GAME_PLAYER_IDENTITY"] += 1
+            continue
         candidates = crosswalk_index.get((game, player), ())
         if len(candidates) != 1:
             reasons["MISSING_OR_AMBIGUOUS_CROSSWALK"] += 1
