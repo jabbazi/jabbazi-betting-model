@@ -24,7 +24,7 @@ PATHS = {
         "injuries": f"{prefix}/v1/player_injuries",
         "props": f"{prefix}/v{2 if sport == 'nba' else 1}/odds/player_props",
     }
-    for sport, prefix in (("nba", ""), ("nfl", "/nfl"), ("nhl", "/nhl"))
+    for sport, prefix in (("nba", "/nba"), ("nfl", "/nfl"), ("nhl", "/nhl"))
 }
 
 
