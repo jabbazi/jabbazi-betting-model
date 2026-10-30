@@ -233,3 +233,63 @@ def diagnose_goat(body: GoatSportFeedRequest, authorization: Annotated[str | Non
         }, headers=PRIVATE_HEADERS)
     finally:
         provider.close()
+
+
+class BoostRosterCandidateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sport: Literal["NBA", "NFL"]
+    slate_date: date
+    max_games: int = Field(default=1, ge=1, le=2)
+    max_prop_pages: int = Field(default=5, ge=1, le=5)
+
+
+@router.post(
+    "/v1/chatgpt/boost-roster-candidate-diagnostic",
+    operation_id="diagnose_goat_player_identity_candidates",
+)
+def diagnose_roster_candidates(
+    body: BoostRosterCandidateRequest,
+    authorization: Annotated[str | None, Header()] = None,
+):
+    """Private GOAT-to-ESPN/nflverse roster candidate audit.
+
+    Uses one requested sport and date, with bounded paid reads. Returns only
+    counts and reason codes. Candidate matches are NOT verified crosswalks,
+    fitted probabilities, or betting approval.
+    """
+    from .chatgpt_api import authorize, PRIVATE_HEADERS
+    from .config import Settings
+    from tools.prepare_goat_roster_candidates import audit_date_candidates
+
+    authorize(authorization)
+    key = Settings.from_environment().balldontlie_api_key
+    if not key:
+        raise HTTPException(503, "BALLDONTLIE Sports API credential unavailable")
+    provider = BallDontLieProvider(key, budget=15)
+    try:
+        report = audit_date_candidates(
+            provider, sport=body.sport, calendar_date=body.slate_date,
+            max_games=body.max_games, max_prop_pages=body.max_prop_pages,
+        )
+        # Whitelist fields. Never expose _private_candidates, vendor player
+        # identities, source roster data, API responses, or provider secrets.
+        return JSONResponse({
+            "sport": body.sport,
+            "slate_date": body.slate_date.isoformat(),
+            "status": report.get("status", "UNAVAILABLE"),
+            "reason": report.get("reason", "PRIVATE_SOURCE_UNAVAILABLE"),
+            "games_considered": report.get("games_considered", 0),
+            "eligible_quote_rows": report.get("eligible_quote_rows", 0),
+            "provider_player_rows": report.get("provider_player_rows", 0),
+            "identity_candidate_count": report.get("candidate_count", 0),
+            "rejections": report.get("rejections", {}),
+            "independently_verified_crosswalks": 0,
+            "exact_model_inputs_verified": False,
+            "calibrated_exact_line_probabilities_verified": False,
+            "joint_probability_validated": False,
+            "betting_enabled": False,
+            "production_approved": False,
+            "observed_at": datetime.now(UTC).isoformat(),
+        }, headers=PRIVATE_HEADERS)
+    finally:
+        provider.close()
