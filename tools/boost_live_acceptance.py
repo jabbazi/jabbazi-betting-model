@@ -20,12 +20,14 @@ from jabazi.providers.balldontlie import BallDontLieProvider
 
 def audit_sport(provider, *, sport: str, calendar_date: date,
                 event_ids=(), markets=(), max_games=25,
-                observed_at: datetime | None = None):
+                observed_at: datetime | None = None,
+                max_prop_pages: int = 25):
     """Return aggregate counts without exposing licensed/player-level payloads."""
     if sport not in SPORTS:
         raise ValueError("Unsupported sport")
-    if not isinstance(calendar_date, date) or not 1 <= max_games <= 25:
-        raise ValueError("Invalid date or game cap")
+    if (not isinstance(calendar_date, date) or not 1 <= max_games <= 25
+            or not 1 <= max_prop_pages <= 25):
+        raise ValueError("Invalid date, game, or pagination cap")
     if len(event_ids) != len(set(event_ids)):
         raise ValueError("Duplicate target game IDs")
     if any(not str(value).isdigit() or int(value) <= 0 for value in event_ids):
@@ -33,11 +35,12 @@ def audit_sport(provider, *, sport: str, calendar_date: date,
     scope = BoostScope(
         SPORTS[sport], frozenset(map(str, event_ids)), frozenset(markets),
     )
-    # A live prop endpoint returns one complete response per event. Unexpected
-    # pagination must fail closed, not prompt a speculative unbounded scan.
+    # Paid prop feeds may paginate across many pages for a single game.
+    # Read all pages up to a strict cap, then fail closed on truncation.
     result = inspect_sport_slate(
         provider, scope, target_date=calendar_date,
-        max_games=max_games, max_game_pages=10, max_prop_pages=1,
+        max_games=max_games, max_game_pages=10,
+        max_prop_pages=max_prop_pages,
         require_future_kickoff=True, observed_at=observed_at,
     )
     props = result.odds_report
@@ -91,9 +94,12 @@ def main(argv=None):
     parser.add_argument("--game-id", action="append", type=int, default=[])
     parser.add_argument("--market", action="append", default=[])
     parser.add_argument("--max-games", type=int, default=25)
+    parser.add_argument("--max-prop-pages", type=int, default=25)
     parser.add_argument("--request-budget", type=int, default=36)
     args = parser.parse_args(argv)
-    if not 1 <= args.max_games <= 25 or not 1 <= args.request_budget <= 40:
+    if (not 1 <= args.max_games <= 25
+            or not 1 <= args.max_prop_pages <= 25
+            or not 1 <= args.request_budget <= 40):
         parser.error("Invalid bounded audit budget")
     key = os.getenv("JABBAZI_BALLDONTLIE_API_KEY", "").strip()
     if not key:
@@ -105,6 +111,7 @@ def main(argv=None):
         result = audit_sport(
             provider, sport=args.sport, calendar_date=args.date,
             event_ids=args.game_id, markets=args.market, max_games=args.max_games,
+            max_prop_pages=args.max_prop_pages,
         )
         print(json.dumps(result, sort_keys=True))
         return 0 if result["coverage"] == "FULL" else 1
