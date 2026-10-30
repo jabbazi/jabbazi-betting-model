@@ -20,7 +20,7 @@ from jabazi.boost_roster_candidates import (
     match_roster_candidates, redacted_candidate_summary,
 )
 from jabazi.boost_scope import BoostScope, SPORTS
-from jabazi.providers.balldontlie import BallDontLieError, BallDontLieProvider
+from jabazi.providers.balldontlie import BallDontLieProvider
 
 
 def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
