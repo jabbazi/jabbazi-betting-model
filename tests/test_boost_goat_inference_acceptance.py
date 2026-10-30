@@ -159,3 +159,30 @@ def test_unsupported_sport_rejected():
         audit_exact_line_research(
             "NHL", [], [], [], [], observed_at=NOW,
         )
+
+
+def test_conflicting_bdl_to_espn_identity_across_games_rejects_all_quotes():
+    report = audit(
+        offers=[offer()],
+        crosswalks=[crosswalk(), crosswalk(bdl_game_id=78, source_player_id="OTHER")],
+    )
+    assert report["exact_line_research_estimates"] == 0
+    assert report["rejections"]["CONFLICTING_CROSS_GAME_PLAYER_IDENTITY"] == 1
+
+
+def test_two_bdl_players_cannot_share_one_source_identity_across_games():
+    report = audit(
+        offers=[offer()],
+        crosswalks=[crosswalk(), crosswalk(bdl_game_id=78, bdl_player_id=20)],
+    )
+    assert report["exact_line_research_estimates"] == 0
+    assert report["rejections"]["CONFLICTING_CROSS_GAME_PLAYER_IDENTITY"] == 1
+
+
+def test_same_consistent_player_identity_across_games_does_not_create_conflict():
+    report = audit(
+        offers=[offer()],
+        crosswalks=[crosswalk(), crosswalk(bdl_game_id=78)],
+    )
+    assert report["exact_line_research_estimates"] == 1
+    assert "CONFLICTING_CROSS_GAME_PLAYER_IDENTITY" not in report["rejections"]
