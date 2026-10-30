@@ -2,7 +2,7 @@ from jabazi.providers.balldontlie import PATHS
 
 
 def test_documented_player_prop_routes():
-    # NBA v2 uses an unprefixed live odds path; opening historical odds
+    # NBA v2 uses the verified /nba-prefixed live odds path; opening historical odds
     # are separate from this live endpoint.
     assert PATHS["nba"]["props"] == "/v2/odds/player_props"
     assert PATHS["nfl"]["props"] == "/nfl/v1/odds/player_props"
