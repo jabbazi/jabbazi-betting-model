@@ -14,6 +14,10 @@ def feature():
     return {"sport": "NBA", "bdl_game_id": 77, "bdl_player_id": 19,
             "jabbazi_market": "player_points", "line": 22.5,
             "model_version": "nba-v3", "feature_frozen_at": FROZEN,
+            "event_starts_at": (NOW + timedelta(hours=2)).isoformat(),
+           "identity_crosswalk_sha256": "a" * 64,
+           "feature_source_sha256": "b" * 64,
+           "feature_snapshot_id": "playerfs-" + "c" * 20,
             "provider_identity_verified": True, "pregame_snapshot_verified": True,
             "player_name": "PRIVATE_PLAYER"}
 
