@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 import json
 
 import pytest
@@ -17,7 +17,8 @@ class Provider:
 
 
 def future_nba():
-    start = datetime.now(UTC) + timedelta(days=2)
+    start = datetime.combine((datetime.now(UTC) + timedelta(days=2)).date(),
+                             time(18, 0), tzinfo=UTC)
     return {
         "id": 77, "date": start.date().isoformat(),
         "datetime": start.isoformat(), "status_state": "scheduled",
@@ -30,9 +31,7 @@ def test_discovery_uses_real_scheduled_future_game_identity():
     result = probe.discover_upcoming_games(
         provider, sport="NBA", calendar_date=date.fromisoformat(game["date"]),
     )
-    # Eastern game day can differ from UTC near midnight; choose a safe hour.
-    if result:
-        assert result == [(77, game["datetime"])]
+    assert result == [(77, game["datetime"])]
     assert provider.calls[0][0:2] == ("nba", "games")
 
 
