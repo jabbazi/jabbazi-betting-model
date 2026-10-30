@@ -106,10 +106,23 @@ def test_invalid_sport_or_game_rejected(sport, gid):
                                    event_starts_at=KICKOFF)
 
 
-def test_nfl_requires_external_source_roster():
-    with pytest.raises(ValueError):
-        probe.audit_candidate_feed(Provider(), sport="NFL", game_id=123,
-                                   event_starts_at=KICKOFF)
+def test_nfl_automatic_source_loader_can_generate_unapproved_candidate(monkeypatch):
+    nfl_quote = {"sport": "americanfootball_nfl", "raw": {
+        "game_id": 123, "player_id": 19, "prop_type": "passing_yards",
+        "line_value": 220.5, "vendor": "PRIVATE_BOOK",
+        "updated_at": NOW.isoformat()}}
+    monkeypatch.setattr(probe, "collect_boost_odds", lambda *args, **kwargs:
+        SimpleNamespace(coverage="FULL", odds_rows=1, rows=(nfl_quote,)))
+    nfl_bdl = bdl() | {"position_abbreviation": "QB"}
+    nfl_source = source() | {"source_namespace": "NFLVERSE",
+                             "position_abbreviation": "QB"}
+    report = probe.audit_candidate_feed(
+        Provider(rows=[nfl_bdl]), sport="NFL", game_id=123,
+        event_starts_at=KICKOFF, source_loader=lambda teams: [nfl_source],
+    )
+    assert report["candidate_count"] == 1
+    assert report["status"] == "CANDIDATES_ONLY"
+    assert report["source_identity_reviewed"] is False
 
 
 def test_private_candidate_file_is_exclusive_and_owner_only(tmp_path):
