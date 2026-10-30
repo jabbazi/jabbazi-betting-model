@@ -101,7 +101,7 @@ def prepare_nba_final_labels(game, stats, reviewed_crosswalks, *, observed_at):
                 or not isinstance(row.get("canonical_participant"), str)
                 or not row["canonical_participant"]
                 or row.get("independent_source_reviewed") is not True
-                or reviewed is None or not reviewed <= now
+                or reviewed is None or not reviewed < start
                 or claimed_start != start
                 or not isinstance(checksum, str) or not _DIGEST.fullmatch(checksum)
                 or not isinstance(declared, str) or declared != crosswalk_digest(row)):
@@ -115,7 +115,11 @@ def prepare_nba_final_labels(game, stats, reviewed_crosswalks, *, observed_at):
         del index[player]
     reasons["ambiguous_crosswalks"] += len(ambiguous)
     result_rows = []
-    seen = set()
+    stat_id_counts = Counter(
+        row["player"]["id"] for row in stats
+        if isinstance(row, dict) and isinstance(row.get("player"), dict)
+        and type(row["player"].get("id")) is int
+    )
     for row in stats:
         if not isinstance(row, dict):
             reasons["invalid_stat_schema"] += 1
@@ -126,10 +130,9 @@ def prepare_nba_final_labels(game, stats, reviewed_crosswalks, *, observed_at):
         if gid != game_id or type(pid) is not int or pid <= 0:
             reasons["foreign_game_or_player_stat"] += 1
             continue
-        if pid in seen:
+        if stat_id_counts[pid] != 1:
             reasons["duplicate_player_stat"] += 1
             continue
-        seen.add(pid)
         mapping = index.get(pid)
         if mapping is None:
             reasons["no_independently_reviewed_player_mapping"] += 1
