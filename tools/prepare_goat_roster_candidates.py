@@ -205,8 +205,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not 1 <= args.request_budget <= 100:
         parser.error("Request budget must be 1-100")
-    if not 1 <= args.max_prop_pages <= 100 or args.game_id <= 0:
+    if not 1 <= args.max_prop_pages <= 100 or not 1 <= args.max_games <= 3:
         parser.error("Invalid page or game bounds")
+    if args.date is None and (args.game_id is None or args.starts_at is None):
+        parser.error("Provide --date or both --game-id and --starts-at")
+    if args.date is not None and (args.game_id is not None or args.starts_at is not None):
+        parser.error("Choose either date discovery or an explicit verified game")
+    if args.game_id is not None and args.game_id <= 0:
+        parser.error("Positive game ID required")
     try:
         source = (_read_private_roster(args.source_roster_file)
                   if args.source_roster_file is not None else None)
