@@ -6,7 +6,7 @@ or settles a wager; it grades immutable research forecasts.
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import math
 import random
 
@@ -117,6 +117,10 @@ def archive_player_result(
 ):
     if observed_at.tzinfo is None or not source_checksum:
         raise ValueError("Player result provenance required")
+    if observed_at.astimezone(UTC) > datetime.now(UTC) + timedelta(minutes=5):
+        raise ValueError("Future player result observations are not evidence")
+    if result_status not in {"final", "dnp", "void"}:
+        raise ValueError("Unsupported player result settlement status")
     value = float(observed_value)
     if not math.isfinite(value) or value < 0:
         raise ValueError("Invalid player result")
