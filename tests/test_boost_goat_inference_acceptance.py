@@ -103,7 +103,7 @@ def test_missing_crosswalk_never_generates_probability():
 def test_ambiguous_crosswalk_never_picks_first():
     report = audit(crosswalks=[crosswalk(), crosswalk(source_player_id="OTHER")])
     assert report["exact_line_research_estimates"] == 0
-    assert report["rejections"]["MISSING_OR_AMBIGUOUS_CROSSWALK"] == 1
+    assert report["rejections"]["CONFLICTING_CROSS_GAME_PLAYER_IDENTITY"] == 1
 
 
 def test_ambiguous_frozen_snapshot_fails_closed():
