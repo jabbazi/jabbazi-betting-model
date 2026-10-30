@@ -75,9 +75,18 @@ def test_all_sport_player_markets_can_freeze_before_approval(store, sport, marke
     assert report["buckets"][0]["data_health_failures"] == 0
 
 
-def test_nba_frozen_research_can_be_evaluated_after_final_result(store):
+def test_nba_frozen_research_can_be_evaluated_after_final_result(store, monkeypatch):
+    from jabazi.research import player_prospective as module
     card = price("basketball_nba", "player_points")
     assert freeze_player_candidate(store, card, estimate(), {}, now=NOW)
+    # Simulate time advancing past the final game; do not create future
+    # settlement evidence relative to the simulated observation clock.
+    class AfterFinalClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = START + timedelta(hours=4)
+            return value.astimezone(tz) if tz is not None else value.replace(tzinfo=None)
+    monkeypatch.setattr(module, "datetime", AfterFinalClock)
     assert archive_player_result(
         store, sport=card.sport, event_id=card.event_id,
         participant=card.participant, market=card.market,
@@ -125,3 +134,14 @@ def test_validating_model_retains_verified_inputs_without_wagering_approval():
     assert 0 < result.probability < 1
     assert result.approved_for_betting is False
     assert result.feature_snapshot["production_inputs_verified"] is True
+
+
+def test_future_dated_player_result_cannot_be_archived(store):
+    with pytest.raises(ValueError, match="Future player result"):
+        archive_player_result(
+            store, sport="basketball_nba", event_id="fixture-event",
+            participant="Fixture Athlete", market="player_points",
+            observed_value=24, starts_at=START.isoformat(),
+            observed_at=START + timedelta(hours=3),
+            source_checksum="fixture-only",
+        )
