@@ -69,7 +69,7 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
         count = 0
         try:
             response = provider.fetch_all_pages(
-                sport, "props", [("game_id", gid)],
+                sport, "props", [("game_id", gid), ("per_page", 100)],
                 max_pages=max_pages_per_game,
             )
             if not response.get("complete"):
