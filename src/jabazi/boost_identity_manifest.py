@@ -75,9 +75,19 @@ def audit_identity_manifest(sport, records, *, observed_at):
             continue
         key = (bdl_game, bdl_player)
         accepted[key].append((source_ns, source_id.strip(), record["team_id"].strip()))
+    # A player may appear in multiple games, but one BDL player cannot map
+    # to two source identities, nor one source identity to two BDL players.
+    bdl_to_source = defaultdict(set)
+    source_to_bdl = defaultdict(set)
+    for (_, bdl_player), rows in accepted.items():
+        for source_ns, source_id, team_id in rows:
+            bdl_to_source[bdl_player].add((source_ns, source_id))
+            source_to_bdl[(source_ns, source_id)].add(bdl_player)
     verified = 0
-    for rows in accepted.values():
-        if len(rows) != 1:
+    for (_, bdl_player), rows in accepted.items():
+        if (len(rows) != 1
+                or len(bdl_to_source[bdl_player]) != 1
+                or len(source_to_bdl[(rows[0][0], rows[0][1])]) != 1):
             reasons["duplicate_or_conflicting_crosswalk"] += 1
         else:
             verified += 1
