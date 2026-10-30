@@ -127,6 +127,10 @@ def research_goat_exact_line(sport, raw_offer, crosswalk, snapshot, artifact, *,
             or not snapshot["provider"].strip()
             or not isinstance(snapshot.get("feature_schema_version"), str)
             or not snapshot["feature_schema_version"]
+            or snapshot.get("research_only") is not False
+            or snapshot.get("production_inputs_verified") is not True
+            or ("sportsdataio" in str(snapshot.get("provider", "")).lower()
+                and snapshot.get("provider_data_verified") is not True)
             or not isinstance(snapshot.get("integrity"), dict)
             or not all(snapshot["integrity"].get(k) is True for k in REQUIRED_INTEGRITY)):
         base["reason"] = "FROZEN_MODEL_FEATURE_INTEGRITY_UNVERIFIED"
