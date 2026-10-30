@@ -109,3 +109,15 @@ The command is only available from the exact tested feature checkout in a privat
 `boost_goat_research_inference.py` now supplies a **read-only, sport-scoped** adapter that can evaluate an actual BALLDONTLIE player-prop threshold with the existing fitted JABBAZI NBA/NFL distribution. It requires an independently reviewed cross-provider mapping, an immutable and **production-input-verified** pregame feature snapshot, exact event/player/market/line identity, a current licensed quote, and a matching versioned fitted model. It returns **research-only** over/under (or binary yes) probabilities, never a sportsbook-derived model probability, executable EV, or approved SGP. Whole-number push-capable lines are rejected until settlement-aware pricing is supported. Unverified SportsDataIO provenance or `research_only=true` inputs fail closed.
 
 The core player result archiver also rejects future-dated observations and unsupported settlement statuses, preventing a future timestamp from being accepted as completed prospective evidence. No fabricated forecasts, future results, or model promotion are authorized. Unit tests use synthetic fixtures only; live provider-to-model inference still needs private acceptance.
+
+
+## Simplified desktop operator acceptance: one command per sport
+
+The private GOAT roster candidate CLI now supports **date-scoped automatic game discovery**, so the operator does not need to guess provider game IDs or copy kickoff timestamps. It verifies actual scheduled future games and bounded provider calendar dates, then attempts at most three games per requested sport, stopping on private provider/source failures. The date-scoped mode remains **candidate research only**, never identity approval.
+
+```bash
+python -m tools.prepare_goat_roster_candidates --sport NBA --date YYYY-MM-DD --max-games 3 --request-budget 60
+python -m tools.prepare_goat_roster_candidates --sport NFL --date YYYY-MM-DD --max-games 3 --request-budget 60
+```
+
+Use an upcoming eligible NBA date and an independently appropriate NFL date; do not assume both leagues play on the same day. This command must run in a **private feature-branch checkout with the existing Render Sports API secret**. It does not exist on the older production checkout. Output is redacted candidate counts, not player identities, betting recommendations, or live model-calibration approval.
