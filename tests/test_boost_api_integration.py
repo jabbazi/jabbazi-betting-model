@@ -51,4 +51,4 @@ def test_authenticated_nhl_diagnostic_never_queries_other_sports(monkeypatch):
     assert payload["player_probabilities_verified"] is False
     assert payload["wager_recommendation"] == "UNAVAILABLE"
     assert "licensed" not in response.text
-    assert requested == [("nhl", "props", (("game_id", 123),))]
+    assert requested == [("nhl", "props", (("game_id", 123), ("per_page", 100)))]
