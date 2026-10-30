@@ -76,3 +76,29 @@ def test_unsupported_sport_and_naive_time_fail():
         audit_identity_manifest("NHL", [], observed_at=NOW)
     with pytest.raises(ValueError):
         audit_identity_manifest("NBA", [], observed_at=datetime(2026, 10, 29))
+
+
+def test_bdl_player_cannot_map_to_two_source_players_across_games():
+    report = audit_identity_manifest("NBA", [
+        record(bdl_game_id=77, bdl_player_id=19, source_player_id="espn-456"),
+        record(bdl_game_id=78, bdl_player_id=19, source_player_id="espn-789"),
+    ], observed_at=NOW)
+    assert report["unique_structurally_valid_crosswalks"] == 0
+    assert report["rejections"]["duplicate_or_conflicting_crosswalk"] == 2
+
+
+def test_source_player_cannot_map_to_two_bdl_players_across_games():
+    report = audit_identity_manifest("NBA", [
+        record(bdl_game_id=77, bdl_player_id=19, source_player_id="espn-456"),
+        record(bdl_game_id=78, bdl_player_id=20, source_player_id="espn-456"),
+    ], observed_at=NOW)
+    assert report["unique_structurally_valid_crosswalks"] == 0
+
+
+def test_same_player_same_mapping_across_games_is_allowed_structurally():
+    report = audit_identity_manifest("NFL", [
+        record("NFL", bdl_game_id=77),
+        record("NFL", bdl_game_id=78),
+    ], observed_at=NOW)
+    assert report["unique_structurally_valid_crosswalks"] == 2
+    assert report["independent_provider_truth_confirmed_by_runtime"] is False
