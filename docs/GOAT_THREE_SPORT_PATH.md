@@ -39,3 +39,17 @@ The private GOAT diagnostic now includes `jabbazi_market_alignment`, a de-identi
 `src/jabazi/boost_goat_feature_join.py` provides a **research-only**, aggregate audit of exact BALLDONTLIE game/player IDs, sport-scoped mapped market, identical numeric threshold, a nonempty versioned JABBAZI model, and an explicitly reviewed frozen pregame feature snapshot. It rejects missing identity attestations, ambiguous feature rows, mismatched lines, stale vendor quotes and duplicate sportsbook offers. Its result contains counts and rejection reasons only; it never returns licensed player rows or computes probabilities. It must not be treated as an independently verified crosswalk just because an input flag says verified: the source crosswalk and freeze must be audited against actual provider records and immutable model evidence.
 
 The authenticated Render Shell supplied by the owner has demonstrated NBA and NFL paid player-prop access, but **no authenticated live player-to-feature joins** have been executed. No GOAT source data has been promoted into production model inference. NHL remains HTTP 401 on its games endpoint. A previous CI run uncovered legacy tests expecting the incorrect unprefixed NBA routes; those tests were updated to the real authenticated `/nba/v1` and `/nba/v2` paths. All current-head CI must finish before any release consideration.
+
+
+## Private NBA/NFL exact feature acceptance (after GOAT endpoint authentication)
+
+On an **authorized private checkout of this feature commit**, with the existing Sports API key already configured, use a *locally reviewed* frozen feature metadata JSON file (not committed or pasted into chat). Each row must be independently crosschecked against actual BALLDONTLIE game/player IDs and a genuine immutable JABBAZI pregame model feature snapshot. Do not create or mark attestation flags as true without that audit.
+
+```bash
+python -m tools.verify_goat_feature_join --sport NBA --game-id VERIFIED_NBA_GAME_ID --feature-file /private/verified_nba_features.json --request-budget 20
+python -m tools.verify_goat_feature_join --sport NFL --game-id VERIFIED_NFL_GAME_ID --feature-file /private/verified_nfl_features.json --request-budget 20
+```
+
+The operator must replace the symbolic game IDs with actual positive integer provider IDs from the eligible slate and provide existing private files. No sample JSON file is supplied because synthetic attestations would create misleading acceptance evidence. The command returns only aggregate join counts and errors; success means **exact model input matching observed**, not a model prediction, a validated edge, or wagering approval. It is **not available on the older production checkout** and should not be used to modify or replace the production service. NHL remains blocked by its HTTP 401 games response.
+
+**Next required engineering step:** establish the independently reviewed, point-in-time player identity crosswalk and feature snapshots; only then wire versioned JABBAZI inference to exact-line model research and validate against independent prospective outcomes.
