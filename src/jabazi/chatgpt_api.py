@@ -370,6 +370,10 @@ def scan_page(store, scan_id, page=1, now=None):
     if page > max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE):
         raise HTTPException(404, "Result page not found")
     status = payload.get("status", "EXPIRED" if expired else "RUNNING")
+    if status == "EXPIRED" and result is None:
+        progress = dict(progress)
+        progress["phase"] = "EXPIRED"
+        progress["reason"] = "SCAN_JOB_EXPIRED_WITHOUT_TERMINAL_RESULT"
     total = payload.get("total_actions", len(rows))
     page_rows = rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]
     from zoneinfo import ZoneInfo
@@ -390,7 +394,8 @@ def scan_page(store, scan_id, page=1, now=None):
         result_ordering=payload.get("result_ordering"),
         progress=progress,
         actions=[present_action(r, now) for r in page_rows],
-        errors=payload.get("errors", []),
+        errors=payload.get("errors", []) if status != "EXPIRED"
+        else ["SCAN_JOB_EXPIRED_WITHOUT_TERMINAL_RESULT"],
         scope=(
             f"Full scan of active configured feeds within a "
             f"{request['payload'].get('max_credits', scan_credit_budget())}-credit budget; "
