@@ -48,6 +48,7 @@ def snapshot(**changes):
         "snapshot_id": "playerfs-" + "b" * 20,
         "source_checksum": "c" * 64, "provider": "ESPN",
         "feature_schema_version": "test-v1",
+        "research_only": False, "production_inputs_verified": True,
         "integrity": {name: True for name in REQUIRED_INTEGRITY},
         "features": {"games_prior": 10.0},
     }
@@ -117,6 +118,9 @@ def test_mutated_crosswalk_digest_fails_closed():
     {"source_checksum": "bad"},
     {"integrity": {name: False for name in REQUIRED_INTEGRITY}},
     {"market": "player_assists"},
+    {"research_only": True},
+    {"production_inputs_verified": False},
+    {"provider": "SportsDataIO", "provider_data_verified": False},
 ])
 def test_frozen_snapshot_missing_or_invalid_rejected(change):
     assert run(fs=snapshot(**change))["status"] == "UNAVAILABLE"
