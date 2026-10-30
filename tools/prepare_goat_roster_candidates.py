@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from jabazi.boost_feed import collect_boost_odds
@@ -20,6 +20,7 @@ from jabazi.boost_roster_candidates import (
     match_roster_candidates, redacted_candidate_summary,
 )
 from jabazi.boost_scope import BoostScope, SPORTS
+from jabazi.boost_slate import _matches_vendor_calendar_day, _verified_future_kickoff
 from jabazi.providers.balldontlie import BallDontLieProvider
 
 
@@ -95,6 +96,81 @@ def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
         return base
 
 
+def discover_upcoming_games(provider, *, sport, calendar_date, max_games=3):
+    """Use authentic provider schedule IDs and kickoffs, never guessed IDs."""
+    if sport not in ("NBA", "NFL") or type(calendar_date) is not date:
+        raise ValueError("NBA/NFL and explicit date required")
+    if not 1 <= max_games <= 3:
+        raise ValueError("1-3 game discovery cap required")
+    days = [calendar_date.isoformat()]
+    if sport == "NFL":
+        days.append((calendar_date + timedelta(days=1)).isoformat())
+    listing = provider.fetch_all_pages(
+        sport.lower(), "games",
+        [("dates[]", day) for day in days] + [("per_page", 100)],
+        max_pages=5,
+    )
+    if not listing.get("complete"):
+        raise ValueError("Incomplete game discovery")
+    now = datetime.now(UTC)
+    start_field = "datetime" if sport == "NBA" else "date"
+    candidates = []
+    seen = set()
+    for row in listing["data"]:
+        if not isinstance(row, dict):
+            continue
+        gid = row.get("id")
+        if type(gid) is not int or gid <= 0:
+            continue
+        if gid in seen:
+            raise ValueError("Duplicate provider game ID")
+        seen.add(gid)
+        if (not _matches_vendor_calendar_day(
+                sport.lower(), row.get("date"), calendar_date)
+                or row.get("status_state") != "scheduled"
+                or _verified_future_kickoff(
+                    row, sport.lower(), target_date=calendar_date,
+                    observed_at=now,
+                ) is not None):
+            continue
+        start = row.get(start_field)
+        candidates.append((gid, start))
+    return sorted(candidates, key=lambda row: row[1])[:max_games]
+
+
+def audit_date_candidates(provider, *, sport, calendar_date, source_roster=None,
+                          source_loader=None, max_games=3, max_prop_pages=25):
+    """Try a bounded upcoming slate and return only de-identified results."""
+    base = {
+        "sport": sport, "status": "UNAVAILABLE",
+        "reason": "NO_VERIFIED_UPCOMING_GAMES",
+        "games_considered": 0, "candidate_count": 0,
+        "betting_enabled": False, "production_approved": False,
+    }
+    try:
+        games = discover_upcoming_games(
+            provider, sport=sport, calendar_date=calendar_date,
+            max_games=max_games,
+        )
+    except Exception:
+        base["reason"] = "GAME_DISCOVERY_UNAVAILABLE"
+        return base
+    last = base
+    for game_id, start in games:
+        result = audit_candidate_feed(
+            provider, sport=sport, game_id=game_id,
+            event_starts_at=start, source_roster=source_roster,
+            source_loader=source_loader, max_prop_pages=max_prop_pages,
+        )
+        result["games_considered"] = last.get("games_considered", 0) + 1
+        last = result
+        if result.get("candidate_count", 0) > 0:
+            return result
+        if result.get("reason") == "PROVIDER_OR_SOURCE_EVIDENCE_UNAVAILABLE":
+            return result
+    return last
+
+
 def _read_private_roster(path):
     if not path.is_file() or path.stat().st_size > 2_000_000:
         raise ValueError("Private roster file missing or too large")
@@ -115,9 +191,12 @@ def _write_private_candidates(path, rows):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sport", required=True, choices=("NBA", "NFL"))
-    parser.add_argument("--game-id", required=True, type=int)
-    parser.add_argument("--starts-at", required=True,
-                        help="UTC/offset-aware kickoff from independently checked provider game")
+    parser.add_argument("--game-id", type=int)
+    parser.add_argument("--starts-at",
+                        help="Offset-aware kickoff from independently checked provider game")
+    parser.add_argument("--date", type=date.fromisoformat,
+                        help="Discover 1-3 authentic upcoming games for this sport")
+    parser.add_argument("--max-games", type=int, default=3)
     parser.add_argument("--source-roster-file", type=Path,
                         help="Optional private roster JSON; default uses live ESPN or nflverse")
     parser.add_argument("--save-private-candidates", type=Path)
@@ -140,11 +219,18 @@ def main(argv=None):
         return 2
     provider = BallDontLieProvider(key, budget=args.request_budget)
     try:
-        result = audit_candidate_feed(
-            provider, sport=args.sport, game_id=args.game_id,
-            event_starts_at=args.starts_at, source_roster=source,
-            max_prop_pages=args.max_prop_pages,
-        )
+        if args.date is not None:
+            result = audit_date_candidates(
+                provider, sport=args.sport, calendar_date=args.date,
+                source_roster=source, max_games=args.max_games,
+                max_prop_pages=args.max_prop_pages,
+            )
+        else:
+            result = audit_candidate_feed(
+                provider, sport=args.sport, game_id=args.game_id,
+                event_starts_at=args.starts_at, source_roster=source,
+                max_prop_pages=args.max_prop_pages,
+            )
     finally:
         provider.close()
     private = result.pop("_private_candidates", [])
