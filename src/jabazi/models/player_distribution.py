@@ -364,12 +364,22 @@ class PlayerPropModel(ProbabilityModel):
         integrity["roster"] = integrity.get("player_identity") is True
         integrity["calibration"] = self.artifact.get("calibration") is not None
         integrity_ok = all(integrity.get(key) is True for key in required)
+        # Genuine pregame input integrity is independent of whether a model
+        # has earned wagering approval. The previous coupling prevented
+        # VALIDATING models from accumulating trusted prospective evidence.
+        inputs_verified = (
+            integrity_ok
+            and snapshot.get("research_only") is False
+            and snapshot.get("production_inputs_verified") is True
+            and (
+                "sportsdataio" not in str(snapshot.get("provider", "")).lower()
+                or snapshot.get("provider_data_verified") is True
+            )
+        )
         approved = (
             self.stage == "PRODUCTION_APPROVED"
             and validation.get("promotion_passed") is True
-            and integrity_ok
-            and snapshot.get("research_only") is False
-            and snapshot.get("production_inputs_verified") is True
+            and inputs_verified
         )
         n = int(validation.get("prospective_sample_count", 0) or 0)
         uncertainty = max(0.02, min(0.20, 1.96 * math.sqrt(max(calibrated * (1-calibrated), 1e-6) / max(n, 25))))
@@ -387,7 +397,7 @@ class PlayerPropModel(ProbabilityModel):
                 "line": str(price.line) if price.line is not None else None,
                 "side": price.selection,
             },
-            "production_inputs_verified": approved,
+            "production_inputs_verified": inputs_verified,
         }
         return ModelEstimate(
             probability=Decimal(str(round(calibrated, 10))),
