@@ -13,6 +13,7 @@ import random
 from sqlalchemy import select
 
 from jabazi.persistence.store import digest, events
+from jabazi.models.player_distribution import PLAYER_PROP_MARKETS
 from jabazi.research.player_features import REQUIRED_INTEGRITY
 
 POLICY = "first-fresh-player-market-version-line-v1"
@@ -39,14 +40,9 @@ def freeze_player_candidate(store, card, estimate, reliability, *, now=None):
     now = now or datetime.now(UTC)
     if not card.participant or card.in_play or card.starts_at is None or card.starts_at <= now:
         return False
-    if card.market not in {
-        "player_pass_yds", "player_pass_attempts", "player_pass_completions",
-        "player_pass_tds", "player_rush_yds", "player_rush_attempts",
-        "player_receptions", "player_reception_yds", "player_anytime_td",
-        "pitcher_strikeouts", "pitcher_outs", "pitcher_hits_allowed",
-        "pitcher_walks", "batter_hits", "batter_total_bases", "batter_home_runs",
-        "batter_rbis", "batter_runs_scored", "batter_hits_runs_rbis", "batter_walks",
-    }:
+    # Supported markets are sport-specific. The previous hardcoded list
+    # excluded every NBA/NHL market and blocked prospective evaluation.
+    if card.market not in PLAYER_PROP_MARKETS.get(card.sport, frozenset()):
         return False
     if not all(
         0 <= (now - t).total_seconds() <= 120
