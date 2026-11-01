@@ -173,3 +173,90 @@ def from_vip_board(rows, *, sport):
     result = _finish(buckets)
     return {**{k: v for k, v in result.items() if k != "sports"},
             "sport": sport, **result["sports"][sport]}
+
+
+MONEYLINE_SPORTS = {
+    **SPORTS,
+    "baseball_mlb": "MLB",
+    "americanfootball_ncaaf": "CFB",
+}
+
+
+def moneyline_research_from_scan(rows, *, present):
+    """Rank observed, fresh, fitted team moneylines without betting promotion.
+
+    No market consensus, sportsbook price, or LAB confidence is a model
+    probability. This is bounded by the existing full scan's retained rows.
+    """
+    buckets = {
+        sport: {
+            "status": "NO_MONEYLINE_ROWS",
+            "observed_moneyline_rows": 0,
+            "model_estimate_rows": 0,
+            "top10": [],
+        }
+        for sport in MONEYLINE_SPORTS.values()
+    }
+    for raw in rows:
+        if not isinstance(raw, dict) or raw.get("market") != "h2h":
+            continue
+        label = MONEYLINE_SPORTS.get(raw.get("sport"))
+        if not label:
+            continue
+        bucket = buckets[label]
+        bucket["observed_moneyline_rows"] += 1
+        row = present(raw)
+        probability = _probability(row.get("model_probability"))
+        if not (
+            probability is not None
+            and row.get("price_is_current") is True
+            and row.get("probability_status") in ALLOWED_STAGES
+            and str(row.get("model_version") or "").strip()
+            and str(row.get("selection") or "").strip()
+        ):
+            continue
+        bucket["model_estimate_rows"] += 1
+        bucket["top10"].append({
+            "sport": label,
+            "event_id": row.get("event_id"),
+            "event": row.get("event"),
+            "selection": row.get("selection"),
+            "model_probability": probability,
+            "model_stage": row.get("probability_status"),
+            "model_version": row.get("model_version"),
+            "price_observed_at": row.get("source_timestamp"),
+            "starts_at": row.get("starts_at"),
+            "approval": "RESEARCH_ONLY",
+            "approved_for_betting": False,
+        })
+    for bucket in buckets.values():
+        ranked = sorted(
+            bucket["top10"],
+            key=lambda x: (-x["model_probability"], str(x.get("event_id") or ""), str(x["selection"])),
+        )
+        seen, unique = set(), []
+        for item in ranked:
+            key = (str(item.get("event_id")), str(item["selection"]))
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(item)
+            if len(unique) == 10:
+                break
+        bucket["top10"] = unique
+        bucket["returned"] = len(unique)
+        bucket["status"] = (
+            "RESEARCH_ESTIMATES_AVAILABLE" if unique
+            else "NO_VALID_MODEL_PROBABILITIES" if bucket["observed_moneyline_rows"]
+            else "NO_MONEYLINE_ROWS"
+        )
+    return {
+        "mode": "RESEARCH_ONLY", "betting_enabled": False,
+        "probability_basis": "VERSIONED_JABBAZI_TEAM_MODEL",
+        "sports": buckets,
+        "notice": (
+            "Observed team-moneyline model estimates only. The regular scan "
+            "is budget-limited, not league-complete. No market-implied values "
+            "are substituted and no team model receives automatic betting approval."
+        ),
+    }

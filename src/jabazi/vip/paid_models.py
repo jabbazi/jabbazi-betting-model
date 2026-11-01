@@ -168,7 +168,7 @@ def _project(row: dict, model: dict):
     }
 
 
-def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport=None):
+def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport=None, request_budget=MAX_REQUESTS):
     """Return a bounded, VIP-only per-sport snapshot of saved LAB predictions.
 
     No model creation or generation job is triggered, and ordinary scanner
@@ -177,6 +177,8 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
     """
     if sport not in SPORTS:
         raise ValueError("Unsupported sport")
+    if type(request_budget) is not int or not 1 <= request_budget <= MAX_REQUESTS:
+        raise ValueError("Invalid paid LAB request budget")
     if not isinstance(slate_date, date):
         raise ValueError("Invalid slate date")
     report: dict[str, Any] = {
@@ -197,7 +199,7 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
         return report
     if not key or not key.strip():
         return report
-    client = LabReader(key, transport=transport)
+    client = LabReader(key, transport=transport, budget=request_budget)
     try:
         models, complete = client.pages(
             "/lab/v1/models", {"sport": SPORTS[sport], "per_page": 100},
@@ -248,5 +250,6 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
         report["reason"] = str(exc)
         report["rows"] = []
     finally:
+        report["requests_used"] = request_budget - client._remaining
         client.close()
     return report
