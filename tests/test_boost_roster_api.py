@@ -61,8 +61,23 @@ def test_authenticated_nba_candidate_probe_returns_counts_only(monkeypatch):
     assert data["production_approved"] is False
     assert response.headers["cache-control"] == "no-store"
     assert called == ["audited", "closed"]
-    for secret in ("PRIVATE_ESPN_123", "SECRET ATHLETE", "PRIVATE_GOAT_KEY", "888"):
+    for secret in ("PRIVATE_ESPN_123", "SECRET ATHLETE", "PRIVATE_GOAT_KEY"):
         assert secret not in response.text
+    # A timestamp can legitimately contain the digits 888. Inspect structured
+    # identities and values rather than matching that substring in microseconds.
+    forbidden = {"_private_candidates", "api_key", "source_player_id",
+                 "bdl_player_id", "player_name"}
+    def no_private_values(value):
+        if isinstance(value, dict):
+            assert not forbidden.intersection(value)
+            for child in value.values():
+                no_private_values(child)
+        elif isinstance(value, list):
+            for child in value:
+                no_private_values(child)
+        else:
+            assert value not in (888, "888")
+    no_private_values(data)
 
 
 def test_missing_auth_rejected_before_paid_provider(monkeypatch):

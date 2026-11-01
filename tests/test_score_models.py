@@ -211,6 +211,10 @@ def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, 
     from jabazi.providers.base import ProviderBatch
 
     monkeypatch.setenv("JABAZI_ODDS_API_KEY", "test-only")
+    # Full V7 scans must expose missing paid coverage while preserving valid
+    # independent team-model output. This fixture must never use paid secrets.
+    monkeypatch.delenv("JABBAZI_BALLDONTLIE_API_KEY", raising=False)
+    monkeypatch.delenv("JABBAZI_BALLDONTLIE_LAB_API_KEY", raising=False)
     a = artifact(short)
     p = card(a)
     # Keep this historical inference fixture on its event's local day. Production
@@ -257,7 +261,13 @@ def test_fitted_probability_reaches_private_chat_results(tmp_path, monkeypatch, 
             provider.return_value.fetch.return_value = batch
             bridge.run_background(scan_id)
         page = bridge.scan_page(s, scan_id, now=p.observed_at)
-        assert page.status == "COMPLETE" and page.errors == []
+        assert page.status == "PARTIAL" and page.errors == []
+        paid = s.list_records("chatgpt_scan_result", 1, entity=scan_id)[0]["payload"]["event_market_coverage"]["paid_player_research"]
+        assert paid["scope_complete"] is False
+        assert paid["paid_requests_made"] == 0
+        assert set(paid["sports"]) == {"NBA", "NFL", "NHL"}
+        assert all("SPORTS_API_KEY_NOT_CONFIGURED" in row["errors"]
+                   for row in paid["sports"].values())
         assert page.total_actions == 271 and page.total_returned_actions == 260
         assert page.truncated and page.result_ordering == "model_coverage_first"
         row = page.actions[0]
