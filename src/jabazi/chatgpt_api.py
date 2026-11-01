@@ -131,6 +131,7 @@ class ScanPage(BaseModel):
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
     player_probability_research: dict[str, Any] = Field(default_factory=dict)
+    paid_player_research: dict[str, Any] = Field(default_factory=dict)
     event_market_coverage: dict[str, Any] | None = None
     external_research_sources: dict[str, Any] = Field(default_factory=dict)
     result_ordering: str | None = None
@@ -277,6 +278,23 @@ def run_background(scan_id):
                     "max_credits": max_credits,
                 })
                 time.sleep(2)
+        # Separate source audit: these saved LAB model signals are not calibrated
+        # exact-line hit probabilities, and do not enter betting/model cash gates.
+        from .scan_paid_research import collect_paid_player_research
+        from zoneinfo import ZoneInfo
+        lab_day = datetime.now(UTC).astimezone(
+            ZoneInfo("America/Chicago")
+        ).date()
+        result["paid_player_research"] = collect_paid_player_research(
+            Settings.from_environment().balldontlie_lab_api_key, lab_day
+        )
+        on_progress({
+            "phase": "PAID_PLAYER_RESEARCH_CHECKED",
+            "paid_player_research_states": {
+                item["sport"]: item["state"]
+                for item in result["paid_player_research"]["sports"]
+            },
+        })
         result["status"] = (
             "FAILED" if result["feeds_scanned"] == 0
             else "PARTIAL" if result["errors"] else "COMPLETE"
@@ -398,6 +416,7 @@ def scan_page(store, scan_id, page=1, now=None):
         credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
         model_coverage=payload.get("model_coverage", {}),
         player_probability_research=probability_research,
+        paid_player_research=payload.get("paid_player_research", {}),
         event_market_coverage=present_coverage(payload.get("event_market_coverage"), now),
         result_ordering=payload.get("result_ordering"),
         progress=progress,
