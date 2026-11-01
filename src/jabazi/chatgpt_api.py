@@ -132,6 +132,7 @@ class ScanPage(BaseModel):
     model_coverage: dict[str, Any] = {}
     player_probability_research: dict[str, Any] = Field(default_factory=dict)
     paid_player_research: dict[str, Any] = Field(default_factory=dict)
+    moneyline_model_research: dict[str, Any] = Field(default_factory=dict)
     event_market_coverage: dict[str, Any] | None = None
     external_research_sources: dict[str, Any] = Field(default_factory=dict)
     result_ordering: str | None = None
@@ -398,7 +399,10 @@ def scan_page(store, scan_id, page=1, now=None):
     total = payload.get("total_actions", len(rows))
     page_rows = rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]
     from zoneinfo import ZoneInfo
-    from .player_probability_board import from_scan_actions
+    from .player_probability_board import from_scan_actions, moneyline_research_from_scan
+    moneyline_research = moneyline_research_from_scan(
+        rows, present=lambda action: present_action(action, now)
+    )
     probability_research = from_scan_actions(
         rows, present=lambda action: present_action(action, now)
     )
@@ -417,6 +421,7 @@ def scan_page(store, scan_id, page=1, now=None):
         model_coverage=payload.get("model_coverage", {}),
         player_probability_research=probability_research,
         paid_player_research=payload.get("paid_player_research", {}),
+        moneyline_model_research=moneyline_research,
         event_market_coverage=present_coverage(payload.get("event_market_coverage"), now),
         result_ordering=payload.get("result_ordering"),
         progress=progress,
