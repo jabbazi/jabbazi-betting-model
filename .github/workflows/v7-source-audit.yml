@@ -1,0 +1,27 @@
+name: V7 reproducible source audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/scanner-player-probability-research-board]
+    paths: [.github/workflows/v7-source-audit.yml]
+permissions:
+  contents: read
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked source without git credentials or runtime secrets
+        run: |
+          mkdir -p /tmp/v7-source
+          git rev-parse HEAD > /tmp/v7-source/SOURCE_COMMIT.txt
+          git archive --format=tar.gz --output=/tmp/v7-source/source.tar.gz HEAD src tests tools models config migrations pyproject.toml README.md Dockerfile docker-compose.ci.yml
+          sha256sum /tmp/v7-source/source.tar.gz > /tmp/v7-source/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v7-reproducible-source
+          path: /tmp/v7-source/
+          retention-days: 1
+          if-no-files-found: error
