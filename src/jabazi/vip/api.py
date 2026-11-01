@@ -555,9 +555,15 @@ def player_probabilities(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depend
     estimates, and they never authorize a bet or consume provider credits.
     """
     from ..player_probability_board import from_vip_board
+    from ..paid_player_scan import read_saved_paid_scan, vip_research_rows
     b = snapshot(ctx[0])
+    paid = read_saved_paid_scan(ctx[0], slate_date=getattr(ctx[0], 'vip_slate_date', None))
     return response({
-        **from_vip_board(b['rows'], sport=sport),
+        **from_vip_board(b['rows'] + vip_research_rows(paid, sport), sport=sport),
+        'paid_collection_status': paid.get('status'),
+        'paid_scope_complete': paid.get('scope_complete', False),
+        'paid_coverage': {k: v for k, v in paid.get('sports', {}).get(sport, {}).items()
+                          if k not in {'research_rows', 'top10', 'top10_by_market'}},
         'snapshot_at': b.get('snapshot_at'),
         'snapshot_state': b['state'],
         'date': b.get('date'),

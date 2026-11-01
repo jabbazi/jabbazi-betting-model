@@ -13,12 +13,13 @@ from datetime import UTC, datetime
 from jabazi.boost_goat_model_map import GOAT_TO_JABBAZI
 from jabazi.boost_goat_research_inference import research_goat_exact_line
 from jabazi.boost_scope import SPORTS
+from jabazi.boost_offer_integrity import inspect_prop_offer
 
 
 def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *,
-                              observed_at):
-    if sport not in ("NBA", "NFL"):
-        raise ValueError("Only NBA/NFL source research is supported")
+                              observed_at, include_research_rows=False, continue_check=None):
+    if sport not in ("NBA", "NFL", "NHL"):
+        raise ValueError("Only NBA/NFL/NHL source research is supported")
     if not isinstance(observed_at, datetime) or observed_at.utcoffset() is None:
         raise ValueError("Timezone-aware observation required")
     for rows in (offers, crosswalks, snapshots, artifacts):
@@ -78,10 +79,14 @@ def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *
         artifact_index[market].append(row)
 
     seen = set()
+    research_rows = []
     estimates = 0
     sides = 0
     versions = set()
-    for wrapped in offers:
+    for offer_index, wrapped in enumerate(offers):
+        if continue_check is not None and not continue_check():
+            reasons["INFERENCE_TIME_OR_LEASE_BUDGET_EXHAUSTED"] += len(offers) - offer_index
+            break
         if not isinstance(wrapped, dict) or wrapped.get("sport") != SPORTS[sport]:
             reasons["OFFER_WRONG_SPORT_OR_SCHEMA"] += 1
             continue
@@ -99,8 +104,10 @@ def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *
             continue
         # Repeated vendor/market/line rows must never inflate acceptance.
         # The vendor quote ID is NOT sufficient as a deduplication key.
-        key = (game, player, market, str(raw.get("line_value")),
-               str(raw.get("vendor")), str(raw.get("market")))
+        key, issue = inspect_prop_offer(raw, game, observed_at=observed_at)
+        if issue is not None:
+            reasons[issue] += 1
+            continue
         if key in seen:
             reasons["DUPLICATE_OFFER"] += 1
             continue
@@ -133,8 +140,31 @@ def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *
         estimates += 1
         sides += len(result["research_probabilities"])
         versions.add(result["model_version"])
+        if include_research_rows:
+            for probability in result["research_probabilities"]:
+                side = probability["side"]
+                quoted = raw["market"].get(side + "_odds" if side in {"over", "under"} else "odds")
+                decimal_odds = 1 + (quoted / 100 if quoted > 0 else 100 / -quoted)
+                p = probability["research_probability"]
+                research_rows.append({
+                    "sport": SPORTS[sport], "event_id": crosswalk["canonical_event_id"],
+                    "provider_game_id": game, "provider_player_id": player,
+                    "participant": features[0].get("participant"),
+                    "market": market, "selection": side, "line": result["line"],
+                    "settlement": result["settlement"], "model_threshold": result["model_threshold"],
+                    "model_probability": p, "model_version": result["model_version"],
+                    "model_stage": result["model_stage"], "model_time": features[0]["features_available_at"],
+                    "projected_mean": result["projected_mean"],
+                    "best_sportsbook": raw["vendor"], "best_decimal": decimal_odds,
+                    "fair_decimal": 1 / p, "research_roi": p * decimal_odds - 1,
+                    "source_timestamp": raw["updated_at"], "starts_at": features[0]["starts_at"],
+                    "probability_basis": "FITTED_JABBAZI_MODEL", "feature_snapshot_id": features[0]["snapshot_id"],
+                    "source_crosswalk_sha256": crosswalk["record_sha256"],
+                    "calibration_verified": False, "approved_for_betting": False,
+                    "decision": "WATCH", "stake_dollars": "0", "stale": False, "in_play": False,
+                })
 
-    return {
+    report = {
         "sport": sport,
         "observed_at": observed_at.astimezone(UTC).isoformat(),
         "paid_offer_rows_received": len(offers),
@@ -152,3 +182,7 @@ def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *
         "production_approved": False,
         "status": "RESEARCH_ONLY" if estimates else "UNAVAILABLE",
     }
+
+    if include_research_rows:
+        report["research_rows"] = research_rows
+    return report

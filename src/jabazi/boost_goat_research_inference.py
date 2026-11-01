@@ -17,7 +17,7 @@ from jabazi.boost_identity_manifest import SOURCE_NAMESPACE, crosswalk_digest
 from jabazi.boost_offer_integrity import inspect_prop_offer
 from jabazi.boost_scope import SPORTS
 from jabazi.models.player_distribution import (
-    PLAYER_PROP_MARKETS, calibrated_probability,
+    PLAYER_PROP_MARKETS, BINARY_MARKETS, calibrated_probability, distribution_mean,
 )
 from jabazi.research.player_features import REQUIRED_INTEGRITY
 
@@ -50,7 +50,7 @@ def _line(value):
         number = Decimal(str(value))
     except (InvalidOperation, ValueError, TypeError):
         return None
-    return number if number.is_finite() and number >= 0 else None
+    return number if number.is_finite() and 0 <= number <= 10000 else None
 
 
 def research_goat_exact_line(sport, raw_offer, crosswalk, snapshot, artifact, *,
@@ -60,8 +60,8 @@ def research_goat_exact_line(sport, raw_offer, crosswalk, snapshot, artifact, *,
     A true attestation flag and valid SHA-256 *format* do not independently
     establish that the provider crosswalk is correct. That review is external.
     """
-    if sport not in ("NBA", "NFL"):
-        raise ValueError("Only NBA/NFL authenticated source research supported")
+    if sport not in SOURCE_NAMESPACE:
+        raise ValueError("Only NBA/NFL/NHL authenticated source research supported")
     if not isinstance(observed_at, datetime) or observed_at.utcoffset() is None:
         raise ValueError("Aware observation time required")
     now = observed_at.astimezone(UTC)
@@ -162,17 +162,34 @@ def research_goat_exact_line(sport, raw_offer, crosswalk, snapshot, artifact, *,
     if not isinstance(features, dict):
         base["reason"] = "FROZEN_MODEL_FEATURE_INTEGRITY_UNVERIFIED"
         return base
+    # A milestone is >= N, not an over/under with a push at N. Only
+    # discrete count distributions support the N - 0.5 transformation.
+    threshold = line
+    milestone = quote_market.get("type") == "milestone" and market not in BINARY_MARKETS
+    if milestone:
+        if artifact.get("family") != "count_nb" or line < 1 or line != line.to_integral():
+            base["reason"] = "MILESTONE_SETTLEMENT_UNSUPPORTED"
+            return base
+        threshold = line - Decimal("0.5")
     try:
+        mean, _ = distribution_mean(artifact, features)
+        if not math.isfinite(mean) or mean < 0:
+            raise ValueError("Invalid distribution mean")
         results = []
         for side in sides:
-            p = float(calibrated_probability(artifact, features, side, line))
+            inference_side = "over" if milestone else side
+            p = float(calibrated_probability(artifact, features, inference_side, threshold))
             if not math.isfinite(p) or not 0 < p < 1:
                 raise ValueError("Invalid model output")
-            results.append({"side": side, "research_probability": round(p, 10)})
+            results.append({"side": side, "research_probability": p})
     except (ValueError, TypeError, KeyError, ArithmeticError, OverflowError):
         base["reason"] = "EXACT_LINE_MODEL_INFERENCE_UNAVAILABLE"
         return base
     base.update({
+        "model_stage": artifact["stage"],
+        "model_threshold": str(threshold),
+        "settlement": "AT_LEAST" if milestone else "BINARY" if market in BINARY_MARKETS else "OVER_UNDER",
+        "projected_mean": float(mean) if market not in BINARY_MARKETS and math.isfinite(mean) else None,
         "status": "RESEARCH_ONLY",
         "reason": "UNAPPROVED_DISTRIBUTION_ESTIMATE",
         "research_probabilities": results,

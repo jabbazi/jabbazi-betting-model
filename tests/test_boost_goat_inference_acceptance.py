@@ -157,7 +157,7 @@ def test_no_fabricated_probability_from_empty_sources():
 def test_unsupported_sport_rejected():
     with pytest.raises(ValueError):
         audit_exact_line_research(
-            "NHL", [], [], [], [], observed_at=NOW,
+            "WNBA", [], [], [], [], observed_at=NOW,
         )
 
 

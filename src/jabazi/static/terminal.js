@@ -337,11 +337,12 @@ else if(route==='top10'||route==='rankings'){
     if(['NBA','NFL','NHL'].includes(sport)){
       root.append(section('JABBAZI exact-line player probabilities · model only'));
       root.append(node('p','Versioned model estimates from the saved scanner snapshot only. No sportsbook-implied probability or LAB confidence is substituted. All currently research-only; missing model data stays unavailable.','muted'));
-      if(modelOnly?.top10?.length){
-        for(const item of modelOnly.top10){
+      const exactRows=modelOnly?.top10_by_market?.[market]||[];
+      if(exactRows.length){
+        for(const item of exactRows){
           const panel=node('article',undefined,'panel');
           panel.append(badge('RESEARCH ONLY · '+item.model_stage),node('h3',item.player||'Unavailable'),
-            node('p',item.event+' · '+String(item.market).replaceAll('_',' ')+' · '+String(item.selection||'')+
+            node('p',item.event+' · '+String(item.market).replaceAll('_',' ')+' · '+(item.settlement==='AT_LEAST'?'at least':String(item.selection||''))+
               (item.line===null||item.line===undefined?'':' '+item.line)+' · '+when(item.starts_at),'muted'));
           panel.append(metrics([['Model hit probability',pct(item.model_probability)],['Model stage',item.model_stage]]));
           panel.append(node('p','Model: '+item.model_version+' · Price source: '+when(item.price_observed_at)+' · Not wagering-approved','muted'));
@@ -351,7 +352,17 @@ else if(route==='top10'||route==='rankings'){
         root.append(empty('No versioned player-model probabilities for this slate',
           modelOnly?.status==='NO_PLAYER_MARKET_ROWS'?'The ordinary scan did not include any current player-prop rows for this sport.':'No current, healthy, exact-line JABBAZI model estimates passed the research-only display gates.'));
       }
-      if(modelOnly)root.append(node('p','Observed player-market rows: '+modelOnly.observed_player_market_rows+
+      const paidProjected=modelOnly?.projected_totals_by_market?.[market]||[];
+      if(paidProjected.length){
+        root.append(section('Fitted player averages · '+String(market).replaceAll('_',' ')));
+        for(const item of paidProjected){
+          const panel=node('article',undefined,'panel');
+          panel.append(node('h3',item.player),metrics([['Projected average',Number(item.projected_mean).toFixed(2)],['Model stage',item.model_stage]]),
+            node('p',item.event+' · '+item.model_version+' · A statistical mean, not a hit probability.','muted'));
+          root.append(panel);
+        }
+      }
+      if(modelOnly)root.append(node('p','Paid collection: '+(modelOnly.paid_collection_status||'UNAVAILABLE')+' · Observed player-market rows: '+modelOnly.observed_player_market_rows+
         ' · Model estimates: '+modelOnly.model_estimate_rows+' · Top 10 displayed: '+modelOnly.returned+
         ' · Paid full-slate coverage: NOT VERIFIED','muted'));
     }

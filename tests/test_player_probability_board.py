@@ -112,7 +112,8 @@ def test_vip_route_reuses_snapshot_and_does_not_call_paid_provider(monkeypatch):
         }
     monkeypatch.setattr(vip_api, "snapshot", fake_snapshot)
     class Store:
-        pass
+        def list_records(self, *args, **kwargs):
+            return []
     response = vip_api.player_probabilities(
         sport="NBA", ctx=(Store(), {"tier": "VIP"})
     )

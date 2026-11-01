@@ -55,9 +55,10 @@ def _name(value):
 class LabReader:
     """Quota-bounded and fail-closed; uses existing key without changing billing."""
 
-    def __init__(self, key: str, *, transport=None, budget=MAX_REQUESTS):
+    def __init__(self, key: str, *, transport=None, budget=MAX_REQUESTS, request_guard=None):
         self._key = key.strip()
         self._remaining = budget
+        self._request_guard = request_guard
         self._client = httpx.Client(
             base_url=BASE, transport=transport, timeout=12,
             follow_redirects=False,
@@ -71,6 +72,8 @@ class LabReader:
             raise LabUnavailable("NO_CREDENTIAL")
         if self._remaining <= 0:
             raise LabUnavailable("REQUEST_BUDGET_EXHAUSTED")
+        if self._request_guard is not None:
+            self._request_guard()
         self._remaining -= 1
         try:
             with self._client.stream("GET", path, params=params,
@@ -168,7 +171,7 @@ def _project(row: dict, model: dict):
     }
 
 
-def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport=None):
+def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport=None, request_guard=None):
     """Return a bounded, VIP-only per-sport snapshot of saved LAB predictions.
 
     No model creation or generation job is triggered, and ordinary scanner
@@ -197,7 +200,7 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
         return report
     if not key or not key.strip():
         return report
-    client = LabReader(key, transport=transport)
+    client = LabReader(key, transport=transport, request_guard=request_guard)
     try:
         models, complete = client.pages(
             "/lab/v1/models", {"sport": SPORTS[sport], "per_page": 100},

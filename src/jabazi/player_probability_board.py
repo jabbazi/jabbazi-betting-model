@@ -26,6 +26,30 @@ def _probability(value):
     return result if math.isfinite(result) and 0 < result < 1 else None
 
 
+def _projection(row):
+    """A fitted mean must have matching model/market provenance, never a line."""
+    if row.get("model_stage", row.get("probability_status")) not in {"VALIDATING", "PRODUCTION_APPROVED"}:
+        return None
+    distribution = row.get("player_distribution")
+    if (isinstance(distribution, dict)
+            and distribution.get("model_version") == row.get("model_version")
+            and distribution.get("market") == row.get("market")):
+        value = distribution.get("mean")
+    elif (row.get("probability_basis") == "FITTED_JABBAZI_MODEL"
+          or row.get("projection_basis") in {"FITTED DISTRIBUTION", "FITTED_DISTRIBUTION"}):
+        value = row.get("projected_mean")
+    else:
+        return None
+    if isinstance(value, bool):
+        return None
+    try:
+        value = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    binary = {"player_anytime_td", "player_double_double", "batter_home_runs"}
+    return value if row.get("market") not in binary and math.isfinite(value) and 0 <= value <= 10000 else None
+
+
 def _player_market(row):
     return (
         isinstance(row, dict)
@@ -56,6 +80,19 @@ def _finish(sports):
                               str(item.get("player") or ""),
                               str(item.get("market") or ""))
         )
+        by_market = {}
+        seen_categories = set()
+        for item in bucket["top10"]:
+            key = (str(item.get("event_id")), str(item.get("player")).lower(), str(item.get("market")))
+            if key not in seen_categories:
+                seen_categories.add(key)
+                by_market.setdefault(item["market"], []).append(item)
+        bucket["top10_by_market"] = {market: values[:10] for market, values in sorted(by_market.items())}
+        bucket["projected_totals_by_market"] = {
+            market: sorted((r for r in values if r.get("projected_mean") is not None),
+                           key=lambda r: -r["projected_mean"])[:10]
+            for market, values in sorted(by_market.items())
+        }
         seen, unique = set(), []
         for item in bucket["top10"]:
             # Different books and alternate lines should not take all ten spots.
@@ -84,7 +121,7 @@ def _finish(sports):
             "Only genuine versioned JABBAZI player-model estimates already in "
             "the saved scanner snapshot are shown. No market-implied or LAB "
             "confidence number is relabeled as a model hit probability. "
-            "Coverage is bounded by the ordinary scan's markets and credits; "
+            "Coverage is bounded by the saved ordinary and paid-stage snapshots; "
             "model calibration, complete paid coverage and betting approval "
             "are NOT implied. A blank list is not a forecast of zero."
         ),
@@ -119,7 +156,10 @@ def from_scan_actions(rows, *, present):
             "market": row.get("market"),
             "selection": row.get("selection"),
             "line": row.get("line"),
+            "settlement": row.get("settlement", "OVER_UNDER"),
             "model_probability": p,
+            "projected_mean": _projection(row),
+            "projection_basis": "FITTED_DISTRIBUTION" if _projection(row) is not None else None,
             "model_stage": row.get("probability_status"),
             "model_version": row.get("model_version"),
             "price_observed_at": row.get("source_timestamp"),
@@ -162,7 +202,10 @@ def from_vip_board(rows, *, sport):
             "market": row.get("market"),
             "selection": row.get("selection"),
             "line": row.get("line"),
+            "settlement": row.get("settlement", "OVER_UNDER"),
             "model_probability": p,
+            "projected_mean": _projection(row),
+            "projection_basis": "FITTED_DISTRIBUTION" if _projection(row) is not None else None,
             "model_stage": row.get("model_stage"),
             "model_version": row.get("model_version"),
             "price_observed_at": row.get("price_at"),
