@@ -54,7 +54,7 @@ def collect_paid_player_research(
             continue
         try:
             report = reader(
-                key, sport, slate_date,
+                key, sport, slate_date, request_budget=max_requests_per_sport,
             )
             # Never pass raw licensed vendor records or model signals into
             # the scan result/ChatGPT response, even in private account views.
