@@ -301,11 +301,12 @@ else if(route==='top10'||route==='rankings'){
   const categories=top10Categories[sport]||[];
   const selected=params.get('market');
   const market=categories.some(([,key])=>key===selected)?selected:(categories[0]?.[1]||'');
-  const [d,verification,slateAudit,calibrationAudit]=await Promise.all([
+  const [d,verification,slateAudit,calibrationAudit,modelOnly]=await Promise.all([
     get('rankings?'+new URLSearchParams({sport,event_id:params.get('event_id')||''})),
     get('player-feed-verification').catch(()=>null),
     get('player-full-slate-audit').catch(()=>null),
-    get('player-calibration-audit').catch(()=>null)
+    get('player-calibration-audit').catch(()=>null),
+    ['NBA','NFL','NHL'].includes(sport)?get('player-probabilities?sport='+sport).catch(()=>null):Promise.resolve(null)
   ]);
   build=root=>{
     const sports=node('div',undefined,'pills');
@@ -333,6 +334,27 @@ else if(route==='top10'||route==='rankings'){
       root.append(node('p','Player calibration: '+modelAudit.filter(m=>m.promotion_eligible).length+
         '/'+modelAudit.length+' models pass all prospective promotion gates.','muted'));
     }else root.append(node('p','Player calibration: no eligible model evidence verified for this sport.','muted'));
+    if(['NBA','NFL','NHL'].includes(sport)){
+      root.append(section('JABBAZI exact-line player probabilities · model only'));
+      root.append(node('p','Versioned model estimates from the saved scanner snapshot only. No sportsbook-implied probability or LAB confidence is substituted. All currently research-only; missing model data stays unavailable.','muted'));
+      if(modelOnly?.top10?.length){
+        for(const item of modelOnly.top10){
+          const panel=node('article',undefined,'panel');
+          panel.append(badge('RESEARCH ONLY · '+item.model_stage),node('h3',item.player||'Unavailable'),
+            node('p',item.event+' · '+String(item.market).replaceAll('_',' ')+' · '+String(item.selection||'')+
+              (item.line===null||item.line===undefined?'':' '+item.line)+' · '+when(item.starts_at),'muted'));
+          panel.append(metrics([['Model hit probability',pct(item.model_probability)],['Model stage',item.model_stage]]));
+          panel.append(node('p','Model: '+item.model_version+' · Price source: '+when(item.price_observed_at)+' · Not wagering-approved','muted'));
+          root.append(panel);
+        }
+      }else{
+        root.append(empty('No versioned player-model probabilities for this slate',
+          modelOnly?.status==='NO_PLAYER_MARKET_ROWS'?'The ordinary scan did not include any current player-prop rows for this sport.':'No current, healthy, exact-line JABBAZI model estimates passed the research-only display gates.'));
+      }
+      if(modelOnly)root.append(node('p','Observed player-market rows: '+modelOnly.observed_player_market_rows+
+        ' · Model estimates: '+modelOnly.model_estimate_rows+' · Top 10 displayed: '+modelOnly.returned+
+        ' · Paid full-slate coverage: NOT VERIFIED','muted'));
+    }
     root.append(section('Most likely moneyline winners'));
     rankingCards(d.moneyline_likely||[],root,'No fresh moneyline research for this slate.');
     root.append(section('Moneyline value supported by approved models'));
