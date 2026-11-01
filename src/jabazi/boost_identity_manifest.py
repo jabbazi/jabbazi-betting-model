@@ -13,7 +13,7 @@ from hashlib import sha256
 import json
 import re
 
-SOURCE_NAMESPACE = {"NBA": "ESPN", "NFL": "NFLVERSE"}
+SOURCE_NAMESPACE = {"NBA": "ESPN", "NFL": "NFLVERSE", "NHL": "NHL"}
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -40,7 +40,7 @@ def crosswalk_digest(record):
 
 def audit_identity_manifest(sport, records, *, observed_at):
     if sport not in SOURCE_NAMESPACE:
-        raise ValueError("Only NBA and NFL are supported")
+        raise ValueError("Only NBA, NFL and NHL are supported")
     if observed_at.utcoffset() is None:
         raise ValueError("Aware audit time required")
     if not isinstance(records, list) or len(records) > 10000:

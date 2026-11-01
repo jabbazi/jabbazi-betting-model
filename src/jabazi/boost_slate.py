@@ -27,6 +27,7 @@ class BoostSlateReport:
     errors: tuple[str, ...]
     odds_report: BoostFeedReport | None
     player_probabilities_verified: bool = False
+    game_records: tuple[dict, ...] = ()
 
 
 def _nfl_eastern_game_day(value):
@@ -87,7 +88,10 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
                         max_games: int = 25, max_game_pages: int = 10,
                         max_prop_pages: int = 100,
                         require_future_kickoff: bool = False,
-                        observed_at: datetime | None = None) -> BoostSlateReport:
+                        observed_at: datetime | None = None,
+                        calendar_timezone: str | None = None,
+                        retain_partial_quotes: bool = False,
+                        quote_observed_at: datetime | None = None) -> BoostSlateReport:
     """Discover the specified sport's *scheduled* games and audit paid odds.
 
     Enforce a hard cap instead of silently treating a truncated slate as full.
@@ -103,12 +107,13 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
     if now.utcoffset() is None:
         raise ValueError("Observation time must be timezone-aware")
     now = now.astimezone(UTC)
+    calendar_zone = ZoneInfo(calendar_timezone) if calendar_timezone else None
     label = target_date.isoformat()
     # NFL kickoffs are UTC datetimes. A game on Sunday evening ET may have a
     # Monday UTC date; fetch both dates and filter by the Eastern game day.
     # This remains a SINGLE paginated discovery request (shared page cap).
     game_dates = [label]
-    if sport == "nfl":
+    if sport == "nfl" or calendar_zone:
         game_dates.append((target_date + timedelta(days=1)).isoformat())
     params = [("dates[]", value) for value in game_dates] + [("per_page", 100)]
     try:
@@ -125,6 +130,7 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         )
 
     ids = []
+    eligible_games = []
     seen = set()
     errors = []
     skipped = 0
@@ -142,7 +148,22 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         seen.add(gid)
         date_field = "game_date" if sport == "nhl" else "date"
         game_date = game.get(date_field)
-        if not _matches_vendor_calendar_day(sport, game_date, target_date):
+        if calendar_zone:
+            field = {"nba": "datetime", "nfl": "date", "nhl": "start_time_utc"}[sport]
+            try:
+                kickoff = datetime.fromisoformat(str(game.get(field)).replace("Z", "+00:00"))
+                if kickoff.utcoffset() is None:
+                    raise ValueError("Aware kickoff required")
+            except (ValueError, TypeError):
+                errors.append("GAME_START_UNVERIFIED")
+                continue
+            if kickoff.astimezone(calendar_zone).date() != target_date:
+                skipped += 1
+                continue
+            if kickoff <= now:
+                skipped += 1
+                continue
+        elif not _matches_vendor_calendar_day(sport, game_date, target_date):
             if sport == "nfl":
                 actual_day = _nfl_eastern_game_day(game_date)
                 if actual_day is not None and abs((actual_day - target_date).days) <= 1:
@@ -161,7 +182,7 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         if scope.event_ids and str(gid) not in scope.event_ids:
             skipped += 1
             continue
-        if require_future_kickoff:
+        if require_future_kickoff and not calendar_zone:
             issue = _verified_future_kickoff(
                 game, sport, target_date=target_date, observed_at=now,
             )
@@ -169,6 +190,7 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
                 errors.append(issue)
                 continue
         ids.append(gid)
+        eligible_games.append(game)
 
     if scope.event_ids and set(map(str, ids)) != scope.event_ids:
         errors.append("PROMOTION_GAMES_NOT_ALL_FOUND")
@@ -187,9 +209,11 @@ def inspect_sport_slate(provider, scope: BoostScope, *, target_date: date,
         )
     report = collect_boost_odds(
         provider, scope, game_ids=ids,
-        max_pages_per_game=max_prop_pages,
+        max_pages_per_game=max_prop_pages, retain_partial=retain_partial_quotes,
+        observed_at=quote_observed_at,
     )
     return BoostSlateReport(
         scope.sport, label, len(listing["data"]), len(ids),
         listing["pages"], skipped, report.coverage, report.errors, report,
+        game_records=tuple(eligible_games),
     )

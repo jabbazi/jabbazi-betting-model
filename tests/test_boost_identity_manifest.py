@@ -73,7 +73,7 @@ def test_private_identity_never_leaks():
 
 def test_unsupported_sport_and_naive_time_fail():
     with pytest.raises(ValueError):
-        audit_identity_manifest("NHL", [], observed_at=NOW)
+        audit_identity_manifest("WNBA", [], observed_at=NOW)
     with pytest.raises(ValueError):
         audit_identity_manifest("NBA", [], observed_at=datetime(2026, 10, 29))
 

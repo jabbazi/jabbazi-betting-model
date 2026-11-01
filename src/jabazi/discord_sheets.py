@@ -104,6 +104,11 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["book_prices"] = getattr(c, "book_prices", {})
         rows[-1]["anomaly_state"] = reliability.get("anomaly_state")
         rows[-1]["calibrated_model_probability"] = reliability.get("calibrated_model_probability")
+        # Preserve the actual fitted mean/version; never use a sportsbook line
+        # as a player projection merely because the display needs a number.
+        distribution = reliability.get("player_distribution")
+        if isinstance(distribution, dict):
+            rows[-1]["player_distribution"] = distribution
         health_value = (reliability.get("research_priority_components") or {}).get(
             "data_health"
         )

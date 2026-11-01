@@ -150,6 +150,7 @@ def test_binary_milestone_research_yes_only():
 
 
 def test_nhl_is_not_silently_promoted():
-    with pytest.raises(ValueError):
-        research_goat_exact_line("NHL", offer(), crosswalk(), snapshot(),
-                                 artifact(), observed_at=NOW)
+    result = research_goat_exact_line("NHL", offer(), crosswalk(), snapshot(),
+                                     artifact(), observed_at=NOW)
+    assert result["status"] == "UNAVAILABLE"
+    assert result["production_approved"] is False

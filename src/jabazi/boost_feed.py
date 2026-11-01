@@ -45,7 +45,8 @@ def _valid_identifier(value):
 
 
 def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
-                       max_pages_per_game: int = 100) -> BoostFeedReport:
+                       max_pages_per_game: int = 100, retain_partial: bool = False,
+                       observed_at: datetime | None = None) -> BoostFeedReport:
     """Collect exact-game provider prices with auditable schema and deduplication.
 
     Missing/foreign IDs are rejected. Duplicates are counted and not silently
@@ -73,8 +74,11 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                 max_pages=max_pages_per_game,
             )
             if not response.get("complete"):
-                raise BallDontLieError("INCOMPLETE_PAGINATION")
-            succeeded += 1
+                if not retain_partial:
+                    raise BallDontLieError("INCOMPLETE_PAGINATION")
+                errors.append(f"game:{gid}:INCOMPLETE_PAGINATION")
+            else:
+                succeeded += 1
             pages += response["pages"]
             for row in response["data"]:
                 raw_count += 1
@@ -82,7 +86,7 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                     out_of_scope_count += 1
                     continue
                 identity, issue = inspect_prop_offer(
-                    row, gid, observed_at=datetime.now(UTC),
+                    row, gid, observed_at=observed_at or datetime.now(UTC),
                 )
                 if issue == "FOREIGN_GAME_ID":
                     foreign_count += 1
@@ -105,7 +109,9 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
             # Stop on entitlement failures and exhausted budget to avoid
             # repeated rejected calls or automatic retrials.
             if str(exc) in {"HTTP_401", "HTTP_403", "HTTP_429",
-                            "REQUEST_BUDGET_EXHAUSTED"}:
+                            "REQUEST_BUDGET_EXHAUSTED", "TIME_BUDGET_EXHAUSTED",
+                            "MONTHLY_REQUEST_LIMIT", "SCANNER_LEASE_LOST",
+                            "SPORT_REQUEST_BUDGET_EXHAUSTED", "ROW_LIMIT_REACHED"}:
                 per_game.append((gid, count))
                 break
         per_game.append((gid, count))
@@ -121,7 +127,7 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
         sport=scope.sport, games_requested=len(ids),
         games_succeeded=succeeded, odds_rows=len(rows), pages=pages,
         coverage="FULL" if succeeded == len(ids) and not errors else
-                 "FAILED" if succeeded == 0 else "PARTIAL",
+                 "PARTIAL" if rows else "FAILED" if succeeded == 0 else "PARTIAL",
         errors=tuple(errors), rows=tuple(rows),
         raw_odds_rows=raw_count, duplicate_rows=duplicate_count,
         invalid_rows=invalid_count, mismatched_game_rows=foreign_count,

@@ -44,7 +44,7 @@ def test_incomplete_feed_never_calls_model_inference(monkeypatch):
 
 
 @pytest.mark.parametrize("sport,ids", [
-    ("NHL", [77]), ("NBA", []), ("NFL", [77, 77]),
+    ("WNBA", [77]), ("NBA", []), ("NFL", [77, 77]),
     ("NBA", [True]), ("NBA", [-1]), ("NBA", [1, 2, 3, 4]),
 ])
 def test_invalid_scope_fails_before_paid_request(sport, ids):

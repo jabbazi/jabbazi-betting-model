@@ -1,6 +1,6 @@
 """Read-only private GOAT-to-fitted-model exact-line acceptance runner.
 
-Fetches actual paid NBA/NFL GOAT sportsbook props and matches them to
+Fetches actual paid NBA/NFL/NHL GOAT sportsbook props and matches them to
 independently reviewed local crosswalks, frozen JABBAZI pregame features, and
 existing versioned fitted artifacts. No player names, odds, keys, feature rows,
 or individual probabilities are printed. No database writes or wagers.
@@ -31,8 +31,8 @@ def _private_json(path):
 def verify_private_goat_inference(provider, *, sport, game_ids,
                                   crosswalks, snapshots, artifacts,
                                   observed_at=None, max_prop_pages=10):
-    if sport not in ("NBA", "NFL"):
-        raise ValueError("NBA/NFL only")
+    if sport not in ("NBA", "NFL", "NHL"):
+        raise ValueError("NBA/NFL/NHL only")
     if (not isinstance(game_ids, list) or not 1 <= len(game_ids) <= 3
             or any(type(x) is not int or x <= 0 for x in game_ids)
             or len(set(game_ids)) != len(game_ids)):
@@ -80,7 +80,7 @@ def verify_private_goat_inference(provider, *, sport, game_ids,
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sport", required=True, choices=("NBA", "NFL"))
+    parser.add_argument("--sport", required=True, choices=("NBA", "NFL", "NHL"))
     parser.add_argument("--game-id", required=True, type=int, action="append")
     parser.add_argument("--reviewed-crosswalks", required=True, type=Path)
     parser.add_argument("--frozen-features", required=True, type=Path)

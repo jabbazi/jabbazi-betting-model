@@ -547,6 +547,29 @@ def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
                      'notice': 'ASK JABBAZI does not invent probabilities or override BET/WATCH/PASS/model-stage controls.'})
 
 
+@router.get('/player-probabilities')
+def player_probabilities(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
+    """Read-only Top 10 fitted-model probabilities from the stored VIP slate.
+
+    Unlike paid LAB confidence, these are versioned exact-line model
+    estimates, and they never authorize a bet or consume provider credits.
+    """
+    from ..player_probability_board import from_vip_board
+    from ..paid_player_scan import read_saved_paid_scan, vip_research_rows
+    b = snapshot(ctx[0])
+    paid = read_saved_paid_scan(ctx[0], slate_date=getattr(ctx[0], 'vip_slate_date', None))
+    return response({
+        **from_vip_board(b['rows'] + vip_research_rows(paid, sport), sport=sport),
+        'paid_collection_status': paid.get('status'),
+        'paid_scope_complete': paid.get('scope_complete', False),
+        'paid_coverage': {k: v for k, v in paid.get('sports', {}).get(sport, {}).items()
+                          if k not in {'research_rows', 'top10', 'top10_by_market'}},
+        'snapshot_at': b.get('snapshot_at'),
+        'snapshot_state': b['state'],
+        'date': b.get('date'),
+    })
+
+
 @router.get('/paid-player-models')
 def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
     """VIP-only, on-demand BALLDONTLIE LAB forecasts; no auto scan or bet approval."""

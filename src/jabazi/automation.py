@@ -179,7 +179,7 @@ class AutomaticScanner:
         processing_deadline = time.monotonic() + processing_budget
         processed_cards = 0
 
-        def emit_progress(phase, sport_key, *, total_cards=None):
+        def emit_progress(phase, sport_key, *, total_cards=None, paid_requests=None):
             if self.progress_callback is None:
                 return
             try:
@@ -191,6 +191,7 @@ class AutomaticScanner:
                     "credits_remaining": remaining,
                     "processed_cards": processed_cards,
                     "total_batch_cards": total_cards,
+                    "paid_player_requests": paid_requests,
                 })
             except Exception:
                 # Monitoring must never fail or mutate the research result.
@@ -304,6 +305,12 @@ class AutomaticScanner:
                         errors.append(f"{card.sport}:{card.event_id}:model_{type(exc).__name__}")
                     from .reliability.layer import evaluate as reliability_evaluate
                     reliability = reliability_evaluate(card, estimate, model, prospective)
+                    if estimate and is_player_market(card):
+                        distribution = estimate.feature_snapshot.get("player_distribution")
+                        if isinstance(distribution, dict):
+                            reliability["player_distribution"] = {
+                                **distribution, "model_version": estimate.model_version,
+                            }
                     if isinstance(ledger, Store):
                         try:
                             from .research.adversarial import latest_review
@@ -560,6 +567,32 @@ class AutomaticScanner:
             same_game["scan_healthy"] = True
         if plan.coverage is not None:
             plan.coverage["same_game_parlays"] = same_game
+        # V7 owner override: full scans include the separate paid NBA/NFL/NHL
+        # player stage. Quick/moneyline and boost isolation remain unchanged.
+        # A paid-stage failure must not erase independently valid team research.
+        if mode == "full":
+            from .paid_player_scan import run_paid_player_scan
+            try:
+                paid = run_paid_player_scan(
+                    ledger if isinstance(ledger, Store) else None,
+                    self.settings, player_models,
+                    lambda: not isinstance(ledger, Store) or ledger.acquire_lease(
+                        "scanner", owner, self.lease_ttl
+                    ),
+                    deadline=processing_deadline, progress=emit_progress,
+                    feature_collector=player_features,
+                )
+            except Exception:
+                # Do not expose provider exception URLs, keys or raw payloads.
+                paid = {"requested": True, "status": "UNAVAILABLE",
+                        "scope_complete": False, "betting_enabled": False,
+                        "reason": "PAID_PLAYER_STAGE_FAILED", "sports": {}}
+            plan.coverage["paid_player_research"] = paid
+        else:
+            plan.coverage["paid_player_research"] = {
+                "requested": False, "status": "NOT_REQUESTED", "sports": {},
+                "betting_enabled": False,
+            }
         # Persist only final decisions after the entire pass has cleared health checks.
         for action in actions:
             if ledger.record_action_card(action):

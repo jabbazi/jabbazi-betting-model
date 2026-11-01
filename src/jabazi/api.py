@@ -90,6 +90,7 @@ def _action(action) -> dict:
         "expected_roi": _json(action.expected_roi),
         "probability_edge": _json(action.probability_edge),
         "model_version": action.model_version,
+        "player_distribution": _json((action.reliability or {}).get("player_distribution")),
         "reservation_id": action.reservation_id,
         "uncertainty": _json(action.uncertainty),
         "book_holds": _json(card.book_holds),
@@ -499,6 +500,14 @@ def perform_scan(body: ScanRequest, *, model_first: bool = False, daily_only: bo
             "external_research_sources": external_research_sources(),
             "errors": list(result.errors),
             "model_coverage": {
+                "paid_player_model_estimate_sides": sum(
+                    row.get("model_probability_rows", 0) for row in
+                    (result.event_market_coverage or {}).get("paid_player_research", {}).get("sports", {}).values()
+                ),
+                "paid_player_observed_quote_rows": sum(
+                    row.get("accepted_quotes", 0) for row in
+                    (result.event_market_coverage or {}).get("paid_player_research", {}).get("sports", {}).values()
+                ),
                 "modeled_actions": sum(a.model_probability is not None for a in result.actions),
                 "unmodeled_actions": sum(a.model_probability is None for a in result.actions),
                 "versions": sorted({a.model_version for a in result.actions if a.model_version}),
