@@ -177,6 +177,8 @@ def read_paid_player_models(key: str, sport: str, slate_date: date, *, transport
     """
     if sport not in SPORTS:
         raise ValueError("Unsupported sport")
+    if type(request_budget) is not int or not 1 <= request_budget <= MAX_REQUESTS:
+        raise ValueError("Invalid paid LAB request budget")
     if not isinstance(slate_date, date):
         raise ValueError("Invalid slate date")
     report: dict[str, Any] = {
