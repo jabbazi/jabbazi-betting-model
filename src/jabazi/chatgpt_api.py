@@ -130,6 +130,7 @@ class ScanPage(BaseModel):
     quotes_archived: int = 0
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
+    player_probability_research: dict[str, Any] = Field(default_factory=dict)
     event_market_coverage: dict[str, Any] | None = None
     external_research_sources: dict[str, Any] = Field(default_factory=dict)
     result_ordering: str | None = None
@@ -379,6 +380,10 @@ def scan_page(store, scan_id, page=1, now=None):
     total = payload.get("total_actions", len(rows))
     page_rows = rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]
     from zoneinfo import ZoneInfo
+    from .player_probability_board import from_scan_actions
+    probability_research = from_scan_actions(
+        rows, present=lambda action: present_action(action, now)
+    )
     return ScanPage(
         current_central_time=now.astimezone(ZoneInfo("America/Chicago")).isoformat(),
         scan_id=scan_id, status=status, started_at=request["payload"]["started_at"],
@@ -392,6 +397,7 @@ def scan_page(store, scan_id, page=1, now=None):
         quotes_archived=payload.get("quotes_archived", progress.get("quotes_archived", 0)),
         credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
         model_coverage=payload.get("model_coverage", {}),
+        player_probability_research=probability_research,
         event_market_coverage=present_coverage(payload.get("event_market_coverage"), now),
         result_ordering=payload.get("result_ordering"),
         progress=progress,
