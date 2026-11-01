@@ -147,7 +147,7 @@ def from_vip_board(rows, *, sport):
         if not (
             row.get("fresh") is True
             and row.get("data_health") == "HEALTHY"
-            and row.get("status") not in {"QUARANTINED", "INVALIDATED", "SAFETY REVIEW", "PASS"}
+            and row.get("status") not in {"QUARANTINED", "INVALIDATED", "SAFETY REVIEW"}
             and str(row.get("model_version") or "").strip()
             and row.get("model_stage") in ALLOWED_STAGES
             and p is not None
