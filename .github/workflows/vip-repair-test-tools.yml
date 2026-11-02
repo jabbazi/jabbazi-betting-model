@@ -10,13 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - run: |
-          python -m pip download --only-binary=:all: --no-deps --dest wheels 'time-machine<3,>=2.16' 'discord.py<3,>=2.4' 'ruff<1,>=0.9' 'psycopg<4,>=3.2' 'psycopg-binary<4,>=3.2' 'mcp==2.2.0' 'mcp-types==2.2.0' httpx2 httpcore2 sse-starlette pyjwt truststore
+          mkdir -p source
+          git archive HEAD | gzip > source/repository.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: vip-repair-offline-wheels
-          path: wheels
+          name: vip-repair-complete-fixtures
+          path: source
           retention-days: 1
