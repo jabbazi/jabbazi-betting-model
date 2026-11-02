@@ -13,7 +13,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: python -m pip download --only-binary=:all: --no-deps --dest wheels 'time-machine<3,>=2.16' 'discord.py<3,>=2.4' 'ruff<1,>=0.9' 'psycopg<4,>=3.2' 'psycopg-binary<4,>=3.2' 'mcp==2.2.0' 'mcp-types==2.2.0' httpx2 httpcore2 sse-starlette pyjwt truststore
+      - run: |
+          python -m pip download --only-binary=:all: --no-deps --dest wheels 'time-machine<3,>=2.16' 'discord.py<3,>=2.4' 'ruff<1,>=0.9' 'psycopg<4,>=3.2' 'psycopg-binary<4,>=3.2' 'mcp==2.2.0' 'mcp-types==2.2.0' httpx2 httpcore2 sse-starlette pyjwt truststore
       - uses: actions/upload-artifact@v4
         with:
           name: vip-repair-offline-wheels
