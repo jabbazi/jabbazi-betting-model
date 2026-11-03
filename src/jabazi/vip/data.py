@@ -112,12 +112,19 @@ def project(r, record, now, historical=False, slate_date=None):
     if (isinstance(distribution, dict) and r.get('model_version')
             and distribution.get('model_version') == r.get('model_version')
             and distribution.get('market') == r.get('market')
+            and str(r.get('market') or '').removesuffix('_alternate') not in
+                {'player_anytime_td', 'player_double_double', 'batter_home_runs'}
             and str(r.get('model_stage')) in MODEL_STAGES
             and (model_fresh or historical)
             and r.get('data_health') == 'HEALTHY'):
         projected_mean = number(distribution.get('mean'))
         if projected_mean is not None and (projected_mean < 0 or projected_mean > 10000):
             projected_mean = None
+    from .model_diagnostics import unavailable_reasons, explanation
+    missing = unavailable_reasons(
+        r, invalidated=invalidated, quarantined=quarantined, safety_review=safety_review,
+        model_fresh=model_fresh, model_at=model_at, snapshot_at=record['payload'].get('completed_at'),
+        now=now, age_ok=age_ok, stages=MODEL_STAGES) if p is None else []
     return {'id': identity(r), 'snapshot_id': record['id'], 'sport': label, 'event_id': r.get('event_id'),
             'event': str(r.get('event') or ''), 'player': r.get('participant'), 'market': r.get('market'),
             'selection': r.get('selection'), 'line': r.get('line'), 'book': r.get('book'), 'decimal': price,
@@ -132,12 +139,9 @@ def project(r, record, now, historical=False, slate_date=None):
             'model_version': r.get('model_version'), 'model_stage': r.get('model_stage', 'UNAVAILABLE'),
             'probability_kind': ('CALIBRATED' if calibrated is not None
                                  else 'RESEARCH_ONLY' if p is not None else 'UNAVAILABLE'),
-            'probability_unavailable_reason': (
-                None if p is not None else
-                'MISSING_MODEL_VERSION' if not r.get('model_version') else
-                'MODEL_OR_FEATURES_UNAVAILABLE' if not model_fresh else
-                'NO_VALID_EXACT_LINE_MODEL_ESTIMATE'
-            ),
+            'probability_unavailable_reason': missing[0] if missing else None,
+            'probability_unavailable_reasons': missing,
+            'probability_unavailable_message': explanation(missing[0]) if missing else None,
             'uncertainty': uncertainty, 'uncertainty_kind': 'policy haircut, not a confidence interval',
             'status': state, 'anomaly_state': anomaly or None, 'fresh': fresh, 'historical': historical, 'lifecycle': 'INVALIDATED' if invalidated else 'HISTORICAL' if historical else 'EXPIRED' if start and start <= now else 'UPCOMING',
             'price_at': r.get('price_time_utc'), 'model_at': model_at, 'injury_at': r.get('injury_time_utc'), 'lineup_at': r.get('lineup_time_utc'), 'weather_at': r.get('weather_time_utc'), 'starts_at': r.get('starts_at_utc'), 'snapshot_at': record['payload'].get('completed_at', record['payload'].get('generated_at')),
@@ -196,6 +200,9 @@ def board(store, *, now=None, record=None, historical=False, slate_date=None):
             row.update(status='QUARANTINED', fresh=False, price_fresh=False, model_fresh=False,
                        model_probability=None, calibrated_probability=None, fair_decimal=None,
                        projected_mean=None, ev=None, edge=None, play_to_decimal=None, current_decimal=None,
+                       probability_unavailable_reason='PUBLISHING_PAUSED',
+                       probability_unavailable_reasons=['PUBLISHING_PAUSED'],
+                       probability_unavailable_message='Research publication is paused by an administrator.',
                        why='Publishing paused by an administrator.')
     # Dedupe the same exact forecast from shared feeds; do not hide other lines,
     # markets or unders. Retain the more recent valid model record deterministically.

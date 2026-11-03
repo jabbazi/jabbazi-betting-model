@@ -348,7 +348,7 @@ def test_public_schema_exposes_only_scoped_actions(setup):
     definition = schema["components"]["schemas"][reference.rsplit("/", 1)[1]]
     assert set(definition["properties"]) == {
         "models", "errors", "player_feature_provider", "external_research_sources",
-        "recent_scan_health", "same_game_engine"
+        "recent_scan_health", "same_game_engine", "vip_model_routing"
     }
     model_ref = definition["properties"]["models"]["items"]["$ref"]
     model_schema = schema["components"]["schemas"][model_ref.rsplit("/", 1)[1]]

@@ -269,6 +269,12 @@ def model_status_data():
                     if sport in models else None,
                 }
             )
+        from .vip.data import board as saved_board
+        from .vip.slate_clock import default_slate_date
+        from .vip.model_routing import routing_report, compact_report
+        display_routing = compact_report(routing_report(
+            saved_board(store, slate_date=default_slate_date()),
+            {"state": "READY", "data": {"models": rows, "errors": errors + player_errors}}))
     finally:
         store.close()
     from .providers.player_features_live import LivePlayerFeatureCollector
@@ -284,6 +290,7 @@ def model_status_data():
         "player_feature_provider": provider,
         "external_research_sources": external_research_sources(),
         "recent_scan_health": scan_health,
+        "vip_model_routing": display_routing,
     }
 
 

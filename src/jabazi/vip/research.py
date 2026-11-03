@@ -185,7 +185,7 @@ def moneyline_board(board, *, sport='', sort='model', offset=0, limit=50):
                        'model_probability': model.get('model_probability') if model else None,
                        'model': model, 'market_lean': market, 'best_value': best_value,
                        'reason': None if model else ('No saved moneyline forecast for this game.' if not rows
-                                                    else rows[0].get('probability_unavailable_reason') or 'No current valid model forecast.'),
+                                                    else rows[0].get('probability_unavailable_message') or rows[0].get('probability_unavailable_reason') or 'No current valid model forecast.'),
                        'model_rows': len(model_rows), 'observed_rows': len(rows), 'approved_for_betting': False})
     if sort == 'value':
         result = [g for g in result if g['best_value']]

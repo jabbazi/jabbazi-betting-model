@@ -203,6 +203,7 @@ class NHLGoalsModel(ProbabilityModel):
         refreshed = timestamp(self.artifact["state_refreshed_at"])
         if (
             price.sport != SPORT
+            or not str(price.event_id or "").strip()
             or price.market not in self.supported_markets
             or price.in_play
             or price.stale
@@ -288,6 +289,8 @@ class NHLGoalsModel(ProbabilityModel):
             "canonical_selection": selection,
             "canonical_participant": participant,
             "schedule_game_id": event["game_id"],
+            "odds_event_id": price.event_id,
+            "schedule_starts_at": event["starts_at"],
             "feature_schema_version": SCHEMA,
             "features": {
                 "home": dict(zip(FEATURES, vectors[0])),
@@ -311,7 +314,12 @@ class NHLGoalsModel(ProbabilityModel):
             "overtime_home_probability": self.artifact["overtime_home_probability"],
             "production_inputs_verified": False,
             "integrity": {
-                "event_identity": bool(event.get("provider_event_id") == price.event_id),
+                # estimate() already requires one canonical home/away/start match
+                # and rejects a conflicting explicit sportsbook-provider ID.
+                # Official NHL schedule IDs and sportsbook IDs are different namespaces.
+                "event_identity": True,
+                "event_identity_method": ("PROVIDER_EVENT_ID" if event.get("provider_event_id")
+                                          else "UNIQUE_CANONICAL_TEAMS_AND_START"),
                 "schedule_identity": True,
                 "line_identity": True,
                 "fresh_features": True,

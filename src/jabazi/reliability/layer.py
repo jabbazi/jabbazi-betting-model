@@ -128,6 +128,41 @@ def status_buckets(model, prospective=None):
     return result
 
 
+def research_display_metadata(card, estimate, model):
+    """Pass actual fitted projection provenance through the existing action path.
+
+    This is serialization, not admission: all reliability and cash gates below
+    remain independent. An alternate quote uses the same fitted stat model but
+    keeps its own exact offered market, side and line in the display record.
+    """
+    snapshot = estimate.feature_snapshot if estimate else {}
+    distribution = snapshot.get("player_distribution")
+    projection = None
+    base_market = card.market.removesuffix("_alternate")
+    if (estimate and isinstance(distribution, dict)
+            and distribution.get("model_version") == estimate.model_version
+            and distribution.get("market") == base_market):
+        projection = {k: distribution.get(k) for k in (
+            "model_version", "family", "mean", "active_probability",
+            "raw_probability", "calibrated_probability", "side", "line")}
+        projection.update(market=card.market, model_market=base_market)
+    reason = None if estimate else ("MODEL_INPUTS_UNAVAILABLE_OR_REJECTED" if model is not None
+                                     else "NO_MODEL_ARTIFACT_FOR_MARKET")
+    artifact = getattr(model, "artifact", {}) or {}
+    calibration = artifact.get("calibration")
+    if (not estimate and isinstance(calibration, dict) and calibration
+            and artifact.get("artifact_type") == "player_prop_distribution"
+            and str(card.selection).lower() in {"no", "under"}
+            and calibration.get("orientation") != "positive"):
+        reason = "UNVERIFIED_NEGATIVE_SIDE_CALIBRATION"
+    return {
+        "player_distribution": projection,
+        "model_time_utc": card.observed_at.isoformat() if estimate else None,
+        "features_available_at": snapshot.get("features_available_at"),
+        "model_routing_reason": reason,
+    }
+
+
 def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy()):
     p = float(estimate.probability) if estimate else None
     market = float(card.consensus_probability)
@@ -280,6 +315,7 @@ def evaluate(card, estimate, model=None, prospective=None, policy=AnomalyPolicy(
     priority = round(100 * min(1, components["absolute_model_market_gap"]) + 5 * int(fresh), 2)
     prices = sorted(card.book_prices.values(), reverse=True)
     return dict(
+        **research_display_metadata(card, estimate, model),
         v42_decision=legacy.decision.value,
         v42_reasons=list(legacy.reasons),
         raw_model_probability=snapshot.get("raw_model_probability", p),

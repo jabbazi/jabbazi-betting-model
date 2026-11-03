@@ -378,6 +378,7 @@ class PlayerPropModel(ProbabilityModel):
             **snapshot,
             "integrity": integrity,
             "player_distribution": {
+                "model_version": self.artifact["model_version"],
                 "family": self.artifact["family"],
                 "mean": mean,
                 "active_probability": active,
