@@ -15,16 +15,16 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate exact source and output checksums; create unreferenced commit
+      - name: Validate checksums and prepare unreferenced blobs only
         env:
           GH_TOKEN: ${{ github.token }}
         shell: python
         run: |
-          import base64, hashlib, json, lzma, os, subprocess, urllib.request
+          import base64, hashlib, json, lzma, os, urllib.request
           from pathlib import Path
           repo = 'jabbazi/jabbazi-betting-model'
           head = os.environ['GITHUB_SHA']
-          expected_parent = '0e7ed5d1aa853e344a9564bb884987aaf2fb42c5'
+          expected_parent = 'bfc1d024c51f3fff785ee55fa6b01599f3544267'
           workflow = '.github/workflows/vip-repair-apply.yml'
           def api(path, data=None):
               body = None if data is None else json.dumps(data).encode()
@@ -62,14 +62,15 @@ jobs:
                   assert text == ''
                   entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': None})
               else:
-                  assert hashlib.sha256(text.encode()).hexdigest() == change['after'], name
-                  entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'content': text})
+                  raw = text.encode()
+                  assert hashlib.sha256(raw).hexdigest() == change['after'], name
+                  blob = api('/git/blobs', {'content': text, 'encoding': 'utf-8'})
+                  assert blob['sha'] == hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+                  entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': blob['sha']})
           entries.append({'path': workflow, 'mode': '100644', 'type': 'blob', 'sha': None})
-          tree = api('/git/trees', {'base_tree': commit['tree']['sha'], 'tree': entries})
-          proposal = api('/git/commits', {'message': 'Repair shared saved research visibility in VIP and Discord\n\nAdd full prop browsing, model moneyline board, independent model/price freshness, saved-only LAB reads, permission-checked Discord research commands and regression/browser coverage. Preserve model approval and ingestion paths. Remove temporary tooling workflows.', 'tree': tree['sha'], 'parents': [head]})
-          report = {'commit': proposal['sha'], 'tree': tree['sha'], 'expected_parent': head, 'files': {p: c['after'] for p, c in changes.items()}, 'branch_updated': False, 'deployed': False}
+          report = {'base_tree': commit['tree']['sha'], 'expected_parent': head, 'entries': entries, 'files': {p: c['after'] for p, c in changes.items()}, 'branch_updated': False, 'deployed': False}
           Path('/tmp/vip-repair-proposal.json').write_text(json.dumps(report, indent=2))
-          print('Created checksum-verified unreferenced development proposal:', proposal['sha'])
+          print('Verified 26 source files; prepared content objects only. No tree, branch or deployment changed.')
       - uses: actions/upload-artifact@v4
         with:
           name: vip-repair-proposed-commit
