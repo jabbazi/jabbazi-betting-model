@@ -73,28 +73,40 @@ def home(ctx=Depends(context)):
      })
 
 @router.get('/today')
-def today(ctx=Depends(context)):
+def today(sport: str = '', ctx=Depends(context)):
     from .game_research import matchups as list_matchups
     from ..performance import report
     b = snapshot(ctx[0])
     issued = {r['entity'] for r in ctx[0].list_records('official_pick_issued', 500) if r['payload'].get('message_id')}
     official = [r for r in data.official(ctx[0]) if r['id'] in issued]
-    return response({'games': list_matchups(b['rows']), 'research': b['rows'][:8],
-                     'official': official, 'recap': report(ctx[0])['official_periods'][0],
+    return response({'games': list_matchups(b['rows'], sport=sport, scheduled=b.get('games', [])),
+                     'research': [r for r in b['rows'] if not sport or r['sport'] == sport.upper()][:8],
+                     'official': [r for r in official if not sport or r['sport'] == sport.upper()], 'recap': report(ctx[0])['official_periods'][0],
                      'state': b['state'], 'snapshot_at': b.get('snapshot_at'),
                      'reason': b.get('reason'), 'live_notice': 'Live recommendations are not connected to this pregame board.'})
 
 
 @router.get('/board')
-def board(sport: str = '', event_id: str = Query('', max_length=160), q: str = Query('', max_length=100), market: str = Query('', max_length=80), family: Literal['all', 'props'] = 'all', status: str = '', sort: Literal['edge', 'time', 'model'] = 'edge', offset: int = Query(0, ge=0, le=10000), ctx=Depends(context)):
-    store, _ = ctx
-    b = snapshot(store)
-    words = data.normalize(q).split()
-    rows = [r for r in b['rows'] if (not sport or r['sport'] == sport.upper()) and (not event_id or str(r.get('event_id')) == event_id) and (not market or r['market'] == market)
-            and (family == 'all' or str(r['market']).startswith(('player_', 'batter_', 'pitcher_')))
-            and (not status or r['status'] == status) and all(w in data.normalize(' '.join(str(r.get(k) or '') for k in ('event', 'player', 'market', 'selection', 'sport', 'book'))) for w in words)]
-    rows.sort(key=lambda r: (not r['fresh'], -(r.get('model_probability' if sort == 'model' else 'edge') or 0) if sort != 'time' else (r.get('starts_at') or '9999')))
-    return response({**{k: v for k, v in b.items() if k != 'rows'}, 'rows': rows[offset:offset+50], 'total': len(rows), 'next': offset+50 if len(rows) > offset+50 else None})
+def board(sport: str = '', event_id: str = Query('', max_length=160),
+          q: str = Query('', max_length=100), market: str = Query('', max_length=80),
+          family: Literal['all', 'props'] = 'all', status: str = '',
+          player: str = Query('', max_length=160), team: str = Query('', max_length=100),
+          side: str = Query('', max_length=100), book: str = Query('', max_length=100),
+          stage: str = Query('', max_length=40),
+          sort: Literal['edge', 'time', 'model', 'projection', 'value'] = 'model',
+          offset: int = Query(0, ge=0, le=40000), ctx=Depends(context)):
+    from .research import query_board
+    return response(query_board(snapshot(ctx[0]), sport=sport, event_id=event_id, q=q,
+                                market=market, family=family, status=status, player=player,
+                                team=team, side=side, book=book, stage=stage, sort=sort, offset=offset))
+
+
+@router.get('/moneylines')
+def moneylines(sport: str = Query('', max_length=12),
+               sort: Literal['model', 'time', 'value'] = 'model',
+               offset: int = Query(0, ge=0, le=40000), ctx=Depends(context)):
+    from .research import moneyline_board
+    return response(moneyline_board(snapshot(ctx[0]), sport=sport, sort=sort, offset=offset))
 
 
 @router.get('/detail/{candidate_id}')
@@ -106,8 +118,11 @@ def detail(candidate_id: str, ctx=Depends(context)):
         row = next((r for r in data.official(store) if r['id'] == candidate_id), None)
     if row is None:
         raise HTTPException(404, 'This opportunity is no longer in the current research snapshot.')
-    related = [r for r in b['rows'] if r['event_id'] == row['event_id'] and r['id'] != row['id']]
-    return response({'row': row, 'related': related[:20], 'alternates': [r for r in related if r['player'] == row['player'] and r['market'] == row['market']][:20]})
+    related = [r for r in b['rows'] if r['sport'] == row['sport'] and r['event_id'] == row['event_id'] and r['id'] != row['id']]
+    return response({'row': row, 'related': related[:20], 'related_total': len(related),
+                     'alternates': [r for r in related if r['player'] == row['player'] and r['market'] == row['market']][:20],
+                     'player_markets': sorted({r['market'] for r in b['rows'] if row['player'] and r['sport'] == row['sport'] and r['player'] == row['player']}),
+                     'paid_requests_made': 0})
 
 
 @router.get('/picks')
@@ -203,19 +218,10 @@ def changes(ctx=Depends(context)):
 
 @router.get('/slate')
 def slate(sport: str, ctx=Depends(context)):
+    from .game_research import matchups as list_matchups
     b = snapshot(ctx[0])
-    sport = sport.upper()
-    rows = [r for r in b['rows'] if r['sport'] == sport and r['lifecycle'] == 'UPCOMING']
-    games = {}
-    for r in rows:
-        key = r['event_id'] or r['event']
-        game = games.setdefault(key, {'event_id': r['event_id'], 'event': r['event'], 'starts_at': r['starts_at'], 'markets': set()})
-        game['markets'].add(r['market'])
-    output = []
-    for game in sorted(games.values(), key=lambda g: g.get('starts_at') or '9999'):
-        game['markets'] = sorted(game['markets'])
-        output.append(game)
-    return response({'sport': sport, 'games': output, 'snapshot_at': b.get('snapshot_at'), 'state': b['state']})
+    return response({'sport': sport.upper(), 'games': list_matchups(b['rows'], sport=sport, scheduled=b.get('games', [])),
+                     'snapshot_at': b.get('snapshot_at'), 'state': b['state'], 'reason': b.get('reason')})
 
 
 @router.get('/matchups')
@@ -223,7 +229,7 @@ def matchups(sport: str = Query('', max_length=12), ctx=Depends(context)):
     from .game_research import matchups as list_matchups
     b = snapshot(ctx[0])
     return response({'state': b['state'], 'snapshot_at': b.get('snapshot_at'),
-                     'games': list_matchups(b['rows'], sport=sport, limit=100),
+                     'games': list_matchups(b['rows'], sport=sport, limit=10000, scheduled=b.get('games', [])),
                      'notice': 'Observed research events only. Matchups are not official wagers.'})
 
 
@@ -233,6 +239,12 @@ def matchup(sport: str, event_id: str, ctx=Depends(context)):
     b = snapshot(ctx[0])
     result = matchup_detail(b['rows'], sport.upper(), event_id)
     if result is None:
+        game = next((g for g in b.get('games', []) if g['sport'] == sport.upper() and str(g['event_id']) == event_id), None)
+        if game:
+            return response({**game, 'state': 'NO_MODEL_FORECAST', 'projection': {'selection': None, 'model_probability': None, 'source': 'UNAVAILABLE'},
+                             'pick_explanation': {'reason': 'No saved model forecast for this scheduled game.', 'caution': 'No prediction has been invented.'},
+                             'research': [], 'markets': [], 'observed_rows': 0, 'fresh_rows': 0, 'official': [],
+                             'notice': 'Schedule observation only. Model forecast unavailable.'})
         raise HTTPException(404, 'No observed research for this matchup.')
     issued = {r['entity'] for r in ctx[0].list_records('official_pick_issued', 500) if r['payload'].get('message_id')}
     official = [r for r in data.official(ctx[0]) if r['id'] in issued and r['sport'] == sport.upper() and str(r['event_id']) == event_id]
@@ -549,38 +561,22 @@ def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
 
 @router.get('/player-probabilities')
 def player_probabilities(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
-    """Read-only Top 10 fitted-model probabilities from the stored VIP slate.
-
-    Unlike paid LAB confidence, these are versioned exact-line model
-    estimates, and they never authorize a bet or consume provider credits.
-    """
     from ..player_probability_board import from_vip_board
-    from ..paid_player_scan import read_saved_paid_scan, vip_research_rows
     b = snapshot(ctx[0])
-    paid = read_saved_paid_scan(ctx[0], slate_date=getattr(ctx[0], 'vip_slate_date', None))
-    return response({
-        **from_vip_board(b['rows'] + vip_research_rows(paid, sport), sport=sport),
-        'paid_collection_status': paid.get('status'),
-        'paid_scope_complete': paid.get('scope_complete', False),
-        'paid_coverage': {k: v for k, v in paid.get('sports', {}).get(sport, {}).items()
-                          if k not in {'research_rows', 'top10', 'top10_by_market'}},
-        'snapshot_at': b.get('snapshot_at'),
-        'snapshot_state': b['state'],
-        'date': b.get('date'),
-    })
+    return response({**from_vip_board(b['rows'], sport=sport),
+                     'paid_coverage': b.get('paid_coverage', {}).get(sport, {}),
+                     'snapshot_at': b.get('snapshot_at'), 'sources': b.get('sources', []),
+                     'snapshot_state': b['state'], 'date': b.get('date'), 'paid_requests_made': 0})
 
 
 @router.get('/paid-player-models')
-def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
-    """VIP-only, on-demand BALLDONTLIE LAB forecasts; no auto scan or bet approval."""
-    from ..config import Settings
-    from .paid_models import read_paid_player_models
-
+def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA',
+                       offset: int = Query(0, ge=0, le=40000), ctx=Depends(context)):
+    """Quota-free member view of saved LAB signals, never a provider fetch."""
+    from .paid_models import saved_paid_player_models
     store, _principal = ctx
-    selected_day = getattr(store, 'vip_slate_date', datetime.now(UTC).date())
-    return response(read_paid_player_models(
-        Settings.from_environment().balldontlie_lab_api_key, sport, selected_day
-    ))
+    return response(saved_paid_player_models(store, sport,
+        getattr(store, 'vip_slate_date', datetime.now(CENTRAL).date()), offset=offset))
 
 
 @router.get('/boost/status')
@@ -634,7 +630,7 @@ def boost_status(ctx=Depends(context)):
         'notice': (
             'Model readiness is not same-game joint calibration or an executable '
             'sportsbook quote. Sport-specific paid scans require owner-controlled '
-            'acceptance; Scan Everything is unchanged.'
+            'acceptance. This view reads saved research only.'
         ),
     })
 

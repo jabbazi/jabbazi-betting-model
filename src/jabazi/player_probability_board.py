@@ -28,7 +28,7 @@ def _probability(value):
 
 def _projection(row):
     """A fitted mean must have matching model/market provenance, never a line."""
-    if row.get("model_stage", row.get("probability_status")) not in {"VALIDATING", "PRODUCTION_APPROVED"}:
+    if row.get("model_stage", row.get("probability_status")) not in ALLOWED_STAGES:
         return None
     distribution = row.get("player_distribution")
     if (isinstance(distribution, dict)
@@ -185,7 +185,7 @@ def from_vip_board(rows, *, sport):
         bucket["observed_player_market_rows"] += 1
         p = _probability(row.get("model_probability"))
         if not (
-            row.get("fresh") is True
+            row.get("model_fresh", row.get("fresh")) is True
             and row.get("data_health") == "HEALTHY"
             and row.get("status") not in {"QUARANTINED", "INVALIDATED", "SAFETY REVIEW"}
             and str(row.get("model_version") or "").strip()
