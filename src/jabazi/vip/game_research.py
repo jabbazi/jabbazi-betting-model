@@ -14,16 +14,11 @@ def _valid_probability(value):
 
 
 def _usable_model(row):
-    return (
-        row.get("model_stage") in {"SHADOW_ONLY", "PRODUCTION_APPROVED"}
-        and row.get("status") != "QUARANTINED"
-        and row.get("data_health") == "HEALTHY"
-        and bool(row.get("model_version"))
-        and _valid_probability(row.get("model_probability")) is not None
-    )
+    from .research import usable_model
+    return usable_model(row)
 
 
-def matchups(rows, *, sport="", limit=100):
+def matchups(rows, *, sport="", limit=100, scheduled=()):
     """Aggregate observed market rows into games, keeping data provenance."""
     events = {}
     for row in rows:
@@ -50,6 +45,11 @@ def matchups(rows, *, sport="", limit=100):
         at = row.get("price_at")
         if at and (game["price_at"] is None or at > game["price_at"]):
             game["price_at"] = at
+    for item in scheduled:
+        if (not sport or item.get('sport') == sport.upper()) and item.get('event_id'):
+            events.setdefault((item['sport'], str(item['event_id'])), {
+                **item, 'markets': set(), 'observed_rows': 0, 'fresh_rows': 0,
+                'model_supported_rows': 0, 'price_at': None})
     output = []
     for game in events.values():
         game["markets"] = sorted(game["markets"])
@@ -91,7 +91,7 @@ def matchup_detail(rows, sport, event_id):
     favorite = None
     candidates = [
         r for r in moneyline
-        if _usable_model(r) and r.get("fresh")
+        if _usable_model(r)
     ]
     model_selected = bool(candidates)
     if candidates:
@@ -121,7 +121,7 @@ def matchup_detail(rows, sport, event_id):
         "markets": sorted(set(r.get("market") for r in same if r.get("market"))),
         "observed_rows": len(same), "fresh_rows": sum(bool(r.get("fresh")) for r in same),
         "price_at": max((r.get("price_at") for r in same if r.get("price_at")), default=None),
-        "research": same[:40],
+        "research": same[:40], "research_total": len(same),
         "simulation": {
             "state": "UNAVAILABLE",
             "reason": "A verified event-specific joint score distribution is required. Moneyline probability alone cannot generate a defensible score simulation.",

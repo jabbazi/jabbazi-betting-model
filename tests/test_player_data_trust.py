@@ -92,7 +92,8 @@ def test_mlb_history_ignores_future_recent_duplicate_and_unordered_rows():
     projection = {'PlayerID':1,'BattingOrder':1,'BattingOrderConfirmed':True,'PlateAppearances':4}
     with patch.object(collector,'_mlb_game_logs',return_value=list(reversed(rows[:-1]))+[rows[-1]]), \
          patch.object(collector,'_mlb_projection_for',return_value=projection), \
-         patch.object(collector,'_mlb_person',return_value={'id':1}):
+         patch.object(collector,'_mlb_person',return_value={'id':1}), \
+         patch.object(collector,'_mlb_official_role',return_value=None):
         result = collector.mlb_snapshot(card)
     assert result['features']['games_prior'] == 6
     assert result['features']['mean5_value'] == 1

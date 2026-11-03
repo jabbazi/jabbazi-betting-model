@@ -46,7 +46,7 @@ def test_commands_sync_nonempty_guild_and_private_vip_rechecks_current_roles(sto
             await client._async_setup_hook()
             await client.setup_hook()
         guild_id = discord.Object(id=1)
-        assert {c.name for c in client.tree.get_commands(guild=guild_id)} == {"vip", "cheatsheet", "alerts", "support", "card", "performance", "sim", "firsttd", "matchup", "props", "playoftheday", "ev"}
+        assert {c.name for c in client.tree.get_commands(guild=guild_id)} == {"vip", "cheatsheet", "alerts", "support", "card", "performance", "sim", "firsttd", "matchup", "props", "moneylines", "top10", "playoftheday", "ev"}
         fetched = NS(id=5, roles=[NS(id=8, name="JABBAZI VIP")])
         interaction = NS(guild_id=1, user=NS(id=5, roles=[]),
                          guild=NS(fetch_member=AsyncMock(return_value=fetched)),
