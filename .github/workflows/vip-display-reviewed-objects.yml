@@ -1,0 +1,66 @@
+name: Prepare reviewed VIP display objects
+on:
+  push:
+    branches: [fix/vip-discord-display-release]
+    paths: [.github/workflows/vip-display-reviewed-objects.yml]
+permissions:
+  contents: write
+jobs:
+  prepare:
+    if: github.repository == 'jabbazi/jabbazi-betting-model' && github.ref == 'refs/heads/fix/vip-discord-display-release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7fa1b640eb21a0d5c619d2067b7ebdd489c6f4ce
+          persist-credentials: false
+      - name: Check exact before and after hashes; create blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import hashlib, json, os, urllib.request
+          from pathlib import Path
+          expected = {
+            'src/jabazi/vip/api.py': ('44a60491f63b520ed74748407296bd62e22cbe3f5652edcf77b73eb6053c9f9c','4ae3333bd73a18536d09fa1f3654e3bdb1bd1af727b154cb32ec8bb2b454d97f'),
+            'src/jabazi/vip/data.py': ('dca1d466651ebf69298548026006897d6e0b9e1ac29f1a372a6b0ffceba8f349','5703d544522c7bd786fd1de7801946a8ba5e4659eadca1c58d128c42a6de83c4'),
+            'tests/test_vip_research_repair.py': ('6b7e7f23c7d494e473a384cbefc5edf5b6584e314b04171c5b0515c29a4d5c21','e6a599a7e7ee6ab4fc78b90f5c3d42cce61b748b826385d2c94378e2a17f1d0c'),
+            'src/jabazi/vip/paid_models.py': ('e7a3c04974ee0753e59975b2f55ebc096c5c900561f7d02909caa1ac6a28fa32','59d722547af0c205150a79550e9d3c264f3048c3627102c404d5854fa4b7f12c'),
+          }
+          sources = {}
+          for name, (before, after) in expected.items():
+              text = Path(name).read_text()
+              assert hashlib.sha256(text.encode()).hexdigest() == before, name
+              sources[name] = text
+          name = 'src/jabazi/vip/api.py'
+          text = sources[name]
+          assert text.count('from ..api import model_status_data') == 2
+          text = text.replace('from ..api import model_status_data','from .model_status import saved_model_status').replace('current = status(model_status_data)','current = status(saved_model_status)')
+          text = text.replace("def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA',\n                       offset: int = Query(0, ge=0, le=40000)","def paid_player_models(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA',\n                       offset: int = Query(0, ge=0, le=10000)")
+          sources[name] = text
+          name = 'src/jabazi/vip/data.py'
+          text = sources[name]
+          anchor = "'executable': True}, {'id': row['id'], 'payload': {'healthy': True, 'completed_at': now.isoformat()}}, now)"
+          replacement = "'model_time_utc': recorded_at,\n                        'anomaly_state': (p.get('reliability') or {}).get('anomaly_state'),\n                        'data_health': ('HEALTHY' if (p.get('reliability', {}).get('research_priority_components') or {}).get('data_health') == 1 else 'UNKNOWN'),\n                        'executable': True}, {'id': row['id'], 'payload': {'healthy': True, 'completed_at': recorded_at}}, now)"
+          assert text.count(anchor) == 1
+          text = text.replace(anchor,replacement)
+          text = text.replace("        price = p['price']\n        item = project", "        price = p['price']\n        from ..persistence.store import utc\n        recorded_at = utc(row['occurred_at']).isoformat() if isinstance(row.get('occurred_at'), datetime) else str(row.get('occurred_at') or '')\n        item = project")
+          sources[name] = text
+          name = 'tests/test_vip_research_repair.py'
+          sources[name] = sources[name].replace("monkeypatch.setattr('jabazi.vip.paid_models.read_paid_player_models', probe)","monkeypatch.setattr('jabazi.vip.paid_models.read_paid_player_models', probe, raising=False)")
+          name = 'src/jabazi/vip/paid_models.py'
+          sources[name] = '"""Saved member research signals only; this release contains no paid LAB reader.\n\nExisting persisted signals are explicitly not calibrated model hit probabilities.\nNo credentials, provider clients, collection jobs or model approval are involved.\n"""\nfrom datetime import UTC, datetime\n\nSPORTS = {"NBA": "nba", "NFL": "nfl", "NHL": "nhl"}\nLAB_PLAYER_PROP_SPORTS = frozenset({"NBA", "NFL"})\n\n\ndef saved_paid_player_models' + sources[name].split('\ndef saved_paid_player_models',1)[1]
+          for name,text in sources.items():
+              assert hashlib.sha256(text.encode()).hexdigest() == expected[name][1], name
+          results = {}
+          for name,text in sources.items():
+              request = urllib.request.Request('https://api.github.com/repos/jabbazi/jabbazi-betting-model/git/blobs', data=json.dumps({'content':text,'encoding':'utf-8'}).encode(), headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'}, method='POST')
+              with urllib.request.urlopen(request,timeout=30) as response:
+                  results[name] = {'sha':json.load(response)['sha'],'sha256':expected[name][1]}
+          Path('/tmp/vip-display-reviewed-blobs.json').write_text(json.dumps(results,indent=2))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vip-display-reviewed-blobs
+          path: /tmp/vip-display-reviewed-blobs.json
+          retention-days: 1
