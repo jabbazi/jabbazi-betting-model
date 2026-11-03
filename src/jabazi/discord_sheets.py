@@ -103,6 +103,10 @@ def archive_sheets(store, result, *, now=None):
         rows[-1]["maximum_playable_decimal"] = getattr(action, "maximum_playable_decimal", None)
         rows[-1]["book_prices"] = getattr(c, "book_prices", {})
         rows[-1]["anomaly_state"] = reliability.get("anomaly_state")
+        rows[-1]["anomaly_reasons"] = reliability.get("anomaly_reasons", [])
+        rows[-1]["model_routing_reason"] = reliability.get("model_routing_reason")
+        rows[-1]["model_time_utc"] = reliability.get("model_time_utc")
+        rows[-1]["features_available_at"] = reliability.get("features_available_at")
         rows[-1]["calibrated_model_probability"] = reliability.get("calibrated_model_probability")
         # Preserve the actual fitted mean/version; never use a sportsbook line
         # as a player projection merely because the display needs a number.

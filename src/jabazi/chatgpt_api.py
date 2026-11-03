@@ -109,6 +109,7 @@ class ScannerModelStatus(BaseModel):
     player_feature_provider: dict[str, Any] = Field(default_factory=dict)
     external_research_sources: dict[str, Any] = Field(default_factory=dict)
     recent_scan_health: list[ScanHealthSummary] = Field(default_factory=list)
+    vip_model_routing: dict[str, Any] = Field(default_factory=dict)
 
 
 class ScanPage(BaseModel):

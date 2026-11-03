@@ -88,6 +88,21 @@ with sync_playwright() as p:
         flows.append('VALIDATING model winner survives stale price; schedule-only game visible')
         page.set_viewport_size({'width':390,'height':844})
         page.screenshot(path=str(args.output/'after_moneylines_mobile.png'), full_page=True)
+        # Prime saved registry evidence in this disposable fixture only; no providers.
+        from jabazi.vip.model_status import saved_model_status
+        from jabazi.vip import model_cache
+        import time
+        model_cache._cache = saved_model_status()
+        model_cache._cached_at = time.monotonic()
+        route('model-routing&sport=NFL', 'NFL · Model connections')
+        page.get_by_text('Saved selections:', exact=False).first.wait_for()
+        assert page.get_by_role('link', name='Open this market').count() >= 16
+        page.screenshot(path=str(args.output/'after_model_connections_mobile.png'), full_page=True)
+        page.get_by_role('combobox', name='Research sport').select_option('CFB')
+        page.get_by_text('CFB · Model connections', exact=True).wait_for()
+        assert 'model-routing&' in page.url
+        assert 'College player props remain restricted' in page.locator('#content').inner_text()
+        flows.append('model connection inventory, per-market links, selected sport and college policy')
         route('props&sport=NBA&player=Fixture%20Guard%20000', '4 matching rows')
         assert page.locator('.opportunity').count() == 4
         assert page.get_by_role('link', name=re.compile('rebounds')).count() >= 1

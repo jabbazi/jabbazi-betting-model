@@ -17,5 +17,31 @@
     "src/jabazi/discord_access.py": "949a7cf6d8a55ed2b2da6e2aee1b7851049750735d3866191bff17798d5a4886",
     "Dockerfile": "1cdf6e215c061b2f4e1382d6c5620cf39df4fef11fde01d241ec6d9c4095f2cd",
     "pyproject.toml": "974b5b0568664c707483dad85c93b0b33ed2af688b7f746ee96589550e38ebc6"
+  },
+  "reviewed_routing_followup": {
+    "base_commit": "7dc640132563c6717c3926b21972bc85bba36685",
+    "scope": "NHL verified event identity, fitted forecast metadata serialization, and read-only owner/VIP routing diagnostics. No artifact, cash-admission rule, provider, schedule, auth, schema or quota changes.",
+    "files": {
+      "src/jabazi/models/nhl_goals.py": {
+        "before": "c1d6ad45d3989237e2bd4ce0714da808d4e7003882d16009b24103a655f888ba",
+        "after": "cb3636d0c5c4a6481a1bd399cb3c4c63e523a94460c80df9ad5dc331d3b64acf"
+      },
+      "src/jabazi/models/player_distribution.py": {
+        "before": "983105b2101b951ecd603d7217bce4a70a49bd49828b3f6dbf587e8a32a316a0",
+        "after": "98318b7352bc21c8ef32843245d833c884b6a90c3b22ecd1935040010b924ea2"
+      },
+      "src/jabazi/reliability/layer.py": {
+        "before": "6f720944c4cb0d9b712eb1c1efeb01d1dafa1233ec26cc1124455f2d99dfd364",
+        "after": "c827ba1e086e84e2aaa28c7a3390ceedb35f32ac4767995689f294b8e5399580"
+      },
+      "src/jabazi/api.py": {
+        "before": "2af8712f5c787b984cff0c9719ae154d7c2340f6aa133519468e12c909cc9c07",
+        "after": "2e57f78c77c110b4c74d8c17314eb334c17a7cbd4bf4f53fd2ba5ad03641cc23"
+      },
+      "src/jabazi/chatgpt_api.py": {
+        "before": "e7403c0bb780fcae422d3c3c80aea53b089715eceb35c9d2649ced110147a667",
+        "after": "1ca2391f86f5216630aa23f0ce72ea022412548ec4a313fd0961b0f3c499fa6b"
+      }
+    }
   }
 }

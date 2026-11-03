@@ -60,6 +60,8 @@ def summary(store, *, view, sport, market='', page=1, now=None, slate_date=None)
             detail = (f"{safe(row['event'])}\n{safe(row['selection'])} {safe(row.get('line'))} · {safe(row['market'])}\n"
                       + (f'Model probability: {p:.1%}' if p is not None else 'Model probability unavailable')
                       + f" · {safe(row['model_stage'])}\nModel: {safe(row['model_version'], 80)}")
+            if p is None:
+                detail += '\n' + safe(row.get('probability_unavailable_message') or 'Current model inputs are unavailable.')
             if row.get('projected_mean') is not None:
                 detail += f"\nFitted statistical mean: {row['projected_mean']:.2f} (not hit probability)"
             detail += f"\nForecast: {safe(row['model_at'], 40)} · Price: {safe(row['price_at'], 40)}"

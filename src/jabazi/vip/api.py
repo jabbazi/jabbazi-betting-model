@@ -560,7 +560,7 @@ def ask(q: str = Query('', min_length=2, max_length=200), ctx=Depends(context)):
 
 
 @router.get('/player-probabilities')
-def player_probabilities(sport: Literal['NBA', 'NFL', 'NHL'] = 'NBA', ctx=Depends(context)):
+def player_probabilities(sport: Literal['NBA', 'NFL', 'NHL', 'MLB'] = 'NBA', ctx=Depends(context)):
     from ..player_probability_board import from_vip_board
     b = snapshot(ctx[0])
     return response({**from_vip_board(b['rows'], sport=sport),
@@ -633,6 +633,14 @@ def boost_status(ctx=Depends(context)):
             'acceptance. This view reads saved research only.'
         ),
     })
+
+
+@router.get('/model-routing')
+def model_routing(sport: Literal['', 'NBA', 'NFL', 'NHL', 'MLB', 'CFB'] = '', ctx=Depends(context)):
+    from .model_status import saved_model_status
+    from .model_cache import status
+    from .model_routing import routing_report
+    return response(routing_report(snapshot(ctx[0]), status(saved_model_status), sport=sport))
 
 
 @router.get('/models')

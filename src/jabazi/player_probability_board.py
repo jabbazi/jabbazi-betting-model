@@ -12,6 +12,7 @@ SPORTS = {
     "basketball_nba": "NBA",
     "americanfootball_nfl": "NFL",
     "icehockey_nhl": "NHL",
+    "baseball_mlb": "MLB",
 }
 ALLOWED_STAGES = frozenset({
     "SHADOW_ONLY", "VALIDATING", "LIMITED_LIVE", "PRODUCTION_APPROVED",
@@ -47,14 +48,14 @@ def _projection(row):
     except (TypeError, ValueError, OverflowError):
         return None
     binary = {"player_anytime_td", "player_double_double", "batter_home_runs"}
-    return value if row.get("market") not in binary and math.isfinite(value) and 0 <= value <= 10000 else None
+    return value if str(row.get("market") or "").removesuffix("_alternate") not in binary and math.isfinite(value) and 0 <= value <= 10000 else None
 
 
 def _player_market(row):
     return (
         isinstance(row, dict)
         and row.get("sport") in SPORTS
-        and str(row.get("market") or "").startswith("player_")
+        and str(row.get("market") or "").startswith(("player_", "batter_", "pitcher_"))
         and bool(str(row.get("participant") or row.get("player") or "").strip())
     )
 
