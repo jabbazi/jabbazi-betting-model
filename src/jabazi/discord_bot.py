@@ -573,7 +573,7 @@ def build_client(config, store):
                     f"Private support opened: {thread.mention}", ephemeral=True
                 )
 
-            async def open_research(interaction: discord.Interaction, view="home"):
+            async def open_research(interaction: discord.Interaction, view="home", *, sport="", market="", page=1, saved_summary=False):
                 if interaction.guild_id != config.guild:
                     return await interaction.response.send_message(
                         "This command is only available in the JABBAZI server.", ephemeral=True
@@ -593,10 +593,22 @@ def build_client(config, store):
                 link = portal_origin() + "/vip#access=" + ticket
                 if view != "home":
                     link += "&view=" + view
+                from urllib.parse import urlencode
+                if sport:
+                    link += "&" + urlencode({"sport": sport, "market": market})
+                extra = {}
+                if saved_summary:
+                    from .discord_research_views import summary
+                    try:
+                        saved = await asyncio.to_thread(summary, store, view=view, sport=sport, market=market, page=page)
+                        extra["embed"] = discord.Embed.from_dict(saved["embed"])
+                        link += "&" + urlencode({"date": saved["slate_date"]})
+                    except (ValueError, TypeError, KeyError):
+                        extra["embed"] = discord.Embed(title="Saved research unavailable", description="Open the private app to inspect available sport, date and market coverage. No new paid scan was started.")
                 await interaction.followup.send(
                     f"JABBAZI V5.5 VIP — updated Top 10, +EV Intelligence and Scanner. "
                     f"Your private link (expires quickly): {link}",
-                    ephemeral=True,
+                    ephemeral=True, allowed_mentions=discord.AllowedMentions.none(), **extra,
                 )
 
             @self.tree.command(name="vip", description="Open your private JABBAZI VIP member app")
@@ -619,9 +631,20 @@ def build_client(config, store):
             async def matchup(interaction: discord.Interaction):
                 await open_research(interaction, "matchups")
 
-            @self.tree.command(name="props", description="Open supported exact-line player research")
-            async def props(interaction: discord.Interaction):
-                await open_research(interaction, "props")
+            @self.tree.command(name="props", description="Browse saved player research with exact lines and sides")
+            @discord.app_commands.choices(sport=[discord.app_commands.Choice(name=s, value=s) for s in ("NBA", "NFL", "NHL", "MLB", "CFB")])
+            async def props(interaction: discord.Interaction, sport: str = "NBA", market: str = "", page: int = 1):
+                await open_research(interaction, "props", sport=sport, market=market, page=page, saved_summary=True)
+
+            @self.tree.command(name="moneylines", description="View saved model winners, not official betting picks")
+            @discord.app_commands.choices(sport=[discord.app_commands.Choice(name=s, value=s) for s in ("NBA", "NFL", "NHL", "MLB", "CFB")])
+            async def moneylines(interaction: discord.Interaction, sport: str = "NBA", page: int = 1):
+                await open_research(interaction, "moneylines", sport=sport, page=page, saved_summary=True)
+
+            @self.tree.command(name="top10", description="Open model-only player rankings for a sport and market")
+            @discord.app_commands.choices(sport=[discord.app_commands.Choice(name=s, value=s) for s in ("NBA", "NFL", "NHL", "MLB", "CFB")])
+            async def top10(interaction: discord.Interaction, sport: str = "NBA", market: str = "", page: int = 1):
+                await open_research(interaction, "top10", sport=sport, market=market, page=page, saved_summary=True)
 
             @self.tree.command(name="playoftheday", description="View the official Play of the Day or PASS")
             async def playoftheday(interaction: discord.Interaction):
@@ -630,7 +653,7 @@ def build_client(config, store):
             self.tree.copy_global_to(guild=discord.Object(id=config.guild))
             synced = await self.tree.sync(guild=discord.Object(id=config.guild))
             expected = {"vip", "cheatsheet", "alerts", "support", "card", "performance",
-                        "sim", "firsttd", "matchup", "props", "playoftheday", "ev"}
+                        "sim", "firsttd", "matchup", "props", "moneylines", "top10", "playoftheday", "ev"}
             if {command.name for command in synced} != expected:
                 raise RuntimeError("Discord command registration mismatch")
             print("DISCORD_COMMANDS_REGISTERED: " + ",".join(sorted(expected)), flush=True)
@@ -966,7 +989,7 @@ def build_client(config, store):
             from .discord_content import official_pick_embed
             from .daily_scope import delivery_eligible
             rows = await asyncio.to_thread(store.list_records, "candidate", 100)
-            channel = await self.checked_channel(config.main_card_channel)
+            channel = None
             for row in reversed(rows):
                 from .vip.data import paused
                 from .discord_daily import sport_label
@@ -980,6 +1003,8 @@ def build_client(config, store):
                 price = row["payload"].get("price") or {}
                 if not await asyncio.to_thread(delivery_eligible, store, [price]):
                     continue
+                if channel is None:
+                    channel = await self.checked_channel(config.main_card_channel)
                 key = digest([
                     "discord_official_pick", config.guild,
                     price.get("event_id"), price.get("market"), price.get("participant"),

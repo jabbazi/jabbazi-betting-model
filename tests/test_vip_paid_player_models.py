@@ -129,9 +129,10 @@ def test_vip_paid_models_endpoint_is_read_only_and_sport_isolated(monkeypatch):
     monkeypatch.setenv("JABBAZI_BALLDONTLIE_LAB_API_KEY", "existing-private-key")
     class Store:
         vip_slate_date = DAY
-    value = vip_api.paid_player_models(sport="NHL", ctx=(Store(), {"tier": "VIP"}))
+    value = vip_api.paid_player_models(sport="NHL", offset=0, ctx=(Store(), {"tier": "VIP"}))
     assert json.loads(value.body)["sport"] == "NHL"
-    assert called == [("existing-private-key", "NHL", DAY)]
+    assert called == []  # Reading a saved view must never call the paid provider.
+    assert json.loads(value.body)["paid_requests_made"] == 0
 
 
 

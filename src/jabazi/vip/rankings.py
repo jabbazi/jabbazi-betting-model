@@ -17,23 +17,16 @@ def current(row, now, slate_date=None):
 
 
 def candidate(row):
-    # VALIDATING artifacts may appear in research rankings, never in value lists.
-    # The general matchup helper deliberately has a narrower model-stage policy.
-    model = (_usable_model(row) or (
-        row.get('model_stage') == 'VALIDATING'
-        and row.get('status') not in {'QUARANTINED', 'INVALIDATED', 'SAFETY REVIEW'}
-        and row.get('data_health') == 'HEALTHY'
-        and bool(row.get('model_version'))
-        and _valid_probability(row.get('model_probability')) is not None
-    ))
+    model = _usable_model(row)
     p = _valid_probability(row.get('model_probability')) if model else None
     market = _valid_probability(row.get('market_probability'))
     if p is None and market is None:
         return None
-    source = ('VALIDATED MODEL' if row.get('model_stage') == 'PRODUCTION_APPROVED' else 'SHADOW MODEL') if model else 'MARKET-CONSENSUS LEAN'
+    source = ({'PRODUCTION_APPROVED': 'VALIDATED MODEL', 'VALIDATING': 'VALIDATING MODEL', 'LIMITED_LIVE': 'LIMITED MODEL'}.get(row.get('model_stage'), 'SHADOW MODEL')) if model else 'MARKET-CONSENSUS LEAN'
     return {**row, 'model_probability': p, 'calibrated_probability': row.get('calibrated_probability') if model else None,
-            'fair_decimal': 1/p if p else None, 'edge': p-market if p and market else None,
-            'ev': p*row['decimal']-1 if p and row.get('decimal') else None,
+            'fair_decimal': (row.get('fair_decimal') if 'fair_decimal' in row else 1/p if p else None),
+            'edge': p-market if p and market and row.get('fresh') else None,
+            'ev': row.get('ev') if 'ev' in row else (p*row['decimal']-1 if p and row.get('decimal') and row.get('fresh') else None),
             'evidence_label': source, 'ranking_probability': p if p else market,
             'probability_basis': 'MODEL' if p else 'MARKET NO-VIG',
             'approved_for_betting': False}
@@ -42,7 +35,7 @@ def candidate(row):
 def ranked(rows, *, event_only=False, value=False, unique_player=False):
     if value:
         rows = [r for r in rows if r.get('evidence_label') == 'VALIDATED MODEL'
-                and r.get('ev') is not None and r['ev'] > 0]
+                and r.get('fresh') and r.get('ev') is not None and r['ev'] > 0]
     rows = sorted(rows, key=lambda r: (-(r['ev'] if value else r['ranking_probability']),
                                        -(r.get('decimal') or 0), str(r.get('id'))))
     seen, result = set(), []
@@ -63,8 +56,13 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
     today = (slate_date or now.astimezone(ZoneInfo('America/Chicago')).date()).isoformat()
     scoped = [r for r in rows if current(r, now, slate_date) and (not sport or r['sport'] == sport.upper())
               and (not event_id or str(r['event_id']) == event_id)]
-    fresh = [r for r in scoped if r.get('fresh') and age_ok(r.get('price_at'), now, 300)]
-    candidates = [c for r in fresh if (c := candidate(r)) is not None]
+    # Canonical rows carry independent model freshness. Older callers without it
+    # may only use a genuinely fresh quote; a stale legacy boolean is insufficient.
+    scoped = [{**r, 'fresh': bool(r.get('fresh') and age_ok(r.get('price_at'), now, 300)),
+               'model_fresh': r.get('model_fresh', bool(r.get('fresh') and age_ok(r.get('price_at'), now, 300)))}
+              for r in scoped]
+    fresh = [r for r in scoped if r['fresh']]
+    candidates = [c for r in scoped if (_usable_model(r) or r in fresh) and (c := candidate(r)) is not None]
     # No mixed-model rankings from a quarantined or unhealthy feed.
     candidates = [r for r in candidates
                   if (not str(r.get('market', '')).startswith(('player_', 'batter_', 'pitcher_'))
@@ -80,8 +78,6 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
         if (r['sport'] == 'CFB' or not r.get('player')
                 or r['market'] == 'player_first_td'
                 or not str(r['market']).startswith(('player_', 'batter_', 'pitcher_'))):
-            continue
-        if str(r.get('selection', '')).lower() in {'no', 'under'}:
             continue
         prop_groups.setdefault(r['market'], []).append(r)
     events = {(r['sport'], str(r['event_id'])): r for r in scoped}
@@ -123,7 +119,7 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
         eligible = [r for r in items if number(r.get('projected_mean')) is not None
                     and number(r['projected_mean']) >= 0
                     and r.get('model_probability') is not None
-                    and r.get('model_stage') in {'VALIDATING', 'PRODUCTION_APPROVED'}
+                    and r.get('model_stage') in {'SHADOW_ONLY', 'LIMITED_LIVE', 'VALIDATING', 'PRODUCTION_APPROVED'}
                     and r.get('projection_basis') == 'FITTED DISTRIBUTION'
                     and market not in {'player_anytime_td', 'batter_home_runs', 'player_double_double'}]
         eligible.sort(key=lambda r: (-number(r['projected_mean']), str(r.get('id'))))
@@ -153,4 +149,4 @@ def research_hub(rows, *, sport='', event_id='', now=None, source_picks=(), slat
             'web_leans': evidence[:10], 'conflicting_events': conflicts,
             'web_research_state': 'REVIEWED_EVIDENCE' if evidence else 'UNAVAILABLE',
             'web_research_notice': 'Uses timestamped, independently reviewed source records. Automated web search is not configured; no background browsing is implied.',
-            'notice': 'Selected slate only. Up to ten supported entries per list. Probability bases may differ; read each source label. Value requires a production-approved model and a fresh exact price. No list automatically issues a wager.'}
+            'notice': 'Selected slate only. Research forecasts and quote freshness are separate. Up to ten supported entries per list. Probability bases may differ; read each source label. Value requires a production-approved model and a fresh exact price. No list automatically issues a wager.'}
