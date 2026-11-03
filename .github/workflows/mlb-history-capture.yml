@@ -1,0 +1,38 @@
+name: Bounded MLB history capture
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/model-validation-20260923]
+    paths: [docs/experiments/mlb-history-capture/request.json]
+permissions:
+  contents: read
+concurrency:
+  group: mlb-history-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture public Retrosheet archives into staging
+        run: python tools/capture_mlb_history.py --request docs/experiments/mlb-history-capture/request.json --output /tmp/mlb-capture
+        env:
+          PYTHONPATH: src:.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-history-capture
+          path: |
+            /tmp/mlb-capture/*.json
+            /tmp/mlb-capture/pitching-staging.jsonl.gz
+            /tmp/mlb-capture/raw/RETROSHEET-SOURCE-AND-TERMS.html
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-source-archives
+          path: /tmp/mlb-capture/raw/
+          retention-days: 90
+          compression-level: 0

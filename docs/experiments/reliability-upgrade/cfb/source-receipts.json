@@ -1,0 +1,50 @@
+{
+  "source_commit": "70b485777c2d5a72fb8679e7a79ddef69a381b4a",
+  "receipts": [
+    {
+      "season": 2021,
+      "url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/70b485777c2d5a72fb8679e7a79ddef69a381b4a/cfb/cfb_schedules/parquet/cfb_schedules_2021.parquet",
+      "sha256": "1a2ddf16e91d845768d52ae06e13cec161576b115df2af127f9c08f9848f0306",
+      "received_at": "2026-09-25T04:57:22.749766+00:00",
+      "bytes": 69922
+    },
+    {
+      "season": 2022,
+      "url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/70b485777c2d5a72fb8679e7a79ddef69a381b4a/cfb/cfb_schedules/parquet/cfb_schedules_2022.parquet",
+      "sha256": "59f15308408d165e26ffd0d6491af6d8f47a9c5dab51953f1c22a645e16df80b",
+      "received_at": "2026-09-25T04:57:22.749766+00:00",
+      "bytes": 97148
+    },
+    {
+      "season": 2023,
+      "url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/70b485777c2d5a72fb8679e7a79ddef69a381b4a/cfb/cfb_schedules/parquet/cfb_schedules_2023.parquet",
+      "sha256": "8cc272eafc992218603503f19aeba8a0679015fe743020f3d3a5bea17fdd2bbc",
+      "received_at": "2026-09-25T04:57:22.749766+00:00",
+      "bytes": 97108
+    },
+    {
+      "season": 2024,
+      "url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/70b485777c2d5a72fb8679e7a79ddef69a381b4a/cfb/cfb_schedules/parquet/cfb_schedules_2024.parquet",
+      "sha256": "f74768cfe074a986d3a0e96da013f3c02e869e2675322ec02da7ced5a4969f61",
+      "received_at": "2026-09-25T04:57:22.749766+00:00",
+      "bytes": 101660
+    },
+    {
+      "season": 2025,
+      "url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/70b485777c2d5a72fb8679e7a79ddef69a381b4a/cfb/cfb_schedules/parquet/cfb_schedules_2025.parquet",
+      "sha256": "a9b131aec16fa32540882f9438c81feb5a57c3279ee4b9fa6c95d91675e02a3c",
+      "received_at": "2026-09-25T04:57:22.749766+00:00",
+      "bytes": 101502
+    },
+    {
+      "season": 2026,
+      "url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/70b485777c2d5a72fb8679e7a79ddef69a381b4a/cfb/cfb_schedules/parquet/cfb_schedules_2026.parquet",
+      "sha256": "b6fe2577ee6b5d9f60c214f9653123b6c034cf03e0a4eeb9cdb0caa0dcb8604f",
+      "received_at": "2026-09-25T04:57:22.749766+00:00",
+      "bytes": 87684
+    }
+  ],
+  "commercial_use_permission": "UNVERIFIED",
+  "games": 4101,
+  "events": 109
+}

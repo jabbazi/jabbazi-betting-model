@@ -1,0 +1,95 @@
+{
+  "artifact_type": "player_prop_distribution",
+  "sport": "baseball_mlb",
+  "market": "pitcher_walks",
+  "provider": "Retrosheet",
+  "source_checksum": "0c13e890cb3c04963dc5222196a299c19d64feafe79cf99093137d2ea0e10724",
+  "feature_names": [
+    "games_prior",
+    "last1_opportunities",
+    "last1_value",
+    "mean10_opportunities",
+    "mean10_value",
+    "mean20_value",
+    "mean3_opportunities",
+    "mean3_value",
+    "mean5_opportunities",
+    "mean5_value",
+    "role_value",
+    "season_mean_value",
+    "std5_value"
+  ],
+  "scaler": {
+    "mean": [
+      32.336279100441864,
+      20.170744575611685,
+      1.5444173316625998,
+      20.05891704326219,
+      1.5407674958571875,
+      1.5251194661545762,
+      20.235639385345934,
+      1.5502648992063994,
+      20.248156697223628,
+      1.5528325529248734,
+      1.371100705665106,
+      1.514828857723969,
+      0.9927672278891445
+    ],
+    "scale": [
+      19.739920642779197,
+      6.468196141112755,
+      1.2738481490536013,
+      5.011425155220255,
+      0.5883311352494706,
+      0.5387730223784323,
+      5.454825106831256,
+      0.8196672652894633,
+      5.077086152251225,
+      0.6881375787588495,
+      0.9477136021162544,
+      0.5095315173018833,
+      0.39882004829967455
+    ]
+  },
+  "trained_at": "2026-09-26T02:38:25.663604+00:00",
+  "training_cutoff": "2023-10-01T21:00:00+00:00",
+  "stage": "VALIDATING",
+  "family": "count_nb",
+  "parameters": {
+    "coef": [
+      0.003348969471712145,
+      0.04582721555678302,
+      0.003231455152692246,
+      -0.015040233460233246,
+      0.0466337075501615,
+      0.042550071685961165,
+      0.03249555569137966,
+      0.01954399062589268,
+      0.009281428003968731,
+      0.014302184851291007,
+      -0.1467912824214512,
+      0.03889283651899138,
+      0.00988287239773402
+    ],
+    "intercept": 0.38097056499893966,
+    "dispersion": 0.0
+  },
+  "calibration": null,
+  "distribution_validation": {
+    "n": 5624,
+    "mae": 0.967896534755876,
+    "rmse": 1.20420897850058,
+    "mean_bias": -0.014355741525148881
+  },
+  "validation": {
+    "test_sample_count": 0,
+    "promotion_passed": false,
+    "reason": "Outcome distribution has held-out sample support; archived market-line calibration is unavailable, so betting approval remains blocked"
+  },
+  "artifact_schema_version": 2,
+  "split_policy": {
+    "train_before": "2024-01-01T00:00:00+00:00",
+    "test_before": "2025-01-01T00:00:00+00:00"
+  },
+  "model_version": "mlb-pitcher_walks-dist-0.2.0-d55a9be3c9ba"
+}

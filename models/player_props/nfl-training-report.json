@@ -1,0 +1,65 @@
+{
+  "player_anytime_td": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_anytime_td-dist-0.2.0-6a5b233cf0c4",
+    "family": "binary_logistic",
+    "test_sample_count": 4969,
+    "promotion_passed": false
+  },
+  "player_pass_attempts": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_pass_attempts-dist-0.2.0-eebd650f20d1",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_pass_completions": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_pass_completions-dist-0.2.0-e58fcbd0e720",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_pass_tds": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_pass_tds-dist-0.2.0-9088087f60b5",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_pass_yds": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_pass_yds-dist-0.2.0-f835fa19d8e3",
+    "family": "normal_ridge",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_reception_yds": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_reception_yds-dist-0.2.0-253a8fd8d7be",
+    "family": "normal_ridge",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_receptions": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_receptions-dist-0.2.0-f07a1c6911a3",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_rush_attempts": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_rush_attempts-dist-0.2.0-0c085829c476",
+    "family": "count_nb",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  },
+  "player_rush_yds": {
+    "status": "VALIDATING",
+    "model_version": "nfl-player_rush_yds-dist-0.2.0-45861839037b",
+    "family": "normal_ridge",
+    "test_sample_count": 0,
+    "promotion_passed": false
+  }
+}

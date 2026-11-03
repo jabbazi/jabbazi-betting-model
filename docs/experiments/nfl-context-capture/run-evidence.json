@@ -1,0 +1,87 @@
+{
+  "evidence_method": "Summary JSON extracted from successful GitHub Actions job logs; artifacts and digests confirmed by upload logs and artifact API. ZIP contents were not downloaded into the local workspace.",
+  "model_deployed": false,
+  "run_url": "https://github.com/jabbazi/jabbazi-betting-model/actions/runs/35924197502",
+  "code_sha": "076d1a38d621ddf48ed2168541d22476680de969",
+  "job_id": 107395214666,
+  "per_season": [
+    {
+      "season": 2021,
+      "source_play_rows": 49922,
+      "scheduled_final_games_found": 285,
+      "games_imported": 285,
+      "rejected": []
+    },
+    {
+      "season": 2022,
+      "source_play_rows": 49434,
+      "scheduled_final_games_found": 284,
+      "games_imported": 284,
+      "rejected": []
+    },
+    {
+      "season": 2023,
+      "source_play_rows": 49665,
+      "scheduled_final_games_found": 285,
+      "games_imported": 285,
+      "rejected": []
+    },
+    {
+      "season": 2024,
+      "source_play_rows": 49492,
+      "scheduled_final_games_found": 285,
+      "games_imported": 285,
+      "rejected": []
+    },
+    {
+      "season": 2025,
+      "source_play_rows": 48771,
+      "scheduled_final_games_found": 285,
+      "games_imported": 285,
+      "rejected": []
+    },
+    {
+      "season": 2026,
+      "source_play_rows": 5489,
+      "scheduled_final_games_found": 32,
+      "games_imported": 32,
+      "rejected": []
+    }
+  ],
+  "summary": {
+    "captured_at": "2026-09-23T21:43:55.863398+00:00",
+    "team_game_snapshots": 2912,
+    "upcoming_events": 16,
+    "upcoming_status_counts": {
+      "FEATURES_AVAILABLE": 16
+    },
+    "historical_training_rows_available": 0,
+    "approved_for_betting": false,
+    "model_fitted": false,
+    "note": "Captured now, not at historical decision times. No historical timestamp fabrication, training, betting approval, or cloud deployment.",
+    "limitations": [
+      "EPA provider model training vintages are not verified for historical evaluation",
+      "Score reconciliation is a provider completeness check, not independent game-log verification",
+      "No QB/injury/weather inputs or player-prop distributions",
+      "GitHub source artifacts expire after 90 days; export before expiry for long-term raw-source retention"
+    ]
+  },
+  "artifacts": [
+    {
+      "id": 10778212305,
+      "name": "nfl-context-capture",
+      "size_in_bytes": 143538,
+      "expires_at": "2026-12-22T21:43:32Z",
+      "expired": false,
+      "sha256": "6b89686fc96ad3bcd49c82973c2007d28590f960db4e9d005d2f5e28a8089f93"
+    },
+    {
+      "id": 10778182693,
+      "name": "nfl-pbp-source-archives",
+      "size_in_bytes": 100080696,
+      "expires_at": "2026-12-22T21:43:32Z",
+      "expired": false,
+      "sha256": "791f610519ccef4a4e47a771566598771eb0c98fabbcb2cb6d53bc312a20572e"
+    }
+  ]
+}

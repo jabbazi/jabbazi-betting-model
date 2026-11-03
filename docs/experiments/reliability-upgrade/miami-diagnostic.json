@@ -1,0 +1,209 @@
+{
+  "scan_id": "8f4d0c7e-5c5c-4d7b-a0ac-2e55dc19d2c1",
+  "model_version": "nfl-score-ridge-0.1.0-8b55af293d53",
+  "artifact_sha256": "c43872b4d694f8a00ee4c0b17706baa71df29277804ad02f896aa5e2a804f8d1",
+  "features": {
+    "home_scoring_form": 18.375,
+    "away_scoring_form": 18.625,
+    "home_conceding_form": 27.125,
+    "away_conceding_form": 20.875,
+    "rest_advantage_days": 0.16319444444444464,
+    "home_field": 1.0
+  },
+  "team_history": {
+    "Miami Dolphins": [
+      [
+        21,
+        17,
+        "2025-11-30T18:00:00+00:00",
+        "2025-12-02T00:00:00+00:00"
+      ],
+      [
+        34,
+        10,
+        "2025-12-07T18:00:00+00:00",
+        "2025-12-09T00:00:00+00:00"
+      ],
+      [
+        15,
+        28,
+        "2025-12-16T01:15:00+00:00",
+        "2025-12-18T00:00:00+00:00"
+      ],
+      [
+        21,
+        45,
+        "2025-12-21T18:00:00+00:00",
+        "2025-12-23T00:00:00+00:00"
+      ],
+      [
+        20,
+        17,
+        "2025-12-28T18:00:00+00:00",
+        "2025-12-30T00:00:00+00:00"
+      ],
+      [
+        10,
+        38,
+        "2026-01-04T21:25:00+00:00",
+        "2026-01-06T00:00:00+00:00"
+      ],
+      [
+        13,
+        27,
+        "2026-09-13T20:25:00+00:00",
+        "2026-09-15T00:00:00+00:00"
+      ],
+      [
+        13,
+        35,
+        "2026-09-20T20:25:00+00:00",
+        "2026-09-22T00:00:00+00:00"
+      ]
+    ],
+    "Kansas City Chiefs": [
+      [
+        28,
+        31,
+        "2025-11-27T21:30:00+00:00",
+        "2025-11-29T00:00:00+00:00"
+      ],
+      [
+        10,
+        20,
+        "2025-12-08T01:20:00+00:00",
+        "2025-12-10T00:00:00+00:00"
+      ],
+      [
+        13,
+        16,
+        "2025-12-14T18:00:00+00:00",
+        "2025-12-16T00:00:00+00:00"
+      ],
+      [
+        9,
+        26,
+        "2025-12-21T18:00:00+00:00",
+        "2025-12-23T00:00:00+00:00"
+      ],
+      [
+        13,
+        20,
+        "2025-12-26T01:15:00+00:00",
+        "2025-12-28T00:00:00+00:00"
+      ],
+      [
+        12,
+        14,
+        "2026-01-04T21:25:00+00:00",
+        "2026-01-06T00:00:00+00:00"
+      ],
+      [
+        31,
+        10,
+        "2026-09-15T00:15:00+00:00",
+        "2026-09-17T00:00:00+00:00"
+      ],
+      [
+        33,
+        30,
+        "2026-09-21T00:20:00+00:00",
+        "2026-09-23T00:00:00+00:00"
+      ]
+    ]
+  },
+  "score_distribution": {
+    "expected_home_points": 21.75438596491228,
+    "expected_away_points": 21.519298245614035,
+    "expected_margin": 0.23508771929824562,
+    "expected_total": 43.27368421052632,
+    "margin_variance": 183.07104955370883,
+    "total_variance": 164.2829916897507,
+    "home_variance": 92.03090181594337,
+    "away_variance": 81.6461188057864,
+    "score_covariance": -4.697014465989535,
+    "score_correlation": -0.054186024194319164,
+    "margin_predictive_interval_90": [
+      -24,
+      25
+    ],
+    "total_predictive_interval_90": [
+      24,
+      66
+    ],
+    "sample_count": 285,
+    "tie_probability": 0.056140350877192984
+  },
+  "spread_probabilities": {
+    "2.5": 0.5894736842105263,
+    "7.5": 0.743859649122807,
+    "10.5": 0.8140350877192982,
+    "11.5": 0.8210526315789474
+  },
+  "moneyline": {
+    "win": 0.47017543859649125,
+    "push": 0.056140350877192984,
+    "loss": 0.47368421052631576
+  },
+  "conditional_moneyline": 0.49814126394052044,
+  "checks": {
+    "team_ids": "KC/MIA names match nflverse adapter; provider mapping absent from saved tool output",
+    "home_away": "Miami home; Kansas City away, matching schedule and quote",
+    "event_id": "provider 0339a0e41bcee12820eb3e64bb5fadb4; schedule 2026_03_KC_MIA",
+    "season_week": "2026 week 3 from schedule ID; explicit metadata not enforced by old model",
+    "date_time": "2026-09-27T17:00:00+00:00",
+    "roster_version": "UNAVAILABLE: no roster feature",
+    "QB_assignment": "UNAVAILABLE: no QB feature",
+    "injuries": "UNAVAILABLE: no injury feature",
+    "feature_orientation": "home scoring, away scoring, home conceding, away conceding, home-minus-away rest, home field",
+    "favorite_sign": "No favorite flag; home margin = home points minus away points",
+    "spread_sign": "Miami +10.5 wins when Miami margin + 10.5 > 0",
+    "alternate_translation": "Same score samples and same signed handicap as main spread",
+    "market_pairing": "Miami +10.5 / Kansas City -10.5 complementary; main market sums to one",
+    "outcome_pairing": "Spread wins 232/285; opposite wins 53/285",
+    "no_vig": "Main spread consensus .494764397905759 + .505235602094241 = 1",
+    "feature_freshness": "Cloud refreshed 2026-09-24T23:21:12Z; bundled Sept23 state reproduces exact output. Per-scan cloud feature snapshot not accessible through read-only tools.",
+    "scaling": {
+      "home_scoring_form": -0.8132205070411529,
+      "away_scoring_form": -0.7675960867642428,
+      "home_conceding_form": 1.204939730888552,
+      "away_conceding_form": -0.352338473890239,
+      "rest_advantage_days": -0.003896649578776185,
+      "home_field": 0.1437770309379171
+    },
+    "imputation": "None; insufficient history returns None",
+    "preprocessing_parity": "Training and inference share features() and score_samples()",
+    "residual_variance": {
+      "expected_home_points": 21.75438596491228,
+      "expected_away_points": 21.519298245614035,
+      "expected_margin": 0.23508771929824562,
+      "expected_total": 43.27368421052632,
+      "margin_variance": 183.07104955370883,
+      "total_variance": 164.2829916897507,
+      "home_variance": 92.03090181594337,
+      "away_variance": 81.6461188057864,
+      "score_covariance": -4.697014465989535,
+      "score_correlation": -0.054186024194319164,
+      "margin_predictive_interval_90": [
+        -24,
+        25
+      ],
+      "total_predictive_interval_90": [
+        24,
+        66
+      ],
+      "sample_count": 285,
+      "tie_probability": 0.056140350877192984
+    },
+    "calibration": "285 paired 2024 residuals; NOT independently fitted probability calibration",
+    "double_transformation": "No probability transform; moneyline explicitly conditions on no tie",
+    "stale_strength": "6/8 equally weighted team games from 2025, 2/8 from 2026; no season decay",
+    "duplicate_events": "Inference requires exactly one schedule match; provider cross-ID duplicates not checked in old scanner",
+    "leakage": "Fitted through 2023; residual year 2024. Availability uses two-day result proxy, not captured historical receipt; no decision-time backtest claim.",
+    "suspicious_features": "Finite score means but structurally inadequate personnel/recency coverage; 5.61% simulated ties is a distribution defect requiring better football settlement modeling"
+  },
+  "conclusion": "Exact arithmetic reproduction. No evidence of Miami spread sign error. Near-even score forecast derives from weak, stale, equally weighted form features without personnel inputs; no validated probability calibration. Extreme market disagreement quarantined, not capped.",
+  "status": "MODEL_QUARANTINE",
+  "root_cause_confirmed": "Inadequate feature/recency model and missing disagreement admission gate",
+  "unverified": "Full frozen production feature snapshot and real personnel state; reproduction is from committed artifact, not a claimed database export"
+}

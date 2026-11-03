@@ -1,0 +1,770 @@
+[
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CAR/20222023",
+    "file": "CAR-20222023.json",
+    "sha256": "c414f63a5f72a9b26e2473cdfc417b5103787212faa157078b6b68df1de7ef29",
+    "retrieved_at": "2026-09-28T04:43:10.836705+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CAR/20232024",
+    "file": "CAR-20232024.json",
+    "sha256": "3d5e2e70f0429b5c2d3c588d51e30de0cb67c0b8159ab0ec4618efee7777ce36",
+    "retrieved_at": "2026-09-28T04:43:10.860071+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CAR/20242025",
+    "file": "CAR-20242025.json",
+    "sha256": "f8c7da6eb3738c1a54e29c60599ff8488fcad6dc807f8d6c6286a80d3e70159e",
+    "retrieved_at": "2026-09-28T04:43:10.857680+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CAR/20252026",
+    "file": "CAR-20252026.json",
+    "sha256": "9cac611e2c51e57bb66bbb82430a4f5fe81fb4c8a6406fca5b960f3665df0a82",
+    "retrieved_at": "2026-09-28T04:43:10.877813+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/ANA/20222023",
+    "file": "ANA-20222023.json",
+    "sha256": "4cfd231c6a120d6ab67ba231a79ef7afb0bb18f03a995d93df9427819ceb8c96",
+    "retrieved_at": "2026-09-28T04:43:45.443354+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/ARI/20222023",
+    "file": "ARI-20222023.json",
+    "sha256": "96827889a8d7bc51b28d52a2bc081873b4ed8f4734704bb73678c471a309c62f",
+    "retrieved_at": "2026-09-28T04:43:45.400018+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BOS/20222023",
+    "file": "BOS-20222023.json",
+    "sha256": "7a12707afb33ba8f9c41c29601590219e57e3368c465b3280ac11e49ab7ade17",
+    "retrieved_at": "2026-09-28T04:43:45.446628+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BUF/20222023",
+    "file": "BUF-20222023.json",
+    "sha256": "33844f7053818f4e8870f027fa39c1e9c7f99a1839dc8ec4e1e7ec080ca2662a",
+    "retrieved_at": "2026-09-28T04:43:45.423101+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CBJ/20222023",
+    "file": "CBJ-20222023.json",
+    "sha256": "52327e38835af12f29e805f942d5f64f1b1c88efedb10e9749bf763bc7f2f77b",
+    "retrieved_at": "2026-09-28T04:43:45.425616+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CGY/20222023",
+    "file": "CGY-20222023.json",
+    "sha256": "4e4523d4c921518e61aaea680ae637945afcaa4ddb33b12bb15867576a559b58",
+    "retrieved_at": "2026-09-28T04:43:45.475447+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CHI/20222023",
+    "file": "CHI-20222023.json",
+    "sha256": "6ecaeed42944c9a59bc46243742059d5702c2016b8fbbd27c411335af63b0b61",
+    "retrieved_at": "2026-09-28T04:43:51.070195+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/COL/20222023",
+    "file": "COL-20222023.json",
+    "sha256": "d78fd06947cf4a08d18d99a031f8ee4984a57712faf82c3faebe63057563b859",
+    "retrieved_at": "2026-09-28T04:43:51.091921+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DAL/20222023",
+    "file": "DAL-20222023.json",
+    "sha256": "a9995a33aa81aacf91a4017ae56ec5880276b7d80d68cb355577ee5322953636",
+    "retrieved_at": "2026-09-28T04:43:51.088982+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DET/20222023",
+    "file": "DET-20222023.json",
+    "sha256": "2d0989ae367de41ade57f62ac6406acc2a12fc228d9f6bef4afa259cab807209",
+    "retrieved_at": "2026-09-28T04:43:51.079780+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/EDM/20222023",
+    "file": "EDM-20222023.json",
+    "sha256": "eb057c344cdbf199ee04d080f6e221dee2489817c0e71432d7fb45c234a7751c",
+    "retrieved_at": "2026-09-28T04:43:51.104835+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/FLA/20222023",
+    "file": "FLA-20222023.json",
+    "sha256": "2e657f7f401dab9494f0b727875e3089e0f82b85a9629ae886f7ec04e75ffd64",
+    "retrieved_at": "2026-09-28T04:43:51.228321+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/LAK/20222023",
+    "file": "LAK-20222023.json",
+    "sha256": "60d63a44cbb0c9416c8a82f16e0d0c0b1b71727d43bfbacd6ca429566083d8d5",
+    "retrieved_at": "2026-09-28T04:43:56.920380+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MIN/20222023",
+    "file": "MIN-20222023.json",
+    "sha256": "0da574c058925922b560117c3b81a880ea680e72088284e50ff23fdb1403e9dc",
+    "retrieved_at": "2026-09-28T04:43:56.928720+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MTL/20222023",
+    "file": "MTL-20222023.json",
+    "sha256": "78c4aff449631da5b42c49b48f6622f6695c27e4cb7e31a0ebabd8d05323e280",
+    "retrieved_at": "2026-09-28T04:43:56.939549+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NJD/20222023",
+    "file": "NJD-20222023.json",
+    "sha256": "c42e0a9cd2c6b0ff4b89a519136c975d9b16b094db5e2d376e851c605f7092f0",
+    "retrieved_at": "2026-09-28T04:43:56.947056+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NSH/20222023",
+    "file": "NSH-20222023.json",
+    "sha256": "c3dfbe8ccead60d5414657a03878b7b3c46d6949b4eefdbf92dff3ce0a28edc4",
+    "retrieved_at": "2026-09-28T04:43:56.881050+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYI/20222023",
+    "file": "NYI-20222023.json",
+    "sha256": "d4a10c175a1e4d4b780012245686741ae937d603e54fd2e0941433150aa0e725",
+    "retrieved_at": "2026-09-28T04:43:56.956100+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYR/20222023",
+    "file": "NYR-20222023.json",
+    "sha256": "454cc681ba808e60769084b9e02294cda03d2aedd5ce2fbbd37c3929a79d4c1d",
+    "retrieved_at": "2026-09-28T04:44:03.004290+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/OTT/20222023",
+    "file": "OTT-20222023.json",
+    "sha256": "8696bd8fd2c8f05337dee69bc80c52d21ff66545aed7210581599769c3e2d39b",
+    "retrieved_at": "2026-09-28T04:44:02.972764+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PHI/20222023",
+    "file": "PHI-20222023.json",
+    "sha256": "6fb96f4f7cbc03b929818765ecc499df11edbb362a87f7fc9cc335305845eaa0",
+    "retrieved_at": "2026-09-28T04:44:02.969668+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PIT/20222023",
+    "file": "PIT-20222023.json",
+    "sha256": "d59593a8d41256db26e6968cec7a64932f43d692041bede98060257f0d07030e",
+    "retrieved_at": "2026-09-28T04:44:03.012167+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SEA/20222023",
+    "file": "SEA-20222023.json",
+    "sha256": "8d8cdfc04c5b6bdde0cacb83d1b840964ca4b428686f39cfd475bfcc5f8cf746",
+    "retrieved_at": "2026-09-28T04:44:03.030940+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SJS/20222023",
+    "file": "SJS-20222023.json",
+    "sha256": "30e326fdd76dd058375fbc1d0afb248969be3ef07b35037b6a002c0e4a2a3353",
+    "retrieved_at": "2026-09-28T04:44:03.041977+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/STL/20222023",
+    "file": "STL-20222023.json",
+    "sha256": "cf3e8e0dd1cb86af64a8f4d00d936bae2bdb4aa0c1f18e1bebe19db789e48607",
+    "retrieved_at": "2026-09-28T04:44:08.275493+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TBL/20222023",
+    "file": "TBL-20222023.json",
+    "sha256": "52d3391cdfcacd6684f2899dae343691d435bd2ab6a149b44faeae02b5d376a3",
+    "retrieved_at": "2026-09-28T04:44:08.302887+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TOR/20222023",
+    "file": "TOR-20222023.json",
+    "sha256": "972fda45b261c67d446a5e9af34488b9796bcc8f78d0644c89f3c4b4d41a28d3",
+    "retrieved_at": "2026-09-28T04:44:08.347540+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VAN/20222023",
+    "file": "VAN-20222023.json",
+    "sha256": "82ab492caa5dc7270ba0764f3280c466a492a972db6a329e135e69b6def158b4",
+    "retrieved_at": "2026-09-28T04:44:08.374693+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VGK/20222023",
+    "file": "VGK-20222023.json",
+    "sha256": "3e82ebd7dc1bbe6a8adef1fc3e3c1a7375e456494d2b6e58063c5a5b54430ae4",
+    "retrieved_at": "2026-09-28T04:44:08.353383+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WPG/20222023",
+    "file": "WPG-20222023.json",
+    "sha256": "7d6c8420ac43f4b1f64d0ac0f5594b4118c5318a7c48d11a4f339c5ba9c79263",
+    "retrieved_at": "2026-09-28T04:44:08.585105+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WSH/20222023",
+    "file": "WSH-20222023.json",
+    "sha256": "8d863c2395aa2e620aa8cdef4b7240cae31325900e16963c1d9224b017d6fba9",
+    "retrieved_at": "2026-09-28T04:44:13.472759+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/ANA/20232024",
+    "file": "ANA-20232024.json",
+    "sha256": "fa31568def4249a4834ef76c2076f1189cb49a84cb4790498ef2b52ea0acf29a",
+    "retrieved_at": "2026-09-28T04:44:13.574754+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/ARI/20232024",
+    "file": "ARI-20232024.json",
+    "sha256": "5dc51484ebc0b589bd3fc6719e7f1533dd7d73720c4d147b187d1cdb8da17b24",
+    "retrieved_at": "2026-09-28T04:44:13.689506+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BOS/20232024",
+    "file": "BOS-20232024.json",
+    "sha256": "15226f8327d4d6abbeab988f5bcc0078533f8ec78187b2007e22bfc9906e19bf",
+    "retrieved_at": "2026-09-28T04:44:13.585981+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BUF/20232024",
+    "file": "BUF-20232024.json",
+    "sha256": "c9e2fe06cdfc7abe5017151ec59ff5ff745ee26e5842ce70f5e1287f3255e063",
+    "retrieved_at": "2026-09-28T04:44:13.563253+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CBJ/20232024",
+    "file": "CBJ-20232024.json",
+    "sha256": "26f402a9cf6f00d529e46f19a66fff160e976c4045df8aa5d9dbf5b49fde6826",
+    "retrieved_at": "2026-09-28T04:44:13.604707+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CGY/20232024",
+    "file": "CGY-20232024.json",
+    "sha256": "d533022079bbf5dd03529e9c562647b6ba55d0def2f8fe065d91632db26108ee",
+    "retrieved_at": "2026-09-28T04:44:18.759980+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CHI/20232024",
+    "file": "CHI-20232024.json",
+    "sha256": "041a8cad77f1753ec76adc1fde6df11196153e88a6e6f31d28b055c45d820705",
+    "retrieved_at": "2026-09-28T04:44:18.770460+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/COL/20232024",
+    "file": "COL-20232024.json",
+    "sha256": "98064cbf99fae62498858ce423e23bbda36a29fec45558b4d11497d166a8ed90",
+    "retrieved_at": "2026-09-28T04:44:18.787587+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DAL/20232024",
+    "file": "DAL-20232024.json",
+    "sha256": "24b7a9436ee8714f0d271fcf6ae47bab5342243eb61b7054297e291c095c63ba",
+    "retrieved_at": "2026-09-28T04:44:18.793212+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DET/20232024",
+    "file": "DET-20232024.json",
+    "sha256": "3ffff96ee0279f03cfd8ab83c46506ed4bc25702abc00622730a512dc0d7297e",
+    "retrieved_at": "2026-09-28T04:44:19.025589+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/EDM/20232024",
+    "file": "EDM-20232024.json",
+    "sha256": "2ffe988c514908f0938bde1a60d1579448e77640faacabc1b16d350f8d5b7032",
+    "retrieved_at": "2026-09-28T04:44:18.800481+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/FLA/20232024",
+    "file": "FLA-20232024.json",
+    "sha256": "7a1428e74b73b1ccdc3ac15e07cf72ae99cbeb65e86eae8048b10fd97f2c47d9",
+    "retrieved_at": "2026-09-28T04:44:24.843239+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/LAK/20232024",
+    "file": "LAK-20232024.json",
+    "sha256": "9dcd2ddbed4a6f8df6a96c2f440aa0a38fbae80abb1562310e40a4b0569e6f70",
+    "retrieved_at": "2026-09-28T04:44:24.715250+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MIN/20232024",
+    "file": "MIN-20232024.json",
+    "sha256": "dd3857f0dc4963223ab1b95ab730a8df865a75a9c642bb7339b369873777709c",
+    "retrieved_at": "2026-09-28T04:44:24.696198+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MTL/20232024",
+    "file": "MTL-20232024.json",
+    "sha256": "b933bf5ae930f8bcbcf987727ea6b8ea46ed1a07a8cfa36a08b6179e5c896d8c",
+    "retrieved_at": "2026-09-28T04:44:24.704209+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NJD/20232024",
+    "file": "NJD-20232024.json",
+    "sha256": "2c58fa44f4e03875e4e39f849893cd82fffc05928b2d3d8db98af344489a1d55",
+    "retrieved_at": "2026-09-28T04:44:24.651611+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NSH/20232024",
+    "file": "NSH-20232024.json",
+    "sha256": "982d5eb4b47d28b45551b0f31dc682e75dbc5ba3250597d05a664a24e64fa465",
+    "retrieved_at": "2026-09-28T04:44:24.620760+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYI/20232024",
+    "file": "NYI-20232024.json",
+    "sha256": "b0443cf8e9d77af3fb99d9cccbd99ddeb927c0465acfc9931cbf2be539f09f85",
+    "retrieved_at": "2026-09-28T04:44:29.740635+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYR/20232024",
+    "file": "NYR-20232024.json",
+    "sha256": "a1954fb8d1284696138ae9a948666c8969e7773de4821361aed1ffec68db5be9",
+    "retrieved_at": "2026-09-28T04:44:29.728492+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/OTT/20232024",
+    "file": "OTT-20232024.json",
+    "sha256": "8eb2cc90f27da3928a2afca8ba88d20a19b9deebd6d2e62cb472deed2515470f",
+    "retrieved_at": "2026-09-28T04:44:29.812213+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PHI/20232024",
+    "file": "PHI-20232024.json",
+    "sha256": "fe2e50a72a14dc05dcf1ccc180d536ec495bbfd2cc39ac2925fb2e4a3646155f",
+    "retrieved_at": "2026-09-28T04:44:29.712003+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PIT/20232024",
+    "file": "PIT-20232024.json",
+    "sha256": "743e474cf42ce0cf256ad81943c1a88e8fd36aa0000188548ed54dd13c41bdda",
+    "retrieved_at": "2026-09-28T04:44:29.676702+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SEA/20232024",
+    "file": "SEA-20232024.json",
+    "sha256": "cf1c6bccd7886908e70e4cc6035f359fd4a0f5b1251bac3aa501242b9b1b1d37",
+    "retrieved_at": "2026-09-28T04:44:29.769159+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SJS/20232024",
+    "file": "SJS-20232024.json",
+    "sha256": "e786a273d289cbd99156de0be73b9764755aa36798ee5ed36f942420e6bb967e",
+    "retrieved_at": "2026-09-28T04:44:34.838326+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/STL/20232024",
+    "file": "STL-20232024.json",
+    "sha256": "d5dfd575f0810e5984c407acc40f94cd7b44bc5ba6f8192df58e0b312b30fb80",
+    "retrieved_at": "2026-09-28T04:44:34.920156+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TBL/20232024",
+    "file": "TBL-20232024.json",
+    "sha256": "6a56a17b7dfaa076876ffd2fcec709494a76711d8f5d8a2e015f61406c04a656",
+    "retrieved_at": "2026-09-28T04:44:34.795227+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TOR/20232024",
+    "file": "TOR-20232024.json",
+    "sha256": "5f801ed6240bd257b3a0a4d99122d0d0cf7248ed256fa8b274b4b2ff647bd168",
+    "retrieved_at": "2026-09-28T04:44:34.864480+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VAN/20232024",
+    "file": "VAN-20232024.json",
+    "sha256": "8e6881d5fdf1b08721a0ec2778d5b4eae10e462db09f74ebac05da0a076da3ea",
+    "retrieved_at": "2026-09-28T04:44:34.925670+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VGK/20232024",
+    "file": "VGK-20232024.json",
+    "sha256": "dbe483c38075e602e96f13b556b8eb986eabf036afbb442f05360d7af7d3d066",
+    "retrieved_at": "2026-09-28T04:44:34.860439+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WPG/20232024",
+    "file": "WPG-20232024.json",
+    "sha256": "31cd75a354ebccc70a3a20d50cf2f886856a06e5cc5624531caf12cd8c1b41fc",
+    "retrieved_at": "2026-09-28T04:44:40.743873+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WSH/20232024",
+    "file": "WSH-20232024.json",
+    "sha256": "586876eaead233c3ca19faba39de7674ab78f84d60a0983d970b18fc3a8dee84",
+    "retrieved_at": "2026-09-28T04:44:40.668994+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/ANA/20242025",
+    "file": "ANA-20242025.json",
+    "sha256": "66ca94baddc3eacb7859ef0434e3565a7673adf2024e266284c09e69b807d604",
+    "retrieved_at": "2026-09-28T04:44:40.671457+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BOS/20242025",
+    "file": "BOS-20242025.json",
+    "sha256": "ce2293cfc0c85d25c2601de2fd9032d1002f02c24c404acc711dff954c8a5b8c",
+    "retrieved_at": "2026-09-28T04:44:40.634404+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BUF/20242025",
+    "file": "BUF-20242025.json",
+    "sha256": "37e8f7e87e4445e81583aa269051a4d22a521e7d79d8af0cecbf127fbd7c2714",
+    "retrieved_at": "2026-09-28T04:44:40.710620+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CBJ/20242025",
+    "file": "CBJ-20242025.json",
+    "sha256": "0ff86026de2c947178c4714eda0bed11e8e98a30b8f9e9f5864378095c2ea33e",
+    "retrieved_at": "2026-09-28T04:44:40.664467+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CGY/20242025",
+    "file": "CGY-20242025.json",
+    "sha256": "3c8815840f1d350cce42d4bab1593134b4d82817ac640a84c9917e7b0d464853",
+    "retrieved_at": "2026-09-28T04:44:45.789295+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CHI/20242025",
+    "file": "CHI-20242025.json",
+    "sha256": "75feafe6ea7cd89e72247b122d3067333f31dc2acf51b34bf350ebe35e010ade",
+    "retrieved_at": "2026-09-28T04:44:45.827675+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/COL/20242025",
+    "file": "COL-20242025.json",
+    "sha256": "d20101d779c10050099367d09445dc87e0e312f1cfd82198472338e19a8ebf87",
+    "retrieved_at": "2026-09-28T04:44:45.838845+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DAL/20242025",
+    "file": "DAL-20242025.json",
+    "sha256": "aeec6119c960a760ce3a12793d12b7b000bb8f5a3c15fc2d275031f0db7ae2ab",
+    "retrieved_at": "2026-09-28T04:44:45.907456+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DET/20242025",
+    "file": "DET-20242025.json",
+    "sha256": "2150abfe5d8a83c81c77cfb2ae7ad33a12974e9982a248e31e23017cae3ba25e",
+    "retrieved_at": "2026-09-28T04:44:45.858481+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/EDM/20242025",
+    "file": "EDM-20242025.json",
+    "sha256": "c13569e059d3c2d4913feb8844f93f35bf5cd21bae83be062c15a6eaffdc46a2",
+    "retrieved_at": "2026-09-28T04:44:45.811356+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/FLA/20242025",
+    "file": "FLA-20242025.json",
+    "sha256": "346f24425ed34c1491859f1c024e96c4382d6c396f0fede19971899c726e04de",
+    "retrieved_at": "2026-09-28T04:44:50.587803+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/LAK/20242025",
+    "file": "LAK-20242025.json",
+    "sha256": "82dfd814fa663537a5ac6f54f6613a8aad843f8f78a054c2ab9dd4672f326c3a",
+    "retrieved_at": "2026-09-28T04:44:50.587151+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MIN/20242025",
+    "file": "MIN-20242025.json",
+    "sha256": "f079040cb93c67d18c4166f0c230fcd204d6e85d3a9fc3ee4934735afc4efdd9",
+    "retrieved_at": "2026-09-28T04:44:50.583058+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MTL/20242025",
+    "file": "MTL-20242025.json",
+    "sha256": "be205359f3752814c8457679d351e37def722bb9d05ed25f723138ace9fb0e4b",
+    "retrieved_at": "2026-09-28T04:44:50.571839+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NJD/20242025",
+    "file": "NJD-20242025.json",
+    "sha256": "5feab27e6f628a6eaff5a8e65cd8492f63e6c7f00224551831e44bd0e9a4179b",
+    "retrieved_at": "2026-09-28T04:44:50.552288+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NSH/20242025",
+    "file": "NSH-20242025.json",
+    "sha256": "bbd1f42a1e12317ae13b9fdd3d5a38c4afd1320e16bf9f973bb0db9f40d7222a",
+    "retrieved_at": "2026-09-28T04:44:50.578854+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYI/20242025",
+    "file": "NYI-20242025.json",
+    "sha256": "fabe7f17916ac32ac5e66a66862fa13897ab0b36635537587bf36753a61e5d4a",
+    "retrieved_at": "2026-09-28T04:44:56.095790+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYR/20242025",
+    "file": "NYR-20242025.json",
+    "sha256": "86657ac3ac079d114fac7fd34d02a0322351673421a0fa16e2a6c219f46770e2",
+    "retrieved_at": "2026-09-28T04:44:56.041047+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/OTT/20242025",
+    "file": "OTT-20242025.json",
+    "sha256": "20a2b260e6c0608f59779f68114f6378314d32e6b7457eaecdb7f324044cf638",
+    "retrieved_at": "2026-09-28T04:44:56.038219+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PHI/20242025",
+    "file": "PHI-20242025.json",
+    "sha256": "e8c51dfe11857e82125eb6fa3463d4aebd035ad7100446f418f4b5d2c00e2542",
+    "retrieved_at": "2026-09-28T04:44:56.030366+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PIT/20242025",
+    "file": "PIT-20242025.json",
+    "sha256": "e18babcee705982a9f8b00b286b880daef84c7abebc2d22dfd022429448a0bf4",
+    "retrieved_at": "2026-09-28T04:44:56.106077+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SEA/20242025",
+    "file": "SEA-20242025.json",
+    "sha256": "3519be70c9671d8097f0505a57cdb31983643cae313d7ab142a52b8678071177",
+    "retrieved_at": "2026-09-28T04:44:56.040237+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SJS/20242025",
+    "file": "SJS-20242025.json",
+    "sha256": "b765895f3c4f6b01f5d4a85f7d3649f72abdbcfae4e6525d3d7503aa691f1326",
+    "retrieved_at": "2026-09-28T04:45:03.260407+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/STL/20242025",
+    "file": "STL-20242025.json",
+    "sha256": "3daf57615e7321d32c7131c393759123555e9f495966e7e67d34d4b977f69b45",
+    "retrieved_at": "2026-09-28T04:45:03.234260+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TBL/20242025",
+    "file": "TBL-20242025.json",
+    "sha256": "48c570d23b4f5bf21ba496e9047876ec706e41bd98b87d4fe17fd4a4105d8181",
+    "retrieved_at": "2026-09-28T04:45:03.213291+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TOR/20242025",
+    "file": "TOR-20242025.json",
+    "sha256": "2e28434e55fe1652c431f13197441f368e3923c7768e59c0d37039d2bc06ca25",
+    "retrieved_at": "2026-09-28T04:45:03.230052+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/UTA/20242025",
+    "file": "UTA-20242025.json",
+    "sha256": "bd5761e42da3aa136b157c61f3532a82267637948af1c7e587ea6024865f9485",
+    "retrieved_at": "2026-09-28T04:45:03.214312+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VAN/20242025",
+    "file": "VAN-20242025.json",
+    "sha256": "43d5c703067fa3d7d2711037dd139fa56524f965fdf52ae540ac6bdba70d601b",
+    "retrieved_at": "2026-09-28T04:45:03.222469+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VGK/20242025",
+    "file": "VGK-20242025.json",
+    "sha256": "eb2575abcbbd1d13cf4f9b00cc92948fa712f7c0f97a02da9d2e1d86fdb4da8b",
+    "retrieved_at": "2026-09-28T04:45:08.593820+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WPG/20242025",
+    "file": "WPG-20242025.json",
+    "sha256": "5dad0801a4f2cbf3dfae71f89f33f38e0fe85487cf8594e14f4ed0d81ffdd0a0",
+    "retrieved_at": "2026-09-28T04:45:08.553744+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WSH/20242025",
+    "file": "WSH-20242025.json",
+    "sha256": "c27ac08e37c42549aa11a15065d6ae9e377217682fcf61a8a905b46b30a395c5",
+    "retrieved_at": "2026-09-28T04:45:08.614495+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/ANA/20252026",
+    "file": "ANA-20252026.json",
+    "sha256": "007a4094b38345cb032006e01accac6a0040e81ae0831ae75dbfdd0030f242e3",
+    "retrieved_at": "2026-09-28T04:45:08.378611+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BOS/20252026",
+    "file": "BOS-20252026.json",
+    "sha256": "b841f0bf310b7212e55f3c80dbf2cc7bb774fecdc84deabb7a2d899baeb83d2b",
+    "retrieved_at": "2026-09-28T04:45:08.350943+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/BUF/20252026",
+    "file": "BUF-20252026.json",
+    "sha256": "465eab636b1f9cd643894c07514ad88a4192df556f9b64cdb00ed68eeab29c7b",
+    "retrieved_at": "2026-09-28T04:45:08.429209+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CBJ/20252026",
+    "file": "CBJ-20252026.json",
+    "sha256": "0083567d2849548af18b5ba8e777af229006e1daa0854e100a60c26d5c38d08d",
+    "retrieved_at": "2026-09-28T04:45:15.124747+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CGY/20252026",
+    "file": "CGY-20252026.json",
+    "sha256": "eb052664ccd1812f6b37cd5dbb12cc73414c4921983de04237f932a9e38978d1",
+    "retrieved_at": "2026-09-28T04:45:15.272088+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/CHI/20252026",
+    "file": "CHI-20252026.json",
+    "sha256": "3abe39c35e33d2d4e231c752997eae17c9fd765740dae97e3f3a94822d5d5337",
+    "retrieved_at": "2026-09-28T04:45:15.238403+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/COL/20252026",
+    "file": "COL-20252026.json",
+    "sha256": "08fa11bdcc01a51f45435db7781bdccc1d0a7873f371a5f9f2cfe51eb7b46a51",
+    "retrieved_at": "2026-09-28T04:45:15.273185+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DAL/20252026",
+    "file": "DAL-20252026.json",
+    "sha256": "d7fa33a8f645829f75836aadf63429e28d78feea0bf508ac5c30712f9db320a8",
+    "retrieved_at": "2026-09-28T04:45:15.297831+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/DET/20252026",
+    "file": "DET-20252026.json",
+    "sha256": "017e1b4e4ee44c3f3568e6933bf8d6217882c29f983a3b6368d49ab9d1a10695",
+    "retrieved_at": "2026-09-28T04:45:15.250876+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/EDM/20252026",
+    "file": "EDM-20252026.json",
+    "sha256": "b4c5929e4c87858e86172f782bd16255cdbca4a0ba32dce8be3a4042ff8e2feb",
+    "retrieved_at": "2026-09-28T04:45:21.221557+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/FLA/20252026",
+    "file": "FLA-20252026.json",
+    "sha256": "1a1f9ae1354f4126fbec460c2388946dbedd80d395af2716017f176cca188f21",
+    "retrieved_at": "2026-09-28T04:45:21.339851+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/LAK/20252026",
+    "file": "LAK-20252026.json",
+    "sha256": "88efff7fd71bfc591087f95a91c25d0baa90ed0cf0410d2dbdb168947f959341",
+    "retrieved_at": "2026-09-28T04:45:21.348190+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MIN/20252026",
+    "file": "MIN-20252026.json",
+    "sha256": "619806a0f01ba84320d7e9720b9761cd896bd08c8bd00fa3195c8511a9a054e2",
+    "retrieved_at": "2026-09-28T04:45:21.298397+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/MTL/20252026",
+    "file": "MTL-20252026.json",
+    "sha256": "c3620b191e7d58060c894df2da5e7f5214afbd0a9a36a4251ac6f761ce13742d",
+    "retrieved_at": "2026-09-28T04:45:21.206627+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NJD/20252026",
+    "file": "NJD-20252026.json",
+    "sha256": "e473550d42ac21473a6112ec1053d50a510824e890115b7ba9590fceaec2295e",
+    "retrieved_at": "2026-09-28T04:45:21.271157+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NSH/20252026",
+    "file": "NSH-20252026.json",
+    "sha256": "1a9ca8dbb277e89a5e4e78b758fa43231616587b7b3f5435de73c612d8701aa6",
+    "retrieved_at": "2026-09-28T04:45:26.813401+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYI/20252026",
+    "file": "NYI-20252026.json",
+    "sha256": "15eacddb0b5fa73143e038b78cb944efc86023b0eabeadc0b4230dbb24ca453c",
+    "retrieved_at": "2026-09-28T04:45:26.908068+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/NYR/20252026",
+    "file": "NYR-20252026.json",
+    "sha256": "e95b3e2b0811a9e733a522b7de6457e0ae82d1d9e0c018ca18282075bdf875b3",
+    "retrieved_at": "2026-09-28T04:45:26.910828+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/OTT/20252026",
+    "file": "OTT-20252026.json",
+    "sha256": "05c42183ebae5698d3bd60cf565394b234d538afbf35dd212a8b6b614a421869",
+    "retrieved_at": "2026-09-28T04:45:26.638331+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PHI/20252026",
+    "file": "PHI-20252026.json",
+    "sha256": "c1b400d6a31baeddca5593a29322fa50df62c6cab21551b1d760f9ed3597bb9c",
+    "retrieved_at": "2026-09-28T04:45:26.725174+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/PIT/20252026",
+    "file": "PIT-20252026.json",
+    "sha256": "099a9836de329f81c2a583414d94cecf3f68641eeb4a95b438960956d8d7e359",
+    "retrieved_at": "2026-09-28T04:45:26.730566+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SEA/20252026",
+    "file": "SEA-20252026.json",
+    "sha256": "ca1808bf32a4a17e5248120636f4c3caabc16001b02597776fc43247d01cf72a",
+    "retrieved_at": "2026-09-28T04:45:33.431748+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/SJS/20252026",
+    "file": "SJS-20252026.json",
+    "sha256": "52504eb123a464b4143852c209b88bc68c6c73576c5f73d411b6e438b2f91438",
+    "retrieved_at": "2026-09-28T04:45:33.447076+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/STL/20252026",
+    "file": "STL-20252026.json",
+    "sha256": "c9c07473bc0a7013aa8f0590258acd211782ce0645e534ee4b654d6b36acf911",
+    "retrieved_at": "2026-09-28T04:45:33.464218+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TBL/20252026",
+    "file": "TBL-20252026.json",
+    "sha256": "23c37d33d317ef2ad9fee83ccfc4dbac69e80971cc5db65f22783b10b1d867a6",
+    "retrieved_at": "2026-09-28T04:45:33.287838+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/TOR/20252026",
+    "file": "TOR-20252026.json",
+    "sha256": "9e43d0e99239fa44c07040b02cd779cc4891951ef6507c28320f1997c68b1bfb",
+    "retrieved_at": "2026-09-28T04:45:33.303126+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/UTA/20252026",
+    "file": "UTA-20252026.json",
+    "sha256": "aebd30b2e51c6b9baf2e59b6137ad20dca19d950ec888722171bd05456da69fe",
+    "retrieved_at": "2026-09-28T04:45:33.303547+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VAN/20252026",
+    "file": "VAN-20252026.json",
+    "sha256": "b5a9187ad347e4a8a5c946202bad29f05a5ba43eb855e6a44271a6f3479b0aed",
+    "retrieved_at": "2026-09-28T04:45:38.329045+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/VGK/20252026",
+    "file": "VGK-20252026.json",
+    "sha256": "8252d58e161e90a1d4a34268848d862f9f62e32b2a7980acae9b62779029ee63",
+    "retrieved_at": "2026-09-28T04:45:38.350883+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WPG/20252026",
+    "file": "WPG-20252026.json",
+    "sha256": "4838772621ed2d225ef7cc4b38dedf26e9bd8fbaebfbdef72fdb1fc9d1683e67",
+    "retrieved_at": "2026-09-28T04:45:38.343111+00:00"
+  },
+  {
+    "url": "https://api-web.nhle.com/v1/club-schedule-season/WSH/20252026",
+    "file": "WSH-20252026.json",
+    "sha256": "b41a2d49dbf7aaefa7b7d82a6b13284208a444f140a123dfb0b1a04687b32587",
+    "retrieved_at": "2026-09-28T04:45:38.252282+00:00"
+  }
+]

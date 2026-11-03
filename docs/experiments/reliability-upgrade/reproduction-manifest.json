@@ -1,0 +1,16 @@
+{
+  "source_sha256": {
+    "src/jabazi/models/form_features.py": "13275cbb87db6261cd0fcc302d0844cdbd4f3375ca477d6dc19617df760cb119",
+    "src/jabazi/models/score_distribution.py": "84fd55071274e2f095a32e1d11fcb555b466bc87679fe3675673455f9cd8a41c",
+    "src/jabazi/research/train_scores.py": "1bee36380f3bfcc73dc59e056b749740edd392fb736514ce8ab9a15db286f995",
+    "src/jabazi/research/rolling_upgrade.py": "a2325d63c14a86360b5f334f4ba9f3520a2839017903d262534676b2e4120fb1",
+    "src/jabazi/research/calibration_report.py": "c92e289787be5d0c6017307bf8209b5f5f4301dd8109dc5ebb7d6dc8eba67e28"
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "sklearn": "1.8.0",
+    "scipy": "1.17.0"
+  },
+  "availability": "retrospective two-day proxy, not frozen historical receipts"
+}

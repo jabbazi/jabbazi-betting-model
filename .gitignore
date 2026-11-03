@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+/data/
+/models/*
+!/models/.gitkeep
+!/models/player_props/
+!/models/player_props/**
+*.healthy
+test-results.xml
