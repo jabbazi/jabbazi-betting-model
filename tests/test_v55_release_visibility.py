@@ -15,7 +15,7 @@ def test_release_identity_and_versioned_assets(monkeypatch):
     assert f'/vip/terminal.js?v={commit}' in response.text
     assert f'/vip/terminal.css?v={commit}' in response.text
     assert f'<meta name="jabbazi-release" content="{commit}">' in response.text
-    assert "V5.5 · +EV INTELLIGENCE" in response.text
+    assert "MODEL RESEARCH · VIP TERMINAL" in response.text
     version = client.get("/vip/version")
     assert version.status_code == 200
     assert version.json() == {"release": commit}

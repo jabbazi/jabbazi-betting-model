@@ -23,7 +23,7 @@ def player_row(**changes):
 def test_validating_player_model_is_research_only_not_value():
     result = research_hub([player_row()], sport="NFL", now=NOW)
     assert len(result["anytime_td"]) == 1
-    assert result["anytime_td"][0]["evidence_label"] == "SHADOW MODEL"
+    assert result["anytime_td"][0]["evidence_label"] == "VALIDATING MODEL"
     assert result["anytime_td"][0]["approved_for_betting"] is False
     assert result["anytime_td_value"] == []
     assert result["player_market_value"]["player_anytime_td"] == []
