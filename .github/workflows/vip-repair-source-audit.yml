@@ -1,0 +1,27 @@
+name: VIP repair pinned source audit
+on:
+  push:
+    branches: [feature/vip-discord-research-repair]
+    paths: [.github/workflows/vip-repair-source-audit.yml]
+permissions:
+  contents: read
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Archive reviewed source snapshots only
+        run: |
+          mkdir -p /tmp/vip-source-audit
+          git archive --format=tar.gz --output=/tmp/vip-source-audit/repair.tar.gz 4f97ee53c2c4e30cbe6548846b015871c3190e27
+          git archive --format=tar.gz --output=/tmp/vip-source-audit/production.tar.gz c5caee3dfd0ecb4523b54b943a54d6f89de0b2f5
+          sha256sum /tmp/vip-source-audit/*.tar.gz > /tmp/vip-source-audit/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vip-repair-pinned-source
+          path: /tmp/vip-source-audit
+          retention-days: 1
