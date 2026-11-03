@@ -70,6 +70,8 @@ def summary(store, *, view, sport, market='', page=1, now=None, slate_date=None)
     description = (f'{day.isoformat()} · America/Chicago · page {page} · {total} matching records.\n'
                    'EXPERIMENTAL RESEARCH — not official picks or betting approval.\n'
                    'Use the private app link for every market, line, side and remaining page.')
+    if result['next'] is not None:
+        description += f'\nNext page: /{view} sport:{sport} page:{page+1}' + (f' market:{safe(market, 80)}' if market else '')
     if not fields:
         description += '\nNo saved records match this scope. Missing data is not a 0% probability.'
     sources = saved.get('sources', [])
@@ -80,4 +82,4 @@ def summary(store, *, view, sport, market='', page=1, now=None, slate_date=None)
             'total': total, 'page': page, 'next_page': page+1 if result['next'] is not None else None,
             'row_ids': [r['id'] for r in selected],
             'snapshot_ids': [x['snapshot_id'] for x in sources],
-            'paid_requests_made': 0, 'approved_for_betting': False}
+            'slate_date': day.isoformat(), 'paid_requests_made': 0, 'approved_for_betting': False}

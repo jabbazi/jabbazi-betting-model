@@ -291,6 +291,8 @@ def test_new_discord_commands_recheck_membership_and_never_ping(portal):
             assert sent.kwargs['ephemeral'] is True
             assert sent.kwargs['allowed_mentions'].to_dict() == {'parse': []}
             assert 'sport='+sport in sent.args[0] and 'access=' in sent.args[0]
+            assert '&date=' in sent.args[0]
+            assert sent.kwargs['embed'].description.split(' · ')[0] in sent.args[0]
             assert sent.kwargs['embed'].fields
             assert 'not official picks' in sent.kwargs['embed'].description
         tickets = len(store.list_records('member_ticket', 100))
@@ -305,3 +307,43 @@ def test_new_discord_commands_recheck_membership_and_never_ping(portal):
             channel.assert_not_awaited()
         await bot.close()
     asyncio.run(run())
+
+
+def test_same_player_line_at_two_books_remains_browsable(portal):
+    store, client = portal
+    row = paid(store, count=0)
+    paid(store, rows=[{**row, 'best_sportsbook': 'Fixture A', 'best_decimal': 1.80},
+                      {**row, 'best_sportsbook': 'Fixture B', 'best_decimal': 1.95}])
+    sign_in(store, client)
+    all_rows = client.get('/v1/vip/board?family=props&sport=NHL').json()['rows']
+    assert len(all_rows) == 2
+    assert len({r['id'] for r in all_rows}) == 2
+    for row in all_rows:
+        detail = client.get('/v1/vip/detail/' + row['id']).json()['row']
+        assert detail['book'] == row['book'] and detail['decimal'] == row['decimal']
+    filtered = client.get('/v1/vip/board?family=props&sport=NHL&book=Fixture%20B').json()
+    assert filtered['total'] == 1 and filtered['rows'][0]['book'] == 'Fixture B'
+    # A ranked summary is still one player/stat, not two artificial opportunities.
+    ranked = client.get('/v1/vip/rankings?sport=NHL').json()['player_markets']['player_shots_on_goal']
+    assert len(ranked) == 1
+
+
+def test_global_alias_search_keeps_cross_sport_results(portal):
+    store, client = portal
+    row = ordinary(store)
+    ordinary(store, rows=[row, {**row, 'sport': 'baseball_mlb', 'event_id': 'mlb-1',
+              'participant': 'Fixture Judge', 'market': 'batter_home_runs',
+              'selection': 'Over', 'line': '.5'}])
+    sign_in(store, client)
+    result = client.get('/v1/vip/board?q=Judge%20HR').json()
+    assert result['total'] == 1 and result['rows'][0]['sport'] == 'MLB'
+    assert client.get('/v1/vip/board?q=Judge%20HR&sport=NBA').json()['total'] == 0
+
+
+def test_discord_page_has_explicit_matching_slate_date(portal):
+    store, _ = portal
+    paid(store, count=12)
+    report = summary(store, view='props', sport='NHL')
+    assert report['slate_date'] in report['embed']['description']
+    assert report['next_page'] == 2
+    assert '/props sport:NHL page:2' in report['embed']['description']

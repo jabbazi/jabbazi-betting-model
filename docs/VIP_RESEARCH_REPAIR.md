@@ -87,3 +87,31 @@ No scheduler was altered and no new recurring job was created. Existing schedule
 intent, timezone rules and durable delivery guards are preserved, not newly
 certified. No live Discord send, actual channel repair or production deployment
 is claimed by this development increment.
+
+
+## Follow-through fixes (November 3, 2026)
+
+The first hosted run of this repair failed the authenticated browser's existing
+Judge HR alias-search journey. The application had incorrectly restricted global
+search to the selected sport (NBA by default), hiding saved MLB results. Global
+search now means all sports until a sport is explicitly chosen; the selector,
+filters and pagination preserve that distinction. The test is retained.
+
+Private Discord links now include the summary's exact Chicago slate date. The
+app honors a valid current/next-day date, clears that override when the user changes
+the selector, and refuses to silently replace an expired dated link with a new
+slate. Long Discord summaries expose the next command page.
+
+Saved paid rows now retain separate identities for different sportsbooks' actual
+quotes of the same player, market, side and line. Book filters/detail prices remain
+consistent while Top 10 still deduplicates repeated player/market selections.
+Ordinary pre-existing row IDs are not rewritten.
+
+Service failures display a recoverable generic message, not raw 5xx diagnostics.
+No authentication, feature-freshness, quote-freshness, quarantine, model-stage or
+post-to-Discord gate was relaxed. No provider collection is triggered by a view.
+
+Local follow-through verification: 1,438 Python tests and three subtests passed;
+29 focused repair cases passed; 13 actual-asset/ASGI Chromium research journeys
+passed with zero page errors. Hosted HTTPS/container/final-commit checks must be
+verified separately; these local counts are not production acceptance.

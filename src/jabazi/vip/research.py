@@ -100,7 +100,12 @@ def saved_paid_rows(store, *, now, slate_date):
                     coverage[sport]['malformed_research_rows'] = coverage[sport].get('malformed_research_rows', 0) + 1
                     continue
                 if row:
-                    row.update(source='SAVED_PAID_MODEL_RESEARCH', executable_sportsbook_ticket_verified=False)
+                    # Preserve sportsbook-specific records. The same player/line can
+                    # have several actual quotes; collapsing them loses book filters.
+                    # Ordinary-board identities are unchanged for existing watchlists.
+                    from ..persistence.store import digest
+                    row.update(id=digest([row['id'], str(row.get('book') or '').casefold()])[:32],
+                               source='SAVED_PAID_MODEL_RESEARCH', executable_sportsbook_ticket_verified=False)
                     output.append(row)
     return output, coverage, snapshots
 

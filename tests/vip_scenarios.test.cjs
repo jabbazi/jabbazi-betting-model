@@ -4,7 +4,7 @@ const fs=require('fs');
 const path=require('path');
 const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch({headless:true});
+ const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[],requests=[];
   await page.clock.install({time:new Date('2026-10-14T03:59:00Z')});

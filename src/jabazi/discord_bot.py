@@ -602,6 +602,7 @@ def build_client(config, store):
                     try:
                         saved = await asyncio.to_thread(summary, store, view=view, sport=sport, market=market, page=page)
                         extra["embed"] = discord.Embed.from_dict(saved["embed"])
+                        link += "&" + urlencode({"date": saved["slate_date"]})
                     except (ValueError, TypeError, KeyError):
                         extra["embed"] = discord.Embed(title="Saved research unavailable", description="Open the private app to inspect available sport, date and market coverage. No new paid scan was started.")
                 await interaction.followup.send(

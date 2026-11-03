@@ -36,7 +36,7 @@ def backend(path, options):
     assert path.startswith(('/v1/vip/', '/v1/member/', '/vip/version')), path
     requests.append(path)
     if fail_board and path.startswith('/v1/vip/board'):
-        return {'status': 503, 'body': {'detail': 'Synthetic saved-research outage'}}
+        return {'status': 503, 'body': {'detail': 'PRIVATE_SERVICE_DIAGNOSTIC'}}
     response = client.request(options.get('method', 'GET'), path,
         content=options.get('body'), headers={**options.get('headers', {}), 'Origin': 'https://127.0.0.1:8765'})
     return {'status': response.status_code, 'body': response.json()}
@@ -87,7 +87,7 @@ with sync_playwright() as p:
         page.screenshot(path=str(args.output/'after_moneylines_desktop.png'))
         flows.append('VALIDATING model winner survives stale price; schedule-only game visible')
         page.set_viewport_size({'width':390,'height':844})
-        page.screenshot(path=str(args.output/'after_moneylines_mobile.png'))
+        page.screenshot(path=str(args.output/'after_moneylines_mobile.png'), full_page=True)
         route('props&sport=NBA&player=Fixture%20Guard%20000', '4 matching rows')
         assert page.locator('.opportunity').count() == 4
         assert page.get_by_role('link', name=re.compile('rebounds')).count() >= 1
@@ -115,10 +115,37 @@ with sync_playwright() as p:
         page.get_by_role('combobox', name='Slate date').select_option('tomorrow')
         page.get_by_text('2026-11-04', exact=False).first.wait_for()
         flows.append('persistent sport and explicit next-day mode')
+        route('props&sport=NHL&date=2026-11-03', '61 matching rows')
+        assert page.get_by_role('combobox', name='Slate date').input_value() == 'today'
+        assert requests[-1].endswith('slate_date=2026-11-03')
+        page.get_by_role('combobox', name='Slate date').select_option('tomorrow')
+        page.get_by_text('2026-11-04', exact=False).first.wait_for()
+        assert 'date=' not in page.url
+        assert page.locator('.opportunity').count() == 0
+        flows.append('dated Discord research link uses its date; manual date changes do not stick')
+        count_before = len(requests)
+        route('props&sport=NHL&date=2025-01-01', 'This dated research link is no longer current')
+        assert len(requests) == count_before
+        page.get_by_role('button', name='Open current slate').click()
+        page.wait_for_function("document.querySelectorAll('.opportunity').length===50")
+        flows.append('expired dated links never substitute a different slate silently')
+        route('search&q=Skater', '61 matching rows')
+        assert page.get_by_role('combobox', name='Research sport').input_value() == ''
+        assert 'Viewing all sports' in page.locator('#content').inner_text()
+        page.get_by_role('combobox', name='Research sport').select_option('NBA')
+        page.get_by_text('No records match these filters', exact=False).first.wait_for()
+        page.get_by_role('combobox', name='Research sport').select_option('')
+        page.wait_for_function("document.querySelectorAll('.opportunity').length===50")
+        page.get_by_role('link', name='Next 50 →').first.click()
+        page.wait_for_function("document.querySelectorAll('.opportunity').length===11")
+        assert 'search&' in page.url
+        flows.append('global search crosses sports and retains full-board pagination')
+
         page.get_by_role('combobox', name='Slate date').select_option('today')
         fail_board = True
         route('props&sport=NHL', 'This view is unavailable')
         assert page.get_by_role('button', name='Retry this view').count() == 1
+        assert 'PRIVATE_SERVICE_DIAGNOSTIC' not in page.locator('#content').inner_text()
         fail_board = False
         page.get_by_role('button', name='Retry this view').click()
         page.wait_for_function("document.querySelectorAll('.opportunity').length===50")
