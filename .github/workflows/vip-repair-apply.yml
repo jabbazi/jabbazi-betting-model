@@ -1,0 +1,77 @@
+name: Verify tested VIP research repair proposal
+on:
+  push:
+    branches: [feature/vip-discord-research-repair]
+    paths: [.github/workflows/vip-repair-apply.yml]
+permissions:
+  contents: write
+jobs:
+  propose:
+    if: github.repository == 'jabbazi/jabbazi-betting-model' && github.ref == 'refs/heads/feature/vip-discord-research-repair'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate exact source and output checksums; create unreferenced commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64, hashlib, json, lzma, os, subprocess, urllib.request
+          from pathlib import Path
+          repo = 'jabbazi/jabbazi-betting-model'
+          head = os.environ['GITHUB_SHA']
+          expected_parent = '0e7ed5d1aa853e344a9564bb884987aaf2fb42c5'
+          workflow = '.github/workflows/vip-repair-apply.yml'
+          def api(path, data=None):
+              body = None if data is None else json.dumps(data).encode()
+              req = urllib.request.Request('https://api.github.com/repos/' + repo + path, data=body, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+          commit = api('/git/commits/' + head)
+          assert [p['sha'] for p in commit['parents']] == [expected_parent], 'Development base changed'
+          chunks = ['066486bff53ddbb513099b71fec25898c31eeb13', 'c1c52ea9a1881701e8fec9a25bedd3c82a024c8d', 'e0148c26a01e52264e10ab0747a564862b1148f8', 'c7c60d8f027b286772bd2321970e365c0722f1b8']
+          compressed = b''
+          for sha in chunks:
+              blob = api('/git/blobs/' + sha)
+              part = base64.b64decode(blob['content'])
+              assert hashlib.sha1(b'blob ' + str(len(part)).encode() + b'\0' + part).hexdigest() == sha
+              compressed += part
+          assert hashlib.sha256(compressed).hexdigest() == '6a3d0ef99f9e6012df5386a3f90ec8f6709d3d11110c89a9d309db2129a78ec8'
+          changes = json.loads(lzma.decompress(compressed, memlimit=100_000_000))['files']
+          assert len(changes) == 26
+          entries = []
+          for name, change in sorted(changes.items()):
+              path = Path(name)
+              assert not path.is_absolute() and '..' not in path.parts and not path.is_symlink()
+              assert name.startswith(('src/jabazi/', 'tests/', 'docs/', '.github/workflows/'))
+              old = path.read_bytes() if path.exists() else None
+              assert (hashlib.sha256(old).hexdigest() if old is not None else None) == change['before'], name
+              text = old.decode('utf-8') if old is not None else ''
+              edits = change['edits']
+              end = 0
+              for start, stop, replacement in edits:
+                  assert 0 <= end <= start <= stop <= len(text)
+                  end = stop
+              for start, stop, replacement in reversed(edits):
+                  text = text[:start] + replacement + text[stop:]
+              if change['after'] is None:
+                  assert text == ''
+                  entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': None})
+              else:
+                  assert hashlib.sha256(text.encode()).hexdigest() == change['after'], name
+                  entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'content': text})
+          entries.append({'path': workflow, 'mode': '100644', 'type': 'blob', 'sha': None})
+          tree = api('/git/trees', {'base_tree': commit['tree']['sha'], 'tree': entries})
+          proposal = api('/git/commits', {'message': 'Repair shared saved research visibility in VIP and Discord\n\nAdd full prop browsing, model moneyline board, independent model/price freshness, saved-only LAB reads, permission-checked Discord research commands and regression/browser coverage. Preserve model approval and ingestion paths. Remove temporary tooling workflows.', 'tree': tree['sha'], 'parents': [head]})
+          report = {'commit': proposal['sha'], 'tree': tree['sha'], 'expected_parent': head, 'files': {p: c['after'] for p, c in changes.items()}, 'branch_updated': False, 'deployed': False}
+          Path('/tmp/vip-repair-proposal.json').write_text(json.dumps(report, indent=2))
+          print('Created checksum-verified unreferenced development proposal:', proposal['sha'])
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vip-repair-proposed-commit
+          path: /tmp/vip-repair-proposal.json
+          retention-days: 1
