@@ -47,8 +47,6 @@ def test_display_release_does_not_change_scanner_auth_models_or_schedules():
                               'after': hashes['after']}
         else:
             reviewed[path] = hashes
-    for changed, data in sorted(digest_drift.items()):
-        print("SOURCE_HASH_ACTUAL", changed, data["actual"])
     assert not digest_drift, sorted(digest_drift)
     for relative, checksum in manifest['unchanged'].items():
         assert source_digest(relative, reviewed) == checksum, relative
