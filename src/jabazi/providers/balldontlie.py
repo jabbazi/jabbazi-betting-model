@@ -32,6 +32,8 @@ PATHS = {
 PATHS["nba"]["teams"] = "/v1/teams"  # Preserve the existing free-team probe contract.
 PATHS["nba"]["players"] = "/v1/players"
 PATHS["nfl"]["players"] = "/nfl/v1/players"
+# NHL player IDs and current-team season membership require independent review.
+PATHS["nhl"]["players"] = "/nhl/v1/players"
 
 
 class BallDontLieError(Exception):

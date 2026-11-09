@@ -16,6 +16,7 @@ from pathlib import Path
 from jabazi.boost_feed import collect_boost_odds
 from jabazi.boost_nba_espn_roster import fetch_nba_espn_roster
 from jabazi.boost_nfl_nflverse_roster import fetch_nfl_nflverse_roster
+from jabazi.boost_nhl_official_roster import fetch_nhl_official_roster
 from jabazi.boost_roster_candidates import (
     match_roster_candidates, redacted_candidate_summary,
 )
@@ -27,15 +28,16 @@ from jabazi.providers.balldontlie import BallDontLieProvider
 def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
                          source_roster=None, source_loader=None,
                          max_prop_pages=25):
-    if sport not in ("NBA", "NFL"):
-        raise ValueError("NBA or NFL only")
+    if sport not in ("NBA", "NFL", "NHL"):
+        raise ValueError("NBA, NFL or NHL only")
     if type(game_id) is not int or game_id <= 0:
         raise ValueError("Positive provider game ID required")
     if not 1 <= max_prop_pages <= 100:
         raise ValueError("Bounded page cap required")
     if source_loader is None:
-        source_loader = (fetch_nba_espn_roster if sport == "NBA"
-                         else fetch_nfl_nflverse_roster)
+        source_loader = {"NBA": fetch_nba_espn_roster,
+                         "NFL": fetch_nfl_nflverse_roster,
+                         "NHL": fetch_nhl_official_roster}[sport]
     base = {
         "sport": sport, "status": "UNAVAILABLE",
         "reason": "PAID_PROP_COVERAGE_NOT_VERIFIED",
@@ -74,10 +76,19 @@ def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
             base["reason"] = "PLAYER_DIRECTORY_INCOMPLETE_OR_DUPLICATE"
             return base
         if source_roster is None:
-            team_abbreviations = {
-                row.get("team", {}).get("abbreviation")
-                for row in players if isinstance(row.get("team"), dict)
-            }
+            if sport == "NHL":
+                at = datetime.now(UTC)
+                season = at.year if at.month >= 7 else at.year - 1
+                team_abbreviations = {
+                    t.get("tricode") for row in players if isinstance(row, dict)
+                    for t in (row.get("teams") if isinstance(row.get("teams"), list) else [])
+                    if isinstance(t, dict) and t.get("season") == season
+                }
+            else:
+                team_abbreviations = {
+                    row.get("team", {}).get("abbreviation")
+                    for row in players if isinstance(row.get("team"), dict)
+                }
             source_roster = source_loader(team_abbreviations)
         observed_at = datetime.now(UTC)
         result = match_roster_candidates(
@@ -98,8 +109,8 @@ def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
 
 def discover_upcoming_games(provider, *, sport, calendar_date, max_games=3):
     """Use authentic provider schedule IDs and kickoffs, never guessed IDs."""
-    if sport not in ("NBA", "NFL") or type(calendar_date) is not date:
-        raise ValueError("NBA/NFL and explicit date required")
+    if sport not in ("NBA", "NFL", "NHL") or type(calendar_date) is not date:
+        raise ValueError("NBA/NFL/NHL and explicit date required")
     if not 1 <= max_games <= 3:
         raise ValueError("1-3 game discovery cap required")
     days = [calendar_date.isoformat()]
@@ -113,7 +124,8 @@ def discover_upcoming_games(provider, *, sport, calendar_date, max_games=3):
     if not listing.get("complete"):
         raise ValueError("Incomplete game discovery")
     now = datetime.now(UTC)
-    start_field = "datetime" if sport == "NBA" else "date"
+    start_field = {"NBA": "datetime", "NFL": "date",
+                   "NHL": "start_time_utc"}[sport]
     candidates = []
     seen = set()
     for row in listing["data"]:
@@ -190,7 +202,7 @@ def _write_private_candidates(path, rows):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sport", required=True, choices=("NBA", "NFL"))
+    parser.add_argument("--sport", required=True, choices=("NBA", "NFL", "NHL"))
     parser.add_argument("--game-id", type=int)
     parser.add_argument("--starts-at",
                         help="Offset-aware kickoff from independently checked provider game")

@@ -98,7 +98,7 @@ def test_provider_401_is_redacted(monkeypatch):
     assert report["production_approved"] is False
 
 
-@pytest.mark.parametrize("sport,gid", [("NHL", 123), ("NBA", 0),
+@pytest.mark.parametrize("sport,gid", [("MLB", 123), ("NBA", 0),
                                        ("NFL", True), ("NBA", -5)])
 def test_invalid_sport_or_game_rejected(sport, gid):
     with pytest.raises(ValueError):

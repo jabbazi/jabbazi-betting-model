@@ -118,7 +118,7 @@ def test_redacted_summary_excludes_private_identity_and_source_records():
 
 def test_invalid_kickoff_and_sport_rejected():
     with pytest.raises(ValueError):
-        match_roster_candidates("NHL", [], [], observed_at=NOW, event_starts_at=KICKOFF)
+        match_roster_candidates("MLB", [], [], observed_at=NOW, event_starts_at=KICKOFF)
     with pytest.raises(ValueError):
         match_roster_candidates("NBA", [], [], observed_at=NOW,
                                 event_starts_at=(NOW - timedelta(seconds=1)).isoformat())

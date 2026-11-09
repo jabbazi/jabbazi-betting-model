@@ -14,7 +14,7 @@ import json
 import re
 import unicodedata
 
-SOURCE_NAMESPACE = {"NBA": "ESPN", "NFL": "NFLVERSE"}
+SOURCE_NAMESPACE = {"NBA": "ESPN", "NFL": "NFLVERSE", "NHL": "NHL"}
 
 
 def _name(value):
@@ -43,6 +43,12 @@ def _team(value):
     return value.strip().upper()
 
 
+def _nhl_position(value):
+    value = str(value or "").upper()
+    return {"L": "LW", "R": "RW", "LW": "LW", "RW": "RW",
+            "C": "C", "D": "D", "G": "G"}.get(value)
+
+
 def _stamp(value):
     if not isinstance(value, str):
         return None
@@ -66,7 +72,7 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
     compare original provider records before attesting a crosswalk.
     """
     if sport not in SOURCE_NAMESPACE:
-        raise ValueError("NBA or NFL required")
+        raise ValueError("NBA, NFL or NHL required")
     if (not isinstance(observed_at, datetime)
             or observed_at.utcoffset() is None):
         raise ValueError("Timezone-aware observation required")
@@ -87,11 +93,25 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
             continue
         ident = row.get("id")
         team = row.get("team")
-        key = (
-            _name(str(row.get("first_name") or "") + " " + str(row.get("last_name") or "")),
-            _team(team.get("abbreviation")) if isinstance(team, dict) else None,
-            _jersey(row.get("jersey_number")),
-        )
+        if sport == "NHL":
+            # The NHL directory carries historical teams; only one current-
+            # season assignment is eligible for a *review candidate*.
+            season = now.year if now.month >= 7 else now.year - 1
+            memberships = [
+                _team(t.get("tricode")) for t in row.get("teams", [])
+                if isinstance(t, dict) and t.get("season") == season
+            ] if isinstance(row.get("teams"), list) else []
+            team_choices = set(memberships)
+            team_code = next(iter(team_choices)) if len(team_choices) == 1 else None
+            key = (_name(row.get("full_name") or
+                         (str(row.get("first_name") or "") + " " + str(row.get("last_name") or ""))),
+                   team_code, _nhl_position(row.get("position_code")))
+        else:
+            key = (
+                _name(str(row.get("first_name") or "") + " " + str(row.get("last_name") or "")),
+                _team(team.get("abbreviation")) if isinstance(team, dict) else None,
+                _jersey(row.get("jersey_number")),
+            )
         if type(ident) is not int or ident <= 0 or any(x is None for x in key):
             reasons["bdl_missing_identity_factors"] += 1
             continue
@@ -110,7 +130,8 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
         key = (
             _name(row.get("full_name")),
             _team(row.get("team_abbreviation")),
-            _jersey(row.get("jersey_number")),
+            (_nhl_position(row.get("position_abbreviation")) if sport == "NHL"
+             else _jersey(row.get("jersey_number"))),
         )
         if (row.get("source_namespace") != SOURCE_NAMESPACE[sport]
                 or not isinstance(ident, str) or not ident.strip()
@@ -128,7 +149,7 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
     for key, bdl_rows in bdl_index.items():
         source_rows = source_index.get(key, [])
         if not source_rows:
-            reasons["no_exact_name_team_jersey_candidate"] += len(bdl_rows)
+            reasons["no_exact_identity_factors_candidate"] += len(bdl_rows)
             continue
         if len(bdl_rows) != 1 or len(source_rows) != 1:
             reasons["ambiguous_identity_factors"] += len(bdl_rows)
@@ -152,8 +173,12 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
             "team_abbreviation": key[1],
             "bdl_record_sha256": _digest(bdl),
             "source_record_sha256": _digest(source),
-            "match_factors": ["exact_normalized_name", "team_abbreviation",
-                              "jersey_number"] + (["position_abbreviation"] if sport == "NFL" else []),
+            "match_factors": (
+                ["exact_normalized_name", "team_abbreviation", "position_abbreviation"]
+                if sport == "NHL" else
+                ["exact_normalized_name", "team_abbreviation", "jersey_number"]
+                + (["position_abbreviation"] if sport == "NFL" else [])
+            ),
             "review_state": "CANDIDATE_REQUIRES_INDEPENDENT_VERIFICATION",
             "provider_identity_verified": False,
             "independent_source_reviewed": False,
