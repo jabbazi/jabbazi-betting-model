@@ -36,15 +36,18 @@ def test_display_release_does_not_change_scanner_auth_models_or_schedules():
         'src/jabazi/models/player_distribution.py', 'src/jabazi/chatgpt_api.py',
     }
     reviewed = dict(followup['files'])
+    digest_drift = {}
     for path, hashes in v7['files'].items():
         current = source_digest(path)
-        assert current == hashes['after'], path
+        if current != hashes['after']:
+            digest_drift[path] = {'actual': current, 'expected': hashes['after']}
         if path in reviewed:
             assert hashes['before'] == reviewed[path]['after'], path
             reviewed[path] = {'before': reviewed[path]['before'],
                               'after': hashes['after']}
         else:
             reviewed[path] = hashes
+    assert not digest_drift, digest_drift
     for relative, checksum in manifest['unchanged'].items():
         assert source_digest(relative, reviewed) == checksum, relative
     assert (ROOT / 'src/jabazi/paid_player_scan.py').is_file()
