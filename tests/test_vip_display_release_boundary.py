@@ -38,7 +38,7 @@ def test_display_release_does_not_change_scanner_auth_models_or_schedules():
     reviewed = dict(followup['files'])
     digest_drift = {}
     for path, hashes in v7['files'].items():
-        current = source_digest(path)
+        current = hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
         if current != hashes['after']:
             digest_drift[path] = {'actual': current, 'expected': hashes['after']}
         if path in reviewed:
