@@ -132,6 +132,7 @@ class ScanPage(BaseModel):
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
     player_probability_research: dict[str, Any] = Field(default_factory=dict)
+    best_straight_research: dict[str, Any] = Field(default_factory=dict)
     event_market_coverage: dict[str, Any] | None = None
     external_research_sources: dict[str, Any] = Field(default_factory=dict)
     result_ordering: str | None = None
@@ -395,6 +396,33 @@ def scan_page(store, scan_id, page=1, now=None):
     probability_research = from_scan_actions(
         rows + paid_rows, present=lambda action: present_action(action, now)
     )
+    # All clients see the same saved, price-fresh research evidence. Approval
+    # requires explicit provenance, exact-line matching and prospectively
+    # validated model gates; an unapproved model can only return PASS.
+    from .research.straight_ranking import rank_verified_straights
+    candidates = []
+    for item in rows + paid_rows:
+        if not isinstance(item, dict):
+            continue
+        candidates.append({
+            "sport": item.get("sport"), "event_id": item.get("event_id"),
+            "participant": item.get("participant"), "market": item.get("market"),
+            "side": item.get("selection"), "line": item.get("line"),
+            "sportsbook": item.get("best_sportsbook"),
+            "decimal_odds": item.get("best_decimal"),
+            "model_probability": item.get("model_probability"),
+            "model_version": item.get("model_version"),
+            "observed_at": item.get("source_timestamp"),
+            "starts_at": item.get("starts_at"),
+            "price_is_current": item.get("price_is_current") is True,
+            "identity_verified": item.get("identity_verified") is True,
+            "exact_line_verified": item.get("exact_line_verified") is True,
+            "model_stage": item.get("model_stage"),
+            "approved_for_betting": item.get("approved_for_betting") is True,
+            "validation_passed": item.get("validation_passed") is True,
+            "push_probability": item.get("push_probability", 0),
+        })
+    straight_research = rank_verified_straights(candidates, now=now)
     return ScanPage(
         current_central_time=now.astimezone(ZoneInfo("America/Chicago")).isoformat(),
         scan_id=scan_id, status=status, started_at=request["payload"]["started_at"],
@@ -409,6 +437,7 @@ def scan_page(store, scan_id, page=1, now=None):
         credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
         model_coverage=payload.get("model_coverage", {}),
         player_probability_research=probability_research,
+        best_straight_research=straight_research,
         event_market_coverage=present_coverage(payload.get("event_market_coverage"), now),
         result_ordering=payload.get("result_ordering"),
         progress=progress,
