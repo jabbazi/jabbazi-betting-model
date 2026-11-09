@@ -18,9 +18,16 @@ def fetch_nhl_official_roster(team_abbreviations, *, now=None):
             or any(not isinstance(t, str) or not t.isalpha() or
                    not 2 <= len(t) <= 4 for t in teams)):
         raise ValueError("Require 1-4 NHL team abbreviations")
+    # The /current alias redirects (HTTP 307 on the observed 2026-27
+    # LAK roster). Use the explicit season URL instead of enabling
+    # arbitrary redirect following to a different host.
+    season_start = now.year if now.month >= 7 else now.year - 1
+    season_code = f"{season_start}{season_start + 1}"
     rows = []
     for team in sorted(t.upper() for t in teams):
-        payload, checksum = _fetch_json(f"{WEB_BASE}/roster/{team}/current")
+        payload, checksum = _fetch_json(
+            f"{WEB_BASE}/roster/{team}/{season_code}"
+        )
         if not isinstance(payload, dict):
             raise ValueError("Invalid NHL roster schema")
         for group in ("forwards", "defensemen", "goalies"):

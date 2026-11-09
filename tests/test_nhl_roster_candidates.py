@@ -73,6 +73,7 @@ def test_official_nhl_roster_is_bounded_and_preserves_source_hash(monkeypatch):
     monkeypatch.setattr(mod, "_fetch_json", fake)
     rows = fetch_nhl_official_roster({"NYR"}, now=NOW)
     assert len(called) == 1 and len(rows) == 1
+    assert called[0].endswith("/roster/NYR/20262027")
     assert rows[0]["source_player_id"] == "998877"
     assert rows[0]["source_response_sha256"] == "f" * 64
 
@@ -88,3 +89,38 @@ def test_nhl_private_review_evidence_requires_actual_source_confirmation():
     assert review["bdl_jersey"] is None
     assert report["candidates_private"][0]["provider_identity_verified"] is False
     assert "Example Skater" not in str(redacted_candidate_summary(report))
+
+
+def test_nhl_dated_roster_uses_prior_season_before_july(monkeypatch):
+    from jabazi import boost_nhl_official_roster as mod
+    called = []
+    def fake(url):
+        called.append(url)
+        return ({
+            "forwards": [{"id": 998877, "firstName": {"default": "Example"},
+                          "lastName": {"default": "Skater"}, "positionCode": "L"}],
+            "defensemen": [], "goalies": [],
+        }, "f" * 64)
+    monkeypatch.setattr(mod, "_fetch_json", fake)
+    from datetime import datetime, UTC
+    rows = fetch_nhl_official_roster(
+        {"LAK"}, now=datetime(2027, 1, 15, tzinfo=UTC)
+    )
+    assert len(rows) == 1
+    assert called == [f"{mod.WEB_BASE}/roster/LAK/20262027"]
+
+
+def test_nhl_dated_roster_changes_at_new_season(monkeypatch):
+    from jabazi import boost_nhl_official_roster as mod
+    called = []
+    def fake(url):
+        called.append(url)
+        return ({
+            "forwards": [{"id": 998877, "firstName": {"default": "Example"},
+                          "lastName": {"default": "Skater"}, "positionCode": "L"}],
+            "defensemen": [], "goalies": [],
+        }, "f" * 64)
+    monkeypatch.setattr(mod, "_fetch_json", fake)
+    from datetime import datetime, UTC
+    fetch_nhl_official_roster({"LAK"}, now=datetime(2027, 10, 1, tzinfo=UTC))
+    assert called == [f"{mod.WEB_BASE}/roster/LAK/20272028"]

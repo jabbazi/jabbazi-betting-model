@@ -40,3 +40,15 @@ and delete it using local approved retention procedures once reviewed.
 A match on these visible factors remains **CANDIDATE_REQUIRES_INDEPENDENT_VERIFICATION**.
 Reopen independently observed original source records before any privileged
 registration; false positives and roster trades must be rejected.
+
+
+## Official NHL roster URL correction (November 9, 2026)
+
+Owner observed `/v1/roster/LAK/current` returning HTTP 307 with redirects
+disabled, while `/v1/roster/LAK/20262027` returned HTTP 200 and a
+15-forward / 7-defense / 2-goalie roster. The private NHL review adapter
+now derives the explicit season path using the current season year:
+July–December use YYYY/YYYY+1 and January–June use YYYY-1/YYYY.
+This is roster-source retrieval only, **not** independent identity
+attestation or current lineup availability. Off-season or outdated rosters
+must still fail separate freshness and game-identity gates.
