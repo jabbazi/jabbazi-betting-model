@@ -240,6 +240,7 @@ def test_manifest_operator_dry_run_does_not_modify_attestations(monkeypatch, tmp
 def test_automatic_scanner_calls_paid_stage_only_for_full_mode(monkeypatch, store, mode, called):
     from jabazi import automation, paid_player_scan
     from jabazi.config import Settings
+    monkeypatch.setenv('JABBAZI_PAID_PLAYER_SCAN_ENABLED', 'true')
     from jabazi.models import player_registry
     monkeypatch.setattr(automation.AutomaticScanner, '_active_supported', lambda self: [])
     monkeypatch.setattr(automation, 'load_models', lambda db: ({}, []))
@@ -257,7 +258,10 @@ def test_automatic_scanner_calls_paid_stage_only_for_full_mode(monkeypatch, stor
         assert calls[0][0] is store
         assert calls[0][1]['feature_collector'] is not None
         assert calls[0][1]['deadline'] > time.monotonic()
-    assert not result.errors
+    if called:
+        assert 'PAID_PLAYER_SCOPE_PARTIAL' in result.errors
+    else:
+        assert not result.errors
 
 
 def test_archive_retains_versioned_distribution_not_sportsbook_line(store):

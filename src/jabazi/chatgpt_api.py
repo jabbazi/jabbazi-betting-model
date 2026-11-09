@@ -131,6 +131,7 @@ class ScanPage(BaseModel):
     quotes_archived: int = 0
     credits_remaining: int | None = None
     model_coverage: dict[str, Any] = {}
+    player_probability_research: dict[str, Any] = Field(default_factory=dict)
     event_market_coverage: dict[str, Any] | None = None
     external_research_sources: dict[str, Any] = Field(default_factory=dict)
     result_ordering: str | None = None
@@ -163,6 +164,9 @@ def present_coverage(coverage, now):
     from copy import deepcopy
     from .models.team_elo import timestamp
     coverage = deepcopy(coverage)
+    if coverage.get('paid_player_research', {}).get('requested'):
+        from .paid_player_scan import present_paid_scan
+        coverage['paid_player_research'] = present_paid_scan(coverage['paid_player_research'], now=now)
     best = coverage.get('best_two_sheet_candidate')
     if best and (not best.get('legs') or not all(eligible_today(leg, now=now) for leg in best['legs'])):
         coverage['best_two_sheet_candidate'] = None
@@ -277,9 +281,11 @@ def run_background(scan_id):
                     "max_credits": max_credits,
                 })
                 time.sleep(2)
+        paid = (result.get("event_market_coverage") or {}).get("paid_player_research", {})
         result["status"] = (
             "FAILED" if result["feeds_scanned"] == 0
-            else "PARTIAL" if result["errors"] else "COMPLETE"
+            else "PARTIAL" if result["errors"] or (paid.get("requested") and not paid.get("scope_complete"))
+            else "COMPLETE"
         )
         on_progress({
             "phase": result["status"],
@@ -308,7 +314,7 @@ def present_action(value, now):
     # Results may be retrieved long after execution. Recheck every price.
     keys = (
         "event_id", "sport", "event", "market", "participant", "selection", "line",
-        "best_sportsbook", "best_decimal", "source_timestamp", "starts_at",
+        "best_sportsbook", "best_decimal", "source_timestamp", "starts_at", "settlement",
         "consensus_probability", "model_probability", "model_version", "probability_edge",
         "expected_roi", "uncertainty", "reason", "market_relative_ev",
     )
@@ -319,7 +325,7 @@ def present_action(value, now):
              "calibration_sample_size", "uncertainty_low", "uncertainty_high", "uncertainty_kind",
              "break_even_probability", "period", "second_best_decimal", "price_fragility",
              "research_priority_score", "research_priority_components", "source_provenance",
-             "game_distribution", "fair_price", "play_to_price",
+             "game_distribution", "player_distribution", "projected_mean", "probability_basis", "fair_price", "play_to_price",
              "v5_state", "v5_reasons", "v5_cash_influence", "v5_brier_delta",
              "v5_calibration_ece", "v5_sample_count", "v5_regime",
              "v5_edge_explanation", "v5_adversarial_status",
@@ -378,6 +384,17 @@ def scan_page(store, scan_id, page=1, now=None):
     total = payload.get("total_actions", len(rows))
     page_rows = rows[(page-1)*PAGE_SIZE:page*PAGE_SIZE]
     from zoneinfo import ZoneInfo
+    from .player_probability_board import from_scan_actions
+    from .paid_player_scan import present_paid_scan
+    paid = present_paid_scan(
+        (payload.get("event_market_coverage") or {}).get("paid_player_research"),
+        now=now, include_rows=True,
+    )
+    paid_rows = [row for sport in paid.get("sports", {}).values()
+                 for row in sport.get("research_rows", [])]
+    probability_research = from_scan_actions(
+        rows + paid_rows, present=lambda action: present_action(action, now)
+    )
     return ScanPage(
         current_central_time=now.astimezone(ZoneInfo("America/Chicago")).isoformat(),
         scan_id=scan_id, status=status, started_at=request["payload"]["started_at"],
@@ -391,6 +408,7 @@ def scan_page(store, scan_id, page=1, now=None):
         quotes_archived=payload.get("quotes_archived", progress.get("quotes_archived", 0)),
         credits_remaining=payload.get("credits_remaining", progress.get("credits_remaining")),
         model_coverage=payload.get("model_coverage", {}),
+        player_probability_research=probability_research,
         event_market_coverage=present_coverage(payload.get("event_market_coverage"), now),
         result_ordering=payload.get("result_ordering"),
         progress=progress,

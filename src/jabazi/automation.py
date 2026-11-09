@@ -567,7 +567,8 @@ class AutomaticScanner:
         elif plan.coverage is not None:
             plan.coverage["paid_player_research"] = {
                 "status": "NOT_ENABLED" if mode == "full" else "NOT_REQUESTED",
-                "scope_complete": False, "betting_enabled": False, "sports": {},
+                "requested": False, "scope_complete": False,
+                "betting_enabled": False, "sports": {},
             }
         from .research.same_game import scan_candidates
         same_game = scan_candidates(actions, models, now=datetime.now(UTC), player_models=player_models)

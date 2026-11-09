@@ -29,6 +29,7 @@ PATHS = {
 # Player directory endpoints follow the published NBA/NFL contracts.
 # The documented NBA players route is unprefixed even though this account's
 # NBA games/props requests succeeded at /nba/v1 and /nba/v2.
+PATHS["nba"]["teams"] = "/v1/teams"  # Preserve the existing free-team probe contract.
 PATHS["nba"]["players"] = "/v1/players"
 PATHS["nfl"]["players"] = "/nfl/v1/players"
 
