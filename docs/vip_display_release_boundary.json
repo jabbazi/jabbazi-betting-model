@@ -58,7 +58,7 @@
       },
       "src/jabazi/providers/balldontlie.py": {
         "before": "6ae3b3c8a78d6161550c77e7da2747c7e8135020cd3ea1bd081affbbc8e247b4",
-        "after": "3d90ddbb68c874358994b8b0c86d1347a1381c7b8ef5e35d68fb3a47860ba820"
+        "after": "57b84f91b7f9ba3d6af72e96653593feb9f06196eb7b14997d666867b0d63d21"
       },
       "src/jabazi/models/player_distribution.py": {
         "before": "98318b7352bc21c8ef32843245d833c884b6a90c3b22ecd1935040010b924ea2",
