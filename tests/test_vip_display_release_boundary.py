@@ -28,10 +28,34 @@ def test_display_release_does_not_change_scanner_auth_models_or_schedules():
     assert set(followup['files']) == {
         'src/jabazi/models/nhl_goals.py', 'src/jabazi/models/player_distribution.py',
         'src/jabazi/reliability/layer.py', 'src/jabazi/api.py', 'src/jabazi/chatgpt_api.py'}
+    v7 = manifest['reviewed_v7_integration']
+    assert v7['base_commit'] == 'b92b2ccde73d4a31d4330f394375baedf617b243'
+    assert set(v7['files']) == {
+        'src/jabazi/automation.py', 'src/jabazi/config.py',
+        'src/jabazi/providers/balldontlie.py',
+        'src/jabazi/models/player_distribution.py', 'src/jabazi/chatgpt_api.py',
+    }
+    reviewed = dict(followup['files'])
+    digest_drift = {}
+    for path, hashes in v7['files'].items():
+        current = hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+        if current != hashes['after']:
+            digest_drift[path] = {'actual': current, 'expected': hashes['after']}
+        if path in reviewed:
+            assert hashes['before'] == reviewed[path]['after'], path
+            reviewed[path] = {'before': reviewed[path]['before'],
+                              'after': hashes['after']}
+        else:
+            reviewed[path] = hashes
+    assert not digest_drift, sorted(digest_drift)
     for relative, checksum in manifest['unchanged'].items():
-        assert source_digest(relative, followup['files']) == checksum, relative
-    assert not (ROOT / 'src/jabazi/paid_player_scan.py').exists()
+        assert source_digest(relative, reviewed) == checksum, relative
+    assert (ROOT / 'src/jabazi/paid_player_scan.py').is_file()
     assert not (ROOT / 'src/jabazi/scan_paid_research.py').exists()
     from jabazi.vip import paid_models
-    assert not hasattr(paid_models, 'read_paid_player_models')
-    assert not hasattr(paid_models, 'LabReader')
+    assert hasattr(paid_models, 'saved_paid_player_models')
+    assert hasattr(paid_models, 'read_paid_player_models')
+    # Approval is not implied: only an exact opt-in full scan can enter V7.
+    source = (ROOT / 'src/jabazi/automation.py').read_text()
+    assert 'JABBAZI_PAID_PLAYER_SCAN_ENABLED' in source
+    assert 'if mode == "full" and paid_enabled' in source

@@ -544,6 +544,32 @@ class AutomaticScanner:
                 }
             except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
                 v5_errors.append(f"best_two_{type(exc).__name__}")
+        # V7 integration remains opt-in on a reviewed staging environment.
+        # Never consume paid-provider credits just because this code is deployed.
+        paid_enabled = os.getenv("JABBAZI_PAID_PLAYER_SCAN_ENABLED", "false").lower() == "true"
+        if mode == "full" and paid_enabled and isinstance(ledger, Store):
+            from .paid_player_scan import run_paid_player_scan
+            try:
+                paid = run_paid_player_scan(
+                    ledger, self.settings, player_models,
+                    lambda: ledger.acquire_lease("scanner", owner, self.lease_ttl),
+                    deadline=processing_deadline, progress=emit_progress,
+                    feature_collector=player_features,
+                )
+            except Exception:
+                paid = {"status": "UNAVAILABLE", "scope_complete": False,
+                        "reason": "PAID_PLAYER_STAGE_FAILED",
+                        "betting_enabled": False, "sports": {}}
+            if plan.coverage is not None:
+                plan.coverage["paid_player_research"] = paid
+            if paid.get("scope_complete") is not True:
+                errors.append("PAID_PLAYER_SCOPE_PARTIAL")
+        elif plan.coverage is not None:
+            plan.coverage["paid_player_research"] = {
+                "status": "NOT_ENABLED" if mode == "full" else "NOT_REQUESTED",
+                "requested": False, "scope_complete": False,
+                "betting_enabled": False, "sports": {},
+            }
         from .research.same_game import scan_candidates
         same_game = scan_candidates(actions, models, now=datetime.now(UTC), player_models=player_models)
         if errors:

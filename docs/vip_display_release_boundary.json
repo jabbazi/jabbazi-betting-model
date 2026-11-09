@@ -43,5 +43,31 @@
         "after": "1ca2391f86f5216630aa23f0ce72ea022412548ec4a313fd0961b0f3c499fa6b"
       }
     }
+  },
+  "reviewed_v7_integration": {
+    "base_commit": "b92b2ccde73d4a31d4330f394375baedf617b243",
+    "scope": "Research-only paid-scanner source bridge, staged OFF by default. This manifest records exact code changes but is not production acceptance or approval.",
+    "files": {
+      "src/jabazi/automation.py": {
+        "before": "1f18278add14c62bf8080cc1311781e5b35af87205ea6ac565a5525871f3bff7",
+        "after": "549305c3a8901b23f659d111c13638aafd7f1ec28cac955df1c0917944c752a5"
+      },
+      "src/jabazi/config.py": {
+        "before": "4221ee2564224b320ba1c2c1cd09d70264c0de7f9bae345dc7725e8ecd59aa76",
+        "after": "69972081872344e6e1392808c590426da1ff98132dd7a821029e5d19a1e66c5a"
+      },
+      "src/jabazi/providers/balldontlie.py": {
+        "before": "6ae3b3c8a78d6161550c77e7da2747c7e8135020cd3ea1bd081affbbc8e247b4",
+        "after": "57b84f91b7f9ba3d6af72e96653593feb9f06196eb7b14997d666867b0d63d21"
+      },
+      "src/jabazi/models/player_distribution.py": {
+        "before": "98318b7352bc21c8ef32843245d833c884b6a90c3b22ecd1935040010b924ea2",
+        "after": "b4bc3a89bf7eeb41676f2316f5046065fa35529654eeb51ca263dd07bf428138"
+      },
+      "src/jabazi/chatgpt_api.py": {
+        "before": "1ca2391f86f5216630aa23f0ce72ea022412548ec4a313fd0961b0f3c499fa6b",
+        "after": "bf8fabd57ebfce77852c53ae6bac4829606c6a175ad57f59a9eff4f9c2d0a5db"
+      }
+    }
   }
 }

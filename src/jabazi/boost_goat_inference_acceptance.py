@@ -1,0 +1,188 @@
+"""Private GOAT-to-JABBAZI exact-line research acceptance orchestrator.
+
+Consumes real paid prop rows plus independently reviewed crosswalks, immutable
+pregame feature snapshots, and versioned fitted artifacts. Output is aggregate
+counts only. This code cannot independently prove crosswalk truth, validate
+calibration, approve joint tickets, or authorize wagering.
+"""
+from __future__ import annotations
+
+from collections import Counter, defaultdict
+from datetime import UTC, datetime
+
+from jabazi.boost_goat_model_map import GOAT_TO_JABBAZI
+from jabazi.boost_goat_research_inference import research_goat_exact_line
+from jabazi.boost_scope import SPORTS
+from jabazi.boost_offer_integrity import inspect_prop_offer
+
+
+def audit_exact_line_research(sport, offers, crosswalks, snapshots, artifacts, *,
+                              observed_at, include_research_rows=False, continue_check=None):
+    if sport not in ("NBA", "NFL", "NHL"):
+        raise ValueError("Only NBA/NFL/NHL source research is supported")
+    if not isinstance(observed_at, datetime) or observed_at.utcoffset() is None:
+        raise ValueError("Timezone-aware observation required")
+    for rows in (offers, crosswalks, snapshots, artifacts):
+        if not isinstance(rows, (list, tuple)) or len(rows) > 10000:
+            raise ValueError("Bounded record lists required")
+
+    reasons = Counter()
+    crosswalk_index = defaultdict(list)
+    snapshot_index = defaultdict(list)
+    artifact_index = defaultdict(list)
+    for row in crosswalks:
+        if not isinstance(row, dict) or row.get("sport") != sport:
+            reasons["CROSSWALK_INVALID_SCHEMA"] += 1
+            continue
+        game, player = row.get("bdl_game_id"), row.get("bdl_player_id")
+        if type(game) is not int or game <= 0 or type(player) is not int or player <= 0:
+            reasons["CROSSWALK_INVALID_ID"] += 1
+            continue
+        crosswalk_index[(game, player)].append(row)
+    # Enforce global one-to-one player identity across games, not merely a
+    # unique mapping within each game. A conflicting crosswalk invalidates
+    # every affected quote; it is never resolved by picking the first row.
+    bdl_sources = defaultdict(set)
+    source_bdl = defaultdict(set)
+    for rows in crosswalk_index.values():
+        for row in rows:
+            bdl_id = row["bdl_player_id"]
+            source_id = row.get("source_player_id")
+            if isinstance(source_id, str) and source_id.strip():
+                bdl_sources[bdl_id].add(source_id.strip())
+                source_bdl[source_id.strip()].add(bdl_id)
+    conflicting_bdl = {
+        bdl_id for bdl_id, sources in bdl_sources.items()
+        if len(sources) > 1
+    }
+    for source_id, bdl_ids in source_bdl.items():
+        if len(bdl_ids) > 1:
+            conflicting_bdl.update(bdl_ids)
+    for row in snapshots:
+        if not isinstance(row, dict) or row.get("sport") != SPORTS[sport]:
+            reasons["SNAPSHOT_INVALID_SCHEMA"] += 1
+            continue
+        key = (row.get("event_id"), str(row.get("player_id")),
+               row.get("market"))
+        if not all(isinstance(x, str) and x for x in key):
+            reasons["SNAPSHOT_INVALID_KEY"] += 1
+            continue
+        snapshot_index[key].append(row)
+    for row in artifacts:
+        if not isinstance(row, dict) or row.get("sport") != SPORTS[sport]:
+            reasons["ARTIFACT_INVALID_SCHEMA"] += 1
+            continue
+        market = row.get("market")
+        if not isinstance(market, str) or not market:
+            reasons["ARTIFACT_INVALID_MARKET"] += 1
+            continue
+        artifact_index[market].append(row)
+
+    seen = set()
+    research_rows = []
+    estimates = 0
+    sides = 0
+    versions = set()
+    for offer_index, wrapped in enumerate(offers):
+        if continue_check is not None and not continue_check():
+            reasons["INFERENCE_TIME_OR_LEASE_BUDGET_EXHAUSTED"] += len(offers) - offer_index
+            break
+        if not isinstance(wrapped, dict) or wrapped.get("sport") != SPORTS[sport]:
+            reasons["OFFER_WRONG_SPORT_OR_SCHEMA"] += 1
+            continue
+        raw = wrapped.get("raw")
+        if not isinstance(raw, dict):
+            reasons["OFFER_WRONG_SPORT_OR_SCHEMA"] += 1
+            continue
+        game, player = raw.get("game_id"), raw.get("player_id")
+        if type(game) is not int or game <= 0 or type(player) is not int or player <= 0:
+            reasons["OFFER_INVALID_ID"] += 1
+            continue
+        market = GOAT_TO_JABBAZI[sport].get(raw.get("prop_type"))
+        if market is None:
+            reasons["OFFER_UNMAPPED_MARKET"] += 1
+            continue
+        # Repeated vendor/market/line rows must never inflate acceptance.
+        # The vendor quote ID is NOT sufficient as a deduplication key.
+        key, issue = inspect_prop_offer(raw, game, observed_at=observed_at)
+        if issue is not None:
+            reasons[issue] += 1
+            continue
+        if key in seen:
+            reasons["DUPLICATE_OFFER"] += 1
+            continue
+        seen.add(key)
+        if player in conflicting_bdl:
+            reasons["CONFLICTING_CROSS_GAME_PLAYER_IDENTITY"] += 1
+            continue
+        candidates = crosswalk_index.get((game, player), ())
+        if len(candidates) != 1:
+            reasons["MISSING_OR_AMBIGUOUS_CROSSWALK"] += 1
+            continue
+        crosswalk = candidates[0]
+        feature_key = (crosswalk.get("canonical_event_id"),
+                       str(crosswalk.get("source_player_id")), market)
+        features = snapshot_index.get(feature_key, ())
+        if len(features) != 1:
+            reasons["MISSING_OR_AMBIGUOUS_FROZEN_FEATURES"] += 1
+            continue
+        models = artifact_index.get(market, ())
+        if len(models) != 1:
+            reasons["MISSING_OR_AMBIGUOUS_FITTED_MODEL"] += 1
+            continue
+        result = research_goat_exact_line(
+            sport, raw, crosswalk, features[0], models[0],
+            observed_at=observed_at,
+        )
+        if result["status"] != "RESEARCH_ONLY":
+            reasons[result["reason"]] += 1
+            continue
+        estimates += 1
+        sides += len(result["research_probabilities"])
+        versions.add(result["model_version"])
+        if include_research_rows:
+            for probability in result["research_probabilities"]:
+                side = probability["side"]
+                quoted = raw["market"].get(side + "_odds" if side in {"over", "under"} else "odds")
+                decimal_odds = 1 + (quoted / 100 if quoted > 0 else 100 / -quoted)
+                p = probability["research_probability"]
+                research_rows.append({
+                    "sport": SPORTS[sport], "event_id": crosswalk["canonical_event_id"],
+                    "provider_game_id": game, "provider_player_id": player,
+                    "participant": features[0].get("participant"),
+                    "market": market, "selection": side, "line": result["line"],
+                    "settlement": result["settlement"], "model_threshold": result["model_threshold"],
+                    "model_probability": p, "model_version": result["model_version"],
+                    "model_stage": result["model_stage"], "model_time": features[0]["features_available_at"],
+                    "projected_mean": result["projected_mean"],
+                    "best_sportsbook": raw["vendor"], "best_decimal": decimal_odds,
+                    "fair_decimal": 1 / p, "research_roi": p * decimal_odds - 1,
+                    "source_timestamp": raw["updated_at"], "starts_at": features[0]["starts_at"],
+                    "probability_basis": "FITTED_JABBAZI_MODEL", "feature_snapshot_id": features[0]["snapshot_id"],
+                    "source_crosswalk_sha256": crosswalk["record_sha256"],
+                    "calibration_verified": False, "approved_for_betting": False,
+                    "decision": "WATCH", "stake_dollars": "0", "stale": False, "in_play": False,
+                })
+
+    report = {
+        "sport": sport,
+        "observed_at": observed_at.astimezone(UTC).isoformat(),
+        "paid_offer_rows_received": len(offers),
+        "reviewed_crosswalk_rows_supplied": len(crosswalks),
+        "frozen_feature_rows_supplied": len(snapshots),
+        "fitted_artifacts_supplied": len(artifacts),
+        "exact_line_research_estimates": estimates,
+        "research_probability_sides": sides,
+        "model_versions_observed": sorted(versions),
+        "rejections": dict(sorted(reasons.items())),
+        "crosswalk_truth_independently_confirmed_by_runtime": False,
+        "prospective_calibration_verified": False,
+        "joint_probability_verified": False,
+        "betting_enabled": False,
+        "production_approved": False,
+        "status": "RESEARCH_ONLY" if estimates else "UNAVAILABLE",
+    }
+
+    if include_research_rows:
+        report["research_rows"] = research_rows
+    return report
