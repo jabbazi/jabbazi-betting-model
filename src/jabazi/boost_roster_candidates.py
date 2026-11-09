@@ -171,6 +171,29 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
             "source_namespace": SOURCE_NAMESPACE[sport],
             "source_player_id": source["source_player_id"],
             "team_abbreviation": key[1],
+            # Private, allowlisted side-by-side review data. These names/IDs
+            # never enter the redacted summary, GitHub logs or public API.
+            # A human must examine original source records before attestation.
+            "review_evidence_private": {
+                "bdl_player_name": (
+                    str(bdl.get("full_name") or
+                        (str(bdl.get("first_name") or "") + " " +
+                         str(bdl.get("last_name") or ""))).strip()[:150]
+                ),
+                "source_player_name": str(source.get("full_name") or "")[:150],
+                "bdl_position": str(bdl.get("position_code") if sport == "NHL"
+                                    else bdl.get("position_abbreviation") or "")[:16],
+                "source_position": str(source.get("position_abbreviation") or "")[:16],
+                "bdl_jersey": (
+                    None if sport == "NHL" else _jersey(bdl.get("jersey_number"))
+                ),
+                "source_jersey": (
+                    None if sport == "NHL" else _jersey(source.get("jersey_number"))
+                ),
+                "team_abbreviation": key[1],
+                "source_observed_at": source.get("source_observed_at"),
+                "event_starts_at": start.isoformat(),
+            },
             "bdl_record_sha256": _digest(bdl),
             "source_record_sha256": _digest(source),
             "match_factors": (

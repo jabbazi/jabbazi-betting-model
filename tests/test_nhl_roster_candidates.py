@@ -75,3 +75,16 @@ def test_official_nhl_roster_is_bounded_and_preserves_source_hash(monkeypatch):
     assert len(called) == 1 and len(rows) == 1
     assert rows[0]["source_player_id"] == "998877"
     assert rows[0]["source_response_sha256"] == "f" * 64
+
+
+def test_nhl_private_review_evidence_requires_actual_source_confirmation():
+    report = candidates([bdl()], [official()])
+    review = report["candidates_private"][0]["review_evidence_private"]
+    assert review["bdl_player_name"] == "Example Skater"
+    assert review["source_player_name"] == "Example Skater"
+    assert review["team_abbreviation"] == "NYR"
+    assert review["bdl_position"] == "LW"
+    assert review["source_position"] == "L"
+    assert review["bdl_jersey"] is None
+    assert report["candidates_private"][0]["provider_identity_verified"] is False
+    assert "Example Skater" not in str(redacted_candidate_summary(report))

@@ -122,3 +122,19 @@ def test_invalid_kickoff_and_sport_rejected():
     with pytest.raises(ValueError):
         match_roster_candidates("NBA", [], [], observed_at=NOW,
                                 event_starts_at=(NOW - timedelta(seconds=1)).isoformat())
+
+
+def test_private_review_evidence_is_useful_but_never_public():
+    report = check()
+    candidate = report["candidates_private"][0]
+    review = candidate["review_evidence_private"]
+    assert review["bdl_player_name"] == "Shai Gilgeous-Alexander"
+    assert review["source_player_name"] == "Shai Gilgeous Alexander"
+    assert review["team_abbreviation"] == "OKC"
+    assert review["bdl_jersey"] == review["source_jersey"] == "2"
+    assert review["event_starts_at"] == KICKOFF
+    assert candidate["independent_source_reviewed"] is False
+    summary = redacted_candidate_summary(report)
+    assert "review_evidence_private" not in str(summary)
+    assert "Shai" not in str(summary)
+    assert "espn-5" not in str(summary)

@@ -23,3 +23,20 @@ runtime. Do not copy IDs/source rows to public PRs or chat.
 
 Separate acceptance remains required for actual reviewed mappings, current
 pregame model features, exact-line probabilities, calibration and releases.
+
+
+## Private side-by-side candidate review
+
+The candidate export is intentionally **not** an approved identity manifest.
+For offline review in an authorized private runtime, each
+`candidates_private[]` row now includes `review_evidence_private`: the
+two observed player names, team, available position/jersey factors,
+source observation time, and game kickoff. All are allowlisted, bounded
+fields, paired with original provider/source record SHA-256 fingerprints.
+
+The JSON file is created with exclusive-create mode `0600`; save it outside
+the Git checkout, never commit it, never paste it into ChatGPT or CI logs,
+and delete it using local approved retention procedures once reviewed.
+A match on these visible factors remains **CANDIDATE_REQUIRES_INDEPENDENT_VERIFICATION**.
+Reopen independently observed original source records before any privileged
+registration; false positives and roster trades must be rejected.
