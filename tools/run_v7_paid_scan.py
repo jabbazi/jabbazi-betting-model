@@ -49,45 +49,79 @@ def main(argv=None):
     if len(sports) != len(set(sports)):
         parser.error("Duplicate sports are not allowed")
     store = None
+    lease_acquired = False
+    cleanup_errors = []
     owner = str(uuid.uuid4())
+    exit_code = 2
     try:
         limits = PaidScanLimits.from_environment()
         settings = Settings.from_environment()
         if not args.execute:
-            print(json.dumps({"mode": "DRY_RUN", "sports": sports,
-                              "sports_key_configured": bool(settings.balldontlie_api_key),
-                              "lab_key_configured": bool(settings.balldontlie_lab_api_key),
-                              "maximum_requests": limits.requests, "maximum_seconds": limits.seconds,
-                              "paid_requests_made": 0, "database_writes": False,
-                              "production_approved": False}))
-            return 0
-        from jabazi.api import platform_store
-        store = platform_store()
-        if not store.acquire_lease("scanner", owner, 600):
-            print(json.dumps({"status": "UNAVAILABLE", "reason": "SCANNER_BUSY", "production_approved": False}))
-            return 1
-        models, errors = load_player_models(store)
-        report = run_paid_player_scan(
-            store, settings, models, lambda: store.acquire_lease("scanner", owner, 600),
-            limits=limits, sports=sports, slate_date=args.date,
-            feature_collector=LivePlayerFeatureCollector(sportsdataio_api_key=settings.sportsdataio_api_key),
-        )
-        output = summary(report)
-        output["model_load_error_count"] = len(errors)
-        print(json.dumps(output, sort_keys=True))
-        return 0 if output["scope_complete"] and output["paid_endpoints_observed_for_requested_sports"] else 1
+            output = {"mode": "DRY_RUN", "sports": sports,
+                      "sports_key_configured": bool(settings.balldontlie_api_key),
+                      "lab_key_configured": bool(settings.balldontlie_lab_api_key),
+                      "maximum_requests": limits.requests, "maximum_seconds": limits.seconds,
+                      "paid_requests_made": 0, "database_writes": False,
+                      "production_approved": False}
+            exit_code = 0
+        else:
+            from jabazi.api import platform_store
+            store = platform_store()
+            lease_acquired = bool(store.acquire_lease("scanner", owner, 600))
+            if not lease_acquired:
+                output = {"status": "UNAVAILABLE", "reason": "SCANNER_BUSY",
+                          "production_approved": False}
+                exit_code = 1
+            else:
+                models, errors = load_player_models(store)
+                report = run_paid_player_scan(
+                    store, settings, models, lambda: store.acquire_lease("scanner", owner, 600),
+                    limits=limits, sports=sports, slate_date=args.date,
+                    feature_collector=LivePlayerFeatureCollector(
+                        sportsdataio_api_key=settings.sportsdataio_api_key,
+                    ),
+                )
+                output = summary(report)
+                output["model_load_error_count"] = len(errors)
+                accepted = (output["scope_complete"]
+                            and output["paid_endpoints_observed_for_requested_sports"])
+                exit_code = 0 if accepted else 1
     except Exception:
         # Full exception strings can contain provider URLs, DB credentials or
         # paid response data. The operator inspects private service diagnostics.
-        print(json.dumps({"status": "UNAVAILABLE", "reason": "V7_PRIVATE_ACCEPTANCE_FAILED",
-                          "production_approved": False}))
-        return 2
+        output = {"status": "UNAVAILABLE", "reason": "V7_PRIVATE_ACCEPTANCE_FAILED",
+                  "production_approved": False}
     finally:
+        # A failed connection/lease must not trigger another lease write. Close
+        # the store even if release fails, and never leak cleanup exception text.
         if store is not None:
+            if lease_acquired:
+                try:
+                    store.release_lease("scanner", owner)
+                except Exception:
+                    cleanup_errors.append("LEASE_RELEASE_FAILED")
             try:
-                store.release_lease("scanner", owner)
-            finally:
                 store.close()
+            except Exception:
+                cleanup_errors.append("STORE_CLOSE_FAILED")
+    if cleanup_errors:
+        # Emit exactly one final result, after cleanup; never print success and
+        # then let a cleanup traceback contradict it or expose a secret.
+        output["status"] = "UNAVAILABLE"
+        output.setdefault("reason", "V7_PRIVATE_CLEANUP_FAILED")
+        output["cleanup_errors"] = cleanup_errors
+        exit_code = 2
+    try:
+        encoded = json.dumps(output, sort_keys=True)
+    except Exception:
+        output = {"status": "UNAVAILABLE", "reason": "V7_PRIVATE_ACCEPTANCE_FAILED",
+                  "production_approved": False}
+        if cleanup_errors:
+            output["cleanup_errors"] = cleanup_errors
+        encoded = json.dumps(output, sort_keys=True)
+        exit_code = 2
+    print(encoded)
+    return exit_code
 
 
 if __name__ == "__main__":
