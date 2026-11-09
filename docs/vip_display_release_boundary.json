@@ -66,7 +66,7 @@
       },
       "src/jabazi/chatgpt_api.py": {
         "before": "1ca2391f86f5216630aa23f0ce72ea022412548ec4a313fd0961b0f3c499fa6b",
-        "after": "157c0ae877c1cb1b4e8afda330d7ac10b6b27f32d073760c26502de14434d9b8"
+        "after": "bf8fabd57ebfce77852c53ae6bac4829606c6a175ad57f59a9eff4f9c2d0a5db"
       }
     }
   }
