@@ -48,3 +48,26 @@ uses saved exact-line research probabilities and explains missing evidence.
 
 No merge or deployment is justified by this change alone. Missing pregame
 forecasts and bookmaker receipts cannot be recreated after the outcomes are known.
+
+## Historical model-building experiment
+
+`tools/train_nba_nhl_joint.py` uses the existing public-history collectors and
+causal dataset builders. It retains the existing pre-July-2024 count marginals,
+fits same-player residual rank dependence on July 2024â€“June 2025, and evaluates
+July 2025â€“June 2026. At least 200 distinct games in both periods are required
+per pair. Labels crossing a split boundary are excluded. Future features,
+duplicate identities, cross-market event mismatches and overlapping marginal
+training are rejected. Holdout labels do not affect fitted ranks or model identity.
+
+Predeclared pairs are NBA points/rebounds, points/assists and rebounds/assists;
+NHL goals/shots, goals/assists and assists/shots. Each is evaluated at fixed
+research thresholds against independence using game-weighted Brier/log loss.
+The resulting dependence experiment is not a full coherent player simulator,
+does not support cross-player tickets, and does not model participation/voids.
+These benchmark results do not prove calibration at arbitrary sportsbook lines.
+
+The isolated `NBA NHL historical joint research` workflow captures source data
+and uploads separate experiment artifacts. It has read-only repository access,
+uses no production secrets, writes no live model files, and does not deploy.
+Outputs remain SHADOW_ONLY with zero prospective samples regardless of scores.
+An absent/failed bucket is reported, never replaced by independent-leg betting EV.
