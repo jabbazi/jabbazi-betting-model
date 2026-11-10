@@ -48,6 +48,10 @@ def test_display_release_does_not_change_scanner_auth_models_or_schedules():
         else:
             reviewed[path] = hashes
     assert not digest_drift, sorted(digest_drift)
+    nhl = manifest['nhl_injury_parser_remediation']
+    assert nhl['base_commit'] == '27f6d78cf193a8f66774b52a98ac6c2067761fe5'
+    assert set(nhl['files']) == {'src/jabazi/providers/nhl_player_features.py'}
+    reviewed.update(nhl['files'])
     for relative, checksum in manifest['unchanged'].items():
         assert source_digest(relative, reviewed) == checksum, relative
     assert (ROOT / 'src/jabazi/paid_player_scan.py').is_file()

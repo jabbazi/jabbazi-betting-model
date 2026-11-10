@@ -77,19 +77,19 @@ const assert=require('node:assert/strict');
   // Paid forecasts stay isolated by sport, on demand, and never claim hit probabilities.
   for(const sp of ['NBA','NFL','NHL']){
     await page.goto('https://jabbazi.test/vip#paidplayers&sport='+sp);
-    await page.getByRole('heading',{name:sp+' Paid Player Model Research',exact:true}).waitFor();
     if(sp==='NHL'){
-      await page.getByText('LAB_NHL_PLAYER_PROPS_NOT_SUPPORTED',{exact:false}).first().waitFor();
-      await page.getByText('BDL LAB does not provide NHL player-prop models.',{exact:false}).waitFor();
+      await page.getByRole('heading',{name:'NHL player probabilities',exact:true}).waitFor();
+      assert(requests.some(x=>x.includes('/board?')&&x.includes('sport=NHL')&&x.includes('family=props')));
       assert(!(await page.locator('#content').textContent()).includes('Fixture Athlete'));
     }else{
+      await page.getByRole('heading',{name:sp+' Paid Player Model Research',exact:true}).waitFor();
       await page.getByText('Fixture Athlete',{exact:true}).waitFor();
       await page.getByText('Hit probability',{exact:true}).waitFor();
       await page.getByText('LAB model signal (not stat total)',{exact:true}).waitFor();
       await page.getByText('NOT VERIFIED',{exact:true}).waitFor();
     }
   }
-  assert(requests.filter(x=>x.includes('/paid-player-models')).length===3);
+  assert(requests.filter(x=>x.includes('/paid-player-models')).length===2);
   assert(requests.every(x=>!x.includes('/lab/v1/')&&!x.includes('/odds/player_props')));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   // VALIDATING model estimates remain visible, but not approved for wagering.

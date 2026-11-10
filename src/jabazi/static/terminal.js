@@ -108,6 +108,11 @@ function rankingCards(rows,root,message){
 }
 function researchBoard(d,route,params,sport){return root=>{
   root.append(node('p','Saved research only · '+activeSlateDate()+' · '+d.total+' matching rows · no paid requests on refresh','muted'));
+  const paid=d.paid_coverage?.[sport];
+  if(paid){
+    root.append(node('p','Paid feed: '+String(paid.accepted_quotes??0)+' accepted quotes · '+String(paid.model_probability_rows??0)+' model estimates · '+(paid.model_estimates_complete?'bounded model coverage complete':'model coverage incomplete'),'muted'));
+    for(const gap of paid.missing_probability_reasons||[])root.append(node('p',gap.message+' Affected offers: '+gap.affected_offers,'muted'));
+  }
   if(d.reason)root.append(node('p',d.reason,'muted'));
   const facets=d.facets||{},form=node('form',undefined,'filters');
   const values={};const[qLabel,qInput]=field('Search player, matchup or market','search',params.get('q')||'');qLabel.className='wide';form.append(qLabel);values.q=qInput;
@@ -204,6 +209,14 @@ else if(route==='sport'){
 else if(route==='paidplayers'){
   const sport=(params.get('sport')||'NBA').toUpperCase();
   if(!['NBA','NFL','NHL'].includes(sport))throw Error('Choose NBA, NFL or NHL.');
+  if(sport==='NHL'){
+    const query=new URLSearchParams(params);query.set('sport','NHL');query.set('family','props');
+    const d=await get('board?'+query);
+    build=root=>{
+      root.append(node('h2','NHL player probabilities'),node('p','Saved JABBAZI estimates for the exact player, market and line. Research only; missing estimates remain unavailable.','muted'));
+      researchBoard(d,'props',params,'NHL')(root);
+    };
+  }else{
   const d=await get('paid-player-models?'+new URLSearchParams({sport,offset:params.get('offset')||'0'}));
   build=root=>{
     const hero=node('article',undefined,'panel');
@@ -240,6 +253,7 @@ else if(route==='paidplayers'){
     if(d.next!==null&&d.next!==undefined)root.append(link('More saved signals','#paidplayers&'+new URLSearchParams({sport,offset:d.next})));
     root.append(link('Back to full-board scanner','#board&sport='+sport));
   };
+  }
 }
 else if(route==='matchups'||route==='sim'||route==='firsttd'||route==='props'){
   const sport=route==='firsttd'?'NFL':(params.get('sport')||selectedSport);

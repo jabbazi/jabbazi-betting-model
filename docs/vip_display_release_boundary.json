@@ -69,5 +69,15 @@
         "after": "bf8fabd57ebfce77852c53ae6bac4829606c6a175ad57f59a9eff4f9c2d0a5db"
       }
     }
+  },
+  "nhl_injury_parser_remediation": {
+    "base_commit": "27f6d78cf193a8f66774b52a98ac6c2067761fe5",
+    "scope": "Local unapproved remediation: accept explicit team-filtered flat ESPN injury lists; preserve grouped lists; reject unknown status and missing team coverage. No deployment or wagering approval.",
+    "files": {
+      "src/jabazi/providers/nhl_player_features.py": {
+        "before": "eee9395e8742e436686c69d857a055d527e8b33d4fd458b29c3db96b7288132a",
+        "after": "c0a50dcc80dffe74fd5565bdd9dfc2ffb0032b22080a84493bb23f78d0a7e48e"
+      }
+    }
   }
 }
