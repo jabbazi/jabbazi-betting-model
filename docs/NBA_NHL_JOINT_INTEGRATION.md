@@ -71,3 +71,10 @@ and uploads separate experiment artifacts. It has read-only repository access,
 uses no production secrets, writes no live model files, and does not deploy.
 Outputs remain SHADOW_ONLY with zero prospective samples regardless of scores.
 An absent/failed bucket is reported, never replaced by independent-leg betting EV.
+
+Reports include paired game-bootstrap 95% intervals (1,000 resamples, fixed seed)
+for score improvements, and fixed-decile event-weighted calibration summaries.
+Game clustering handles tickets from the same game, but not recurring-player
+serial dependence. NHL captures must match the provider's declared total, and
+capture receipts are retained with each experiment. No holdout-driven threshold
+search or automatic model selection is performed.

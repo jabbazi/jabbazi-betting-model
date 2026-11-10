@@ -8,6 +8,7 @@ from collections import defaultdict
 from hashlib import sha256
 import json
 from math import isfinite, log
+from random import Random
 
 from jabazi.models.player_distribution import raw_probability
 from jabazi.models.player_joint import checkerboard_joint
@@ -75,6 +76,7 @@ def scores(predictions):
     for event, probability, independent, outcome in predictions:
         events[event].append((probability, independent, outcome))
     report = {"independent_events": len(events), "pairs": len(predictions)}
+    event_scores = {}
     for label, index in (("joint", 0), ("independence", 1)):
         brier, loss = [], []
         for rows in events.values():
@@ -84,6 +86,37 @@ def scores(predictions):
                             for r in rows) / len(rows))
         report[label] = {"event_weighted_brier": sum(brier) / len(brier),
                          "event_weighted_log_loss": sum(loss) / len(loss)}
+        event_scores[label] = (brier, loss)
+    # Paired game bootstrap keeps all same-game player tickets together.
+    # It does not remove serial dependence from players recurring across games.
+    differences = list(zip(*[
+        [b-a for a, b in zip(event_scores["joint"][i], event_scores["independence"][i])]
+        for i in (0, 1)]))
+    rng = Random(0)
+    samples = [[], []]
+    for _ in range(1000):
+        chosen = rng.choices(differences, k=len(differences))
+        for axis in (0, 1):
+            samples[axis].append(sum(row[axis] for row in chosen) / len(chosen))
+    report["paired_game_bootstrap_95pct"] = {
+        key: [sorted(values)[24], sorted(values)[974]]
+        for key, values in zip(("brier_improvement", "log_loss_improvement"), samples)
+    }
+    bins = defaultdict(list)
+    for event, rows in events.items():
+        for probability, _, outcome in rows:
+            bins[min(9, int(probability * 10))].append((probability, outcome, 1/len(rows)))
+    calibration, ece = [], 0.0
+    for index, rows in sorted(bins.items()):
+        mass = sum(w for _, _, w in rows)
+        mean = sum(p*w for p, _, w in rows) / mass
+        rate = sum(y*w for _, y, w in rows) / mass
+        ece += mass * abs(mean-rate) / len(events)
+        calibration.append({"lower": index/10, "upper": (index+1)/10,
+                            "event_weight": mass, "mean_prediction": mean,
+                            "observed_rate": rate})
+    report["calibration_bins"] = calibration
+    report["event_weighted_ece"] = ece
     report["beats_independence_on_both_scores"] = all(
         report["joint"][key] < report["independence"][key]
         for key in ("event_weighted_brier", "event_weighted_log_loss"))

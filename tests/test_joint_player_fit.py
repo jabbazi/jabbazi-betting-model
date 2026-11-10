@@ -100,6 +100,9 @@ def test_scores_weight_games_equally():
     repeated = scores(rows + [rows[0]] * 20)
     assert base["joint"]["event_weighted_brier"] == pytest.approx(
         repeated["joint"]["event_weighted_brier"])
+    assert base["paired_game_bootstrap_95pct"]["brier_improvement"] == pytest.approx(
+        repeated["paired_game_bootstrap_95pct"]["brier_improvement"])
+    assert base["event_weighted_ece"] == pytest.approx(repeated["event_weighted_ece"])
 
 
 def test_vectorized_copula_matches_reference():

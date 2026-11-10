@@ -25,6 +25,11 @@ def run(args):
             raise ValueError("Captured official NHL schedule and player history required")
         games, schedules = load_schedule(args.schedule_dir)
         skaters, files = load_stats(args.stats_dir, "skater")
+        for file in files:
+            captured = json.loads(file.read_text())
+            total = captured.get("total")
+            if type(total) is not int or total != len(captured["data"]):
+                raise ValueError("NHL history coverage missing or truncated")
         source = checksum(schedules + files)
         documents = {m: build_dataset(
             games=games, skater_rows=skaters, goalie_rows=[], market=m,
@@ -41,6 +46,11 @@ def run(args):
         if output == protected or protected in output.parents:
             raise ValueError("Research output must not overwrite deployed model paths")
     output.mkdir(parents=True, exist_ok=True)
+    receipt_paths = ([Path(args.nba_history).parent / "receipts.json"]
+                     if sport == "basketball_nba" else
+                     [args.schedule_dir / "receipts.json", args.stats_dir / "receipts.json"])
+    receipts = [json.loads(p.read_text()) for p in receipt_paths]
+    (output / "source_receipts.json").write_text(json.dumps(receipts, indent=2) + "\n")
     (output / "artifact.json").write_text(json.dumps(artifact, separators=(",", ":")))
     report = {**artifact, "buckets": [{k: v for k, v in b.items() if k != "ranks"}
                                      for b in artifact["buckets"]]}
