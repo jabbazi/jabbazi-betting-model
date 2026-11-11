@@ -54,6 +54,13 @@ def test_unscoped_scanner_keeps_existing_multi_book_behavior():
     assert result.coverage == 'FULL' and result.odds_rows == 1
 
 
+def test_unknown_book_identity_remains_invalid_not_merely_out_of_scope():
+    rows = {77: [quote('NBA', vendor='draftkings'), quote('NBA', id=101, vendor=None)]}
+    result = collect_boost_odds(Pages(rows), scoped(), game_ids=[77], observed_at=NOW)
+    assert result.odds_rows == 1 and result.invalid_rows == 1
+    assert result.out_of_scope_rows == 0 and result.coverage == 'PARTIAL'
+
+
 @pytest.mark.parametrize('books', [frozenset({''}), frozenset({'DraftKings'}), frozenset({'bad book'}), ['draftkings']])
 def test_malformed_scope_is_not_silently_broadened(books):
     with pytest.raises(ValueError):

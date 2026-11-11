@@ -85,7 +85,9 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                 if scope.markets and isinstance(row, dict) and row.get("prop_type") not in scope.markets:
                     out_of_scope_count += 1
                     continue
-                if scope.bookmakers and isinstance(row, dict) and str(row.get("vendor", "")).strip().lower() not in scope.bookmakers:
+                if (scope.bookmakers and isinstance(row, dict)
+                        and isinstance(row.get("vendor"), str) and row["vendor"].strip()
+                        and row["vendor"].strip().lower() not in scope.bookmakers):
                     out_of_scope_count += 1
                     continue
                 identity, issue = inspect_prop_offer(
