@@ -9,8 +9,9 @@ from math import isfinite
 
 from jabazi.boost_prospective import _at, _leg, _now, freeze_joint_ticket
 from jabazi.models.player_distribution import raw_probability
+from jabazi.models.player_joint import checkerboard_joint
 from jabazi.persistence.store import digest
-from jabazi.research.joint_player_fit import SPECS, fingerprint, joint_evaluator
+from jabazi.research.joint_player_fit import SPECS, fingerprint
 from jabazi.research.player_features import REQUIRED_INTEGRITY
 
 
@@ -101,7 +102,9 @@ class FrozenJointResearchModel:
                 for s, m, line in zip(snapshots, pair, lines)]
         ps = [raw_probability(self.marginals[m], s['features'], 'over', line)
               for s, m, line in zip(snapshots, pair, lines)]
-        probability = joint_evaluator(b['ranks'])(ps)
+        # Single-ticket inference uses the exact dependency-free evaluator.
+        # NumPy is a training acceleration, not a production runtime dependency.
+        probability = checkerboard_joint(b['ranks'], ps, [True, True])
         if not isfinite(probability) or not 0 < probability < 1:
             raise ValueError('Degenerate forecast cannot be frozen')
         version = self.artifact['model_version']
