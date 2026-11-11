@@ -83,11 +83,11 @@
   },
   "nba_live_input_remediation": {
     "base_commit": "716854d73235651df19c4c2074ce3a19439a755f",
-    "scope": "Explicit injury team coverage, conservative listed-player status, provider-ID history matching, and 36-hour result availability consistent with the training capture. No approval or deployment.",
+    "scope": "Explicit injury team coverage, conservative listed-player status, provider-ID history matching, and 36-hour result availability consistent with the training capture. Bounded temporary-file CSV loading added after live NBA diagnostic termination; exact raw checksums and parser semantics retained. No approval or deployment.",
     "files": {
       "src/jabazi/providers/nba_player_features.py": {
         "before": "5542d7bd2a6942140735ac39e710095ce2597888a70bdbce3c3d7701edfa2e1d",
-        "after": "dd15ff4a0e8dba9ea333f0bf305c781e79b8ab8a09fa252ff87aaafb060f1ed1"
+        "after": "94beaef6aff3c7c40eebb7d7758883910c40ed62b29e72bdf735e5e430580589"
       }
     }
   }
