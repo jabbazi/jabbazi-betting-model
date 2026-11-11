@@ -102,3 +102,26 @@ owner, bot membership and existing private-channel grants, including stored paid
 roles. It never posts, changes permissions, changes environment variables or
 deploys. A validated replacement still requires the corresponding reviewed
 service configuration change and live delivery verification after release.
+
+## Explicit prospective benchmark collection
+
+Frozen models from historical run 42771517832 are retained under
+`research_artifacts/joint`, outside live model paths. The manifest locks source
+workflow, compressed/raw/canonical checksums, versions and artifact creation time.
+The collection command verifies the exact marginal artifacts, rank support and
+independent-game sample counts before inference. It never refits on new outcomes.
+
+`python -m tools.capture_joint_research --sport NHL --event OFFICIAL_GAME_ID
+--player OFFICIAL_PLAYER_ID --pair 0 --execute` validates an upcoming official
+game and exact roster identity, fetches fresh inputs and freezes one same-player
+joint forecast. NBA uses ESPN event/player IDs. Pair indices 0–2 refer to the
+predeclared benchmark pairs in the historical protocol; all sides remain over at
+the original benchmark thresholds. Omit `--execute` for read-only input checks.
+This command is operator-invoked, has no scheduler, does not fetch paid odds and
+does not publish. It does not mean full-slate coverage. Unverified inputs block
+capture; successful reruns preserve the original forecast.
+
+The original DraftKings combined offer is separate evidence. Forecasts without
+such receipts remain marked missing market baseline. Historical research models
+have no participation/void model; DNPs and voids must be explicitly excluded at
+settlement. No single successful capture establishes calibration or readiness.
