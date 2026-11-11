@@ -90,5 +90,15 @@
         "after": "94beaef6aff3c7c40eebb7d7758883910c40ed62b29e72bdf735e5e430580589"
       }
     }
+  },
+  "draftkings_quote_research_addition": {
+    "base_commit": "2139914bb6ba5810dac8a012ce7ed59f4d9c1ec5",
+    "scope": "New inactive exact-selection OpticOdds DraftKings quote reader. No production wiring, credential provisioning, calibration approval or wager execution.",
+    "files": {
+      "src/jabazi/providers/opticodds_sgp.py": {
+        "before": null,
+        "after": "f096cfcfe4f32e19a219d10f13e7da71d415c9aaee54868ed6acfdbe35b1ce4d"
+      }
+    }
   }
 }
