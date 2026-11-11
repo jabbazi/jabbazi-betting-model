@@ -127,6 +127,22 @@ have no participation/void model; DNPs and voids must be explicitly excluded at
 settlement. No single successful capture establishes calibration or readiness.
 # Prospective collection and result polling
 
+Live matchup audit on 2026-11-11 UTC: all 50 official roster players for the
+next Tampa Bay–Buffalo game were checked across 185 applicable contexts (four
+skater markets, saves for goalies). 160 contexts passed all feature gates across
+40 skaters. Remaining contexts were blocked by injuries, insufficient history,
+or unconfirmed starting goalies. This covers one matchup, not the full slate.
+39 additional official-ID goals/shots forecasts were frozen; the original one
+was preserved. The private archive now contains 40 NHL and one NBA forecast,
+spanning only two independent events, with no final results or combined quotes.
+
+Paid NHL requests returned six upcoming games, 50 players for the scoped two
+teams, and 941 prop rows for the matchup. All 50 scoped paid birth dates were
+one day earlier than the corresponding official roster dates. Original source
+records and coverage diagnostics are retained in the private review archive.
+Identity candidates now reject explicit birth-date conflicts; no silent date
+normalization, independent-review attestation, or paid-model promotion occurs.
+
 An actual later pregame combined offer can be retained with
 `python -m tools.boost_joint_capture quote --input PRIVATE_RECEIPT.json --commit-evidence`.
 The private JSON contains `forecast_id` and the existing `offered_quote` envelope.

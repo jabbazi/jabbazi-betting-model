@@ -155,6 +155,12 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
             reasons["ambiguous_identity_factors"] += len(bdl_rows)
             continue
         bdl, source = bdl_rows[0], source_rows[0]
+        # Original records can disagree even when names/team/position agree.
+        # Never silently shift a birth date to force a cross-provider match.
+        if sport == "NHL" and bdl.get("birth_date") and source.get("birth_date"):
+            if bdl["birth_date"] != source["birth_date"]:
+                reasons["nhl_birth_date_conflict"] += 1
+                continue
         if (bdl_id_counts[bdl["id"]] != 1
                 or source_id_counts[source["source_player_id"]] != 1):
             reasons["cross_key_duplicate_player_identity"] += 1
@@ -184,6 +190,8 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
                 "bdl_position": str(bdl.get("position_code") if sport == "NHL"
                                     else bdl.get("position_abbreviation") or "")[:16],
                 "source_position": str(source.get("position_abbreviation") or "")[:16],
+                "bdl_birth_date": bdl.get("birth_date") if sport == "NHL" else None,
+                "source_birth_date": source.get("birth_date") if sport == "NHL" else None,
                 "bdl_jersey": (
                     None if sport == "NHL" else _jersey(bdl.get("jersey_number"))
                 ),
