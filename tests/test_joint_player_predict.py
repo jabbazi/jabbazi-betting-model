@@ -107,6 +107,8 @@ def test_checked_in_research_transport_matches_exact_frozen_marginals(sport):
 
 def test_official_nhl_scope_checks_game_state_and_exact_roster_id():
     def handle(request):
+        if request.url.path.endswith('/current'):
+            return httpx.Response(307, headers={'location': str(request.url).replace('/current','/20262027')})
         if request.url.path.endswith('/landing'):
             return httpx.Response(200,json={'id':123,'gameState':'FUT',
                 'startTimeUTC':(NOW+timedelta(hours=2)).isoformat(),
@@ -117,3 +119,11 @@ def test_official_nhl_scope_checks_game_state_and_exact_roster_id():
         scope=official_scope(http,'NHL','123','45',NOW)
         assert scope['event_id']=='nhl:123' and scope['player_id']=='45'
         with pytest.raises(ValueError): official_scope(http,'NHL','123','46',NOW)
+
+
+def test_official_source_rejects_cross_host_redirect():
+    from tools.capture_joint_research import get_json
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(
+            307, headers={'location':'https://unrelated.example/roster'}))) as http:
+        with pytest.raises(ValueError, match='redirect'):
+            get_json(http,'https://api-web.nhle.com/v1/roster/BOS/current')

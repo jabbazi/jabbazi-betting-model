@@ -42,6 +42,15 @@ def load_frozen_model(sport, root=ROOT):
 
 def get_json(http, url):
     response = http.get(url)
+    # NHL /roster/{team}/current redirects to the explicit season roster.
+    # Follow only bounded, same-origin HTTPS redirects; never forward to a new host.
+    for _ in range(2):
+        if not response.is_redirect:
+            break
+        target = response.url.join(response.headers.get('location', ''))
+        if target.scheme != 'https' or target.host != response.url.host or target.port != response.url.port:
+            raise ValueError('Unexpected official-source redirect')
+        response = http.get(target)
     response.raise_for_status()
     if len(response.content) > 8_000_000:
         raise ValueError('Source response too large')
