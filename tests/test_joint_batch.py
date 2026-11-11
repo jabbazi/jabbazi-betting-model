@@ -101,7 +101,7 @@ def test_execute_archives_once_and_dry_run_never_archives(store):
 
 
 def test_deadline_returns_continuation_without_skipping(store, monkeypatch):
-    fid = add(store, 1)
+    add(store, 1)
     ticks = iter([0, 61])
     monkeypatch.setattr(batch.time, 'monotonic', lambda: next(ticks))
     report = batch.settle_batch(store, None, now=NOW)
@@ -113,3 +113,4 @@ def test_deadline_returns_continuation_without_skipping(store, monkeypatch):
 def test_invalid_bounds_rejected_before_query(kwargs):
     with pytest.raises(ValueError):
         batch.settle_batch(None, None, **kwargs)
+
