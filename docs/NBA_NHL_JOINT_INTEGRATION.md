@@ -169,3 +169,27 @@ holding raw bytes plus decoded copies of entire season releases in memory.
 No recurring job, deployment, sportsbook account action, or model promotion is
 enabled by these operator-invoked tools.
 
+
+## Bounded result collection
+
+`python -m tools.settle_joint_batch` checks up to 100 unresolved forecasts in
+read-only mode. Add `--execute` only for authorized append-only result collection.
+Resolved forecasts are excluded; future games remain pending without a request.
+Each official boxscore is reused within that invocation, but player IDs, markets,
+participation and event chronology are checked separately for every forecast.
+One failed player does not prevent independent records from being checked.
+
+A batch allows 1–200 forecasts and a 1–120 second processing budget (default 60).
+The budget is checked between forecasts; an in-flight source request can finish
+later under its HTTP timeout. When `has_more` is true, pass `next_cursor` as
+`--after` for the next batch. After completing a sweep, start the next polling
+sweep without a cursor so pending games are revisited. No background job is
+installed or enabled by this command. Output reports blocked records without
+printing upstream exception messages or private source payloads.
+
+The latest live archive contains 41 pregame forecasts across two events and no
+final results. One genuine public DraftKings prebuilt combined quote was saved
+separately, but its two-player goals legs do not match the same-player forecasts.
+It is not matching calibration evidence. The earlier no-quote observation in
+this document predates that capture. Full-slate coverage and the 50 conflicting
+paid/official NHL birth dates remain unresolved.

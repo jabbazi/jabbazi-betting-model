@@ -24,14 +24,21 @@ def count(value):
     return int(number)
 
 
-def official_result(http, frozen, forecast_id, *, now=None):
+def official_result(http, frozen, forecast_id, *, now=None, source_cache=None):
+    def source(url):
+        if source_cache is None:
+            return get_json(http, url)
+        if url not in source_cache:
+            source_cache[url] = get_json(http, url)
+        return source_cache[url]
+
     event = frozen['event_id']
     namespace, event_id = event.split(':', 1)
     if not event_id.isdigit():
         raise ValueError('Official event ID required')
     if namespace == 'nhl' and frozen['sport'] == 'icehockey_nhl':
         url = f'https://api-web.nhle.com/v1/gamecenter/{event_id}/boxscore'
-        document, checksum = get_json(http, url)
+        document, checksum = source(url)
         if str(document.get('id')) != event_id:
             raise ValueError('Wrong official event')
         if document.get('gameState') not in {'OFF', 'FINAL'}:
@@ -54,7 +61,7 @@ def official_result(http, frozen, forecast_id, *, now=None):
                 'market': leg['market'], 'status': 'final', 'observed_value': count(p[stats[leg['market']]])})
     elif namespace == 'espn-nba' and frozen['sport'] == 'basketball_nba':
         url = f'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event={event_id}'
-        document, checksum = get_json(http, url)
+        document, checksum = source(url)
         header = document['header']
         if str(header.get('id')) != event_id or len(header['competitions']) != 1:
             raise ValueError('Wrong official event')
@@ -94,7 +101,7 @@ def official_result(http, frozen, forecast_id, *, now=None):
                     'source_url': url, 'raw_response_sha256': checksum, 'raw_response': document}}}
 
 
-def settle_one(store, http, forecast_id, *, execute=False):
+def settle_one(store, http, forecast_id, *, execute=False, source_cache=None):
     with store.engine.connect() as conn:
         existing = conn.execute(select(events.c.id).where(events.c.kind == RESULT,
             events.c.id == digest(['boost_joint_outcome_v1', forecast_id]))).first()
@@ -104,7 +111,7 @@ def settle_one(store, http, forecast_id, *, execute=False):
         return {'status': 'ALREADY_RESOLVED', 'forecast_id': forecast_id}
     if row is None:
         raise ValueError('Frozen forecast not found')
-    result = official_result(http, row[0], forecast_id)
+    result = official_result(http, row[0], forecast_id, source_cache=source_cache)
     if result['status'] == 'PENDING':
         return result
     if not execute:
