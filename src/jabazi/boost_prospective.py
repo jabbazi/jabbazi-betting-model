@@ -113,6 +113,24 @@ def _forecast_id(sport, event_id, ticket_id, model_version):
     return digest(["boost_joint_v1", sport, event_id, ticket_id, model_version])
 
 
+def _validate_offered_quote(offered_quote, event, ticket_id, legs):
+    offer = offered_quote["payload"]
+    if offer.get("quote_kind") != "sportsbook_combined_ticket":
+        raise ValueError("Actual sportsbook combined-ticket offer required")
+    if (offer.get("event_id") != event or offer.get("ticket_id") != ticket_id
+            or offer.get("leg_ids") != [leg["leg_id"] for leg in legs]
+            or offer.get("legs") != legs):
+        raise ValueError("Offered quote exact ticket identity mismatch")
+    _text(offer.get("book"), "offered book")
+    _text(offer.get("quote_id"), "offered quote ID")
+    _text(offer.get("receipt_reference"), "offered quote receipt")
+    _decimal_price(offer.get("decimal_odds"), "offered combined price")
+    if offer.get("price_basis") != "direct_sportsbook_quote":
+        raise ValueError("Multiplying leg prices cannot establish a combined offer")
+    if "no_vig_probability" in offer or "paired_quotes" in offer:
+        raise ValueError("Use a separate independently paired market source")
+
+
 def freeze_joint_ticket(store, ticket, *, observed_at=None):
     """Freeze one real supplied exact ticket atomically in the existing event store.
 
@@ -166,21 +184,7 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
     offered_quote = None
     if ticket.get("offered_quote") is not None:
         offered_quote = _snapshot(ticket["offered_quote"], now=now, name="offered quote")
-        offer = offered_quote["payload"]
-        if offer.get("quote_kind") != "sportsbook_combined_ticket":
-            raise ValueError("Actual sportsbook combined-ticket offer required")
-        if (offer.get("event_id") != event or offer.get("ticket_id") != ticket_id
-                or offer.get("leg_ids") != [leg["leg_id"] for leg in legs]
-                or offer.get("legs") != legs):
-            raise ValueError("Offered quote exact ticket identity mismatch")
-        _text(offer.get("book"), "offered book")
-        _text(offer.get("quote_id"), "offered quote ID")
-        _text(offer.get("receipt_reference"), "offered quote receipt")
-        _decimal_price(offer.get("decimal_odds"), "offered combined price")
-        if offer.get("price_basis") != "direct_sportsbook_quote":
-            raise ValueError("Multiplying leg prices cannot establish a combined offer")
-        if "no_vig_probability" in offer or "paired_quotes" in offer:
-            raise ValueError("Use a separate independently paired market source")
+        _validate_offered_quote(offered_quote, event, ticket_id, legs)
     market_source = None
     market_probability = None
     if ticket.get("market_source") is not None:
@@ -233,6 +237,35 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
         # Conflicting retries reject instead of rewriting a frozen probability.
         created = store._append(conn, FORECAST, event, payload, key)
     return {"created": created, "forecast_id": key, "state": "RESEARCH_ONLY"}
+
+
+def attach_joint_offered_quote(store, *, forecast_id, offered_quote, observed_at=None):
+    """Append a later real pregame offer without altering the frozen prediction.
+
+This is one-sided quote custody only; it never creates a no-vig baseline.
+"""
+    now = _now(observed_at)
+    quote = _snapshot(offered_quote, now=now, name='offered quote')
+    with store.transaction() as conn:
+        row = conn.execute(select(events.c.payload).where(
+            events.c.id == forecast_id, events.c.kind == FORECAST)).first()
+        if row is None:
+            raise ValueError('Frozen forecast not found')
+        frozen = row[0]
+        if not (_at(frozen['forecast_frozen_at'], 'freeze time')
+                <= _at(quote['observed_at'], 'quote observation') <= now
+                < _at(frozen['starts_at'], 'starts_at')):
+            raise ValueError('Quote must be observed after freeze and before game start')
+        _validate_offered_quote(quote, frozen['event_id'], frozen['ticket_id'], frozen['legs'])
+        key = digest(['boost_joint_offered_quote_v1', forecast_id, quote['sha256']])
+        existing = conn.execute(select(events.c.id).where(events.c.id == key)).first()
+        if existing:
+            return {'status':'ALREADY_CAPTURED','quote_record_id':key,'research_only':True}
+        payload = {'forecast_id':forecast_id, 'event_id':frozen['event_id'],
+            'ticket_id':frozen['ticket_id'], 'offered_quote':quote, 'captured_at':now.isoformat(),
+            'approved_for_betting':False, 'qualifies_as_no_vig_baseline':False}
+        store._append(conn, 'boost_joint_offered_quote', frozen['event_id'], payload, key)
+    return {'status':'CAPTURED','quote_record_id':key,'research_only':True}
 
 
 def archive_joint_outcome(store, *, forecast_id, leg_results, result_source,

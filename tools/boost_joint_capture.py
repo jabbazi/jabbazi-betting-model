@@ -8,18 +8,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from jabazi.boost_prospective import (
-    audit_ready_rows, archive_joint_outcome, freeze_joint_ticket,
+    audit_ready_rows, archive_joint_outcome, freeze_joint_ticket, attach_joint_offered_quote,
 )
 from jabazi.boost_joint_evidence import audit_frozen_joint_evidence
 from jabazi.boost_prospective_inventory import capture_inventory
 
 
 def _open_store():
-    from jabazi.api import platform_store
-    return platform_store()
+    from jabazi.persistence.store import Store
+    return Store(os.environ['JABBAZI_PLATFORM_DATABASE_URL'])
 
 
 def _read_private_json(path):
@@ -40,21 +41,21 @@ def main(argv=None):
         description="JABBAZI private, append-only joint evidence capture",
     )
     sub = parser.add_subparsers(dest="action", required=True)
-    for name in ("freeze", "settle"):
+    for name in ("freeze", "settle", "quote"):
         command = sub.add_parser(name)
         command.add_argument("--input", required=True)
         command.add_argument("--commit-evidence", action="store_true")
     sub.add_parser("audit")
     sub.add_parser("inventory")
     args = parser.parse_args(argv)
-    if args.action in {"freeze", "settle"} and not args.commit_evidence:
+    if args.action in {"freeze", "settle", "quote"} and not args.commit_evidence:
         print(json.dumps({
             "status": "EXPLICIT_EVIDENCE_WRITE_FLAG_REQUIRED",
             "approved_for_betting": False,
         }))
         return 2
     try:
-        payload = _read_private_json(args.input) if args.action in {"freeze", "settle"} else None
+        payload = _read_private_json(args.input) if args.action in {"freeze", "settle", "quote"} else None
         store = _open_store()
         try:
             if args.action == "freeze":
@@ -64,6 +65,10 @@ def main(argv=None):
                     "forecast_id": report["forecast_id"],
                     "approved_for_betting": False,
                 }
+            elif args.action == "quote":
+                safe = attach_joint_offered_quote(store, forecast_id=payload['forecast_id'],
+                    offered_quote=payload['offered_quote'])
+                safe['approved_for_betting'] = False
             elif args.action == "settle":
                 if not all(key in payload for key in (
                     "forecast_id", "leg_results", "result_source",

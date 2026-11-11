@@ -127,6 +127,14 @@ have no participation/void model; DNPs and voids must be explicitly excluded at
 settlement. No single successful capture establishes calibration or readiness.
 # Prospective collection and result polling
 
+An actual later pregame combined offer can be retained with
+`python -m tools.boost_joint_capture quote --input PRIVATE_RECEIPT.json --commit-evidence`.
+The private JSON contains `forecast_id` and the existing `offered_quote` envelope.
+It must identify the exact frozen event, ticket and legs, sportsbook, direct
+combined decimal odds, quote ID, observation time and original receipt reference.
+The quote is appended separately; forecast times/probabilities never change.
+It does not create a two-sided no-vig baseline or make the row audit-eligible.
+
 The first real NHL goals/shots forecast was frozen on 2026-11-11 UTC for
 official game `nhl:2026020293`, player `8478519`, before its scheduled start.
 Its private receipt is `a27884c1397124fb1e1fabeb712b96024e86a0dc6d5896e0d6cb8cf2190e5de4`.

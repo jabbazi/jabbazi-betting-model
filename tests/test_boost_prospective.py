@@ -470,3 +470,26 @@ def test_without_bookmaker_two_way_baseline_forecast_remains_research_only(store
     frozen = freeze_joint_ticket(store, independent, observed_at=NOW)
     assert frozen["state"] == "RESEARCH_ONLY"
     assert audit_ready_rows(store) == []
+
+
+def test_later_quote_is_append_only_and_never_a_no_vig_baseline(store):
+    from jabazi.boost_prospective import attach_joint_offered_quote
+    frozen=freeze_joint_ticket(store,ticket(market=False),observed_at=NOW)
+    before=deepcopy(store.list_records('boost_joint_forecast'))
+    later=NOW+timedelta(minutes=2)
+    quote={'provider':'synthetic-fixture','observed_at':later.isoformat(),'payload':{
+        'quote_kind':'sportsbook_combined_ticket','price_basis':'direct_sportsbook_quote',
+        'book':'fixture-book','quote_id':'fixture-quote','receipt_reference':'fixture-only',
+        'decimal_odds':3.5,'event_id':'event-1','ticket_id':'ticket-1','leg_ids':['a','b'],'legs':legs()}}
+    result=attach_joint_offered_quote(store,forecast_id=frozen['forecast_id'],offered_quote=quote,observed_at=later)
+    assert result['status']=='CAPTURED'
+    assert attach_joint_offered_quote(store,forecast_id=frozen['forecast_id'],offered_quote=quote,observed_at=later)['status']=='ALREADY_CAPTURED'
+    assert store.list_records('boost_joint_forecast')==before
+    assert len(store.list_records('boost_joint_offered_quote'))==1
+    assert audit_ready_rows(store)==[]
+    bad=deepcopy(quote); bad['payload']['legs'][0]['line']=24.5
+    with pytest.raises(ValueError,match='identity'):
+        attach_joint_offered_quote(store,forecast_id=frozen['forecast_id'],offered_quote=bad,observed_at=later)
+    bad=deepcopy(quote); bad['observed_at']=(NOW+timedelta(hours=4)).isoformat()
+    with pytest.raises(ValueError,match='before game'):
+        attach_joint_offered_quote(store,forecast_id=frozen['forecast_id'],offered_quote=bad,observed_at=NOW+timedelta(hours=4))
