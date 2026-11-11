@@ -1,0 +1,42 @@
+name: NBA NHL historical joint research
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nhl-joint-integration-20261110]
+    paths:
+      - src/jabazi/research/joint_player_fit.py
+      - tools/train_nba_nhl_joint.py
+      - .github/workflows/nba-nhl-joint-research.yml
+permissions:
+  contents: read
+jobs:
+  historical-fit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        sport: [basketball_nba, icehockey_nhl]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install '.[research]'
+      - name: Capture NBA public history and fit isolated research
+        if: matrix.sport == 'basketball_nba'
+        run: |
+          python tools/capture_nba_sportsdataverse.py --output "$RUNNER_TEMP/nba-history"
+          python -m tools.train_nba_nhl_joint --sport basketball_nba --nba-history "$RUNNER_TEMP/nba-history/nba_player_history.json" --output "$RUNNER_TEMP/joint-output"
+      - name: Capture NHL public history and fit isolated research
+        if: matrix.sport == 'icehockey_nhl'
+        run: |
+          python tools/capture_nhl_history.py --output "$RUNNER_TEMP/nhl-schedules" --opening-date 2026-09-29
+          python tools/capture_nhl_player_history.py --output "$RUNNER_TEMP/nhl-player-history"
+          python -m tools.train_nba_nhl_joint --sport icehockey_nhl --schedule-dir "$RUNNER_TEMP/nhl-schedules" --stats-dir "$RUNNER_TEMP/nhl-player-history" --output "$RUNNER_TEMP/joint-output"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: joint-research-${{ matrix.sport }}
+          path: ${{ runner.temp }}/joint-output
+          retention-days: 14
+          if-no-files-found: error

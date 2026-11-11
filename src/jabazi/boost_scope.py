@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterable, Mapping
+import re
 
 SPORTS = {"NBA": "basketball_nba", "NFL": "americanfootball_nfl", "NHL": "icehockey_nhl"}
 
@@ -17,23 +18,29 @@ class BoostScope:
     sport: str
     event_ids: frozenset[str] = frozenset()
     markets: frozenset[str] = frozenset()
+    bookmakers: frozenset[str] = frozenset()
 
     def __post_init__(self):
         if self.sport not in SPORTS.values():
             raise ValueError("Boost must specify exactly one supported sport")
         if any(not item for item in self.event_ids | self.markets):
             raise ValueError("Blank event or market identifier")
+        if not isinstance(self.bookmakers, frozenset) or any(
+            not isinstance(book, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", book)
+            for book in self.bookmakers
+        ):
+            raise ValueError("Normalized bookmaker identifiers required")
 
 
 def scope_from_text(text: str, *, event_ids: Iterable[str] = (),
-                    markets: Iterable[str] = ()) -> BoostScope:
+                    markets: Iterable[str] = (), bookmakers: Iterable[str] = ()) -> BoostScope:
     """Fail closed when a promotion's sport is missing or ambiguous."""
     import re
     matches = [code for label, code in SPORTS.items()
                if re.search(r"\b" + label + r"\b", text.upper())]
     if len(matches) != 1:
         raise ValueError("BOOST_SPORT_MISSING_OR_AMBIGUOUS")
-    return BoostScope(matches[0], frozenset(event_ids), frozenset(markets))
+    return BoostScope(matches[0], frozenset(event_ids), frozenset(markets), frozenset(bookmakers))
 
 
 def eligible_rows(scope: BoostScope, rows: Iterable[Mapping],
@@ -58,6 +65,8 @@ def eligible_rows(scope: BoostScope, rows: Iterable[Mapping],
             continue
         if (scope.event_ids and raw.get("event_id") not in scope.event_ids) or (
             scope.markets and raw.get("market") not in scope.markets
+        ) or (
+            scope.bookmakers and str(raw.get("bookmaker", "")).strip().lower() not in scope.bookmakers
         ):
             counts["out_of_scope"] += 1
             continue

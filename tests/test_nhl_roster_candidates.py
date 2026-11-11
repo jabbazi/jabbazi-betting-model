@@ -50,6 +50,28 @@ def test_nhl_team_trade_ambiguity_fails_closed():
     assert result["candidate_count"] == 0
 
 
+def test_nhl_original_birth_date_conflict_is_not_silently_normalized():
+    result = candidates([bdl(birth_date="1997-07-14")], [official(birth_date="1997-07-15")])
+    assert result["candidate_count"] == 0
+    assert result["rejections"] == {"nhl_birth_date_conflict": 1}
+    conflict = result['conflicts_private'][0]
+    assert conflict['bdl_record']['birth_date'] == '1997-07-14'
+    assert conflict['source_record']['birth_date'] == '1997-07-15'
+    assert conflict['resolution'] == 'UNRESOLVED'
+    assert conflict['provider_identity_verified'] is False
+    public = redacted_candidate_summary(result)
+    assert public['unresolved_identity_conflicts'] == 1
+    assert '1997-07' not in str(public) and 'Example Skater' not in str(public)
+
+
+def test_nhl_matching_birth_dates_remain_unapproved_review_evidence():
+    result = candidates([bdl(birth_date="1997-07-15")], [official(birth_date="1997-07-15")])
+    row=result["candidates_private"][0]
+    assert row["review_evidence_private"]["bdl_birth_date"] == "1997-07-15"
+    assert row["review_evidence_private"]["source_birth_date"] == "1997-07-15"
+    assert row["independent_source_reviewed"] is False
+
+
 def test_nhl_missing_season_or_mismatched_position_fails_closed():
     assert candidates([bdl(teams=[{"tricode": "NYR", "season": 2025}])], [official()])["candidate_count"] == 0
     assert candidates([bdl(position_code="G")], [official()])["candidate_count"] == 0

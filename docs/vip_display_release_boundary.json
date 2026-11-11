@@ -69,5 +69,36 @@
         "after": "bf8fabd57ebfce77852c53ae6bac4829606c6a175ad57f59a9eff4f9c2d0a5db"
       }
     }
+  },
+  "nhl_injury_parser_remediation": {
+    "base_commit": "27f6d78cf193a8f66774b52a98ac6c2067761fe5",
+    "scope": "Local unapproved remediation: accept explicit team-filtered flat ESPN injury lists; preserve grouped lists; reject unknown status and missing team coverage. No deployment or wagering approval.",
+    "files": {
+      "src/jabazi/providers/nhl_player_features.py": {
+        "before": "eee9395e8742e436686c69d857a055d527e8b33d4fd458b29c3db96b7288132a",
+        "after": "4325853431e60b5c15cc78cfc143e24108836866746372f757c3f548e18e022d"
+      }
+    },
+    "alias_evidence": "2026-11-11 UTC live ESPN team directory: NJD/NJ, LAK/LA, SJS/SJ, TBL/TB, UTA/UTAH; no fuzzy identity matching."
+  },
+  "nba_live_input_remediation": {
+    "base_commit": "716854d73235651df19c4c2074ce3a19439a755f",
+    "scope": "Explicit injury team coverage, conservative listed-player status, provider-ID history matching, and 36-hour result availability consistent with the training capture. Bounded temporary-file CSV loading added after live NBA diagnostic termination; exact raw checksums and parser semantics retained. No approval or deployment.",
+    "files": {
+      "src/jabazi/providers/nba_player_features.py": {
+        "before": "5542d7bd2a6942140735ac39e710095ce2597888a70bdbce3c3d7701edfa2e1d",
+        "after": "94beaef6aff3c7c40eebb7d7758883910c40ed62b29e72bdf735e5e430580589"
+      }
+    }
+  },
+  "draftkings_quote_research_addition": {
+    "base_commit": "2139914bb6ba5810dac8a012ce7ed59f4d9c1ec5",
+    "scope": "New inactive exact-selection OpticOdds DraftKings quote reader. No production wiring, credential provisioning, calibration approval or wager execution.",
+    "files": {
+      "src/jabazi/providers/opticodds_sgp.py": {
+        "before": null,
+        "after": "f096cfcfe4f32e19a219d10f13e7da71d415c9aaee54868ed6acfdbe35b1ce4d"
+      }
+    }
   }
 }

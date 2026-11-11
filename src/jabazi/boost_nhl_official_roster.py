@@ -52,6 +52,9 @@ def fetch_nhl_official_roster(team_abbreviations, *, now=None):
                     "full_name": str(first) + " " + str(last),
                     "team_abbreviation": team,
                     "position_abbreviation": position,
+                    "birth_date": player.get("birthDate"),
+                    "height_in_inches": player.get("heightInInches"),
+                    "shoots_catches": player.get("shootsCatches"),
                     "source_observed_at": now.astimezone(UTC).isoformat(),
                     "source_response_sha256": checksum,
                 })

@@ -65,6 +65,22 @@ def saved_paid_rows(store, *, now, slate_date):
             coverage[sport] = {k: bucket.get(k) for k in (
                 'coverage', 'eligible_games', 'accepted_quotes', 'model_probability_rows', 'model_estimates_complete')}
             coverage[sport]['snapshot_status'] = payload.get('status')
+            explanations = {
+                'MISSING_OR_AMBIGUOUS_CROSSWALK': 'Player and game identities still need verified matching.',
+                'MISSING_OR_AMBIGUOUS_FROZEN_FEATURES': 'Fresh player model inputs are missing or ambiguous.',
+                'MISSING_OR_AMBIGUOUS_FITTED_MODEL': 'A fitted model is unavailable for this market.',
+                'OFFER_UNMAPPED_MARKET': 'This provider market has no supported player model.',
+                'INFERENCE_TIME_OR_LEASE_BUDGET_EXHAUSTED': 'The scan stopped before all model estimates were calculated.',
+                'FROZEN_MODEL_FEATURE_INTEGRITY_UNVERIFIED': 'Player model inputs did not pass verification.',
+                'IDENTITY_OR_PREGAME_PROVENANCE_UNVERIFIED': 'Player identity or pregame timestamps did not pass verification.',
+            }
+            rejections = bucket.get('rejections', {})
+            coverage[sport]['missing_probability_reasons'] = [
+                {'reason': code, 'message': message, 'affected_offers': rejections[code]}
+                for code, message in explanations.items()
+                if isinstance(rejections, dict) and type(rejections.get(code)) is int
+                and rejections[code] > 0
+            ]
             coverage[sport]['display_truncated'] = isinstance(bucket.get('research_rows'), list) and len(bucket['research_rows']) > 10000
             snapshots.append({'source': 'paid_player_scan', 'sport': sport,
                               'snapshot_id': record['id'], 'snapshot_at': payload.get('observed_at')})

@@ -12,10 +12,11 @@ import hashlib
 import io
 import json
 import re
+import tempfile
 import unicodedata
 import urllib.error
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import pstdev
 
 from jabazi.research.nba_player_experiment import BOX
@@ -46,6 +47,27 @@ def _fetch(url,max_bytes=80_000_000):
 def _json(url,max_bytes=8_000_000):
     raw=_fetch(url,max_bytes)
     return json.loads(raw),hashlib.sha256(raw).hexdigest()
+
+
+def _csv_download(url, max_bytes=80_000_000):
+    """Spool large season releases to disk, retaining their exact raw checksum."""
+    target = tempfile.TemporaryFile(mode='w+b')
+    checksum = hashlib.sha256()
+    size = 0
+    try:
+        request = urllib.request.Request(url, headers={'User-Agent':'JABBAZI-Research/0.5'})
+        with urllib.request.urlopen(request, timeout=45) as response:
+            while chunk := response.read(65536):
+                size += len(chunk)
+                if size > max_bytes:
+                    raise ValueError('NBA live feature response too large')
+                checksum.update(chunk)
+                target.write(chunk)
+        target.seek(0)
+        return io.TextIOWrapper(target, encoding='utf-8-sig', newline=''), checksum.hexdigest()
+    except BaseException:
+        target.close()
+        raise
 
 def _mean(values,n):
     values=list(values)[-n:]
@@ -132,15 +154,28 @@ class NBAPlayerFeatureCollector:
 
     def _injury(self,player):
         payload,checksum=_json(f"{ESPN}/injuries?team={player['team_abbr']}")
-        groups=payload.get("injuries",[]) if isinstance(payload,dict) else None
+        groups=payload.get("injuries") if isinstance(payload,dict) else None
         if not isinstance(groups,list):
             return None
-        rows=[]
-        for group in groups:
-            team=(group.get("team") or {}).get("abbreviation")
-            if str(team or "").upper()==player["team_abbr"].upper():
-                rows=group.get("injuries",[]) or []
-                break
+        if payload.get("status") not in (None, "success"):
+            return None
+        team = player["team_abbr"].upper()
+        if "team" in payload:
+            source_team = payload.get("team")
+            if not isinstance(source_team, dict) or str(source_team.get("abbreviation") or "").upper() != team:
+                return None
+            groups = [{"team": source_team, "injuries": groups}]
+        matching = [g for g in groups if isinstance(g, dict)
+                    and isinstance(g.get("team"), dict)
+                    and str(g["team"].get("abbreviation") or "").upper() == team]
+        if len(matching) != 1:
+            return None
+        rows = matching[0].get("injuries")
+        if not isinstance(rows, list) or any(
+            not isinstance(r, dict) or not isinstance(r.get("athlete"), dict)
+            or not _name(r["athlete"].get("displayName")) for r in rows
+        ):
+            return None
         matches=[
             row for row in rows
             if _name((row.get("athlete") or {}).get("displayName"))==_name(player.get("name"))
@@ -148,8 +183,8 @@ class NBAPlayerFeatureCollector:
         if len(matches)>1:
             return None
         status=str((matches[0] if matches else {}).get("status") or "").strip().lower()
-        blocked=status in {"out","doubtful","suspended","injured reserve","ir"}
-        return {"verified":True,"available":not blocked,"status":status or "not_listed","checksum":checksum}
+        available = not matches or status in {"active", "available", "healthy"}
+        return {"verified":True,"available":available,"status":status or "not_listed","checksum":checksum}
 
     def _history_rows(self):
         if self._history is not None:
@@ -161,53 +196,58 @@ class NBAPlayerFeatureCollector:
         checks=[]
         for season in seasons:
             try:
-                sraw=_fetch(SCHEDULE.format(season=season))
-                praw=_fetch(PLAYER.format(season=season))
+                sfile, scheck=_csv_download(SCHEDULE.format(season=season))
+                try:
+                    pfile, pcheck=_csv_download(PLAYER.format(season=season))
+                except BaseException:
+                    sfile.close()
+                    raise
             except urllib.error.HTTPError as exc:
                 if exc.code==404:
                     continue
                 raise
-            checks.extend([hashlib.sha256(sraw).hexdigest(),hashlib.sha256(praw).hexdigest()])
-            for row in csv.DictReader(io.StringIO(sraw.decode("utf-8-sig"))):
-                if str(row.get("season_type")) not in {"2","2.0","regular-season","Regular Season"}:
-                    continue
-                if str(row.get("status_type_completed","")).strip().lower() not in {"true","t","1","yes"}:
-                    continue
-                gid=str(row.get("game_id") or "")
-                try:
-                    start=datetime.fromisoformat(str(row.get("game_date_time") or "").replace("Z","+00:00"))
-                except ValueError:
-                    continue
-                if start.tzinfo is None:
-                    continue
-                schedules[gid]={
-                    "start":start.astimezone(UTC),
-                    "home":str(row.get("home_display_name") or "").strip(),
-                    "away":str(row.get("away_display_name") or "").strip(),
-                }
-            for row in csv.DictReader(io.StringIO(praw.decode("utf-8-sig"))):
-                game=schedules.get(str(row.get("game_id") or ""))
-                if not game:
-                    continue
-                try:
-                    minutes=float(row.get("minutes") or 0)
-                    clean={
-                        "participant":str(row.get("athlete_display_name") or "").strip(),
-                        "player_id":str(row.get("athlete_id") or "").strip(),
-                        "start":game["start"],
-                        "minutes":minutes,
-                        "is_home":str(row.get("home_away") or "").lower()=="home",
+            checks.extend([scheck,pcheck])
+            with sfile, pfile:
+                for row in csv.DictReader(sfile):
+                    if str(row.get("season_type")) not in {"2","2.0","regular-season","Regular Season"}:
+                        continue
+                    if str(row.get("status_type_completed","")).strip().lower() not in {"true","t","1","yes"}:
+                        continue
+                    gid=str(row.get("game_id") or "")
+                    try:
+                        start=datetime.fromisoformat(str(row.get("game_date_time") or "").replace("Z","+00:00"))
+                    except ValueError:
+                        continue
+                    if start.tzinfo is None:
+                        continue
+                    schedules[gid]={
+                        "start":start.astimezone(UTC),
+                        "home":str(row.get("home_display_name") or "").strip(),
+                        "away":str(row.get("away_display_name") or "").strip(),
                     }
-                    mapping={
-                        "points":"points","rebounds":"rebounds","assists":"assists",
-                        "threes":"three_point_field_goals_made","blocks":"blocks",
-                        "steals":"steals","turnovers":"turnovers",
-                    }
-                    for dst,src in mapping.items():
-                        clean[dst]=float(row.get(src) or 0)
-                    rows.append(clean)
-                except (TypeError,ValueError):
-                    continue
+                for row in csv.DictReader(pfile):
+                    game=schedules.get(str(row.get("game_id") or ""))
+                    if not game:
+                        continue
+                    try:
+                        minutes=float(row.get("minutes") or 0)
+                        clean={
+                            "participant":str(row.get("athlete_display_name") or "").strip(),
+                            "player_id":str(row.get("athlete_id") or "").strip(),
+                            "start":game["start"],
+                            "minutes":minutes,
+                            "is_home":str(row.get("home_away") or "").lower()=="home",
+                        }
+                        mapping={
+                            "points":"points","rebounds":"rebounds","assists":"assists",
+                            "threes":"three_point_field_goals_made","blocks":"blocks",
+                            "steals":"steals","turnovers":"turnovers",
+                        }
+                        for dst,src in mapping.items():
+                            clean[dst]=float(row.get(src) or 0)
+                        rows.append(clean)
+                    except (TypeError,ValueError):
+                        continue
         rows.sort(key=lambda r:r["start"])
         self._history=(rows,hashlib.sha256("|".join(checks).encode()).hexdigest())
         return self._history
@@ -223,8 +263,8 @@ class NBAPlayerFeatureCollector:
         rows,history_checksum=self._history_rows()
         eligible=[
             r for r in rows
-            if _name(r["participant"])==_name(card.participant)
-            and r["start"]<card.starts_at.astimezone(UTC)
+            if r["player_id"] == player["player_id"]
+            and r["start"] + timedelta(hours=36) < min(self.now, card.starts_at).astimezone(UTC)
             and r["minutes"]>0
         ][-40:]
         if len(eligible)<5:

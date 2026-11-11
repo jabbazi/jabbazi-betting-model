@@ -1,0 +1,23 @@
+{
+  "research_only": true,
+  "source_workflow_run": 42771517832,
+  "source_commit": "716854d73235651df19c4c2074ce3a19439a755f",
+  "artifacts": {
+    "icehockey_nhl": {
+      "file": "icehockey_nhl.json.zlib",
+      "raw_sha256": "e51f4ab7bebf4ad069b709a758a8123adf9f11aa8855347efbe8bef09629f8c6",
+      "compressed_sha256": "d566a91142e9cccbc926f2970cbb7f282f79fd3a127a747c37f85fbc63bc1e41",
+      "canonical_sha256": "98353ddf2ba50e58e9306789df9990dc703d5abe8b214e5a267e8b3f9c9ed48f",
+      "fitted_at": "2026-11-10T06:54:24Z",
+      "model_version": "icehockey_nhl-joint-research-857237adad63"
+    },
+    "basketball_nba": {
+      "file": "basketball_nba.json.zlib",
+      "raw_sha256": "989d822c69b64977597ad552618ce625896d62b39262837c84b43f5e8482199e",
+      "compressed_sha256": "050d1bf719c767adbaec66f13ce32ac9f5a964779f42b1300fd06e401e2de398",
+      "canonical_sha256": "5667f4a2b23ee2d87f285898a20680d7e856a9e2fe65bd15b64378f14ad3962f",
+      "fitted_at": "2026-11-10T06:55:14Z",
+      "model_version": "basketball_nba-joint-research-76f53ce2a77c"
+    }
+  }
+}

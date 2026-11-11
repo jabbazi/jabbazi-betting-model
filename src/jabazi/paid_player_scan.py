@@ -251,6 +251,7 @@ def run_paid_player_scan(store, settings, player_models, renew, *, deadline=None
             if progress is not None:
                 progress("PAID_PLAYER_COLLECTION", SPORTS[sport])
             result = {"sport": sport, "coverage": "UNAVAILABLE", "errors": [],
+                      "requested_bookmakers": sorted(boost_scope.bookmakers) if boost_scope else [],
                       "eligible_games": 0, "accepted_quotes": 0, "research_rows": [],
                       "raw_quotes_received": 0, "pages": 0, "rejections": {},
                       "model_probability_rows": 0, "all_eligible_games_have_quotes": False,
@@ -374,8 +375,30 @@ def run_paid_player_scan(store, settings, player_models, renew, *, deadline=None
     )
     # Full collection is deliberately separate from complete model estimates,
     # prospective calibration, quote execution, and full product acceptance.
-    store.append("paid_player_scan", day.isoformat(), report, digest([budget.run_id, "paid_player_scan"]))
+    if boost_scope is not None:
+        # A book/game-limited request must not replace the broad scanner's saved view.
+        report["boost_scope"] = _boost_scope_payload(boost_scope)
+        entity = digest([day.isoformat(), report["boost_scope"]])
+        store.append("paid_boost_scan", entity, report, digest([budget.run_id, "paid_boost_scan"]))
+    else:
+        store.append("paid_player_scan", day.isoformat(), report, digest([budget.run_id, "paid_player_scan"]))
     return report
+
+
+def _boost_scope_payload(scope):
+    return {"sport": scope.sport, "event_ids": sorted(scope.event_ids),
+            "markets": sorted(scope.markets), "bookmakers": sorted(scope.bookmakers)}
+
+
+def read_saved_boost_scan(store, scope, *, now=None, slate_date=None):
+    now = now or datetime.now(UTC)
+    day = slate_date or now.astimezone(CENTRAL).date()
+    descriptor = _boost_scope_payload(scope)
+    records = store.list_records("paid_boost_scan", 1, entity=digest([day.isoformat(), descriptor]))
+    payload = records[0]['payload'] if records else None
+    if payload and payload.get('boost_scope') != descriptor:
+        payload = None
+    return present_paid_scan(payload, now=now, slate_date=day, include_rows=True)
 
 
 def present_paid_scan(report, *, now=None, slate_date=None, include_rows=False):

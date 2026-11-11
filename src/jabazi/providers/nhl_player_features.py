@@ -205,29 +205,49 @@ class NHLPlayerFeatureCollector:
         with an ambiguous/unavailable status remains fail-closed. Absence is accepted
         only when the player's team is present in the current league injury payload.
         """
+        # Official NHL and ESPN spell these same-team abbreviations differently.
+        # Verified against ESPN's current team directory; never fuzzy-match teams.
+        aliases = {"NJD": "NJ", "LAK": "LA", "SJS": "SJ", "TBL": "TB", "UTA": "UTAH"}
         team = str(player["team"]).upper()
+        espn_team = aliases.get(team, team)
         if team not in self._injuries:
             self._budget()
-            query = urllib.parse.urlencode({"team": team})
+            query = urllib.parse.urlencode({"team": espn_team})
             payload, checksum = _fetch_json(
                 "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries?" + query
             )
-            groups = payload.get("injuries", []) if isinstance(payload, dict) else None
+            groups = payload.get("injuries") if isinstance(payload, dict) else None
             if not isinstance(groups, list):
                 return None
+            if payload.get("status") not in (None, "success"):
+                return None
+            # The team-filtered endpoint returns a flat list and identifies the
+            # team at the top level. Never infer team coverage from an empty list.
+            if "team" in payload:
+                source_team = payload.get("team")
+                if not isinstance(source_team, dict) or str(
+                    source_team.get("abbreviation") or ""
+                ).upper() not in {team, espn_team}:
+                    return None
+                groups = [{"team": source_team, "injuries": groups}]
             self._injuries[team] = (groups, checksum)
         groups, checksum = self._injuries[team]
         team_groups = [
             group for group in groups
-            if str((group.get("team") or {}).get("abbreviation") or "").upper() == team
+            if isinstance(group, dict)
+            and isinstance(group.get("team"), dict)
+            and str(group["team"].get("abbreviation") or "").upper() in {team, espn_team}
         ]
-        if not groups:
-            rows = []
-        elif len(team_groups) == 1:
-            rows = team_groups[0].get("injuries", [])
+        if len(team_groups) == 1:
+            rows = team_groups[0].get("injuries")
         else:
             return None
-        if not isinstance(rows, list):
+        if not isinstance(rows, list) or any(
+            not isinstance(row, dict)
+            or not isinstance(row.get("athlete"), dict)
+            or not _name(row["athlete"].get("displayName"))
+            for row in rows
+        ):
             return None
         matches = [
             row for row in rows
@@ -236,13 +256,11 @@ class NHLPlayerFeatureCollector:
         if len(matches) > 1:
             return None
         status = str((matches[0] if matches else {}).get("status") or "").strip().lower()
-        blocked = status in {
-            "out", "injured reserve", "ir", "day-to-day", "day to day",
-            "doubtful", "questionable",
-        }
+        # Unknown or missing status on a listed player is not clearance.
+        available = not matches or status in {"active", "available", "healthy"}
         return {
             "verified": True,
-            "available": not blocked,
+            "available": available,
             "status": status or "not_listed",
             "source_checksum": checksum,
         }
