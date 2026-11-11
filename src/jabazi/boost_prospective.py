@@ -161,6 +161,26 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
     features_at = _at(model_source["payload"].get("features_available_at"), "features_available_at")
     if features_at > now or features_at > _at(model_source["observed_at"], "model observed_at"):
         raise ValueError("Future features in model evidence")
+    # A genuine one-sided SGP offer is useful custody evidence, but is NOT
+    # a no-vig baseline. Keep it separate from the paired market source.
+    offered_quote = None
+    if ticket.get("offered_quote") is not None:
+        offered_quote = _snapshot(ticket["offered_quote"], now=now, name="offered quote")
+        offer = offered_quote["payload"]
+        if offer.get("quote_kind") != "sportsbook_combined_ticket":
+            raise ValueError("Actual sportsbook combined-ticket offer required")
+        if (offer.get("event_id") != event or offer.get("ticket_id") != ticket_id
+                or offer.get("leg_ids") != [leg["leg_id"] for leg in legs]
+                or offer.get("legs") != legs):
+            raise ValueError("Offered quote exact ticket identity mismatch")
+        _text(offer.get("book"), "offered book")
+        _text(offer.get("quote_id"), "offered quote ID")
+        _text(offer.get("receipt_reference"), "offered quote receipt")
+        _decimal_price(offer.get("decimal_odds"), "offered combined price")
+        if offer.get("price_basis") != "direct_sportsbook_quote":
+            raise ValueError("Multiplying leg prices cannot establish a combined offer")
+        if "no_vig_probability" in offer or "paired_quotes" in offer:
+            raise ValueError("Use a separate independently paired market source")
     market_source = None
     market_probability = None
     if ticket.get("market_source") is not None:
@@ -206,6 +226,8 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
         "market_probability": market_probability,
         "approved_for_betting": False,
     }
+    if offered_quote is not None:
+        payload["offered_quote"] = offered_quote
     key = _forecast_id(sport, event, ticket_id, version)
     with store.transaction() as conn:
         # Conflicting retries reject instead of rewriting a frozen probability.

@@ -132,6 +132,55 @@ def test_freeze_settle_reconcile_with_existing_immutable_store(store):
     assert report["reports"][1]["independent_events"] == 1
 
 
+def offered_ticket():
+    value = ticket(market=False)
+    value['offered_quote'] = {
+        'provider': 'DraftKings receipt fixture', 'observed_at': NOW.isoformat(),
+        'payload': {'quote_kind': 'sportsbook_combined_ticket',
+                    'price_basis': 'direct_sportsbook_quote', 'book': 'DraftKings',
+                    'quote_id': 'synthetic-only', 'receipt_reference': 'private-fixture',
+                    'decimal_odds': 3.2, 'event_id': value['event_id'],
+                    'ticket_id': value['ticket_id'], 'leg_ids': ['a', 'b'], 'legs': legs()},
+    }
+    return value
+
+
+def test_direct_combined_quote_survives_settlement_without_inventing_baseline(store):
+    value = offered_ticket()
+    frozen = freeze_joint_ticket(store, value, observed_at=NOW)
+    saved = store.list_records('boost_joint_forecast', 1)[0]['payload']
+    assert saved['offered_quote']['payload']['decimal_odds'] == 3.2
+    assert len(saved['offered_quote']['sha256']) == 64
+    assert saved['market_probability'] is None
+    assert saved['market_source'] is None
+    settle(store, frozen['forecast_id'])
+    assert audit_ready_rows(store) == []
+    value['offered_quote']['payload']['decimal_odds'] = 3.3
+    with pytest.raises(Conflict):
+        freeze_joint_ticket(store, value, observed_at=NOW)
+
+
+@pytest.mark.parametrize('mutation', ['wrong_leg', 'stale', 'product', 'baseline', 'missing_receipt', 'invalid_price'])
+def test_offered_combined_quote_requires_exact_fresh_direct_receipt(store, mutation):
+    value = offered_ticket()
+    offer = value['offered_quote']['payload']
+    if mutation == 'wrong_leg':
+        offer['legs'][0]['line'] = 20.5
+    elif mutation == 'stale':
+        value['offered_quote']['observed_at'] = (NOW-timedelta(minutes=11)).isoformat()
+    elif mutation == 'product':
+        offer['price_basis'] = 'product_of_leg_odds'
+    elif mutation == 'baseline':
+        offer['no_vig_probability'] = .3125
+    elif mutation == 'missing_receipt':
+        del offer['receipt_reference']
+    else:
+        offer['decimal_odds'] = float('nan')
+    with pytest.raises(ValueError):
+        freeze_joint_ticket(store, value, observed_at=NOW)
+    assert store.list_records('boost_joint_forecast', 1) == []
+
+
 def test_frozen_probability_cannot_be_replaced_under_same_identity(store):
     freeze_joint_ticket(store, ticket(), observed_at=NOW)
     changed = ticket()

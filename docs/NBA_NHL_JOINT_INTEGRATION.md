@@ -35,9 +35,9 @@ uses saved exact-line research probabilities and explains missing evidence.
 
 ## Outstanding release evidence
 
-- A fitted NBA joint model and fitted NHL joint model with genuine source data,
-  frozen training provenance and independently evaluated holdouts. The existing
-  NBA sample interface is not a fitted model; NFL dependence must not be relabeled.
+- Review and live inference integration of the fitted NBA/NHL historical research
+  artifacts. The historical workflow succeeded, but the benchmark artifacts are
+  not approved live joint models; NFL dependence must not be relabeled.
 - At least 200 independent games per model/version in each test and prospective
   partition, genuine exact-ticket market receipts, source review, calibration
   uncertainty and stability review. Unit fixtures never count toward these totals.
@@ -53,8 +53,8 @@ forecasts and bookmaker receipts cannot be recreated after the outcomes are know
 
 `tools/train_nba_nhl_joint.py` uses the existing public-history collectors and
 causal dataset builders. It retains the existing pre-July-2024 count marginals,
-fits same-player residual rank dependence on July 2024â€“June 2025, and evaluates
-July 2025â€“June 2026. At least 200 distinct games in both periods are required
+fits same-player residual rank dependence on July 2024–June 2025, and evaluates
+July 2025–June 2026. At least 200 distinct games in both periods are required
 per pair. Labels crossing a split boundary are excluded. Future features,
 duplicate identities, cross-market event mismatches and overlapping marginal
 training are rejected. Holdout labels do not affect fitted ranks or model identity.
@@ -78,3 +78,27 @@ Game clustering handles tickets from the same game, but not recurring-player
 serial dependence. NHL captures must match the provider's declared total, and
 capture receipts are retained with each experiment. No holdout-driven threshold
 search or automatic model selection is performed.
+
+## DraftKings combined-offer custody
+
+The private `freeze` input now optionally accepts `offered_quote`, using the same
+`provider`, `observed_at`, `payload` envelope as other source receipts. Its payload
+requires `quote_kind: sportsbook_combined_ticket`,
+`price_basis: direct_sportsbook_quote`, `book`, `quote_id`, `receipt_reference`,
+`decimal_odds`, and the exact `event_id`, `ticket_id`, `leg_ids` and canonical `legs`.
+Retain the original receipt privately. An entered label or hash does not prove
+authenticity; the operator must verify it against the sportsbook receipt.
+
+A one-sided DraftKings SGP quote is retained immutably through settlement but does
+not create a no-vig market baseline or enter the paired-market acceptance audit.
+Individual prop prices, multiplied leg prices, stale receipts and changed legs
+cannot stand in for a combined offer. No bookmaker account action is automated.
+
+## Discord status destination preflight
+
+`python -m tools.check_discord_status_target --status-channel CHANNEL_ID` performs
+GET requests and a read-only database query. It checks the configured server
+owner, bot membership and existing private-channel grants, including stored paid
+roles. It never posts, changes permissions, changes environment variables or
+deploys. A validated replacement still requires the corresponding reviewed
+service configuration change and live delivery verification after release.

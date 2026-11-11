@@ -46,3 +46,21 @@ def test_explicit_empty_team_report_is_supported(monkeypatch):
     assert evidence(monkeypatch, {
         "team": {"abbreviation": "BOS"}, "injuries": []
     })["available"] is True
+
+
+@pytest.mark.parametrize('official,espn', [('NJD', 'NJ'), ('LAK', 'LA'), ('SJS', 'SJ'), ('TBL', 'TB'), ('UTA', 'UTAH')])
+@pytest.mark.parametrize('grouped', [False, True])
+def test_verified_team_aliases_preserve_identity(monkeypatch, official, espn, grouped):
+    from urllib.parse import parse_qs, urlparse
+    team = {'abbreviation': espn}
+    payload = {'team': team, 'injuries': [], 'status': 'success'}
+    if grouped:
+        payload = {'injuries': [{'team': team, 'injuries': []}]}
+    def fetch(url):
+        assert parse_qs(urlparse(url).query) == {'team': [espn]}
+        return payload, 'synthetic-alias-receipt'
+    monkeypatch.setattr(nhlp, '_fetch_json', fetch)
+    result = nhlp.NHLPlayerFeatureCollector()._injury_evidence({'team': official, 'name': 'Fixture Player'})
+    assert result['available'] is True
+    team['abbreviation'] = 'NYR'
+    assert nhlp.NHLPlayerFeatureCollector()._injury_evidence({'team': official, 'name': 'Fixture Player'}) is None

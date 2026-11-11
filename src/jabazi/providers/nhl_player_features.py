@@ -205,10 +205,14 @@ class NHLPlayerFeatureCollector:
         with an ambiguous/unavailable status remains fail-closed. Absence is accepted
         only when the player's team is present in the current league injury payload.
         """
+        # Official NHL and ESPN spell these same-team abbreviations differently.
+        # Verified against ESPN's current team directory; never fuzzy-match teams.
+        aliases = {"NJD": "NJ", "LAK": "LA", "SJS": "SJ", "TBL": "TB", "UTA": "UTAH"}
         team = str(player["team"]).upper()
+        espn_team = aliases.get(team, team)
         if team not in self._injuries:
             self._budget()
-            query = urllib.parse.urlencode({"team": team})
+            query = urllib.parse.urlencode({"team": espn_team})
             payload, checksum = _fetch_json(
                 "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries?" + query
             )
@@ -223,7 +227,7 @@ class NHLPlayerFeatureCollector:
                 source_team = payload.get("team")
                 if not isinstance(source_team, dict) or str(
                     source_team.get("abbreviation") or ""
-                ).upper() != team:
+                ).upper() not in {team, espn_team}:
                     return None
                 groups = [{"team": source_team, "injuries": groups}]
             self._injuries[team] = (groups, checksum)
@@ -232,7 +236,7 @@ class NHLPlayerFeatureCollector:
             group for group in groups
             if isinstance(group, dict)
             and isinstance(group.get("team"), dict)
-            and str(group["team"].get("abbreviation") or "").upper() == team
+            and str(group["team"].get("abbreviation") or "").upper() in {team, espn_team}
         ]
         if len(team_groups) == 1:
             rows = team_groups[0].get("injuries")

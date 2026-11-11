@@ -76,9 +76,10 @@
     "files": {
       "src/jabazi/providers/nhl_player_features.py": {
         "before": "eee9395e8742e436686c69d857a055d527e8b33d4fd458b29c3db96b7288132a",
-        "after": "c0a50dcc80dffe74fd5565bdd9dfc2ffb0032b22080a84493bb23f78d0a7e48e"
+        "after": "4325853431e60b5c15cc78cfc143e24108836866746372f757c3f548e18e022d"
       }
-    }
+    },
+    "alias_evidence": "2026-11-11 UTC live ESPN team directory: NJD/NJ, LAK/LA, SJS/SJ, TBL/TB, UTA/UTAH; no fuzzy identity matching."
   },
   "nba_live_input_remediation": {
     "base_commit": "716854d73235651df19c4c2074ce3a19439a755f",
