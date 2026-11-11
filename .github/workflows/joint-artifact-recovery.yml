@@ -1,0 +1,36 @@
+name: Recover frozen joint research artifacts
+on:
+  push:
+    branches: [codex/nhl-joint-integration-20261110]
+    paths: [.github/workflows/joint-artifact-recovery.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        sport: [basketball_nba, icehockey_nhl]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: joint-research-${{ matrix.sport }}
+          run-id: 42771517832
+          github-token: ${{ github.token }}
+          path: recovered
+      - name: Emit frozen model transport receipt
+        shell: python
+        run: |
+          import base64, hashlib, json, pathlib, zlib
+          # Only the fitted aggregate rank model, never raw licensed inputs,
+          # player records, secrets, or production DB data.
+          raw = pathlib.Path('recovered/artifact.json').read_bytes()
+          model = json.loads(raw)
+          assert model['artifact_type'] == 'same_player_joint_research'
+          assert model['stage'] == 'SHADOW_ONLY'
+          assert model['approved_for_betting'] is False
+          print('FROZEN_MODEL_SHA256=' + hashlib.sha256(raw).hexdigest())
+          print('FROZEN_MODEL_ZLIB=' + base64.b64encode(zlib.compress(raw)).decode())
+
