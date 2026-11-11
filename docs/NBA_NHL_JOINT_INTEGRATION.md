@@ -193,3 +193,19 @@ separately, but its two-player goals legs do not match the same-player forecasts
 It is not matching calibration evidence. The earlier no-quote observation in
 this document predates that capture. Full-slate coverage and the 50 conflicting
 paid/official NHL birth dates remain unresolved.
+
+## Explicit sportsbook scope
+
+BoostScope now accepts normalized bookmaker IDs, for example
+`BoostScope('icehockey_nhl', bookmakers=frozenset({'draftkings'}))`.
+The collector rejects other books before retaining quotes or running inference.
+A requested game without accepted quotes from that book is reported as partial
+with REQUESTED_BOOKMAKER_QUOTES_UNAVAILABLE. Market and freshness checks still
+apply. Leaving the book scope empty preserves existing multi-book collection.
+This is an explicit caller option, not a new global default or automatic text
+interpretation, and has not been deployed.
+
+Scoped boost results are saved separately as paid_boost_scan records, keyed to
+the date, sport, games, markets and books. read_saved_boost_scan requires that
+exact scope; it cannot substitute another book's saved result. The broad scanner
+continues reading paid_player_scan records.

@@ -85,6 +85,9 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                 if scope.markets and isinstance(row, dict) and row.get("prop_type") not in scope.markets:
                     out_of_scope_count += 1
                     continue
+                if scope.bookmakers and isinstance(row, dict) and str(row.get("vendor", "")).strip().lower() not in scope.bookmakers:
+                    out_of_scope_count += 1
+                    continue
                 identity, issue = inspect_prop_offer(
                     row, gid, observed_at=observed_at or datetime.now(UTC),
                 )
@@ -115,6 +118,8 @@ def collect_boost_odds(provider, scope: BoostScope, *, game_ids: Iterable[int],
                 per_game.append((gid, count))
                 break
         per_game.append((gid, count))
+        if scope.bookmakers and count == 0:
+            errors.append(f"game:{gid}:REQUESTED_BOOKMAKER_QUOTES_UNAVAILABLE")
     if invalid_count:
         errors.append("INVALID_PROP_IDENTITIES")
     if foreign_count:
