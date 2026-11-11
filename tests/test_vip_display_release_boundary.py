@@ -52,6 +52,10 @@ def test_display_release_does_not_change_scanner_auth_models_or_schedules():
     assert nhl['base_commit'] == '27f6d78cf193a8f66774b52a98ac6c2067761fe5'
     assert set(nhl['files']) == {'src/jabazi/providers/nhl_player_features.py'}
     reviewed.update(nhl['files'])
+    nba = manifest['nba_live_input_remediation']
+    assert nba['base_commit'] == '716854d73235651df19c4c2074ce3a19439a755f'
+    assert set(nba['files']) == {'src/jabazi/providers/nba_player_features.py'}
+    reviewed.update(nba['files'])
     for relative, checksum in manifest['unchanged'].items():
         assert source_digest(relative, reviewed) == checksum, relative
     assert (ROOT / 'src/jabazi/paid_player_scan.py').is_file()

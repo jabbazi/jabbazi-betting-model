@@ -15,7 +15,7 @@ import re
 import unicodedata
 import urllib.error
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import pstdev
 
 from jabazi.research.nba_player_experiment import BOX
@@ -132,15 +132,28 @@ class NBAPlayerFeatureCollector:
 
     def _injury(self,player):
         payload,checksum=_json(f"{ESPN}/injuries?team={player['team_abbr']}")
-        groups=payload.get("injuries",[]) if isinstance(payload,dict) else None
+        groups=payload.get("injuries") if isinstance(payload,dict) else None
         if not isinstance(groups,list):
             return None
-        rows=[]
-        for group in groups:
-            team=(group.get("team") or {}).get("abbreviation")
-            if str(team or "").upper()==player["team_abbr"].upper():
-                rows=group.get("injuries",[]) or []
-                break
+        if payload.get("status") not in (None, "success"):
+            return None
+        team = player["team_abbr"].upper()
+        if "team" in payload:
+            source_team = payload.get("team")
+            if not isinstance(source_team, dict) or str(source_team.get("abbreviation") or "").upper() != team:
+                return None
+            groups = [{"team": source_team, "injuries": groups}]
+        matching = [g for g in groups if isinstance(g, dict)
+                    and isinstance(g.get("team"), dict)
+                    and str(g["team"].get("abbreviation") or "").upper() == team]
+        if len(matching) != 1:
+            return None
+        rows = matching[0].get("injuries")
+        if not isinstance(rows, list) or any(
+            not isinstance(r, dict) or not isinstance(r.get("athlete"), dict)
+            or not _name(r["athlete"].get("displayName")) for r in rows
+        ):
+            return None
         matches=[
             row for row in rows
             if _name((row.get("athlete") or {}).get("displayName"))==_name(player.get("name"))
@@ -148,8 +161,8 @@ class NBAPlayerFeatureCollector:
         if len(matches)>1:
             return None
         status=str((matches[0] if matches else {}).get("status") or "").strip().lower()
-        blocked=status in {"out","doubtful","suspended","injured reserve","ir"}
-        return {"verified":True,"available":not blocked,"status":status or "not_listed","checksum":checksum}
+        available = not matches or status in {"active", "available", "healthy"}
+        return {"verified":True,"available":available,"status":status or "not_listed","checksum":checksum}
 
     def _history_rows(self):
         if self._history is not None:
@@ -223,8 +236,8 @@ class NBAPlayerFeatureCollector:
         rows,history_checksum=self._history_rows()
         eligible=[
             r for r in rows
-            if _name(r["participant"])==_name(card.participant)
-            and r["start"]<card.starts_at.astimezone(UTC)
+            if r["player_id"] == player["player_id"]
+            and r["start"] + timedelta(hours=36) < min(self.now, card.starts_at).astimezone(UTC)
             and r["minutes"]>0
         ][-40:]
         if len(eligible)<5:

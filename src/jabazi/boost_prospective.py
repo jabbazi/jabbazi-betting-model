@@ -136,6 +136,8 @@ def freeze_joint_ticket(store, ticket, *, observed_at=None):
     prospective = _at(ticket.get("prospective_start"), "prospective_start")
     if not trained < test < prospective:
         raise ValueError("Invalid model training/test/prospective boundaries")
+    if trained >= now:
+        raise ValueError("Cannot freeze before model training is complete")
     if ticket.get("split") != "prospective" or starts < prospective:
         raise ValueError("Only genuinely prospective ticket forecasts are accepted")
     probability = _number(ticket.get("joint_probability"), "joint probability", positive=True)

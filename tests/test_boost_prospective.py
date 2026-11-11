@@ -14,6 +14,16 @@ from jabazi.persistence.store import Conflict, Store
 NOW = datetime(2026, 10, 28, 15, tzinfo=UTC)
 
 
+def test_cannot_freeze_before_model_training_completed(store):
+    pending = ticket(market=False)
+    pending.update(trained_through=(NOW+timedelta(hours=1)).isoformat(),
+                   test_start=(NOW+timedelta(hours=2)).isoformat(),
+                   prospective_start=(NOW+timedelta(hours=3)).isoformat(),
+                   starts_at=(NOW+timedelta(hours=4)).isoformat())
+    with pytest.raises(ValueError, match="training is complete"):
+        freeze_joint_ticket(store, pending, observed_at=NOW)
+
+
 @pytest.fixture
 def store():
     s = Store("sqlite:///:memory:", initialize=True)
