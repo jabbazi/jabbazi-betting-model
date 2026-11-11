@@ -8,6 +8,7 @@ provider_identity_verified or independent_source_reviewed.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 import json
@@ -146,6 +147,7 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
         source_id_counts[ident] += 1
         source_index[key].append(row)
     candidates = []
+    conflicts = []
     for key, bdl_rows in bdl_index.items():
         source_rows = source_index.get(key, [])
         if not source_rows:
@@ -160,6 +162,15 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
         if sport == "NHL" and bdl.get("birth_date") and source.get("birth_date"):
             if bdl["birth_date"] != source["birth_date"]:
                 reasons["nhl_birth_date_conflict"] += 1
+                conflicts.append({
+                    "reason": "nhl_birth_date_conflict",
+                    "bdl_record": deepcopy(bdl), "source_record": deepcopy(source),
+                    "bdl_record_sha256": _digest(bdl),
+                    "source_record_sha256": _digest(source),
+                    "provider_identity_verified": False,
+                    "independent_source_reviewed": False,
+                    "resolution": "UNRESOLVED",
+                })
                 continue
         if (bdl_id_counts[bdl["id"]] != 1
                 or source_id_counts[source["source_player_id"]] != 1):
@@ -220,6 +231,8 @@ def match_roster_candidates(sport, bdl_players, source_roster, *,
         "candidate_count": len(candidates),
         "rejections": dict(sorted(reasons.items())),
         "candidates_private": candidates,
+        "conflicts_private": conflicts,
+        "unresolved_identity_conflicts": len(conflicts),
         "independently_verified_crosswalks": 0,
         "model_probabilities_verified": False,
         "betting_enabled": False,
@@ -233,6 +246,7 @@ def redacted_candidate_summary(report):
         "sport": report["sport"],
         "observed_at": report["observed_at"],
         "candidate_count": report["candidate_count"],
+        "unresolved_identity_conflicts": report.get("unresolved_identity_conflicts", 0),
         "rejections": report["rejections"],
         "independently_verified_crosswalks": 0,
         "model_probabilities_verified": False,

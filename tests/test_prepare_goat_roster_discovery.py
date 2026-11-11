@@ -75,6 +75,7 @@ def test_cli_accepts_date_without_game_id_or_kickoff(monkeypatch, capsys):
         "sport": "NBA", "status": "CANDIDATES_ONLY",
         "candidate_count": 1, "production_approved": False,
         "_private_candidates": [{"bdl_player_id": 77}],
+        "_private_conflicts": [{"birth_date": "PRIVATE_BIRTH_DATE"}],
     })
     code = probe.main(["--sport", "NBA", "--date", "2026-10-30"])
     output = capsys.readouterr().out
@@ -82,6 +83,8 @@ def test_cli_accepts_date_without_game_id_or_kickoff(monkeypatch, capsys):
     assert json.loads(output)["candidate_count"] == 1
     assert "PRIVATE_KEY" not in output
     assert "bdl_player_id" not in output
+    assert "PRIVATE_BIRTH_DATE" not in output
+    assert "_private_conflicts" not in output
     assert closed
 
 
@@ -89,3 +92,17 @@ def test_cli_rejects_conflicting_date_and_explicit_game():
     with pytest.raises(SystemExit):
         probe.main(["--sport", "NBA", "--date", "2026-10-30",
                     "--game-id", "77", "--starts-at", "2026-10-30T20:00:00Z"])
+
+
+@pytest.mark.parametrize("invalid", [None, "wrong_day", "past_start"])
+def test_nhl_discovery_uses_game_date_and_verified_start(invalid):
+    nba = future_nba()
+    day = date.fromisoformat(nba["date"])
+    game = {"id": 77, "game_date": nba["date"],
+            "start_time_utc": nba["datetime"], "status_state": "scheduled"}
+    if invalid == "wrong_day":
+        game["game_date"] = (day - timedelta(days=1)).isoformat()
+    elif invalid == "past_start":
+        game["start_time_utc"] = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    result = probe.discover_upcoming_games(Provider([game]), sport="NHL", calendar_date=day)
+    assert result == ([] if invalid else [(77, nba["datetime"])])

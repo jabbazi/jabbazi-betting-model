@@ -100,6 +100,7 @@ def audit_candidate_feed(provider, *, sport, game_id, event_starts_at,
         base["reason"] = "INDEPENDENT_IDENTITY_REVIEW_REQUIRED"
         # Private rows are returned only to the caller; never print this value.
         base["_private_candidates"] = result["candidates_private"]
+        base["_private_conflicts"] = result["conflicts_private"]
         return base
     except Exception:
         # Fail closed without logging HTTP bodies, source records or credentials.
@@ -138,7 +139,7 @@ def discover_upcoming_games(provider, *, sport, calendar_date, max_games=3):
             raise ValueError("Duplicate provider game ID")
         seen.add(gid)
         if (not _matches_vendor_calendar_day(
-                sport.lower(), row.get("date"), calendar_date)
+                sport.lower(), row.get("game_date" if sport == "NHL" else "date"), calendar_date)
                 or row.get("status_state") != "scheduled"
                 or _verified_future_kickoff(
                     row, sport.lower(), target_date=calendar_date,
@@ -212,6 +213,7 @@ def main(argv=None):
     parser.add_argument("--source-roster-file", type=Path,
                         help="Optional private roster JSON; default uses live ESPN or nflverse")
     parser.add_argument("--save-private-candidates", type=Path)
+    parser.add_argument("--save-private-conflicts", type=Path)
     parser.add_argument("--max-prop-pages", type=int, default=25)
     parser.add_argument("--request-budget", type=int, default=40)
     args = parser.parse_args(argv)
@@ -251,6 +253,14 @@ def main(argv=None):
             )
     finally:
         provider.close()
+    conflicts = result.pop("_private_conflicts", [])
+    if args.save_private_conflicts is not None and conflicts:
+        try:
+            _write_private_candidates(args.save_private_conflicts, conflicts)
+        except OSError:
+            result["private_conflict_file_written"] = False
+        else:
+            result["private_conflict_file_written"] = True
     private = result.pop("_private_candidates", [])
     if args.save_private_candidates is not None and private:
         try:

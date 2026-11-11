@@ -53,8 +53,8 @@ forecasts and bookmaker receipts cannot be recreated after the outcomes are know
 
 `tools/train_nba_nhl_joint.py` uses the existing public-history collectors and
 causal dataset builders. It retains the existing pre-July-2024 count marginals,
-fits same-player residual rank dependence on July 2024–June 2025, and evaluates
-July 2025–June 2026. At least 200 distinct games in both periods are required
+fits same-player residual rank dependence on July 2024â€“June 2025, and evaluates
+July 2025â€“June 2026. At least 200 distinct games in both periods are required
 per pair. Labels crossing a split boundary are excluded. Future features,
 duplicate identities, cross-market event mismatches and overlapping marginal
 training are rejected. Holdout labels do not affect fitted ranks or model identity.
@@ -114,7 +114,7 @@ independent-game sample counts before inference. It never refits on new outcomes
 `python -m tools.capture_joint_research --sport NHL --event OFFICIAL_GAME_ID
 --player OFFICIAL_PLAYER_ID --pair 0 --execute` validates an upcoming official
 game and exact roster identity, fetches fresh inputs and freezes one same-player
-joint forecast. NBA uses ESPN event/player IDs. Pair indices 0–2 refer to the
+joint forecast. NBA uses ESPN event/player IDs. Pair indices 0â€“2 refer to the
 predeclared benchmark pairs in the historical protocol; all sides remain over at
 the original benchmark thresholds. Omit `--execute` for read-only input checks.
 This command is operator-invoked, has no scheduler, does not fetch paid odds and
@@ -128,7 +128,7 @@ settlement. No single successful capture establishes calibration or readiness.
 # Prospective collection and result polling
 
 Live matchup audit on 2026-11-11 UTC: all 50 official roster players for the
-next Tampa Bay–Buffalo game were checked across 185 applicable contexts (four
+next Tampa Bayâ€“Buffalo game were checked across 185 applicable contexts (four
 skater markets, saves for goalies). 160 contexts passed all feature gates across
 40 skaters. Remaining contexts were blocked by injuries, insufficient history,
 or unconfirmed starting goalies. This covers one matchup, not the full slate.
@@ -179,7 +179,7 @@ Each official boxscore is reused within that invocation, but player IDs, markets
 participation and event chronology are checked separately for every forecast.
 One failed player does not prevent independent records from being checked.
 
-A batch allows 1–200 forecasts and a 1–120 second processing budget (default 60).
+A batch allows 1â€“200 forecasts and a 1â€“120 second processing budget (default 60).
 The budget is checked between forecasts; an in-flight source request can finish
 later under its HTTP timeout. When `has_more` is true, pass `next_cursor` as
 `--after` for the next batch. After completing a sweep, start the next polling
@@ -209,3 +209,25 @@ Scoped boost results are saved separately as paid_boost_scan records, keyed to
 the date, sport, games, markets and books. read_saved_boost_scan requires that
 exact scope; it cannot substitute another book's saved result. The broad scanner
 continues reading paid_player_scan records.
+
+
+### Additional identity, discovery and quote-source repairs
+
+NHL date-based roster discovery now reads the paid feed's `game_date` field;
+`start_time_utc` and future/scheduled checks remain required. Birth-date conflicts
+retain both unmodified source records and SHA-256 fingerprints in private review
+output. `--save-private-conflicts` writes a separate exclusive-create private file;
+console output contains counts only. Conflicts remain unresolved, never approved
+by name/team alone or repaired by silently shifting dates.
+
+The inactive `providers/opticodds_sgp.py` adapter prepares an alternative to a
+DraftKings account login using the documented OpticOdds DraftKings SGP endpoint:
+https://developer.opticodds.com/reference/post_parlay-odds . It requires separate
+provider access, which was not configured in the Research API on November 10.
+No subscription was purchased and no live quote was obtained through this route.
+Requests disallow missing entries and points mismatch; responses must match every
+explicit fixture/market/selection. No individual-leg multiplication, AI consensus,
+other-book substitute, wager submission, or automatic calibration attachment is
+allowed. Independent fixture/player/line binding to a frozen forecast is still
+required. Synthetic adapter tests are not live quote evidence. Gmail connection
+and DraftKings login are excluded per the owner's instruction.
