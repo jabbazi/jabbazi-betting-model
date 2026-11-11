@@ -87,6 +87,22 @@ def settled(*, forecast_id, values=(22, 7), statuses=("final", "final")):
     ]
 
 
+def test_official_final_observation_preserves_honest_time_basis(store):
+    fid=freeze_joint_ticket(store,ticket(market=False),observed_at=NOW)['forecast_id']
+    observed=NOW+timedelta(hours=5)
+    results=settled(forecast_id=fid)
+    payload={'event_id':'event-1','ticket_id':'ticket-1','forecast_id':fid,
+        'leg_results':results,'event_status':'final','completion_time_basis':'official_final_status_observed',
+        'final_observed_at':observed.isoformat(),'raw_response_sha256':'a'*64}
+    source={'provider':'synthetic-final-observation','observed_at':observed.isoformat(),'payload':payload}
+    bad=deepcopy(source); bad['payload']['raw_response_sha256']=''
+    with pytest.raises(ValueError,match='receipt'):
+        archive_joint_outcome(store,forecast_id=fid,leg_results=results,result_source=bad,observed_at=observed)
+    result=archive_joint_outcome(store,forecast_id=fid,leg_results=results,result_source=source,observed_at=observed)
+    assert result['status']=='FINAL' and result['outcome']==1
+    assert audit_ready_rows(store)==[]
+
+
 def settle(store, fid, *, results=None):
     now = NOW + timedelta(hours=5)
     observations = results if results is not None else settled(forecast_id=fid)

@@ -125,3 +125,23 @@ The original DraftKings combined offer is separate evidence. Forecasts without
 such receipts remain marked missing market baseline. Historical research models
 have no participation/void model; DNPs and voids must be explicitly excluded at
 settlement. No single successful capture establishes calibration or readiness.
+# Prospective collection and result polling
+
+The first real NHL goals/shots forecast was frozen on 2026-11-11 UTC for
+official game `nhl:2026020293`, player `8478519`, before its scheduled start.
+Its private receipt is `a27884c1397124fb1e1fabeb712b96024e86a0dc6d5896e0d6cb8cf2190e5de4`.
+No sportsbook quote or result is asserted for this forecast.
+
+Run `python -m tools.settle_joint_research --forecast FORECAST_ID` to read an
+official boxscore and verify exact event/player/stat identities. `--execute`
+appends a final result only after the official source reports completion.
+Unfinished games remain pending; missing statistics and ambiguous participation
+remain blocked. Source observations retain the raw response and its checksum.
+The time a final status was observed is explicitly distinguished from the exact
+game completion time, which these public feeds generally do not provide.
+
+NBA season CSVs are now spooled to temporary files in bounded chunks to avoid
+holding raw bytes plus decoded copies of entire season releases in memory.
+No recurring job, deployment, sportsbook account action, or model promotion is
+enabled by these operator-invoked tools.
+

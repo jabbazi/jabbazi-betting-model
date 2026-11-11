@@ -265,7 +265,17 @@ def archive_joint_outcome(store, *, forecast_id, leg_results, result_source,
                 or source_payload.get("leg_results") != leg_results):
             raise ValueError("Archived result source does not match resolved legs")
         start = _at(frozen["starts_at"], "starts_at")
-        source_finished_at = _at(source_payload.get("completed_at"), "completed_at")
+        if source_payload.get("completion_time_basis") == "official_final_status_observed":
+            # A public boxscore establishes that the game has finished, but
+            # generally does not supply the exact wall-clock completion time.
+            # Preserve the observation time explicitly; never invent that time.
+            receipt = source_payload.get("raw_response_sha256", "")
+            if (source_payload.get("completed_at") is not None or len(receipt) != 64
+                    or any(c not in "0123456789abcdef" for c in receipt)):
+                raise ValueError("Official final observation receipt required")
+            source_finished_at = _at(source_payload.get("final_observed_at"), "final_observed_at")
+        else:
+            source_finished_at = _at(source_payload.get("completed_at"), "completed_at")
         if (source_payload.get("event_status") != "final"
                 or not start < source_finished_at
                 <= _at(result_snapshot["observed_at"], "result observed_at") <= now):
