@@ -21,7 +21,7 @@ def daily_failure_notice(store, *, now=None):
     if not any(row["payload"].get("status") == "DATA_UNHEALTHY" for row in audits):
         return None
     return (
-        f"⚠️ JABBAZI DAILY CHEAT SHEETS DELAYED • {date} CT\\n"
+        f"⚠️ JABBAZI DAILY CHEAT SHEETS DELAYED • {date} CT\n"
         "Today's scheduled source scans failed data-health checks. "
         "No unverified or stale selections will be published. "
         "The research worker is retaining a private delivery audit for review."
