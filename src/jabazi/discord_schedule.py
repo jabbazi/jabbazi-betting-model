@@ -71,7 +71,7 @@ def scoped_daily_disclosure(store, record):
     source_id = str(payload.get("source_research_sheet_id") or "")
     if not source_id:
         return ""
-    sources = store.list_records("research_sheet", 20, entity="latest_scan")
+    sources = store.list_records("research_sheet", 20, entity="daily_scoped_scan")
     scoped = any(
         row["id"] == source_id and row["payload"].get("daily_scoped_research_only") is True
         for row in sources
@@ -91,6 +91,60 @@ def scoped_daily_disclosure(store, record):
         "authorize any wager."
         if scoped else ""
     )
+
+
+def daily_delivery_eligible(store, record, rows, *, now=None):
+    """Retain canonical delivery checks, with a separate scoped daily audit.
+
+    Scoped recovery never marks the global latest_scan as healthy and never
+    overrides the documented event identity, date, freshness, or fee gates.
+    """
+    from .daily_scope import delivery_eligible, reconciled_event
+
+    now = now or datetime.now(UTC)
+    if not rows:
+        return False
+    source_id = str((record.get("payload") or {}).get("source_research_sheet_id") or "")
+    if not source_id:
+        return False
+    scoped = next(
+        (row for row in store.list_records("research_sheet", 20, entity="daily_scoped_scan")
+         if row["id"] == source_id),
+        None,
+    )
+    if scoped is None:
+        # If the frozen board claims a scoped source, don't silently fall back
+        # to an unrelated global scanner snapshot.
+        audits = store.list_records(
+            "discord_daily_scan_audit", 5,
+            entity=str(record.get("payload", {}).get("date") or ""),
+        )
+        if any(
+            audit["payload"].get("status") == "SCOPED_RESEARCH_ONLY"
+            and audit["payload"].get("sheet_id") == source_id
+            for audit in audits
+        ):
+            return False
+        return delivery_eligible(store, rows, now=now)
+
+    payload = scoped["payload"]
+    if (payload.get("daily_scoped_research_only") is not True
+            or payload.get("source_model_exclusions") !=
+               ["baseball_mlb:score_model_load_ValueError"]
+            or payload.get("healthy") is not True
+            or payload.get("truncated")):
+        return False
+    try:
+        at = datetime.fromisoformat(str(payload["completed_at"]).replace("Z", "+00:00"))
+        if not 0 <= (now - at).total_seconds() <= 900:
+            return False
+    except (KeyError, ValueError, TypeError):
+        return False
+    events = payload.get("slate_events") or []
+    if any(event.get("sport") == "baseball_mlb" and
+           reconciled_event(event, events, now=now) for event in events):
+        return False
+    return all(reconciled_event(row, events, now=now) for row in rows)
 
 
 def run_due(settings, store, *, now=None, scanner_factory=None):
@@ -116,8 +170,16 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
         if recovered is not None:
             sheet_result = recovered
             excluded = tuple(result.errors)
-    sheet_id = (archive_sheets(store, sheet_result, source_model_exclusions=excluded)
-                if excluded else archive_sheets(store, result))
+    # The original failed scan remains the global snapshot for model-health
+    # dashboards. Only the deliberately scoped derived sheet can be frozen.
+    if excluded:
+        archive_sheets(store, result)
+        sheet_id = archive_sheets(
+            store, sheet_result, source_model_exclusions=excluded,
+            entity="daily_scoped_scan",
+        )
+    else:
+        sheet_id = archive_sheets(store, result)
     audit = {
         "status": "SCOPED_RESEARCH_ONLY" if excluded else "DATA_UNHEALTHY" if result.errors else "HEALTHY",
         "error_count": len(result.errors),
@@ -136,7 +198,12 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
     }, separators=(",", ":")), flush=True)
     if result.errors and not excluded:
         return "DATA_UNHEALTHY"
-    sheet = next((row for row in store.list_records("research_sheet", 20, entity="latest_scan") if row["id"] == sheet_id), None)
+    sheet_entity = "daily_scoped_scan" if excluded else "latest_scan"
+    sheet = next(
+        (row for row in store.list_records("research_sheet", 20, entity=sheet_entity)
+         if row["id"] == sheet_id),
+        None,
+    )
     if sheet is None:
         return "SOURCE_UNAVAILABLE"
     frozen_id, created = freeze_daily_moneyline(store, sheet, now=datetime.now(UTC), timezone="America/Chicago")
