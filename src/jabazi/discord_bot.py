@@ -407,8 +407,11 @@ def build_client(config, store):
                 data = await asyncio.to_thread(render_slate, record)
                 if rows and not await asyncio.to_thread(delivery_eligible, store, rows):
                     return await interaction.followup.send("The slate changed. Please request a fresh sheet.", ephemeral=True)
+                from .discord_schedule import scoped_daily_disclosure
+                disclosure = await asyncio.to_thread(scoped_daily_disclosure, store, record)
+                summary = render_daily_moneyline(record)
                 await interaction.followup.send(
-                    render_daily_moneyline(record),
+                    summary + (("\n" + disclosure) if disclosure else ""),
                     file=discord.File(io.BytesIO(data), filename=f"jabbazi-{record['payload']['date']}-slate.png"),
                     ephemeral=True,
                 )
@@ -1164,8 +1167,13 @@ def build_client(config, store):
                     raise RuntimeError("Daily game eligibility changed before delivery")
                 delivery = self.alert_delivery("Cheat Sheet Alerts")
                 prefix = delivery.pop("content") or ""
+                from .discord_schedule import scoped_daily_disclosure
+                disclosure = await asyncio.to_thread(scoped_daily_disclosure, store, record)
+                message_text = (prefix + "\n" + render_daily_moneyline(record)).strip()
+                if disclosure:
+                    message_text += "\n" + disclosure
                 sent = await channel.send(
-                    (prefix + "\n" + render_daily_moneyline(record)).strip(),
+                    message_text,
                     file=discord.File(io.BytesIO(data), filename=f"jabbazi-{record['payload']['date']}-slate.png"),
                     **delivery,
                 )
