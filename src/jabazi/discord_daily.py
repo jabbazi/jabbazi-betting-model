@@ -292,6 +292,8 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
         "data_freshness": "snapshot",
         "sports": sorted(allowed),
         "notice": "Projected winner is research, not automatically an official JABBAZI wager.",
+        "daily_scoped_research_only": bool(payload.get("daily_scoped_research_only")),
+        "source_model_exclusions": list(payload.get("source_model_exclusions") or []),
         "rows": cards,
         "row_count": len(cards),
         "eligible_game_count": len(events),
@@ -332,6 +334,11 @@ def render_text(record):
         "Projected winners and evidence sources are listed on the attached sheet.",
         "Market-consensus leans are labeled when an independent model is unavailable.",
         "Research only. Projected winner does not mean an official wager.",
+        *(
+            ["⚠️ Partial research scope: the unavailable off-slate MLB score model was excluded. "
+             "This is not proof of full-league coverage."]
+            if p.get("daily_scoped_research_only") else []
+        ),
     ])
 
 
