@@ -80,7 +80,8 @@ def _daily_result(*, errors=("baseball_mlb:score_model_load_ValueError",), event
     return AutomaticScanResult(
         feeds_scanned=2, quotes_archived=quotes, new_actions=(), arbitrages=(),
         credits_remaining=10, errors=errors,
-        actions=(NS(stake=stake, decision=NS(value=decision)),),
+        actions=((NS(stake=stake, decision=NS(value=decision)),)
+                 if stake != "0" or decision != "WATCH" else ()),
         slate_events=tuple(events if events is not None else [game]),
     )
 
