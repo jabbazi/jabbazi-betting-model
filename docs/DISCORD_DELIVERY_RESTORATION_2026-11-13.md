@@ -42,9 +42,16 @@ only when ALL the following are true:
 - The source actually scanned feeds and archived quotes.
 - There are no stake-bearing or BET_NOW actions, even in the original
   failing scan.
-- The scoped snapshot carries an immutable exclusion warning and no
-  wagering-approval claim; the original scan remains failed in its own
-  `scan_run` audit record.
+- The scoped snapshot is archived as `research_sheet` entity
+  `daily_scoped_scan` and carries an explicit exclusion notice. The **original
+  unhealthy** result remains under entity `latest_scan` and in its own
+  `scan_run` audit record; VIP model-health status is never replaced by a
+  cosmetically healthy recovery snapshot. No wagering approval is implied.
+- The manual `/cheatsheet` command and scheduled Discord publisher verify
+  the frozen board's exact source ID, eligible event identity and recent
+  observation (15-minute maximum). Missing source evidence fails closed.
+  Discord text explicitly discloses the excluded off-slate MLB model while
+  the previously reviewed image-rendering code stays unmodified.
 
 Any additional provider, identity, sport, coverage, or model error still
 blocks publication. A current-day MLB game also blocks recovery.
