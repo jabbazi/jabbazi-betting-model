@@ -39,9 +39,14 @@ def iso(value):
     return value.isoformat() if value is not None else ""
 
 
-def archive_sheets(store, result, *, now=None, source_model_exclusions=()):
+def archive_sheets(store, result, *, now=None, source_model_exclusions=(), entity="latest_scan"):
     """One immutable snapshot for exactly this scan, including empty/failed scans."""
     now = now or datetime.now(UTC)
+    # Never promote a scoped recovery snapshot to the canonical latest scanner.
+    if entity not in {"latest_scan", "daily_scoped_scan"}:
+        raise ValueError("Unrecognized research sheet scope")
+    if bool(source_model_exclusions) != (entity == "daily_scoped_scan"):
+        raise ValueError("Scoped research must use its isolated storage entity")
     rows = []
     for action in result.actions[:MAX_ROWS]:
         c = action.price
@@ -155,7 +160,7 @@ def archive_sheets(store, result, *, now=None, source_model_exclusions=()):
         payload["source_model_exclusions"] = list(source_model_exclusions)
         payload["daily_scoped_research_only"] = True
     key = digest(["research_sheet", payload])
-    store.append("research_sheet", "latest_scan", payload, key)
+    store.append("research_sheet", entity, payload, key)
     return key
 
 
