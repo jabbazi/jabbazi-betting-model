@@ -130,7 +130,9 @@ def test_recovery_disabled_by_default_even_for_off_slate_mlb(monkeypatch):
 def test_scoped_recovery_marks_snapshot_and_daily_text(monkeypatch):
     from jabazi.discord_sheets import archive_sheets
     from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline
-    from jabazi.discord_schedule import scoped_non_mlb_daily_result, scoped_daily_disclosure
+    from jabazi.discord_schedule import (
+        scoped_non_mlb_daily_result, scoped_daily_disclosure, daily_delivery_eligible,
+    )
 
     store = Store("sqlite:///:memory:", initialize=True)
     try:
@@ -138,10 +140,16 @@ def test_scoped_recovery_marks_snapshot_and_daily_text(monkeypatch):
         original = _daily_result()
         recovered = scoped_non_mlb_daily_result(original, now=at)
         assert recovered is not None
+        archived_original = archive_sheets(store, original, now=at)
         sheet_id = archive_sheets(
-            store, recovered, now=at, source_model_exclusions=original.errors
+            store, recovered, now=at,
+            source_model_exclusions=original.errors, entity="daily_scoped_scan",
         )
-        sheet = next(row for row in store.list_records("research_sheet", 5, entity="latest_scan")
+        original_rows = store.list_records("research_sheet", 5, entity="latest_scan")
+        assert len(original_rows) == 1
+        assert original_rows[0]["id"] == archived_original
+        assert original_rows[0]["payload"]["healthy"] is False
+        sheet = next(row for row in store.list_records("research_sheet", 5, entity="daily_scoped_scan")
                      if row["id"] == sheet_id)
         assert sheet["payload"]["daily_scoped_research_only"] is True
         assert sheet["payload"]["source_model_exclusions"] == list(original.errors)
@@ -152,6 +160,7 @@ def test_scoped_recovery_marks_snapshot_and_daily_text(monkeypatch):
         assert frozen["payload"]["row_count"] == 1
         assert frozen["payload"]["rows"][0]["status"] == "PASS"
         assert "off-slate MLB" in scoped_daily_disclosure(store, frozen)
+        assert daily_delivery_eligible(store, frozen, frozen["payload"]["rows"], now=at)
         assert original.errors  # Original scan remains fail-closed.
     finally:
         store.close()
@@ -210,3 +219,48 @@ def test_private_discord_delivery_preflight_enforces_scope_and_permissions(monke
     assert check(public) == "NOT_EXPLICITLY_PRIVATE"
     monkeypatch.delenv("JABBAZI_DISCORD_BOT_TOKEN", raising=False)
     assert main([]) == 2
+
+
+def test_scoped_delivery_rejects_stale_or_mutated_sources():
+    from jabazi.discord_schedule import daily_delivery_eligible
+    from jabazi.discord_sheets import archive_sheets
+    from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline
+    from jabazi.discord_schedule import scoped_non_mlb_daily_result
+    from datetime import timedelta
+
+    store = Store("sqlite:///:memory:", initialize=True)
+    try:
+        at = datetime(2026, 11, 13, 15, tzinfo=UTC)
+        original = _daily_result()
+        recovered = scoped_non_mlb_daily_result(original, now=at)
+        sid = archive_sheets(store, recovered, now=at,
+            source_model_exclusions=original.errors, entity="daily_scoped_scan")
+        sheet = next(x for x in store.list_records("research_sheet", 5, entity="daily_scoped_scan") if x["id"] == sid)
+        freeze_daily_moneyline(store, sheet, now=at)
+        record = daily_moneyline(store, now=at)
+        rows = record["payload"]["rows"]
+        assert daily_delivery_eligible(store, record, rows, now=at)
+        assert not daily_delivery_eligible(store, record, rows, now=at+timedelta(minutes=16))
+        bad = [{**rows[0], "event_id":"foreign-game"}]
+        assert not daily_delivery_eligible(store, record, bad, now=at)
+        assert not daily_delivery_eligible(store, record, [], now=at)
+        assert not daily_delivery_eligible(store, {**record, "payload": {
+            **record["payload"], "source_research_sheet_id":"unknown"
+        }}, rows, now=at)
+    finally:
+        store.close()
+
+
+def test_scoped_archive_rejects_any_promotion_to_global_health():
+    import pytest
+    from jabazi.discord_sheets import archive_sheets
+    store = Store("sqlite:///:memory:", initialize=True)
+    try:
+        result = _daily_result(errors=())
+        with pytest.raises(ValueError):
+            archive_sheets(store, result, source_model_exclusions=("MLB",))
+        with pytest.raises(ValueError):
+            archive_sheets(store, result, entity="daily_scoped_scan")
+        assert store.list_records("research_sheet", 10) == []
+    finally:
+        store.close()
