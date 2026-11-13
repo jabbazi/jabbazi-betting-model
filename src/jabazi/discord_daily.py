@@ -292,13 +292,15 @@ def freeze_daily_moneyline(store, research_sheet, *, now=None, timezone="America
         "data_freshness": "snapshot",
         "sports": sorted(allowed),
         "notice": "Projected winner is research, not automatically an official JABBAZI wager.",
-        "daily_scoped_research_only": bool(payload.get("daily_scoped_research_only")),
-        "source_model_exclusions": list(payload.get("source_model_exclusions") or []),
         "rows": cards,
         "row_count": len(cards),
         "eligible_game_count": len(events),
         "verified_count_match": len(cards) == len(events),
     }
+    # Preserve preexisting daily fingerprints and app schema on ordinary scans.
+    if payload.get("daily_scoped_research_only"):
+        frozen["daily_scoped_research_only"] = True
+        frozen["source_model_exclusions"] = list(payload.get("source_model_exclusions") or [])
     key = digest(["daily_moneyline_sheet", date, FORMAT_VERSION, frozen])
     if not store.append("daily_moneyline_sheet", date, frozen, key):
         return key, False
