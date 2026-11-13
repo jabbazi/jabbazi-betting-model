@@ -1109,9 +1109,36 @@ def build_client(config, store):
                 store.append, "sheet_delivery_result", key, result, digest([key, "result"])
             )
 
+        async def publish_daily_outage_notice_once(self):
+            """A single non-pick notice when all 9 AM daily source scans failed."""
+            from .discord_schedule import daily_failure_notice
+            notice = await asyncio.to_thread(daily_failure_notice, store)
+            if not notice:
+                return
+            channel = await self.checked_channel(config.sheets_channel)
+            date = datetime.now(ZoneInfo("America/Chicago")).date().isoformat()
+            key = digest(["discord_daily_outage_notice", config.guild, channel.id, date])
+            if not await asyncio.to_thread(
+                store.append, "discord_daily_outage_claim", str(channel.id),
+                {"date": date, "channel": str(channel.id)}, key,
+            ):
+                return
+            # An ambiguous send cannot safely be retried automatically: audit for review.
+            try:
+                sent = await channel.send(notice, allowed_mentions=discord.AllowedMentions.none())
+                result = {"status": "delivered", "message_id": str(sent.id)}
+            except Exception:
+                result = {"status": "needs_review"}
+            await asyncio.to_thread(
+                store.append, "discord_daily_outage_result", str(channel.id),
+                {"date": date, **result}, digest([key, "result"]),
+            )
+            print("DISCORD_DAILY_OUTAGE_NOTICE_" + result["status"].upper() + " DATE=" + date, flush=True)
+
         async def publish_daily_once(self):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
+                await self.publish_daily_outage_notice_once()
                 return
             from .daily_scope import eligible_today, delivery_eligible, CENTRAL
             if record['payload']['date'] != datetime.now(CENTRAL).date().isoformat():
