@@ -48,8 +48,8 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
     audit = {
         "status": "DATA_UNHEALTHY" if result.errors else "HEALTHY",
         "error_count": len(result.errors),
-        "feeds_scanned": int(result.feeds_scanned),
-        "quotes_archived": int(result.quotes_archived),
+        "feeds_scanned": int(getattr(result, "feeds_scanned", 0) or 0),
+        "quotes_archived": int(getattr(result, "quotes_archived", 0) or 0),
         "sheet_id": sheet_id,
         "completed_at": datetime.now(UTC).isoformat(),
     }
