@@ -1,10 +1,31 @@
 """Independent Central-time daily moneyline scheduler with durable claims."""
+import json
 import os
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from .discord_daily import daily_moneyline, freeze_daily_moneyline
 from .persistence.store import Store, digest
+
+
+def daily_failure_notice(store, *, now=None):
+    """Show one safe, date-scoped availability notice only after the scan window."""
+    now = now or datetime.now(UTC)
+    local = now.astimezone(ZoneInfo("America/Chicago"))
+    if (local.hour, local.minute) < (9, 15):
+        return None
+    date = local.date().isoformat()
+    if daily_moneyline(store, now=now) is not None:
+        return None
+    audits = store.list_records("discord_daily_scan_audit", 5, entity=date)
+    if not any(row["payload"].get("status") == "DATA_UNHEALTHY" for row in audits):
+        return None
+    return (
+        f"⚠️ JABBAZI DAILY CHEAT SHEETS DELAYED • {date} CT\\n"
+        "Today's scheduled source scans failed data-health checks. "
+        "No unverified or stale selections will be published. "
+        "The research worker is retaining a private delivery audit for review."
+    )
 
 
 def run_due(settings, store, *, now=None, scanner_factory=None):
@@ -24,6 +45,21 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
     scanner = (scanner_factory or AutomaticScanner)(settings, max_credits_per_run=int(os.getenv("JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS", "15")))
     result = scanner.run("moneyline")
     sheet_id = archive_sheets(store, result)
+    audit = {
+        "status": "DATA_UNHEALTHY" if result.errors else "HEALTHY",
+        "error_count": len(result.errors),
+        "feeds_scanned": int(result.feeds_scanned),
+        "quotes_archived": int(result.quotes_archived),
+        "sheet_id": sheet_id,
+        "completed_at": datetime.now(UTC).isoformat(),
+    }
+    store.append("discord_daily_scan_audit", date, audit, digest(["discord_daily_scan_audit", date, slot]))
+    # Never print raw scanner errors, response bodies, tokens or licensed quote rows.
+    print("DISCORD_DAILY_SCAN_AUDIT " + json.dumps({
+        "date": date, "slot": slot, "status": audit["status"],
+        "error_count": audit["error_count"], "feeds_scanned": audit["feeds_scanned"],
+        "quotes_archived": audit["quotes_archived"],
+    }, separators=(",", ":")), flush=True)
     if result.errors:
         return "DATA_UNHEALTHY"
     sheet = next((row for row in store.list_records("research_sheet", 20, entity="latest_scan") if row["id"] == sheet_id), None)
