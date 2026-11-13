@@ -1,6 +1,8 @@
 """Independent Central-time daily moneyline scheduler with durable claims."""
 import json
 import os
+from dataclasses import replace
+from decimal import Decimal
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -28,6 +30,41 @@ def daily_failure_notice(store, *, now=None):
     )
 
 
+def scoped_non_mlb_daily_result(result, *, now=None):
+    """Opt-in research-only recovery for one off-slate model-load failure.
+
+    Never change the stored scan_run or use this for official picks. Incomplete
+    provider data, additional errors, active MLB events, or stake-bearing
+    actions all fail closed.
+    """
+    from .automation import AutomaticScanResult
+    from .daily_scope import eligible_today
+
+    if not isinstance(result, AutomaticScanResult):
+        return None
+    if tuple(result.errors) != ("baseball_mlb:score_model_load_ValueError",):
+        return None
+    now = now or datetime.now(UTC)
+    slate = tuple(getattr(result, "slate_events", ()) or ())
+    today = [event for event in slate if eligible_today(event, now=now)]
+    if not today or any(event.get("sport") == "baseball_mlb" for event in today):
+        return None
+    if not result.feeds_scanned or not result.quotes_archived:
+        return None
+    for action in result.actions:
+        decision = getattr(getattr(action, "decision", None), "value", "")
+        if decision == "BET_NOW":
+            return None
+        try:
+            if Decimal(str(getattr(action, "stake", 0) or 0)) != 0:
+                return None
+        except (ArithmeticError, ValueError, TypeError):
+            return None
+    # The scanner's persisted original error and all original decisions
+    # remain unchanged. Only the separate daily research artifact is scoped.
+    return replace(result, errors=())
+
+
 def run_due(settings, store, *, now=None, scanner_factory=None):
     now = now or datetime.now(UTC)
     local = now.astimezone(ZoneInfo("America/Chicago"))
@@ -44,10 +81,18 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
     from .discord_sheets import archive_sheets
     scanner = (scanner_factory or AutomaticScanner)(settings, max_credits_per_run=int(os.getenv("JABBAZI_DISCORD_DAILY_SCAN_MAX_CREDITS", "15")))
     result = scanner.run("moneyline")
-    sheet_id = archive_sheets(store, result)
+    excluded = ()
+    sheet_result = result
+    if result.errors and os.getenv("JABBAZI_DAILY_OFF_SLATE_MODEL_RECOVERY", "false").lower() == "true":
+        recovered = scoped_non_mlb_daily_result(result, now=now)
+        if recovered is not None:
+            sheet_result = recovered
+            excluded = tuple(result.errors)
+    sheet_id = archive_sheets(store, sheet_result, source_model_exclusions=excluded)
     audit = {
-        "status": "DATA_UNHEALTHY" if result.errors else "HEALTHY",
+        "status": "SCOPED_RESEARCH_ONLY" if excluded else "DATA_UNHEALTHY" if result.errors else "HEALTHY",
         "error_count": len(result.errors),
+        "source_model_exclusions": list(excluded),
         "feeds_scanned": int(getattr(result, "feeds_scanned", 0) or 0),
         "quotes_archived": int(getattr(result, "quotes_archived", 0) or 0),
         "sheet_id": sheet_id,
@@ -60,7 +105,7 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
         "error_count": audit["error_count"], "feeds_scanned": audit["feeds_scanned"],
         "quotes_archived": audit["quotes_archived"],
     }, separators=(",", ":")), flush=True)
-    if result.errors:
+    if result.errors and not excluded:
         return "DATA_UNHEALTHY"
     sheet = next((row for row in store.list_records("research_sheet", 20, entity="latest_scan") if row["id"] == sheet_id), None)
     if sheet is None:
