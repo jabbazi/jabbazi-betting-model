@@ -39,7 +39,7 @@ def iso(value):
     return value.isoformat() if value is not None else ""
 
 
-def archive_sheets(store, result, *, now=None):
+def archive_sheets(store, result, *, now=None, source_model_exclusions=()):
     """One immutable snapshot for exactly this scan, including empty/failed scans."""
     now = now or datetime.now(UTC)
     rows = []
@@ -127,6 +127,8 @@ def archive_sheets(store, result, *, now=None):
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
         "error_count": len(result.errors),
+        "source_model_exclusions": list(source_model_exclusions),
+        "daily_scoped_research_only": bool(source_model_exclusions),
         "feeds": result.feeds_scanned,
         "event_market_coverage": getattr(result, "event_market_coverage", None),
         "quotes": result.quotes_archived,
@@ -143,7 +145,11 @@ def archive_sheets(store, result, *, now=None):
         ],
         "coverage": "All events returned by scanned odds feeds; not an independently verified league schedule",
         "truncated": len(result.actions) > MAX_ROWS,
-        "notice": "Research only. Prices are historical snapshots; recheck before acting. "
+        "notice": (
+            "Scoped research-only board: an off-slate unavailable model was excluded. "
+            "No full-league coverage or wagering approval is implied. "
+            if source_model_exclusions else ""
+        ) + "Research only. Prices are historical snapshots; recheck before acting. "
         "No official picks or stakes are issued by this sheet.",
     }
     key = digest(["research_sheet", payload])
