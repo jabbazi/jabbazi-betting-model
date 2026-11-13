@@ -401,14 +401,18 @@ def build_client(config, store):
                     return await interaction.followup.send(
                         "Today's JABBAZI game cheat sheets are not available yet.", ephemeral=True
                     )
-                from .daily_scope import eligible_today, delivery_eligible
+                from .daily_scope import eligible_today
+                from .discord_schedule import daily_delivery_eligible
                 rows = [row for row in record["payload"].get("rows", []) if eligible_today(row)]
                 record = {**record, "payload": {**record["payload"], "rows": rows, "row_count": len(rows)}}
                 data = await asyncio.to_thread(render_slate, record)
-                if rows and not await asyncio.to_thread(delivery_eligible, store, rows):
+                if rows and not await asyncio.to_thread(daily_delivery_eligible, store, record, rows):
                     return await interaction.followup.send("The slate changed. Please request a fresh sheet.", ephemeral=True)
+                from .discord_schedule import scoped_daily_disclosure
+                disclosure = await asyncio.to_thread(scoped_daily_disclosure, store, record)
+                summary = render_daily_moneyline(record)
                 await interaction.followup.send(
-                    render_daily_moneyline(record),
+                    summary + (("\n" + disclosure) if disclosure else ""),
                     file=discord.File(io.BytesIO(data), filename=f"jabbazi-{record['payload']['date']}-slate.png"),
                     ephemeral=True,
                 )
@@ -1109,15 +1113,43 @@ def build_client(config, store):
                 store.append, "sheet_delivery_result", key, result, digest([key, "result"])
             )
 
+        async def publish_daily_outage_notice_once(self):
+            """A single non-pick notice when all 9 AM daily source scans failed."""
+            from .discord_schedule import daily_failure_notice
+            notice = await asyncio.to_thread(daily_failure_notice, store)
+            if not notice:
+                return
+            channel = await self.checked_channel(config.sheets_channel)
+            date = datetime.now(ZoneInfo("America/Chicago")).date().isoformat()
+            key = digest(["discord_daily_outage_notice", config.guild, channel.id, date])
+            if not await asyncio.to_thread(
+                store.append, "discord_daily_outage_claim", str(channel.id),
+                {"date": date, "channel": str(channel.id)}, key,
+            ):
+                return
+            # An ambiguous send cannot safely be retried automatically: audit for review.
+            try:
+                sent = await channel.send(notice, allowed_mentions=discord.AllowedMentions.none())
+                result = {"status": "delivered", "message_id": str(sent.id)}
+            except Exception:
+                result = {"status": "needs_review"}
+            await asyncio.to_thread(
+                store.append, "discord_daily_outage_result", str(channel.id),
+                {"date": date, **result}, digest([key, "result"]),
+            )
+            print("DISCORD_DAILY_OUTAGE_NOTICE_" + result["status"].upper() + " DATE=" + date, flush=True)
+
         async def publish_daily_once(self):
             record = await asyncio.to_thread(daily_moneyline, store)
             if record is None:
+                await self.publish_daily_outage_notice_once()
                 return
-            from .daily_scope import eligible_today, delivery_eligible, CENTRAL
+            from .daily_scope import eligible_today, CENTRAL
+            from .discord_schedule import daily_delivery_eligible
             if record['payload']['date'] != datetime.now(CENTRAL).date().isoformat():
                 return
             cards = [row for row in record['payload'].get('rows', []) if eligible_today(row)]
-            if cards and not await asyncio.to_thread(delivery_eligible, store, cards):
+            if cards and not await asyncio.to_thread(daily_delivery_eligible, store, record, cards):
                 return
             record = {**record, 'payload': {**record['payload'], 'rows': cards,
                        'eligible_game_count': len(cards), 'row_count': len(cards)}}
@@ -1133,12 +1165,17 @@ def build_client(config, store):
                 expected = int(record["payload"].get("eligible_game_count", -1))
                 if len(cards) != expected or expected != int(record["payload"].get("row_count", -2)):
                     raise RuntimeError("Daily cheat sheet delivery count mismatch")
-                if cards and not await asyncio.to_thread(delivery_eligible, store, cards):
+                if cards and not await asyncio.to_thread(daily_delivery_eligible, store, record, cards):
                     raise RuntimeError("Daily game eligibility changed before delivery")
                 delivery = self.alert_delivery("Cheat Sheet Alerts")
                 prefix = delivery.pop("content") or ""
+                from .discord_schedule import scoped_daily_disclosure
+                disclosure = await asyncio.to_thread(scoped_daily_disclosure, store, record)
+                message_text = (prefix + "\n" + render_daily_moneyline(record)).strip()
+                if disclosure:
+                    message_text += "\n" + disclosure
                 sent = await channel.send(
-                    (prefix + "\n" + render_daily_moneyline(record)).strip(),
+                    message_text,
                     file=discord.File(io.BytesIO(data), filename=f"jabbazi-{record['payload']['date']}-slate.png"),
                     **delivery,
                 )
