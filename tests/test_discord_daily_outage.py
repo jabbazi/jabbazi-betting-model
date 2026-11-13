@@ -178,3 +178,35 @@ def test_discord_delivery_channel_mapping_flags_missing_and_stale_ids():
     ]
     env["JABBAZI_DISCORD_SHEETS_CHANNEL_ID"] = "200"
     assert delivery_channel_findings(known, visible, env) == []
+
+
+
+def test_private_discord_delivery_preflight_enforces_scope_and_permissions(monkeypatch):
+    from jabazi.discord_migration import VIEW, SEND
+    from tools.verify_discord_delivery import validate_private_test_target, main
+
+    roles = [{"id": "1", "permissions": "0"}]
+    channel = {
+        "id": "3", "guild_id": "1", "type": 0,
+        "permission_overwrites": [
+            {"id": "1", "type": 0, "allow": "0", "deny": str(VIEW)},
+            {"id": "2", "type": 1, "allow": str(VIEW | SEND), "deny": "0"},
+        ],
+    }
+    def check(row):
+        return validate_private_test_target("1", "9", "2", [], roles, row)
+    assert check(channel) == "VERIFIED_PRIVATE_TARGET"
+    assert check({**channel, "guild_id": "20"}) == "WRONG_GUILD_OR_CHANNEL_TYPE"
+    assert check({**channel, "type": 4}) == "WRONG_GUILD_OR_CHANNEL_TYPE"
+    missing_bot = {**channel, "permission_overwrites": channel["permission_overwrites"][:1]}
+    assert check(missing_bot) == "BOT_VIEW_SEND_NOT_GRANTED"
+    public = {
+        **channel,
+        "permission_overwrites": [
+            {"id": "1", "type": 0, "allow": str(VIEW), "deny": "0"},
+            channel["permission_overwrites"][1],
+        ],
+    }
+    assert check(public) == "NOT_EXPLICITLY_PRIVATE"
+    monkeypatch.delenv("JABBAZI_DISCORD_BOT_TOKEN", raising=False)
+    assert main([]) == 2
