@@ -155,3 +155,26 @@ def test_scoped_recovery_marks_snapshot_and_daily_text(monkeypatch):
         assert original.errors  # Original scan remains fail-closed.
     finally:
         store.close()
+
+
+
+def test_discord_delivery_channel_mapping_flags_missing_and_stale_ids():
+    from tools.verify_jabbazi_discord import delivery_channel_findings
+
+    known = {"scanner-status": "100", "cheat-sheets": "200"}
+    visible = {"100", "200", "300"}
+    env = {"JABBAZI_DISCORD_STATUS_CHANNEL_ID": "300", "JABBAZI_DISCORD_SHEETS_CHANNEL_ID": "200"}
+    assert delivery_channel_findings(known, visible, env) == [
+        "CHANNEL_CONFIG_DIFFERS_FROM_BLUEPRINT:status"
+    ]
+    env["JABBAZI_DISCORD_STATUS_CHANNEL_ID"] = "400"
+    assert delivery_channel_findings(known, visible, env) == [
+        "CHANNEL_UNAVAILABLE_OR_STALE:status"
+    ]
+    env["JABBAZI_DISCORD_STATUS_CHANNEL_ID"] = "100"
+    env["JABBAZI_DISCORD_SHEETS_CHANNEL_ID"] = ""
+    assert delivery_channel_findings(known, visible, env) == [
+        "CHANNEL_CONFIG_MISSING:sheets"
+    ]
+    env["JABBAZI_DISCORD_SHEETS_CHANNEL_ID"] = "200"
+    assert delivery_channel_findings(known, visible, env) == []
