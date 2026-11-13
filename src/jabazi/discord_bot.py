@@ -401,11 +401,12 @@ def build_client(config, store):
                     return await interaction.followup.send(
                         "Today's JABBAZI game cheat sheets are not available yet.", ephemeral=True
                     )
-                from .daily_scope import eligible_today, delivery_eligible
+                from .daily_scope import eligible_today
+                from .discord_schedule import daily_delivery_eligible
                 rows = [row for row in record["payload"].get("rows", []) if eligible_today(row)]
                 record = {**record, "payload": {**record["payload"], "rows": rows, "row_count": len(rows)}}
                 data = await asyncio.to_thread(render_slate, record)
-                if rows and not await asyncio.to_thread(delivery_eligible, store, rows):
+                if rows and not await asyncio.to_thread(daily_delivery_eligible, store, record, rows):
                     return await interaction.followup.send("The slate changed. Please request a fresh sheet.", ephemeral=True)
                 from .discord_schedule import scoped_daily_disclosure
                 disclosure = await asyncio.to_thread(scoped_daily_disclosure, store, record)
@@ -1143,11 +1144,12 @@ def build_client(config, store):
             if record is None:
                 await self.publish_daily_outage_notice_once()
                 return
-            from .daily_scope import eligible_today, delivery_eligible, CENTRAL
+            from .daily_scope import eligible_today, CENTRAL
+            from .discord_schedule import daily_delivery_eligible
             if record['payload']['date'] != datetime.now(CENTRAL).date().isoformat():
                 return
             cards = [row for row in record['payload'].get('rows', []) if eligible_today(row)]
-            if cards and not await asyncio.to_thread(delivery_eligible, store, cards):
+            if cards and not await asyncio.to_thread(daily_delivery_eligible, store, record, cards):
                 return
             record = {**record, 'payload': {**record['payload'], 'rows': cards,
                        'eligible_game_count': len(cards), 'row_count': len(cards)}}
@@ -1163,7 +1165,7 @@ def build_client(config, store):
                 expected = int(record["payload"].get("eligible_game_count", -1))
                 if len(cards) != expected or expected != int(record["payload"].get("row_count", -2)):
                     raise RuntimeError("Daily cheat sheet delivery count mismatch")
-                if cards and not await asyncio.to_thread(delivery_eligible, store, cards):
+                if cards and not await asyncio.to_thread(daily_delivery_eligible, store, record, cards):
                     raise RuntimeError("Daily game eligibility changed before delivery")
                 delivery = self.alert_delivery("Cheat Sheet Alerts")
                 prefix = delivery.pop("content") or ""
