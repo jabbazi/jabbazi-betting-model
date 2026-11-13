@@ -19,6 +19,42 @@
 
 The actual data-feed failure type **cannot** be determined from the existing generic `DATA_UNHEALTHY` lines alone. This change improves diagnostics for subsequent authorized runs; it is not proof of a repaired feed.
 
+## Additional targeted development recovery (off by default)
+
+The Worker quick-scan results from November 9–13 repeatedly included the single error
+`baseball_mlb:score_model_load_ValueError`. Model refresh logs identify an unavailable
+MLB score model due to missing recent completed-game coverage. **The dedicated 09:00
+moneyline scan's exact error array was not accessible through external read-only
+database tooling**, so attribution to the daily job is a strong hypothesis rather
+than a proven root cause.
+
+Development-only opt-in:
+`JABBAZI_DAILY_OFF_SLATE_MODEL_RECOVERY=true`
+
+This flag is **unset/false by default**. When explicitly enabled after staging
+verification, it permits a separate daily *research-only* snapshot to be frozen
+only when ALL the following are true:
+
+- The full source scanner has exactly one error, the specific MLB score-model
+  load failure named above.
+- There is at least one eligible current-day pregame event, and no eligible
+  MLB event that day.
+- The source actually scanned feeds and archived quotes.
+- There are no stake-bearing or BET_NOW actions, even in the original
+  failing scan.
+- The scoped snapshot carries an immutable exclusion warning and no
+  wagering-approval claim; the original scan remains failed in its own
+  `scan_run` audit record.
+
+Any additional provider, identity, sport, coverage, or model error still
+blocks publication. A current-day MLB game also blocks recovery.
+
+**Activation checklist:** inspect the day's actual eligible slate and source
+errors in the authorized runtime, confirm model and market rows for the
+other sports, test the scoped artifact and Discord publication in staging,
+then explicitly approve an audited isolated rollout with rollback.
+Neither this development branch nor CI automatically enables the flag.
+
 ## Authorized staging/production acceptance steps
 
 1. Run `python tools/verify_jabbazi_discord.py` in an **authorized existing Render runtime** that holds the bot token. Do not print, copy, or export the token. Inspect `CHANNEL_UNAVAILABLE_OR_STALE:status` and `CHANNEL_UNAVAILABLE_OR_STALE:sheets` outcomes, then verify current intended channel IDs and bot View/Send/Attach/Embed permissions in Discord. Do **not** choose an arbitrary replacement channel or loosen private VIP permissions.
