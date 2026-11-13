@@ -264,3 +264,46 @@ def test_scoped_archive_rejects_any_promotion_to_global_health():
         assert store.list_records("research_sheet", 10) == []
     finally:
         store.close()
+
+
+def test_opt_in_daily_flow_freezes_only_isolated_research(monkeypatch):
+    """Real freeze and readback, no writing healthy status over global failed scan."""
+    from jabazi import discord_schedule, discord_sheets
+    from jabazi.discord_daily import daily_moneyline
+
+    at = datetime(2026, 11, 13, 15, tzinfo=UTC)
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return at.astimezone(tz) if tz is not None else at.replace(tzinfo=None)
+
+    class FakeScanner:
+        def __init__(self, settings, *, max_credits_per_run):
+            assert max_credits_per_run > 0
+        def run(self, mode):
+            assert mode == "moneyline"
+            return _daily_result()
+
+    store = Store("sqlite:///:memory:", initialize=True)
+    try:
+        monkeypatch.setenv("JABBAZI_DAILY_OFF_SLATE_MODEL_RECOVERY", "true")
+        monkeypatch.setattr(discord_schedule, "datetime", FixedDateTime)
+        monkeypatch.setattr(discord_sheets, "datetime", FixedDateTime)
+        assert run_due(NS(api_key="yes"), store, now=at, scanner_factory=FakeScanner) == "FROZEN"
+        global_scans = store.list_records("research_sheet", 5, entity="latest_scan")
+        scoped_scans = store.list_records("research_sheet", 5, entity="daily_scoped_scan")
+        assert len(global_scans) == len(scoped_scans) == 1
+        assert global_scans[0]["payload"]["healthy"] is False
+        assert scoped_scans[0]["payload"]["healthy"] is True
+        audit = store.list_records("discord_daily_scan_audit", 1, entity="2026-11-13")
+        assert audit[0]["payload"]["status"] == "SCOPED_RESEARCH_ONLY"
+        assert audit[0]["payload"]["error_count"] == 1
+        frozen = daily_moneyline(store, now=at)
+        assert frozen["payload"]["source_research_sheet_id"] == scoped_scans[0]["id"]
+        assert discord_schedule.daily_delivery_eligible(
+            store, frozen, frozen["payload"]["rows"], now=at
+        )
+        assert "off-slate MLB" in discord_schedule.scoped_daily_disclosure(store, frozen)
+        assert run_due(NS(api_key="yes"), store, now=at, scanner_factory=FakeScanner) == "ALREADY_FROZEN"
+    finally:
+        store.close()
