@@ -55,6 +55,25 @@ other sports, test the scoped artifact and Discord publication in staging,
 then explicitly approve an audited isolated rollout with rollback.
 Neither this development branch nor CI automatically enables the flag.
 
+## Explicit private-channel delivery test tool (never runs automatically)
+
+A new helper `tools/verify_discord_delivery.py` uses the existing bot identity
+and an explicitly configured private `JABBAZI_DISCORD_DELIVERY_TEST_CHANNEL_ID`.
+
+- `python tools/verify_discord_delivery.py` only validates ownership, guild,
+  privacy, bot visibility and send permission. No message is sent.
+- `JABBAZI_DISCORD_TEST_SEND_APPROVED=true python tools/verify_discord_delivery.py --send-test`
+  sends **one clearly labeled diagnostic message**, with all mentions disabled,
+  only after private-channel preflight passes. Set the test channel ID to a real,
+  explicitly authorized, private non-picks destination before running.
+- On actual success it prints `DELIVERED` with a Discord message ID and UTC time.
+  Non-2xx responses, missing acknowledgement, unknown permissions and unsafe
+  destinations fail closed. The CLI never prints tokens, raw Discord error
+  bodies, or messages from members.
+- This command is **not executed by GitHub CI, Render deployments, or this
+  development change**. Operator activation and observed delivery evidence are
+  still required; never claim a live delivery based on synthetic tests alone.
+
 ## Authorized staging/production acceptance steps
 
 1. Run `python tools/verify_jabbazi_discord.py` in an **authorized existing Render runtime** that holds the bot token. Do not print, copy, or export the token. Inspect `CHANNEL_UNAVAILABLE_OR_STALE:status` and `CHANNEL_UNAVAILABLE_OR_STALE:sheets` outcomes, then verify current intended channel IDs and bot View/Send/Attach/Embed permissions in Discord. Do **not** choose an arbitrary replacement channel or loosen private VIP permissions.
