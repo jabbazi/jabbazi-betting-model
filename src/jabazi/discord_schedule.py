@@ -88,7 +88,8 @@ def run_due(settings, store, *, now=None, scanner_factory=None):
         if recovered is not None:
             sheet_result = recovered
             excluded = tuple(result.errors)
-    sheet_id = archive_sheets(store, sheet_result, source_model_exclusions=excluded)
+    sheet_id = (archive_sheets(store, sheet_result, source_model_exclusions=excluded)
+                if excluded else archive_sheets(store, result))
     audit = {
         "status": "SCOPED_RESEARCH_ONLY" if excluded else "DATA_UNHEALTHY" if result.errors else "HEALTHY",
         "error_count": len(result.errors),
