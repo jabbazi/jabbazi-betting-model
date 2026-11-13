@@ -129,8 +129,8 @@ def test_recovery_disabled_by_default_even_for_off_slate_mlb(monkeypatch):
 
 def test_scoped_recovery_marks_snapshot_and_daily_text(monkeypatch):
     from jabazi.discord_sheets import archive_sheets
-    from jabazi.discord_daily import freeze_daily_moneyline, render_text, daily_moneyline
-    from jabazi.discord_schedule import scoped_non_mlb_daily_result
+    from jabazi.discord_daily import freeze_daily_moneyline, daily_moneyline
+    from jabazi.discord_schedule import scoped_non_mlb_daily_result, scoped_daily_disclosure
 
     store = Store("sqlite:///:memory:", initialize=True)
     try:
@@ -148,10 +148,10 @@ def test_scoped_recovery_marks_snapshot_and_daily_text(monkeypatch):
         assert sheet["payload"]["healthy"] is True
         freeze_daily_moneyline(store, sheet, now=at)
         frozen = daily_moneyline(store, now=at)
-        assert frozen["payload"]["daily_scoped_research_only"] is True
+        assert "daily_scoped_research_only" not in frozen["payload"]
         assert frozen["payload"]["row_count"] == 1
         assert frozen["payload"]["rows"][0]["status"] == "PASS"
-        assert "off-slate MLB" in render_text(frozen)
+        assert "off-slate MLB" in scoped_daily_disclosure(store, frozen)
         assert original.errors  # Original scan remains fail-closed.
     finally:
         store.close()
