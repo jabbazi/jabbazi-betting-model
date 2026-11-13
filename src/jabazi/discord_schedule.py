@@ -65,6 +65,34 @@ def scoped_non_mlb_daily_result(result, *, now=None):
     return replace(result, errors=())
 
 
+def scoped_daily_disclosure(store, record):
+    """Disclosure attached to a frozen daily board; do not alter its signed shape."""
+    payload = record.get("payload") or {}
+    source_id = str(payload.get("source_research_sheet_id") or "")
+    if not source_id:
+        return ""
+    sources = store.list_records("research_sheet", 20, entity="latest_scan")
+    scoped = any(
+        row["id"] == source_id and row["payload"].get("daily_scoped_research_only") is True
+        for row in sources
+    )
+    if not scoped:
+        audits = store.list_records(
+            "discord_daily_scan_audit", 5, entity=str(payload.get("date") or "")
+        )
+        scoped = any(
+            row["payload"].get("sheet_id") == source_id
+            and row["payload"].get("status") == "SCOPED_RESEARCH_ONLY"
+            for row in audits
+        )
+    return (
+        "⚠️ SCOPED RESEARCH ONLY: the unavailable off-slate MLB score model "
+        "was excluded. This board does not verify full-league coverage or "
+        "authorize any wager."
+        if scoped else ""
+    )
+
+
 def run_due(settings, store, *, now=None, scanner_factory=None):
     now = now or datetime.now(UTC)
     local = now.astimezone(ZoneInfo("America/Chicago"))
