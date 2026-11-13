@@ -224,6 +224,16 @@ def main():
                     failures.append("OWNER_ARCHIVE_EXPOSED")
                     break
 
+        # Diagnose stale Render channel IDs without changing destinations or ACLs.
+        # Discord may omit channels the bot cannot access: report unavailable, not deleted.
+        visible_channel_ids = {str(row.get("id")) for row in channels}
+        for lane, suffix in (("status", "STATUS_CHANNEL_ID"), ("sheets", "SHEETS_CHANNEL_ID")):
+            configured_id = os.getenv("JABBAZI_DISCORD_" + suffix, "").strip()
+            if not configured_id.isdigit():
+                failures.append("CHANNEL_CONFIG_MISSING:" + lane)
+            elif configured_id not in visible_channel_ids:
+                failures.append("CHANNEL_UNAVAILABLE_OR_STALE:" + lane)
+
         result = {
             "status": "VERIFIED" if not failures else "ACTION_REQUIRED",
             "guild_name": info.get("name"),
