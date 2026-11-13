@@ -22,6 +22,24 @@ from jabazi.discord_onboarding import is_introduction, read_pins
 API = "https://discord.com/api/v10"
 
 
+def delivery_channel_findings(configured_channels, visible_ids, env):
+    """Read-only discrepancies between configured delivery and current guild layout."""
+    problems = []
+    for lane, suffix, expected_key in (
+        ("status", "STATUS_CHANNEL_ID", "scanner-status"),
+        ("sheets", "SHEETS_CHANNEL_ID", "cheat-sheets"),
+    ):
+        configured_id = str(env.get("JABBAZI_DISCORD_" + suffix, "")).strip()
+        expected_id = str(configured_channels.get(expected_key) or "")
+        if not configured_id.isdigit():
+            problems.append("CHANNEL_CONFIG_MISSING:" + lane)
+        elif configured_id not in visible_ids:
+            problems.append("CHANNEL_UNAVAILABLE_OR_STALE:" + lane)
+        elif expected_id and configured_id != expected_id:
+            problems.append("CHANNEL_CONFIG_DIFFERS_FROM_BLUEPRINT:" + lane)
+    return problems
+
+
 def main():
     token = os.getenv("JABBAZI_DISCORD_BOT_TOKEN", "").strip()
     guild = os.getenv("JABBAZI_DISCORD_GUILD_ID", "").strip()
@@ -227,12 +245,7 @@ def main():
         # Diagnose stale Render channel IDs without changing destinations or ACLs.
         # Discord may omit channels the bot cannot access: report unavailable, not deleted.
         visible_channel_ids = {str(row.get("id")) for row in channels}
-        for lane, suffix in (("status", "STATUS_CHANNEL_ID"), ("sheets", "SHEETS_CHANNEL_ID")):
-            configured_id = os.getenv("JABBAZI_DISCORD_" + suffix, "").strip()
-            if not configured_id.isdigit():
-                failures.append("CHANNEL_CONFIG_MISSING:" + lane)
-            elif configured_id not in visible_channel_ids:
-                failures.append("CHANNEL_UNAVAILABLE_OR_STALE:" + lane)
+        failures.extend(delivery_channel_findings(channel_ids, visible_channel_ids, os.environ))
 
         result = {
             "status": "VERIFIED" if not failures else "ACTION_REQUIRED",
