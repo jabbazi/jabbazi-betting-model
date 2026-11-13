@@ -127,8 +127,6 @@ def archive_sheets(store, result, *, now=None, source_model_exclusions=()):
         "completed_at": now.isoformat(),
         "healthy": not result.errors,
         "error_count": len(result.errors),
-        "source_model_exclusions": list(source_model_exclusions),
-        "daily_scoped_research_only": bool(source_model_exclusions),
         "feeds": result.feeds_scanned,
         "event_market_coverage": getattr(result, "event_market_coverage", None),
         "quotes": result.quotes_archived,
@@ -152,6 +150,10 @@ def archive_sheets(store, result, *, now=None, source_model_exclusions=()):
         ) + "Research only. Prices are historical snapshots; recheck before acting. "
         "No official picks or stakes are issued by this sheet.",
     }
+    # Do not change ordinary scan fingerprints or the VIP/Discord output schema.
+    if source_model_exclusions:
+        payload["source_model_exclusions"] = list(source_model_exclusions)
+        payload["daily_scoped_research_only"] = True
     key = digest(["research_sheet", payload])
     store.append("research_sheet", "latest_scan", payload, key)
     return key
